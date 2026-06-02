@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+.pnp.*
+.yarn/*
+
+# Build output
+dist/
+build/
+out/
+*.tsbuildinfo
+.turbo/
+.vite/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# DBOS / local data
+.dbos/
+pgdata/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

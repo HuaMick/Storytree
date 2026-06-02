@@ -1,0 +1,16 @@
+{
+  "name": "storytree",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "An agentic software-builder: a DAG of stories grown by AI coding agents, watched live.",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
+  }
+}
