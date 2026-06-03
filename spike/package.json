@@ -1,0 +1,24 @@
+{
+  "name": "storytree-spike-dbos",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Throwaway de-risking spike for ADR-0001: prove DBOS gives crash-safe, concurrency-safe durable orchestration of concurrent coding-agent nodes (3-node fan-out/fan-in + mid-run hard-kill).",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "smoke": "node dist/smoke.js",
+    "reset": "node dist/runner.js reset",
+    "start:run": "node dist/runner.js start",
+    "resume": "node dist/runner.js resume",
+    "report": "node dist/runner.js report"
+  },
+  "dependencies": {
+    "@dbos-inc/dbos-sdk": "4.19.8",
+    "pg": "^8.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@types/pg": "^8.20.0",
+    "typescript": "^6.0.3"
+  }
+}

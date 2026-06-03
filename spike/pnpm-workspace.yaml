@@ -1,0 +1,5 @@
+# This spike is a STANDALONE pnpm project, deliberately isolated from the
+# storytree root workspace (packages/*, apps/*). This empty workspace file
+# makes pnpm treat spike/ as its own root, so `pnpm install` here installs the
+# spike's deps without touching the real monorepo. Throwaway / de-risking only.
+packages: []
