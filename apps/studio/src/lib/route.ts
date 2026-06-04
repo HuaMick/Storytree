@@ -1,0 +1,55 @@
+// Tiny hash router — no dependency, deep-linkable. Doc/asset ids are URI-encoded
+// into a single hash segment so slashes in doc relpaths don't break parsing.
+
+import { useSyncExternalStore } from 'react';
+
+export type Route =
+  | { name: 'home' }
+  | { name: 'doc'; id: string }
+  | { name: 'library' }
+  | { name: 'asset'; id: string }
+  | { name: 'asset-edit'; id: string }
+  | { name: 'asset-new' };
+
+export function parseRoute(hash: string): Route {
+  const path = hash.replace(/^#/, '');
+  if (path === '' || path === '/') return { name: 'home' };
+  if (path === '/library') return { name: 'library' };
+  if (path.startsWith('/doc/')) {
+    return { name: 'doc', id: decodeURIComponent(path.slice('/doc/'.length)) };
+  }
+  if (path.startsWith('/asset/')) {
+    const rest = path.slice('/asset/'.length);
+    if (rest === 'new') return { name: 'asset-new' };
+    const [encId, sub] = rest.split('/');
+    const id = decodeURIComponent(encId ?? '');
+    if (sub === 'edit') return { name: 'asset-edit', id };
+    if (id) return { name: 'asset', id };
+  }
+  return { name: 'home' };
+}
+
+function subscribe(cb: () => void): () => void {
+  window.addEventListener('hashchange', cb);
+  return () => window.removeEventListener('hashchange', cb);
+}
+
+export function useRoute(): Route {
+  const hash = useSyncExternalStore(
+    subscribe,
+    () => window.location.hash || '#/',
+    () => '#/',
+  );
+  return parseRoute(hash);
+}
+
+export function navigate(to: string): void {
+  if (window.location.hash !== to) window.location.hash = to;
+}
+
+export const homeHref = '#/';
+export const libraryHref = '#/library';
+export const docHref = (id: string): string => `#/doc/${encodeURIComponent(id)}`;
+export const assetHref = (id: string): string => `#/asset/${encodeURIComponent(id)}`;
+export const assetEditHref = (id: string): string => `#/asset/${encodeURIComponent(id)}/edit`;
+export const assetNewHref = '#/asset/new';

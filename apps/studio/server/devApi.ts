@@ -1,0 +1,363 @@
+// storytreeDataApi — a Vite dev-server plugin that backs the studio foundation.
+//
+// It is the whole "backend": ~one file of Node middleware on Vite's own server,
+// not a separate service. It does two things:
+//   1. Serves the canonical docs corpus live from <repo>/docs (read-only).
+//   2. Persists comments + guidance assets to apps/studio/data/*.json.
+//
+// This runs in `vite` (dev) only — which is exactly the foundation's scope
+// (`pnpm --filter studio dev`). A production `vite build` is a static SPA with
+// no /api; wiring real persistence to the orchestrator is later work.
+
+import { promises as fs, existsSync } from 'node:fs';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { Plugin, ResolvedConfig } from 'vite';
+import type {
+  AssetCategory,
+  Comment,
+  DocMeta,
+  GuidanceAsset,
+} from '../src/types';
+
+const ASSET_CATEGORIES: AssetCategory[] = [
+  'principle',
+  'definition',
+  'guideline',
+  'context',
+  'governance',
+  'glossary',
+];
+
+interface Paths {
+  repoRoot: string;
+  docsDir: string;
+  dataDir: string;
+  commentsFile: string;
+  assetsFile: string;
+}
+
+function resolvePaths(config: ResolvedConfig): Paths {
+  const studioRoot = config.root; // apps/studio
+  const repoRoot = path.resolve(studioRoot, '..', '..');
+  const dataDir = path.join(studioRoot, 'data');
+  return {
+    repoRoot,
+    docsDir: path.join(repoRoot, 'docs'),
+    dataDir,
+    commentsFile: path.join(dataDir, 'comments.json'),
+    assetsFile: path.join(dataDir, 'assets.json'),
+  };
+}
+
+// ---------- small http helpers ----------
+
+function sendJson(res: ServerResponse, status: number, data: unknown): void {
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.end(JSON.stringify(data, null, 2));
+}
+
+function readBody(req: IncomingMessage): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    req.on('data', (c: Buffer) => chunks.push(c));
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    req.on('error', reject);
+  });
+}
+
+async function readJsonBody<T>(req: IncomingMessage): Promise<T> {
+  const raw = await readBody(req);
+  if (!raw.trim()) return {} as T;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    throw new HttpError(400, 'invalid JSON body');
+  }
+}
+
+// ---------- json store helpers ----------
+
+async function readStore<T>(file: string, fallback: T): Promise<T> {
+  if (!existsSync(file)) return fallback;
+  const raw = await fs.readFile(file, 'utf8');
+  return raw.trim() ? (JSON.parse(raw) as T) : fallback;
+}
+
+async function writeStore(file: string, data: unknown): Promise<void> {
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.writeFile(file, JSON.stringify(data, null, 2) + '\n', 'utf8');
+}
+
+// ---------- docs (read-only, live from <repo>/docs) ----------
+
+function deriveTitle(markdown: string, filename: string): string {
+  const m = markdown.match(/^#\s+(.+?)\s*$/m);
+  return m && m[1] ? m[1] : filename.replace(/\.md$/, '');
+}
+
+function deriveGroup(relId: string): string {
+  return relId.startsWith('decisions/') ? 'Decisions' : 'Reference';
+}
+
+async function listDocs(docsDir: string): Promise<DocMeta[]> {
+  const out: DocMeta[] = [];
+  async function walk(dir: string): Promise<void> {
+    if (!existsSync(dir)) return;
+    for (const ent of await fs.readdir(dir, { withFileTypes: true })) {
+      const full = path.join(dir, ent.name);
+      if (ent.isDirectory()) {
+        await walk(full);
+      } else if (ent.isFile() && ent.name.endsWith('.md')) {
+        const relId = path.relative(docsDir, full).split(path.sep).join('/');
+        const content = await fs.readFile(full, 'utf8');
+        out.push({ id: relId, title: deriveTitle(content, ent.name), group: deriveGroup(relId) });
+      }
+    }
+  }
+  await walk(docsDir);
+  // Decisions first (ADR order by filename), then reference docs alphabetically.
+  return out.sort((a, b) => {
+    if (a.group !== b.group) return a.group === 'Decisions' ? -1 : 1;
+    return a.id.localeCompare(b.id);
+  });
+}
+
+/** Resolve a requested doc id to an absolute path, refusing traversal. */
+function safeDocPath(docsDir: string, id: string): string | null {
+  const resolved = path.resolve(docsDir, id);
+  const rel = path.relative(docsDir, resolved);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
+  if (!resolved.endsWith('.md')) return null;
+  return resolved;
+}
+
+// ---------- validation ----------
+
+function asString(v: unknown): string {
+  return typeof v === 'string' ? v : '';
+}
+
+function asStringArray(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+}
+
+class HttpError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+  }
+}
+
+// ---------- route handlers ----------
+
+async function handleComments(
+  req: IncomingMessage,
+  res: ServerResponse,
+  url: URL,
+  paths: Paths,
+): Promise<void> {
+  const method = req.method ?? 'GET';
+  const comments = await readStore<Comment[]>(paths.commentsFile, []);
+
+  if (method === 'GET') {
+    const topicId = url.searchParams.get('topicId');
+    const topicKind = url.searchParams.get('topicKind');
+    const filtered = comments.filter(
+      (c) =>
+        (!topicId || c.topicId === topicId) &&
+        (!topicKind || c.topicKind === topicKind),
+    );
+    return sendJson(res, 200, filtered);
+  }
+
+  if (method === 'POST') {
+    const input = await readJsonBody<Record<string, unknown>>(req);
+    const body = asString(input.body).trim();
+    const topicId = asString(input.topicId).trim();
+    const topicKind = asString(input.topicKind);
+    if (!body) throw new HttpError(400, 'comment body is required');
+    if (!topicId) throw new HttpError(400, 'topicId is required');
+    if (topicKind !== 'doc' && topicKind !== 'asset') {
+      throw new HttpError(400, 'topicKind must be "doc" or "asset"');
+    }
+    const anchorRaw = (input.anchor ?? {}) as Record<string, unknown>;
+    const sectionSlug = asString(anchorRaw.headingSlug).trim();
+    const comment: Comment = {
+      id: randomUUID(),
+      topicKind,
+      topicId,
+      anchor: {
+        kind: anchorRaw.kind === 'section' && sectionSlug ? 'section' : 'topic',
+        headingSlug: sectionSlug || null,
+        headingText: asString(anchorRaw.headingText).trim() || null,
+      },
+      body,
+      author: asString(input.author).trim() || 'operator',
+      createdAt: new Date().toISOString(),
+      resolved: false,
+      resolvedAt: null,
+    };
+    comments.push(comment);
+    await writeStore(paths.commentsFile, comments);
+    return sendJson(res, 201, comment);
+  }
+
+  if (method === 'PATCH') {
+    const id = url.searchParams.get('id');
+    const idx = comments.findIndex((c) => c.id === id);
+    if (idx === -1) throw new HttpError(404, 'comment not found');
+    const existing = comments[idx] as Comment;
+    const patch = await readJsonBody<Record<string, unknown>>(req);
+    const next: Comment = { ...existing };
+    if (typeof patch.body === 'string' && patch.body.trim()) next.body = patch.body.trim();
+    if (typeof patch.resolved === 'boolean') {
+      next.resolved = patch.resolved;
+      next.resolvedAt = patch.resolved ? new Date().toISOString() : null;
+    }
+    comments[idx] = next;
+    await writeStore(paths.commentsFile, comments);
+    return sendJson(res, 200, next);
+  }
+
+  if (method === 'DELETE') {
+    const id = url.searchParams.get('id');
+    const next = comments.filter((c) => c.id !== id);
+    if (next.length === comments.length) throw new HttpError(404, 'comment not found');
+    await writeStore(paths.commentsFile, next);
+    return sendJson(res, 200, { ok: true });
+  }
+
+  throw new HttpError(405, `method ${method} not allowed`);
+}
+
+function isValidSlug(s: string): boolean {
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(s);
+}
+
+function readAssetInput(input: Record<string, unknown>): Omit<GuidanceAsset, 'createdAt' | 'updatedAt'> {
+  const id = asString(input.id).trim();
+  const category = asString(input.category) as AssetCategory;
+  const title = asString(input.title).trim();
+  const description = asString(input.description).trim();
+  const body = asString(input.body).trim();
+  if (!isValidSlug(id)) throw new HttpError(400, 'id must be a kebab-case slug (a-z, 0-9, hyphens)');
+  if (!ASSET_CATEGORIES.includes(category)) throw new HttpError(400, 'invalid category');
+  if (!title) throw new HttpError(400, 'title is required');
+  if (!description) throw new HttpError(400, 'description is required');
+  if (!body) throw new HttpError(400, 'body is required');
+  return {
+    id,
+    category,
+    title,
+    description,
+    body,
+    tags: asStringArray(input.tags),
+    references: asStringArray(input.references),
+  };
+}
+
+async function handleAssets(
+  req: IncomingMessage,
+  res: ServerResponse,
+  url: URL,
+  paths: Paths,
+): Promise<void> {
+  const method = req.method ?? 'GET';
+  const assets = await readStore<GuidanceAsset[]>(paths.assetsFile, []);
+
+  if (method === 'GET') {
+    return sendJson(res, 200, assets);
+  }
+
+  if (method === 'POST') {
+    const input = readAssetInput(await readJsonBody<Record<string, unknown>>(req));
+    if (assets.some((a) => a.id === input.id)) {
+      throw new HttpError(409, `an asset with id "${input.id}" already exists`);
+    }
+    const now = new Date().toISOString();
+    const asset: GuidanceAsset = { ...input, createdAt: now, updatedAt: now };
+    assets.push(asset);
+    await writeStore(paths.assetsFile, assets);
+    return sendJson(res, 201, asset);
+  }
+
+  if (method === 'PATCH') {
+    const id = url.searchParams.get('id');
+    const idx = assets.findIndex((a) => a.id === id);
+    if (idx === -1) throw new HttpError(404, 'asset not found');
+    const existing = assets[idx] as GuidanceAsset;
+    const input = readAssetInput({ ...existing, ...(await readJsonBody<Record<string, unknown>>(req)), id: existing.id });
+    const next: GuidanceAsset = { ...input, createdAt: existing.createdAt, updatedAt: new Date().toISOString() };
+    assets[idx] = next;
+    await writeStore(paths.assetsFile, assets);
+    return sendJson(res, 200, next);
+  }
+
+  if (method === 'DELETE') {
+    const id = url.searchParams.get('id');
+    const next = assets.filter((a) => a.id !== id);
+    if (next.length === assets.length) throw new HttpError(404, 'asset not found');
+    await writeStore(paths.assetsFile, next);
+    return sendJson(res, 200, { ok: true });
+  }
+
+  throw new HttpError(405, `method ${method} not allowed`);
+}
+
+async function handleDocs(
+  _req: IncomingMessage,
+  res: ServerResponse,
+  url: URL,
+  paths: Paths,
+): Promise<void> {
+  if (url.pathname === '/api/docs') {
+    return sendJson(res, 200, await listDocs(paths.docsDir));
+  }
+  if (url.pathname === '/api/docs/content') {
+    const id = url.searchParams.get('id') ?? '';
+    const file = safeDocPath(paths.docsDir, id);
+    if (!file || !existsSync(file)) throw new HttpError(404, 'doc not found');
+    const markdown = await fs.readFile(file, 'utf8');
+    return sendJson(res, 200, { id, title: deriveTitle(markdown, path.basename(file)), markdown });
+  }
+  throw new HttpError(404, 'not found');
+}
+
+export function storytreeDataApi(): Plugin {
+  let paths: Paths;
+  return {
+    name: 'storytree-data-api',
+    configResolved(config) {
+      paths = resolvePaths(config);
+    },
+    configureServer(server) {
+      server.config.logger.info(
+        `  storytree data api: docs ← ${path.relative(paths.repoRoot, paths.docsDir)}/  ·  store → apps/studio/data/`,
+      );
+      // Registered directly (not in a returned post-hook) so /api/* is handled
+      // BEFORE Vite's SPA fallback would rewrite it to index.html.
+      server.middlewares.use((req, res, next) => {
+        const url = new URL(req.url ?? '/', 'http://localhost');
+        if (!url.pathname.startsWith('/api/')) return next();
+        void (async () => {
+          try {
+            if (url.pathname.startsWith('/api/docs')) {
+              await handleDocs(req, res, url, paths);
+            } else if (url.pathname === '/api/comments') {
+              await handleComments(req, res, url, paths);
+            } else if (url.pathname === '/api/assets') {
+              await handleAssets(req, res, url, paths);
+            } else {
+              throw new HttpError(404, 'unknown endpoint');
+            }
+          } catch (err) {
+            const status = err instanceof HttpError ? err.status : 500;
+            sendJson(res, status, { error: err instanceof Error ? err.message : String(err) });
+          }
+        })();
+      });
+    },
+  };
+}

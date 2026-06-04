@@ -1,0 +1,56 @@
+// Typed client for the dev-server /api/* endpoints (see server/devApi.ts).
+
+import type {
+  AssetInput,
+  Comment,
+  DocContent,
+  DocMeta,
+  GuidanceAsset,
+  NewComment,
+} from './types';
+
+async function http<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, init);
+  const text = await res.text();
+  const data: unknown = text ? JSON.parse(text) : null;
+  if (!res.ok) {
+    const message =
+      data && typeof data === 'object' && 'error' in data
+        ? String((data as { error: unknown }).error)
+        : `${res.status} ${res.statusText}`;
+    throw new Error(message);
+  }
+  return data as T;
+}
+
+function jsonInit(method: string, body: unknown): RequestInit {
+  return {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  };
+}
+
+const q = encodeURIComponent;
+
+export const api = {
+  listDocs: (): Promise<DocMeta[]> => http('/api/docs'),
+  docContent: (id: string): Promise<DocContent> => http(`/api/docs/content?id=${q(id)}`),
+
+  listComments: (topicId?: string): Promise<Comment[]> =>
+    http(topicId ? `/api/comments?topicId=${q(topicId)}` : '/api/comments'),
+  createComment: (input: NewComment): Promise<Comment> =>
+    http('/api/comments', jsonInit('POST', input)),
+  updateComment: (id: string, patch: { body?: string; resolved?: boolean }): Promise<Comment> =>
+    http(`/api/comments?id=${q(id)}`, jsonInit('PATCH', patch)),
+  deleteComment: (id: string): Promise<{ ok: true }> =>
+    http(`/api/comments?id=${q(id)}`, { method: 'DELETE' }),
+
+  listAssets: (): Promise<GuidanceAsset[]> => http('/api/assets'),
+  createAsset: (input: AssetInput): Promise<GuidanceAsset> =>
+    http('/api/assets', jsonInit('POST', input)),
+  updateAsset: (id: string, input: AssetInput): Promise<GuidanceAsset> =>
+    http(`/api/assets?id=${q(id)}`, jsonInit('PATCH', input)),
+  deleteAsset: (id: string): Promise<{ ok: true }> =>
+    http(`/api/assets?id=${q(id)}`, { method: 'DELETE' }),
+};
