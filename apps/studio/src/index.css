@@ -16,12 +16,10 @@
   --cat-principle: #6d28d9;
   --cat-definition: #1d4ed8;
   --cat-guideline: #0f766e;
-  --cat-constraint: #334155;
+  --cat-guardrail: #b91c1c;
   --cat-pattern: #0891b2;
-  --cat-anti-pattern: #dc2626;
   --cat-techstack: #16a34a;
   --cat-context: #b45309;
-  --cat-governance: #be123c;
   --cat-glossary: #475569;
 
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -1181,41 +1179,31 @@ mark.st-hl.flash {
 }
 
 /* added artifact categories */
-.chip.cat-constraint {
-  background: var(--cat-constraint);
+.chip.cat-guardrail {
+  background: var(--cat-guardrail);
 }
 .chip.cat-pattern {
   background: var(--cat-pattern);
 }
-.chip.cat-anti-pattern {
-  background: var(--cat-anti-pattern);
-}
 .chip.cat-techstack {
   background: var(--cat-techstack);
 }
-.cat-dot.cat-constraint {
-  background: var(--cat-constraint);
+.cat-dot.cat-guardrail {
+  background: var(--cat-guardrail);
 }
 .cat-dot.cat-pattern {
   background: var(--cat-pattern);
 }
-.cat-dot.cat-anti-pattern {
-  background: var(--cat-anti-pattern);
-}
 .cat-dot.cat-techstack {
   background: var(--cat-techstack);
 }
-.chip-btn.cat-constraint.active {
-  background: var(--cat-constraint);
-  border-color: var(--cat-constraint);
+.chip-btn.cat-guardrail.active {
+  background: var(--cat-guardrail);
+  border-color: var(--cat-guardrail);
 }
 .chip-btn.cat-pattern.active {
   background: var(--cat-pattern);
   border-color: var(--cat-pattern);
-}
-.chip-btn.cat-anti-pattern.active {
-  background: var(--cat-anti-pattern);
-  border-color: var(--cat-anti-pattern);
 }
 .chip-btn.cat-techstack.active {
   background: var(--cat-techstack);

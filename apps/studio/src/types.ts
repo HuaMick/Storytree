@@ -57,20 +57,19 @@ export interface NewComment {
 
 /**
  * The artifact taxonomy: a typed, reusable unit of agent guidance. Grounded in
- * the v1 (Agentic) `assets/` corpus and extended to cover the durable outputs
- * the ADRs actually produce (hard boundaries, reusable structures, the stack,
- * failure modes). The one-line gloss per category is shown in the UI.
+ * the v1 (Agentic) `assets/` corpus and shaped to the durable outputs the ADRs
+ * actually produce. `guardrail` absorbs hard boundaries, authority/precedence
+ * rules, and the failure modes they guard against. The one-line gloss per
+ * category is shown in the UI.
  */
 export type AssetCategory =
   | 'definition' // "what something is"
   | 'principle' // "how to judge"
   | 'guideline' // "what to do"
-  | 'constraint' // "what must always hold" — a hard boundary, not overridable
+  | 'guardrail' // "a hard boundary you can't cross" — incl. authority rules & the failure modes they prevent
   | 'pattern' // "a reusable structure"
-  | 'anti-pattern' // "a failure mode to avoid"
   | 'techstack' // "what we build on" — a technology choice
-  | 'context' // "what world we operate in"
-  | 'governance'; // "which surface beats another"
+  | 'context'; // "what world we operate in"
 
 /**
  * A modular, injectable Library artifact — the seed of the injectable guidance
@@ -126,12 +125,10 @@ export const ASSET_CATEGORIES: AssetCategory[] = [
   'definition',
   'principle',
   'guideline',
-  'constraint',
+  'guardrail',
   'pattern',
-  'anti-pattern',
   'techstack',
   'context',
-  'governance',
 ];
 
 /** One-line gloss per category (shown in the Library UI). */
@@ -139,12 +136,10 @@ export const ASSET_CATEGORY_GLOSS: Record<AssetCategory, string> = {
   definition: 'what something is',
   principle: 'how to judge',
   guideline: 'what to do',
-  constraint: 'what must always hold',
+  guardrail: "a hard boundary you can't cross",
   pattern: 'a reusable structure',
-  'anti-pattern': 'a failure mode to avoid',
   techstack: 'what we build on',
   context: 'what world we operate in',
-  governance: 'which surface beats another',
 };
 
 /** Highlight colour palette for text-anchored comments. */

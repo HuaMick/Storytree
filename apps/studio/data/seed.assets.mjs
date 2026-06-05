@@ -132,7 +132,7 @@ const curated = [
   },
   {
     id: 'one-model-boundary',
-    category: 'constraint',
+    category: 'guardrail',
     title: 'Confine model calls to one boundary',
     description:
       'pi is reached only through packages/pi-adapter; only the orchestrator drives it; a run is an event, never a node; the orchestrator is the sole fan-out point.',
@@ -162,7 +162,7 @@ const curated = [
   },
   {
     id: 'approval-gated-trunk',
-    category: 'constraint',
+    category: 'guardrail',
     title: 'Approval-gated trunk',
     description:
       'A green result is a request for human diff-review, not an automatic merge. The human holds the outer loop; content invariants are never bypassable.',
@@ -177,7 +177,7 @@ const curated = [
   },
   {
     id: 'claims-in-the-shared-store',
-    category: 'constraint',
+    category: 'guardrail',
     title: 'Claims live in the shared store',
     description:
       'Write-ownership is a typed claim checked at node-schedule time in the one shared store; a conflict is a hard refusal, never a warning.',
@@ -254,10 +254,10 @@ const curated = [
     references: [adr(1)],
   },
 
-  // --- constraint (what must always hold) ---
+  // --- guardrail (a hard boundary you can't cross) ---
   {
     id: 'never-bypass-the-gate',
-    category: 'constraint',
+    category: 'guardrail',
     title: 'The gate is never bypassable',
     description:
       'Content invariants — contracts green, UAT signed, upstream healthy — can never be bypassed; the gate refuses invalid work rather than warning.',
@@ -269,7 +269,7 @@ const curated = [
   },
   {
     id: 'agent-never-self-exempts',
-    category: 'constraint',
+    category: 'guardrail',
     title: 'An agent can never self-exempt',
     description:
       'operator-attested promotion is operator-granted only; an agent can never grant itself the attestation that reaches `healthy`.',
@@ -281,7 +281,7 @@ const curated = [
   },
   {
     id: 'run-is-not-a-node',
-    category: 'constraint',
+    category: 'guardrail',
     title: 'A run is not a node',
     description:
       'A pi run/attempt is an execution event (many per node), never a new tree node. The execution environment is not the coordination structure.',
@@ -293,7 +293,7 @@ const curated = [
   },
   {
     id: 'orchestrator-is-sole-fan-out',
-    category: 'constraint',
+    category: 'guardrail',
     title: 'The orchestrator is the sole fan-out point',
     description:
       'Only the orchestrator schedules nodes; pi nodes never schedule child nodes (no agent-spawns-agent).',
@@ -354,10 +354,10 @@ const curated = [
     references: [GLOSSARY],
   },
 
-  // --- anti-pattern (a failure mode to avoid) ---
+  // --- guardrail: failure modes guarded against (was anti-pattern) ---
   {
     id: 'auto-merge-on-green',
-    category: 'anti-pattern',
+    category: 'guardrail',
     title: 'Auto-merge on green',
     description:
       'v1 auto-merged on green and tolerated a knowingly-broken mainline; v2 rejects it — green is a request for human diff-review.',
@@ -369,7 +369,7 @@ const curated = [
   },
   {
     id: 'faked-uat-theatre',
-    category: 'anti-pattern',
+    category: 'guardrail',
     title: 'Faked-UAT theatre',
     description:
       'Stubbing collaborators in a UAT is a structural defect — the mock-UAT seam forbids it. Guardrail surfaces use operator-attested, not a fake walkthrough.',
@@ -381,7 +381,7 @@ const curated = [
   },
   {
     id: 'vibe-the-load-bearing-layers',
-    category: 'anti-pattern',
+    category: 'guardrail',
     title: 'Vibing the load-bearing layers',
     description:
       'v1’s internals were vibed and became unobservable. Don’t vibe the parts the system rests on — the event model, concurrency-safe state, the spine.',
@@ -393,7 +393,7 @@ const curated = [
   },
   {
     id: 'store-lock-races-and-id-collisions',
-    category: 'anti-pattern',
+    category: 'guardrail',
     title: 'Store-lock races & id collisions',
     description:
       'v1 hit store-lock races and in-process story-ID collisions under concurrency. v2 designs concurrency-safe state from day one (DBOS + DB-allocated ids).',
@@ -442,10 +442,10 @@ const curated = [
     references: [adr(1)],
   },
 
-  // --- governance (which surface beats another) ---
+  // --- guardrail: authority & precedence (was governance) ---
   {
     id: 'glossary-wins',
-    category: 'governance',
+    category: 'guardrail',
     title: 'When a term is in question, the glossary wins',
     description:
       'docs/glossary.md is the authoritative terminology every layer speaks; when a term’s meaning is contested, it wins.',
@@ -457,7 +457,7 @@ const curated = [
   },
   {
     id: 'human-owns-the-outer-loop',
-    category: 'governance',
+    category: 'guardrail',
     title: 'The human owns the outer loop',
     description:
       'Inner loop (drive a unit red→green) is automatable; outer loop (accept to trunk, accept a decomposition, amend/retry/abandon) is human judgment.',

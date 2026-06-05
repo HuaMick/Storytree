@@ -26,12 +26,10 @@ const ASSET_CATEGORIES: AssetCategory[] = [
   'definition',
   'principle',
   'guideline',
-  'constraint',
+  'guardrail',
   'pattern',
-  'anti-pattern',
   'techstack',
   'context',
-  'governance',
 ];
 
 interface Paths {

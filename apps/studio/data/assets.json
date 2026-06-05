@@ -86,7 +86,7 @@
   },
   {
     "id": "one-model-boundary",
-    "category": "constraint",
+    "category": "guardrail",
     "title": "Confine model calls to one boundary",
     "description": "pi is reached only through packages/pi-adapter; only the orchestrator drives it; a run is an event, never a node; the orchestrator is the sole fan-out point.",
     "body": "Confine every model call behind one orchestrator-driven boundary, so model-unavailability is a *local* failure, never a system outage.\n\n- pi is reached **only** through `packages/pi-adapter` — the sole place a model runtime is imported.\n\n- **Only** `packages/orchestrator` drives the adapter; `packages/core` and `apps/studio` have no path to a model runtime.\n\n- **Run ≠ node:** a pi run/attempt is an execution event, never a new tree node.\n\n- The orchestrator is the **sole fan-out point** — pi nodes never schedule child nodes.\n\n_Synthesised from ADR-0004._",
@@ -110,7 +110,7 @@
   },
   {
     "id": "approval-gated-trunk",
-    "category": "constraint",
+    "category": "guardrail",
     "title": "Approval-gated trunk",
     "description": "A green result is a request for human diff-review, not an automatic merge. The human holds the outer loop; content invariants are never bypassable.",
     "body": "The studio **drives** agents; the human sits at the **outer loop**.\n\n- **Per-action approval** is first-class (inverts v1’s skip-permissions): approve / reject / steer individual pi actions in-loop.\n\n- **Approval-gated trunk** (inverts auto-merge-on-green): a green result surfaces for human diff-review and lands only on approval, as a signed promotion event.\n\n- Content invariants — contracts green, UAT signed, upstream healthy — are **never bypassable**.\n\n_Synthesised from ADR-0008._",
@@ -122,7 +122,7 @@
   },
   {
     "id": "claims-in-the-shared-store",
-    "category": "constraint",
+    "category": "guardrail",
     "title": "Claims live in the shared store",
     "description": "Write-ownership is a typed claim checked at node-schedule time in the one shared store; a conflict is a hard refusal, never a warning.",
     "body": "Coordination moves off git and into the one shared Postgres store (DBOS).\n\n- A **claim** is a typed write-ownership record naming what a node intends to write, checked under a serializable/unique constraint at **node-schedule time**.\n\n- A conflict is a **hard refusal** (a `claim-conflict-refused` event), never a warning.\n\n- DBOS workflow isolation replaces branch-per-session for coordination; DB-allocated ids dissolve the collision classes.\n\n_Synthesised from ADR-0009._",
@@ -196,7 +196,7 @@
   },
   {
     "id": "never-bypass-the-gate",
-    "category": "constraint",
+    "category": "guardrail",
     "title": "The gate is never bypassable",
     "description": "Content invariants — contracts green, UAT signed, upstream healthy — can never be bypassed; the gate refuses invalid work rather than warning.",
     "body": "A **gate** is a structural enforcement point that **refuses** invalid work, not a warning. Promotion onto the trunk requires its content invariants — contracts green, UAT signed, upstream healthy — and these are **never bypassable**. An operator approval admits work that has *already* passed the gate; it cannot waive it.\n\n_Synthesised from ADR-0008 / ADR-0007._",
@@ -209,7 +209,7 @@
   },
   {
     "id": "agent-never-self-exempts",
-    "category": "constraint",
+    "category": "guardrail",
     "title": "An agent can never self-exempt",
     "description": "operator-attested promotion is operator-granted only; an agent can never grant itself the attestation that reaches `healthy`.",
     "body": "The `operator-attested` proof mode promotes a unit to `healthy` only via an explicit, per-unit, **operator-granted** signed event. An agent can **never** self-exempt, and the attestation is distinguishable in the audit trail from a UAT walkthrough sign.\n\n_Synthesised from ADR-0007._",
@@ -221,7 +221,7 @@
   },
   {
     "id": "run-is-not-a-node",
-    "category": "constraint",
+    "category": "guardrail",
     "title": "A run is not a node",
     "description": "A pi run/attempt is an execution event (many per node), never a new tree node. The execution environment is not the coordination structure.",
     "body": "A pi **run** (attempt) is recorded as an execution **event**, many-per-node — it is **never** a new node on the DAG. The coordination/scheduling grain (the node) is kept distinct from the execution grain (the run).\n\n_Synthesised from ADR-0004 (glossary: node, run)._",
@@ -233,7 +233,7 @@
   },
   {
     "id": "orchestrator-is-sole-fan-out",
-    "category": "constraint",
+    "category": "guardrail",
     "title": "The orchestrator is the sole fan-out point",
     "description": "Only the orchestrator schedules nodes; pi nodes never schedule child nodes (no agent-spawns-agent).",
     "body": "The orchestrator is the **only** module that drives the pi-adapter and the **sole fan-out point** — it schedules nodes. A pi node never schedules child nodes; there is no agent-spawns-agent path.\n\n_Synthesised from ADR-0004 / ADR-0005._",
@@ -296,7 +296,7 @@
   },
   {
     "id": "auto-merge-on-green",
-    "category": "anti-pattern",
+    "category": "guardrail",
     "title": "Auto-merge on green",
     "description": "v1 auto-merged on green and tolerated a knowingly-broken mainline; v2 rejects it — green is a request for human diff-review.",
     "body": "v1’s trunk auto-merged on green and tolerated broken intermediate states under an eventual-consistency posture. v2 **inverts** this: the trunk is approval-gated, a green result is a *request for human diff-review*, and the trunk never holds knowingly-broken states.\n\n_See the `approval-gated-trunk` constraint (ADR-0008)._",
@@ -308,7 +308,7 @@
   },
   {
     "id": "faked-uat-theatre",
-    "category": "anti-pattern",
+    "category": "guardrail",
     "title": "Faked-UAT theatre",
     "description": "Stubbing collaborators in a UAT is a structural defect — the mock-UAT seam forbids it. Guardrail surfaces use operator-attested, not a fake walkthrough.",
     "body": "Stubs/mocks are correct in a contract test (isolated) but a **structural defect** in a UAT (real collaborators). Don’t fake a walkthrough for a behavioural/guardrail surface that has no honest UAT — use the `operator-attested` proof mode instead.\n\n_The mock-UAT seam; synthesised from ADR-0007._",
@@ -320,7 +320,7 @@
   },
   {
     "id": "vibe-the-load-bearing-layers",
-    "category": "anti-pattern",
+    "category": "guardrail",
     "title": "Vibing the load-bearing layers",
     "description": "v1’s internals were vibed and became unobservable. Don’t vibe the parts the system rests on — the event model, concurrency-safe state, the spine.",
     "body": "v1 proved the *idea* but its internals were vibed and are hard to see. v2’s stance: **go slow, own the load-bearing layers.** The event model, concurrency-safe shared state, and the orchestrator spine are designed up front, not improvised.\n\n_Synthesised from ADR-0001._",
@@ -332,7 +332,7 @@
   },
   {
     "id": "store-lock-races-and-id-collisions",
-    "category": "anti-pattern",
+    "category": "guardrail",
     "title": "Store-lock races & id collisions",
     "description": "v1 hit store-lock races and in-process story-ID collisions under concurrency. v2 designs concurrency-safe state from day one (DBOS + DB-allocated ids).",
     "body": "v1’s concurrency scars: store-lock races and in-process story-ID collisions (even duplicate ADR numbers). v2 treats concurrency-safe state as a **foundation, not a retrofit** — DBOS workflow isolation, claims in the one shared store, and DB-allocated collision-free ids.\n\n_Synthesised from ADR-0001 / ADR-0009._",
@@ -379,7 +379,7 @@
   },
   {
     "id": "glossary-wins",
-    "category": "governance",
+    "category": "guardrail",
     "title": "When a term is in question, the glossary wins",
     "description": "docs/glossary.md is the authoritative terminology every layer speaks; when a term’s meaning is contested, it wins.",
     "body": "Every layer — `packages/core` types, the orchestrator, the studio, the ADRs — uses the glossary’s terms as defined. **When a term’s meaning is in question, `docs/glossary.md` wins**; the reasoning lives in the cited ADR.\n\n_From the glossary preamble (ADR-0002)._",
@@ -392,7 +392,7 @@
   },
   {
     "id": "human-owns-the-outer-loop",
-    "category": "governance",
+    "category": "guardrail",
     "title": "The human owns the outer loop",
     "description": "Inner loop (drive a unit red→green) is automatable; outer loop (accept to trunk, accept a decomposition, amend/retry/abandon) is human judgment.",
     "body": "**inner loop** = driving one unit red→green (automatable, owned by a pi node). **outer loop** = accepting a result onto the trunk, accepting a decomposition, or amending/retrying/abandoning a unit (held by **human judgment** in the studio).\n\nThe human-in-the-loop gate sits at the outer loop; the north-star may later dissolve it.\n\n_Synthesised from ADR-0008 / ADR-0007._",
