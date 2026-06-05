@@ -19,6 +19,8 @@
   --cat-guardrail: #b91c1c;
   --cat-pattern: #0891b2;
   --cat-techstack: #16a34a;
+  --cat-template: #b45309;
+  --cat-adr: #334155;
   --cat-context: #b45309;
   --cat-glossary: #475569;
 
@@ -1188,6 +1190,12 @@ mark.st-hl.flash {
 .chip.cat-techstack {
   background: var(--cat-techstack);
 }
+.chip.cat-template {
+  background: var(--cat-template);
+}
+.chip.cat-adr {
+  background: var(--cat-adr);
+}
 .cat-dot.cat-guardrail {
   background: var(--cat-guardrail);
 }
@@ -1196,6 +1204,12 @@ mark.st-hl.flash {
 }
 .cat-dot.cat-techstack {
   background: var(--cat-techstack);
+}
+.cat-dot.cat-template {
+  background: var(--cat-template);
+}
+.cat-dot.cat-adr {
+  background: var(--cat-adr);
 }
 .chip-btn.cat-guardrail.active {
   background: var(--cat-guardrail);
@@ -1208,4 +1222,27 @@ mark.st-hl.flash {
 .chip-btn.cat-techstack.active {
   background: var(--cat-techstack);
   border-color: var(--cat-techstack);
+}
+.chip-btn.cat-template.active {
+  background: var(--cat-template);
+  border-color: var(--cat-template);
+}
+.chip-btn.cat-adr.active {
+  background: var(--cat-adr);
+  border-color: var(--cat-adr);
+}
+
+/* editor: body label row (template button) + required-section hint */
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.field-label-row > span {
+  font-size: 13px;
+  font-weight: 600;
+}
+.field-hint {
+  margin: 0;
 }

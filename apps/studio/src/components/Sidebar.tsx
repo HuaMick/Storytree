@@ -1,13 +1,20 @@
 import { useAppData, openCount } from '../lib/appData';
 import { docHref, libraryHref, type Route } from '../lib/route';
-import { ASSET_CATEGORIES, type DocMeta } from '../types';
+import { LIBRARY_CATEGORIES, type DocMeta, type LibraryCategory } from '../types';
 
 export function Sidebar({ route }: { route: Route }): React.JSX.Element {
   const { docs, assets, comments } = useAppData();
+  // ADRs now live in the Library (counted under the `adr` category below); only
+  // the non-decision docs keep a standalone "Reference" section in the sidebar.
   const adrs = docs.filter((d) => d.group === 'Decisions');
   const reference = docs.filter((d) => d.group !== 'Decisions');
   const activeDocId = route.name === 'doc' ? route.id : null;
   const libCat = route.name === 'library' ? route.category : undefined;
+
+  // Library counts: artifact categories from assets, `adr` from the Decisions docs.
+  const countFor = (cat: LibraryCategory): number =>
+    cat === 'adr' ? adrs.length : assets.filter((a) => a.category === cat).length;
+  const totalItems = assets.length + adrs.length;
 
   return (
     <aside className="sidebar">
@@ -19,12 +26,12 @@ export function Sidebar({ route }: { route: Route }): React.JSX.Element {
               className={route.name === 'library' && libCat === null ? 'side-item active' : 'side-item'}
               href={libraryHref()}
             >
-              <span className="side-item-label">All artifacts</span>
-              <span className="badge ghost">{assets.length}</span>
+              <span className="side-item-label">All</span>
+              <span className="badge ghost">{totalItems}</span>
             </a>
           </li>
-          {ASSET_CATEGORIES.map((cat) => {
-            const n = assets.filter((a) => a.category === cat).length;
+          {LIBRARY_CATEGORIES.map((cat) => {
+            const n = countFor(cat);
             if (n === 0) return null;
             return (
               <li key={cat}>
@@ -42,7 +49,6 @@ export function Sidebar({ route }: { route: Route }): React.JSX.Element {
         </ul>
       </div>
 
-      <DocSection title="ADRs (history)" docs={adrs} activeDocId={activeDocId} comments={comments} />
       <DocSection title="Reference" docs={reference} activeDocId={activeDocId} comments={comments} />
     </aside>
   );

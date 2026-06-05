@@ -142,6 +142,7 @@ const curated = [
       '- **Only** `packages/orchestrator` drives the adapter; `packages/core` and `apps/studio` have no path to a model runtime.',
       '- **Run ≠ node:** a pi run/attempt is an execution event, never a new tree node.',
       '- The orchestrator is the **sole fan-out point** — pi nodes never schedule child nodes.',
+      '**Enforced by.** A package-boundary dependency rule: `packages/pi-adapter` is the only module that may import a model runtime, and only `packages/orchestrator` may import the adapter — `packages/core` and `apps/studio` have no build-graph path to either.',
       '_Synthesised from ADR-0004._',
     ),
     references: [adr(4)],
@@ -171,6 +172,7 @@ const curated = [
       '- **Per-action approval** is first-class (inverts v1’s skip-permissions): approve / reject / steer individual pi actions in-loop.',
       '- **Approval-gated trunk** (inverts auto-merge-on-green): a green result surfaces for human diff-review and lands only on approval, as a signed promotion event.',
       '- Content invariants — contracts green, UAT signed, upstream healthy — are **never bypassable**.',
+      '**Enforced by.** The promotion gate: landing on trunk is a signed `promotion` event the orchestrator emits only after an operator approves the diff *and* the content invariants pass — there is no code path that writes the trunk without it.',
       '_Synthesised from ADR-0008._',
     ),
     references: [adr(8)],
@@ -186,6 +188,7 @@ const curated = [
       '- A **claim** is a typed write-ownership record naming what a node intends to write, checked under a serializable/unique constraint at **node-schedule time**.',
       '- A conflict is a **hard refusal** (a `claim-conflict-refused` event), never a warning.',
       '- DBOS workflow isolation replaces branch-per-session for coordination; DB-allocated ids dissolve the collision classes.',
+      '**Enforced by.** A serializable/unique constraint on the claims table in the shared Postgres (DBOS) store, checked at node-schedule time: a conflicting claim raises a `claim-conflict-refused` event instead of committing, so two nodes can never hold the same write.',
       '_Synthesised from ADR-0009._',
     ),
     references: [adr(9)],
@@ -250,6 +253,7 @@ const curated = [
       'Content invariants — contracts green, UAT signed, upstream healthy — can never be bypassed; the gate refuses invalid work rather than warning.',
     body: para(
       'A **gate** is a structural enforcement point that **refuses** invalid work, not a warning. Promotion onto the trunk requires its content invariants — contracts green, UAT signed, upstream healthy — and these are **never bypassable**. An operator approval admits work that has *already* passed the gate; it cannot waive it.',
+      '**Enforced by.** The gate is the sole writer of trunk-promotion events and emits one only when every content invariant holds; the operator-approval check runs *after* the invariants and has no branch that can waive them.',
       '_Synthesised from ADR-0008 / ADR-0007._',
     ),
     references: [adr(8), adr(7)],
@@ -262,6 +266,7 @@ const curated = [
       'operator-attested promotion is operator-granted only; an agent can never grant itself the attestation that reaches `healthy`.',
     body: para(
       'The `operator-attested` proof mode promotes a unit to `healthy` only via an explicit, per-unit, **operator-granted** signed event. An agent can **never** self-exempt, and the attestation is distinguishable in the audit trail from a UAT walkthrough sign.',
+      '**Enforced by.** The event store requires the `operator-attested` event to carry an operator signature distinct from any agent identity; an attestation signed by the agent under test is rejected, so an agent cannot mint its own promotion.',
       '_Synthesised from ADR-0007._',
     ),
     references: [adr(7)],
@@ -274,6 +279,7 @@ const curated = [
       'A pi run/attempt is an execution event (many per node), never a new tree node. The execution environment is not the coordination structure.',
     body: para(
       'A pi **run** (attempt) is recorded as an execution **event**, many-per-node — it is **never** a new node on the DAG. The coordination/scheduling grain (the node) is kept distinct from the execution grain (the run).',
+      '**Enforced by.** The `packages/core` schema: a run is a `run`-typed row in the event store keyed to its node id, with no node identity of its own and no slot in the node table for one to occupy.',
       '_Synthesised from ADR-0004 (glossary: node, run)._',
     ),
     references: [adr(4)],
@@ -286,6 +292,7 @@ const curated = [
       'Only the orchestrator schedules nodes; pi nodes never schedule child nodes (no agent-spawns-agent).',
     body: para(
       'The orchestrator is the **only** module that drives the pi-adapter and the **sole fan-out point** — it schedules nodes. A pi node never schedules child nodes; there is no agent-spawns-agent path.',
+      '**Enforced by.** Only `packages/orchestrator` holds the schedule-node capability; the pi-adapter surface exposes no scheduling call upward, so a pi node has no API by which to spawn a child node.',
       '_Synthesised from ADR-0004 / ADR-0005._',
     ),
     references: [adr(4), adr(5)],
@@ -413,9 +420,106 @@ const curated = [
     body: para(
       '**inner loop** = driving one unit red→green (automatable, owned by a pi node). **outer loop** = accepting a result onto the trunk, accepting a decomposition, or amending/retrying/abandoning a unit (held by **human judgment** in the studio).',
       'The human-in-the-loop gate sits at the outer loop; the north-star may later dissolve it.',
+      '**Enforced by.** The outer-loop transitions (accept-to-trunk, accept-decomposition, amend / retry / abandon) are operator-only actions in the studio, each recorded as an operator-signed event; the orchestrator exposes no automated path that performs them.',
       '_Synthesised from ADR-0008 / ADR-0007._',
     ),
     references: [adr(8), adr(7)],
+  },
+];
+
+// --- templates (one fillable scaffold per artifact category) -----------------
+// Category `template`; a new artifact of category X starts from `template-X` in
+// the editor. The editor enforces required sections on save — notably a
+// guardrail must keep its **Enforced by** section naming the deterministic
+// enforcement (see apps/studio/src/lib/templates.ts).
+
+const templates = [
+  {
+    id: 'template-definition',
+    category: 'template',
+    title: 'Template — definition',
+    description: 'Fillable scaffold for a new definition artifact (what something is).',
+    body: para(
+      '**In one line.** _What this term means, stated once._',
+      '## What it is',
+      '_The precise meaning — genus and differentia. Be exact._',
+      '## What it is not',
+      '_The nearest neighbours it must not be confused with._',
+      '## See also',
+      '_The glossary entry / ADR that governs the term, and related artifacts._',
+    ),
+    references: [],
+  },
+  {
+    id: 'template-principle',
+    category: 'template',
+    title: 'Template — principle',
+    description: 'Fillable scaffold for a new principle artifact (how to judge).',
+    body: para(
+      '**The principle.** _The judgement rule, in one sentence._',
+      '## Why',
+      '_What goes wrong without it; the cost it pays for._',
+      '## How to apply',
+      '_What following it looks like in practice — the test you run._',
+      '## See also',
+      '_Source ADR(s) and related artifacts._',
+    ),
+    references: [],
+  },
+  {
+    id: 'template-pattern',
+    category: 'template',
+    title: 'Template — pattern',
+    description: 'Fillable scaffold for a new pattern artifact (a reusable approach).',
+    body: para(
+      '**The pattern.** _The reusable approach, in one sentence._',
+      '## Problem',
+      '_The recurring situation this addresses._',
+      '## Approach',
+      '_The structure to apply — the shape or the steps._',
+      '## Tradeoffs',
+      '_What you trade — A vs B — in concrete, user-facing terms._',
+      '## See also',
+      '_Source ADR(s) and related artifacts._',
+    ),
+    references: [],
+  },
+  {
+    id: 'template-guardrail',
+    category: 'template',
+    title: 'Template — guardrail',
+    description:
+      'Fillable scaffold for a new guardrail artifact — requires an "Enforced by" section.',
+    body: para(
+      '**The boundary.** _The line that must not be crossed, in one sentence._',
+      '## Rule',
+      '_The invariant, stated as a hard boundary._',
+      '## Enforced by',
+      '_The deterministic mechanism that makes this non-bypassable — a gate, a schema, a DB constraint, or a specific code path. If nothing enforces it, this is a `pattern`, not a guardrail._',
+      '## Failure mode prevented',
+      '_What breaks if the boundary is crossed._',
+      '## See also',
+      '_Source ADR(s) and related artifacts._',
+    ),
+    references: [],
+  },
+  {
+    id: 'template-techstack',
+    category: 'template',
+    title: 'Template — techstack',
+    description: 'Fillable scaffold for a new techstack artifact (what we build on).',
+    body: para(
+      '**The choice.** _What we build on, in one sentence._',
+      '## What it is',
+      '_The technology and the role it plays._',
+      '## Why this',
+      '_What it buys us; what it was chosen over._',
+      '## Constraints',
+      '_Version pins, boundaries, and what it must not be used for._',
+      '## See also',
+      '_Source ADR(s) and related artifacts._',
+    ),
+    references: [],
   },
 ];
 
@@ -482,14 +586,18 @@ function extractGlossaryDefinitions(usedIds) {
 
 // --- assemble + write --------------------------------------------------------
 
-const curatedFull = curated.map((a) => ({
+const stamp = (a) => ({
   ...a,
   references: a.references.filter(Boolean),
   createdAt: STAMP,
   updatedAt: STAMP,
-}));
-const definitions = extractGlossaryDefinitions(curatedFull.map((a) => a.id));
-const assets = [...curatedFull, ...definitions];
+});
+const curatedFull = curated.map(stamp);
+const templatesFull = templates.map(stamp);
+const definitions = extractGlossaryDefinitions(
+  [...curatedFull, ...templatesFull].map((a) => a.id),
+);
+const assets = [...curatedFull, ...templatesFull, ...definitions];
 
 const force = process.argv.includes('--force');
 const outFile = path.join(dataDir, 'assets.json');

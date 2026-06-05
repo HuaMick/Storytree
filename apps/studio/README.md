@@ -15,9 +15,11 @@ Think of the whole thing as a **forum**: documents and Library artifacts are
    section, or a selection; resolve when addressed. Highlights re-anchor to the
    text, so they survive edits and re-renders.
 3. **Library** — modular, injectable **artifacts** (`definition` / `principle` /
-   `guideline`), browsable and searchable. The durable guidance is synthesised
-   from the ADRs (each artifact cites its source ADR); every glossary term is a
-   `definition` artifact.
+   `pattern` / `guardrail` / `techstack` / `template`), plus the **ADRs** folded
+   in as read-only, doc-backed `adr` cards — all browsable and searchable in one
+   place. The durable guidance is synthesised from the ADRs (each artifact cites
+   its source ADR); every glossary term is a `definition` artifact. Authoring
+   conforms to per-category **templates**, enforced on save.
 
 ## Run it
 
@@ -94,8 +96,8 @@ comment's `headingSlug`, so anchors line up.
 ```jsonc
 {
   "id": "deep-modules",                // kebab-case slug, unique (the v1 `name`)
-  "category": "principle",             // definition | principle | guideline |
-                                       //   guardrail | pattern | techstack | context
+  "category": "principle",             // definition | principle | pattern |
+                                       //   guardrail | techstack | template
   "title": "Deep modules",
   "description": "one line — what it is / when to inject it",
   "body": "markdown",
@@ -105,34 +107,53 @@ comment's `headingSlug`, so anchors line up.
 }
 ```
 
-The **7 categories** cover the durable outputs the ADRs actually produce: beyond
-`definition` / `principle` / `guideline`, a **`guardrail`** is a hard boundary you
-can't cross (it absorbs authority/precedence rules and the failure modes they
-prevent), a **`pattern`** is a reusable structure, **`techstack`** is what we
-build on, and **`context`** is the world we operate in. A small fixed ontology,
-not the unbounded tags we removed.
+The **6 artifact categories** cover the durable outputs the ADRs produce:
+`definition` (what something is), `principle` (how to judge), `pattern` (a
+reusable approach), a **`guardrail`** (a *deterministically-enforced* boundary —
+it must name what enforces it), `techstack` (what we build on), and a
+**`template`** (the shape an artifact conforms to). A small fixed ontology, not
+the unbounded tags we removed.
+
+**Templates are enforced.** Each artifact category ships a seeded
+`template-<category>` scaffold. The editor offers a "Start from the <category>
+template" button when authoring a new artifact, and **blocks save** when a
+required section is missing. The load-bearing rule: a **`guardrail`** must include
+an **"Enforced by"** section naming its deterministic enforcement (a gate / schema
+/ DB constraint / code path) — else it is a `pattern`, not a guardrail. The
+required-section map lives in [`src/lib/templates.ts`](src/lib/templates.ts).
+
+**ADRs fold into the Library.** The ADRs also surface in the Library as a
+read-only, doc-backed **`adr`** category. They stay canonical markdown under
+`docs/decisions/` (they are *not* imported into `assets.json`) and open in the
+same `DocView` — rendered markdown with comments + annotation. The glossary /
+open-questions / adjudication / v1 registers stay in the sidebar's **Reference**
+section, not the Library.
 
 The Library ships seeded ([`data/seed.assets.mjs`](data/seed.assets.mjs)) with
-**85 artifacts**: curated guidance synthesised from the ADRs (each `references`
-its source ADR), a few v1 imports, and one `definition` per glossary term
-(auto-extracted, citing the glossary and any ADRs it mentions).
+**86 artifacts**: curated guidance synthesised from the ADRs (each `references`
+its source ADR), one `template` per artifact category, a few v1 imports, and one
+`definition` per glossary term (auto-extracted, citing the glossary and any ADRs
+it mentions) — alongside the 9 ADRs surfaced read-only as `adr` cards.
 
 ### API (dev only)
 
 | Method | Path | |
 |---|---|---|
-| GET | `/api/docs` | list doc topics (`{id,title,group}`) |
+| GET | `/api/docs` | list doc topics (`{id,title,group,excerpt}`) |
 | GET | `/api/docs/content?id=` | one doc's markdown (path-traversal-guarded) |
 | GET/POST/PATCH/DELETE | `/api/comments` | comment CRUD (`?id=`, `?topicId=`) |
 | GET/POST/PATCH/DELETE | `/api/assets` | artifact CRUD (`?id=`) |
 
 ## Design choices (for owner review)
 
-- **ADRs are history, not artifacts.** Per your steer: the Library holds the
-  *live* artifacts (definitions/principles/guidelines); the ADRs sit in their own
-  read-only section as the justification record. Durable guidance is **synthesised
-  out of** the ADRs into principles/guidelines, each citing its source ADR via
-  `references`. (Synthesis is currently a curated seed of ~10 — extend freely.)
+- **ADRs are history, not editable artifacts.** The ADRs are *not* imported into
+  `assets.json`; they stay canonical markdown under `docs/decisions/`. They now
+  surface **in the Library** as read-only, doc-backed `adr` cards (opening in
+  `DocView`), so the live artifacts and the justification record browse together
+  while the ADRs stay doc-backed and uneditable. Durable guidance is still
+  **synthesised out of** the ADRs into principles/patterns/guardrails, each citing
+  its source ADR via `references`. (Synthesis is currently a curated seed — extend
+  freely.)
 - **Glossary → definitions.** Every `**term** — …` in `docs/glossary.md` becomes a
   `definition` artifact at seed time. `glossary.md` stays as the cited source.
 - **Text-quote anchoring** (W3C Web Annotation) for the highlight layer — see
@@ -169,7 +190,7 @@ apps/studio
     ├── lib/
     │   ├── annotate.ts        # text-quote anchoring + highlight DOM surgery
     │   ├── useAnnotations.tsx # selection popover · highlights · gutter · hovercards
-    │   ├── route.ts · markdown.ts · appData.ts · operator.ts · format.ts
+    │   ├── route.ts · markdown.ts · templates.ts · appData.ts · operator.ts · format.ts
     └── components/         # Sidebar · Markdown · DocView · CommentPanel
         ·                   # Library · AssetView · AssetEditor · Home
 ```

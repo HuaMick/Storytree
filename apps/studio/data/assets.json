@@ -89,7 +89,7 @@
     "category": "guardrail",
     "title": "Confine model calls to one boundary",
     "description": "pi is reached only through packages/pi-adapter; only the orchestrator drives it; a run is an event, never a node; the orchestrator is the sole fan-out point.",
-    "body": "Confine every model call behind one orchestrator-driven boundary, so model-unavailability is a *local* failure, never a system outage.\n\n- pi is reached **only** through `packages/pi-adapter` — the sole place a model runtime is imported.\n\n- **Only** `packages/orchestrator` drives the adapter; `packages/core` and `apps/studio` have no path to a model runtime.\n\n- **Run ≠ node:** a pi run/attempt is an execution event, never a new tree node.\n\n- The orchestrator is the **sole fan-out point** — pi nodes never schedule child nodes.\n\n_Synthesised from ADR-0004._",
+    "body": "Confine every model call behind one orchestrator-driven boundary, so model-unavailability is a *local* failure, never a system outage.\n\n- pi is reached **only** through `packages/pi-adapter` — the sole place a model runtime is imported.\n\n- **Only** `packages/orchestrator` drives the adapter; `packages/core` and `apps/studio` have no path to a model runtime.\n\n- **Run ≠ node:** a pi run/attempt is an execution event, never a new tree node.\n\n- The orchestrator is the **sole fan-out point** — pi nodes never schedule child nodes.\n\n**Enforced by.** A package-boundary dependency rule: `packages/pi-adapter` is the only module that may import a model runtime, and only `packages/orchestrator` may import the adapter — `packages/core` and `apps/studio` have no build-graph path to either.\n\n_Synthesised from ADR-0004._",
     "references": [
       "doc:decisions/0004-orchestrator-agent-boundary.md"
     ],
@@ -113,7 +113,7 @@
     "category": "guardrail",
     "title": "Approval-gated trunk",
     "description": "A green result is a request for human diff-review, not an automatic merge. The human holds the outer loop; content invariants are never bypassable.",
-    "body": "The studio **drives** agents; the human sits at the **outer loop**.\n\n- **Per-action approval** is first-class (inverts v1’s skip-permissions): approve / reject / steer individual pi actions in-loop.\n\n- **Approval-gated trunk** (inverts auto-merge-on-green): a green result surfaces for human diff-review and lands only on approval, as a signed promotion event.\n\n- Content invariants — contracts green, UAT signed, upstream healthy — are **never bypassable**.\n\n_Synthesised from ADR-0008._",
+    "body": "The studio **drives** agents; the human sits at the **outer loop**.\n\n- **Per-action approval** is first-class (inverts v1’s skip-permissions): approve / reject / steer individual pi actions in-loop.\n\n- **Approval-gated trunk** (inverts auto-merge-on-green): a green result surfaces for human diff-review and lands only on approval, as a signed promotion event.\n\n- Content invariants — contracts green, UAT signed, upstream healthy — are **never bypassable**.\n\n**Enforced by.** The promotion gate: landing on trunk is a signed `promotion` event the orchestrator emits only after an operator approves the diff *and* the content invariants pass — there is no code path that writes the trunk without it.\n\n_Synthesised from ADR-0008._",
     "references": [
       "doc:decisions/0008-ui-drives-agents-approvals.md"
     ],
@@ -125,7 +125,7 @@
     "category": "guardrail",
     "title": "Claims live in the shared store",
     "description": "Write-ownership is a typed claim checked at node-schedule time in the one shared store; a conflict is a hard refusal, never a warning.",
-    "body": "Coordination moves off git and into the one shared Postgres store (DBOS).\n\n- A **claim** is a typed write-ownership record naming what a node intends to write, checked under a serializable/unique constraint at **node-schedule time**.\n\n- A conflict is a **hard refusal** (a `claim-conflict-refused` event), never a warning.\n\n- DBOS workflow isolation replaces branch-per-session for coordination; DB-allocated ids dissolve the collision classes.\n\n_Synthesised from ADR-0009._",
+    "body": "Coordination moves off git and into the one shared Postgres store (DBOS).\n\n- A **claim** is a typed write-ownership record naming what a node intends to write, checked under a serializable/unique constraint at **node-schedule time**.\n\n- A conflict is a **hard refusal** (a `claim-conflict-refused` event), never a warning.\n\n- DBOS workflow isolation replaces branch-per-session for coordination; DB-allocated ids dissolve the collision classes.\n\n**Enforced by.** A serializable/unique constraint on the claims table in the shared Postgres (DBOS) store, checked at node-schedule time: a conflicting claim raises a `claim-conflict-refused` event instead of committing, so two nodes can never hold the same write.\n\n_Synthesised from ADR-0009._",
     "references": [
       "doc:decisions/0009-concurrency-isolation-id-allocation.md"
     ],
@@ -187,7 +187,7 @@
     "category": "guardrail",
     "title": "The gate is never bypassable",
     "description": "Content invariants — contracts green, UAT signed, upstream healthy — can never be bypassed; the gate refuses invalid work rather than warning.",
-    "body": "A **gate** is a structural enforcement point that **refuses** invalid work, not a warning. Promotion onto the trunk requires its content invariants — contracts green, UAT signed, upstream healthy — and these are **never bypassable**. An operator approval admits work that has *already* passed the gate; it cannot waive it.\n\n_Synthesised from ADR-0008 / ADR-0007._",
+    "body": "A **gate** is a structural enforcement point that **refuses** invalid work, not a warning. Promotion onto the trunk requires its content invariants — contracts green, UAT signed, upstream healthy — and these are **never bypassable**. An operator approval admits work that has *already* passed the gate; it cannot waive it.\n\n**Enforced by.** The gate is the sole writer of trunk-promotion events and emits one only when every content invariant holds; the operator-approval check runs *after* the invariants and has no branch that can waive them.\n\n_Synthesised from ADR-0008 / ADR-0007._",
     "references": [
       "doc:decisions/0008-ui-drives-agents-approvals.md",
       "doc:decisions/0007-proof-model.md"
@@ -200,7 +200,7 @@
     "category": "guardrail",
     "title": "An agent can never self-exempt",
     "description": "operator-attested promotion is operator-granted only; an agent can never grant itself the attestation that reaches `healthy`.",
-    "body": "The `operator-attested` proof mode promotes a unit to `healthy` only via an explicit, per-unit, **operator-granted** signed event. An agent can **never** self-exempt, and the attestation is distinguishable in the audit trail from a UAT walkthrough sign.\n\n_Synthesised from ADR-0007._",
+    "body": "The `operator-attested` proof mode promotes a unit to `healthy` only via an explicit, per-unit, **operator-granted** signed event. An agent can **never** self-exempt, and the attestation is distinguishable in the audit trail from a UAT walkthrough sign.\n\n**Enforced by.** The event store requires the `operator-attested` event to carry an operator signature distinct from any agent identity; an attestation signed by the agent under test is rejected, so an agent cannot mint its own promotion.\n\n_Synthesised from ADR-0007._",
     "references": [
       "doc:decisions/0007-proof-model.md"
     ],
@@ -212,7 +212,7 @@
     "category": "guardrail",
     "title": "A run is not a node",
     "description": "A pi run/attempt is an execution event (many per node), never a new tree node. The execution environment is not the coordination structure.",
-    "body": "A pi **run** (attempt) is recorded as an execution **event**, many-per-node — it is **never** a new node on the DAG. The coordination/scheduling grain (the node) is kept distinct from the execution grain (the run).\n\n_Synthesised from ADR-0004 (glossary: node, run)._",
+    "body": "A pi **run** (attempt) is recorded as an execution **event**, many-per-node — it is **never** a new node on the DAG. The coordination/scheduling grain (the node) is kept distinct from the execution grain (the run).\n\n**Enforced by.** The `packages/core` schema: a run is a `run`-typed row in the event store keyed to its node id, with no node identity of its own and no slot in the node table for one to occupy.\n\n_Synthesised from ADR-0004 (glossary: node, run)._",
     "references": [
       "doc:decisions/0004-orchestrator-agent-boundary.md"
     ],
@@ -224,7 +224,7 @@
     "category": "guardrail",
     "title": "The orchestrator is the sole fan-out point",
     "description": "Only the orchestrator schedules nodes; pi nodes never schedule child nodes (no agent-spawns-agent).",
-    "body": "The orchestrator is the **only** module that drives the pi-adapter and the **sole fan-out point** — it schedules nodes. A pi node never schedules child nodes; there is no agent-spawns-agent path.\n\n_Synthesised from ADR-0004 / ADR-0005._",
+    "body": "The orchestrator is the **only** module that drives the pi-adapter and the **sole fan-out point** — it schedules nodes. A pi node never schedules child nodes; there is no agent-spawns-agent path.\n\n**Enforced by.** Only `packages/orchestrator` holds the schedule-node capability; the pi-adapter surface exposes no scheduling call upward, so a pi node has no API by which to spawn a child node.\n\n_Synthesised from ADR-0004 / ADR-0005._",
     "references": [
       "doc:decisions/0004-orchestrator-agent-boundary.md",
       "doc:decisions/0005-orchestration-spine-code-vs-judgment.md"
@@ -349,11 +349,61 @@
     "category": "guardrail",
     "title": "The human owns the outer loop",
     "description": "Inner loop (drive a unit red→green) is automatable; outer loop (accept to trunk, accept a decomposition, amend/retry/abandon) is human judgment.",
-    "body": "**inner loop** = driving one unit red→green (automatable, owned by a pi node). **outer loop** = accepting a result onto the trunk, accepting a decomposition, or amending/retrying/abandoning a unit (held by **human judgment** in the studio).\n\nThe human-in-the-loop gate sits at the outer loop; the north-star may later dissolve it.\n\n_Synthesised from ADR-0008 / ADR-0007._",
+    "body": "**inner loop** = driving one unit red→green (automatable, owned by a pi node). **outer loop** = accepting a result onto the trunk, accepting a decomposition, or amending/retrying/abandoning a unit (held by **human judgment** in the studio).\n\nThe human-in-the-loop gate sits at the outer loop; the north-star may later dissolve it.\n\n**Enforced by.** The outer-loop transitions (accept-to-trunk, accept-decomposition, amend / retry / abandon) are operator-only actions in the studio, each recorded as an operator-signed event; the orchestrator exposes no automated path that performs them.\n\n_Synthesised from ADR-0008 / ADR-0007._",
     "references": [
       "doc:decisions/0008-ui-drives-agents-approvals.md",
       "doc:decisions/0007-proof-model.md"
     ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "template-definition",
+    "category": "template",
+    "title": "Template — definition",
+    "description": "Fillable scaffold for a new definition artifact (what something is).",
+    "body": "**In one line.** _What this term means, stated once._\n\n## What it is\n\n_The precise meaning — genus and differentia. Be exact._\n\n## What it is not\n\n_The nearest neighbours it must not be confused with._\n\n## See also\n\n_The glossary entry / ADR that governs the term, and related artifacts._",
+    "references": [],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "template-principle",
+    "category": "template",
+    "title": "Template — principle",
+    "description": "Fillable scaffold for a new principle artifact (how to judge).",
+    "body": "**The principle.** _The judgement rule, in one sentence._\n\n## Why\n\n_What goes wrong without it; the cost it pays for._\n\n## How to apply\n\n_What following it looks like in practice — the test you run._\n\n## See also\n\n_Source ADR(s) and related artifacts._",
+    "references": [],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "template-pattern",
+    "category": "template",
+    "title": "Template — pattern",
+    "description": "Fillable scaffold for a new pattern artifact (a reusable approach).",
+    "body": "**The pattern.** _The reusable approach, in one sentence._\n\n## Problem\n\n_The recurring situation this addresses._\n\n## Approach\n\n_The structure to apply — the shape or the steps._\n\n## Tradeoffs\n\n_What you trade — A vs B — in concrete, user-facing terms._\n\n## See also\n\n_Source ADR(s) and related artifacts._",
+    "references": [],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "template-guardrail",
+    "category": "template",
+    "title": "Template — guardrail",
+    "description": "Fillable scaffold for a new guardrail artifact — requires an \"Enforced by\" section.",
+    "body": "**The boundary.** _The line that must not be crossed, in one sentence._\n\n## Rule\n\n_The invariant, stated as a hard boundary._\n\n## Enforced by\n\n_The deterministic mechanism that makes this non-bypassable — a gate, a schema, a DB constraint, or a specific code path. If nothing enforces it, this is a `pattern`, not a guardrail._\n\n## Failure mode prevented\n\n_What breaks if the boundary is crossed._\n\n## See also\n\n_Source ADR(s) and related artifacts._",
+    "references": [],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "template-techstack",
+    "category": "template",
+    "title": "Template — techstack",
+    "description": "Fillable scaffold for a new techstack artifact (what we build on).",
+    "body": "**The choice.** _What we build on, in one sentence._\n\n## What it is\n\n_The technology and the role it plays._\n\n## Why this\n\n_What it buys us; what it was chosen over._\n\n## Constraints\n\n_Version pins, boundaries, and what it must not be used for._\n\n## See also\n\n_Source ADR(s) and related artifacts._",
+    "references": [],
     "createdAt": "2026-06-05T00:00:00.000Z",
     "updatedAt": "2026-06-05T00:00:00.000Z"
   },

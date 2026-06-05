@@ -28,6 +28,7 @@ const ASSET_CATEGORIES: AssetCategory[] = [
   'pattern',
   'guardrail',
   'techstack',
+  'template',
 ];
 
 interface Paths {
@@ -102,6 +103,26 @@ function deriveGroup(relId: string): string {
   return relId.startsWith('decisions/') ? 'Decisions' : 'Reference';
 }
 
+/**
+ * The first prose sentence after the H1 title — the one-line description shown
+ * on Library ADR cards. Skips the title, ATX headings, and short metadata values
+ * (ADRs lead with Status/Date), then takes the first sentence of the first block
+ * that actually reads as prose (i.e. has sentence punctuation). Empty if none.
+ */
+function deriveExcerpt(markdown: string): string {
+  const body = markdown.replace(/^#\s+.*$/m, ''); // drop the H1 title line
+  for (const block of body.split(/\n\s*\n/)) {
+    const b = block.trim();
+    if (!b || b.startsWith('#')) continue; // blank line or a heading
+    const plain = b.replace(/\s+/g, ' ').replace(/[*_`>]/g, '').trim();
+    const m = plain.match(/^(.+?[.;])(\s|$)/);
+    if (!m || !m[1]) continue; // not a sentence (e.g. "accepted", a bare date)
+    const s = m[1].trim();
+    return s.length > 200 ? s.slice(0, 197).trimEnd() + '…' : s;
+  }
+  return '';
+}
+
 async function listDocs(docsDir: string): Promise<DocMeta[]> {
   const out: DocMeta[] = [];
   async function walk(dir: string): Promise<void> {
@@ -113,7 +134,12 @@ async function listDocs(docsDir: string): Promise<DocMeta[]> {
       } else if (ent.isFile() && ent.name.endsWith('.md')) {
         const relId = path.relative(docsDir, full).split(path.sep).join('/');
         const content = await fs.readFile(full, 'utf8');
-        out.push({ id: relId, title: deriveTitle(content, ent.name), group: deriveGroup(relId) });
+        out.push({
+          id: relId,
+          title: deriveTitle(content, ent.name),
+          group: deriveGroup(relId),
+          excerpt: deriveExcerpt(content),
+        });
       }
     }
   }

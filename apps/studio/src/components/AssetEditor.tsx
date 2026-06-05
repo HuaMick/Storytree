@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useAppData } from '../lib/appData';
 import { slugify } from '../lib/markdown';
+import { missingSections, requiredSections, templateIdFor } from '../lib/templates';
 import { assetHref, libraryHref, navigate } from '../lib/route';
 import {
   ASSET_CATEGORIES,
@@ -79,9 +80,24 @@ export function AssetEditor({ mode, id }: AssetEditorProps): React.JSX.Element {
     }));
   }
 
+  // Pre-fill the body from the seeded `template-<category>` scaffold. Offered only
+  // when authoring a new non-template artifact (see `templateAsset` below).
+  const templateAsset =
+    mode === 'new' && form.category !== 'template'
+      ? assets.find((a) => a.id === templateIdFor(form.category))
+      : undefined;
+
+  function startFromTemplate(): void {
+    if (!templateAsset) return;
+    if (form.body.trim() && !window.confirm(`Replace the current body with the ${form.category} template?`)) {
+      return;
+    }
+    set('body', templateAsset.body);
+    setError('');
+  }
+
   async function save(e: React.FormEvent): Promise<void> {
     e.preventDefault();
-    setBusy(true);
     setError('');
     const input: AssetInput = {
       id: form.id.trim(),
@@ -91,6 +107,20 @@ export function AssetEditor({ mode, id }: AssetEditorProps): React.JSX.Element {
       body: form.body,
       references: splitList(form.references),
     };
+    // Enforce the per-category template: block save when a required section is
+    // missing (a guardrail must name how it is deterministically enforced).
+    const missing = missingSections(input.body, requiredSections(input.category));
+    if (missing.length > 0) {
+      const sections = missing.map((s) => `“${s}”`).join(', ');
+      setError(
+        `A ${input.category} must include the ${sections} section${missing.length > 1 ? 's' : ''} before it can be saved` +
+          (input.category === 'guardrail'
+            ? ' — name the gate / schema / DB constraint / code path that makes it non-bypassable, or it is a pattern, not a guardrail.'
+            : '.'),
+      );
+      return;
+    }
+    setBusy(true);
     try {
       const saved =
         mode === 'edit' && id
@@ -172,8 +202,15 @@ export function AssetEditor({ mode, id }: AssetEditorProps): React.JSX.Element {
             />
           </label>
 
-          <label className="field">
-            <span>Body (markdown)</span>
+          <div className="field">
+            <div className="field-label-row">
+              <span>Body (markdown)</span>
+              {templateAsset && (
+                <button type="button" className="btn small" onClick={startFromTemplate}>
+                  Start from the {form.category} template
+                </button>
+              )}
+            </div>
             <textarea
               className="mono"
               value={form.body}
@@ -181,7 +218,16 @@ export function AssetEditor({ mode, id }: AssetEditorProps): React.JSX.Element {
               rows={16}
               required
             />
-          </label>
+            {requiredSections(form.category).length > 0 && (
+              <p className="field-hint muted small">
+                Required section{requiredSections(form.category).length > 1 ? 's' : ''}:{' '}
+                {requiredSections(form.category)
+                  .map((s) => `“${s}”`)
+                  .join(', ')}{' '}
+                — enforced on save.
+              </p>
+            )}
+          </div>
 
           <label className="field">
             <span>

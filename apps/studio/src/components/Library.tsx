@@ -1,27 +1,51 @@
 import { useMemo, useState } from 'react';
 import { useAppData, openCount } from '../lib/appData';
-import { assetHref, assetNewHref, libraryHref } from '../lib/route';
+import { assetHref, assetNewHref, docHref, libraryHref } from '../lib/route';
 import {
-  ASSET_CATEGORIES,
-  ASSET_CATEGORY_GLOSS,
-  type AssetCategory,
+  LIBRARY_CATEGORIES,
+  LIBRARY_CATEGORY_GLOSS,
+  type LibraryCategory,
+  type LibraryItem,
 } from '../types';
 
-export function Library({ category }: { category: AssetCategory | null }): React.JSX.Element {
-  const { assets, comments } = useAppData();
+export function Library({ category }: { category: LibraryCategory | null }): React.JSX.Element {
+  const { docs, assets, comments } = useAppData();
   const [query, setQuery] = useState('');
+
+  // The unified Library list: editable artifacts (kind 'artifact') plus the ADRs
+  // as read-only, doc-backed items (group "Decisions" → kind 'doc', category 'adr').
+  // ADRs stay canonical markdown under docs/decisions and open in DocView.
+  const items = useMemo<LibraryItem[]>(() => {
+    const artifactItems: LibraryItem[] = assets.map((a) => ({
+      kind: 'artifact',
+      id: a.id,
+      category: a.category,
+      title: a.title,
+      description: a.description,
+    }));
+    const adrItems: LibraryItem[] = docs
+      .filter((d) => d.group === 'Decisions')
+      .map((d) => ({
+        kind: 'doc',
+        id: d.id,
+        category: 'adr',
+        title: d.title,
+        description: d.excerpt,
+      }));
+    return [...artifactItems, ...adrItems];
+  }, [assets, docs]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return assets.filter((a) => {
-      if (category && a.category !== category) return false;
+    return items.filter((it) => {
+      if (category && it.category !== category) return false;
       if (q) {
-        const hay = `${a.id} ${a.title} ${a.description} ${a.body}`.toLowerCase();
+        const hay = `${it.id} ${it.title} ${it.description}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [assets, category, query]);
+  }, [items, category, query]);
 
   return (
     <div className="library pad">
@@ -29,9 +53,10 @@ export function Library({ category }: { category: AssetCategory | null }): React
         <div>
           <h1>Library</h1>
           <p className="muted">
-            Modular, injectable artifacts — definitions, principles, patterns, guardrails, and the
-            techstack (the durable guidance synthesised from the ADRs). The seed of an injectable
-            guidance library (open-questions §9).
+            Modular, injectable artifacts — definitions, principles, patterns, guardrails, templates,
+            and the techstack — alongside the ADRs (the decision history, read-only). The durable
+            guidance synthesised from the record; the seed of an injectable guidance library
+            (open-questions §9).
           </p>
         </div>
         <a className="btn primary" href={assetNewHref}>
@@ -42,17 +67,17 @@ export function Library({ category }: { category: AssetCategory | null }): React
       <div className="filters">
         <div className="filter-cats">
           <a className={category === null ? 'chip-btn active' : 'chip-btn'} href={libraryHref()}>
-            all ({assets.length})
+            all ({items.length})
           </a>
-          {ASSET_CATEGORIES.map((cat) => {
-            const n = assets.filter((a) => a.category === cat).length;
+          {LIBRARY_CATEGORIES.map((cat) => {
+            const n = items.filter((it) => it.category === cat).length;
             if (n === 0) return null;
             return (
               <a
                 key={cat}
                 className={category === cat ? `chip-btn cat-${cat} active` : `chip-btn cat-${cat}`}
                 href={libraryHref(cat)}
-                title={ASSET_CATEGORY_GLOSS[cat]}
+                title={LIBRARY_CATEGORY_GLOSS[cat]}
               >
                 {cat} ({n})
               </a>
@@ -69,29 +94,30 @@ export function Library({ category }: { category: AssetCategory | null }): React
 
       {category && (
         <p className="muted small cat-gloss">
-          <span className={`cat-dot cat-${category}`} /> {category} — {ASSET_CATEGORY_GLOSS[category]}
+          <span className={`cat-dot cat-${category}`} /> {category} — {LIBRARY_CATEGORY_GLOSS[category]}
         </p>
       )}
 
       {filtered.length === 0 ? (
-        <p className="muted pad-sm">No artifacts match.</p>
+        <p className="muted pad-sm">No items match.</p>
       ) : (
         <ul className="asset-grid">
-          {filtered.map((a) => {
-            const open = openCount(comments, a.id);
+          {filtered.map((it) => {
+            const open = openCount(comments, it.id);
+            const href = it.kind === 'doc' ? docHref(it.id) : assetHref(it.id);
             return (
-              <li key={a.id}>
-                <a className="asset-card" href={assetHref(a.id)}>
+              <li key={`${it.kind}:${it.id}`}>
+                <a className="asset-card" href={href}>
                   <div className="asset-card-top">
-                    <span className={`chip cat-${a.category}`}>{a.category}</span>
+                    <span className={`chip cat-${it.category}`}>{it.category}</span>
                     {open > 0 && (
                       <span className="badge" title={`${open} open comment(s)`}>
                         {open}
                       </span>
                     )}
                   </div>
-                  <h3>{a.title}</h3>
-                  <p className="asset-desc">{a.description}</p>
+                  <h3>{it.title}</h3>
+                  <p className="asset-desc">{it.description}</p>
                 </a>
               </li>
             );
