@@ -1,37 +1,29 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { useAppData } from '../lib/appData';
 import { useOperator } from '../lib/operator';
 import { parseHeadings } from '../lib/markdown';
-import type { Comment, CommentAnchor, DocContent } from '../types';
+import { sectionAnchor, topicAnchor } from '../lib/annotate';
+import { useAnnotations } from '../lib/useAnnotations';
+import type { DocContent } from '../types';
 import { Markdown, type CommentTarget } from './Markdown';
 import { CommentPanel } from './CommentPanel';
 
-const TOPIC_ANCHOR: CommentAnchor = { kind: 'topic', headingSlug: null, headingText: null };
-
-function sectionCounts(comments: Comment[], topicId: string): Record<string, number> {
-  const rec: Record<string, number> = {};
-  for (const c of comments) {
-    if (c.topicId === topicId && !c.resolved && c.anchor.kind === 'section' && c.anchor.headingSlug) {
-      rec[c.anchor.headingSlug] = (rec[c.anchor.headingSlug] ?? 0) + 1;
-    }
-  }
-  return rec;
-}
-
 export function DocView({ id }: { id: string }): React.JSX.Element {
-  const { comments, docTitles } = useAppData();
+  const { docTitles } = useAppData();
   const [operator] = useOperator();
   const [content, setContent] = useState<DocContent | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState('');
-  const [target, setTarget] = useState<CommentAnchor>(TOPIC_ANCHOR);
+  const articleRef = useRef<HTMLElement>(null);
+  const ann = useAnnotations(id, articleRef, content?.markdown ?? '');
+  const setTarget = ann.setTarget;
 
   useEffect(() => {
     let active = true;
     setStatus('loading');
     setContent(null);
-    setTarget(TOPIC_ANCHOR);
+    setTarget(topicAnchor());
     void (async () => {
       try {
         const c = await api.docContent(id);
@@ -47,14 +39,24 @@ export function DocView({ id }: { id: string }): React.JSX.Element {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, setTarget]);
 
   const headings = useMemo(() => (content ? parseHeadings(content.markdown) : []), [content]);
-  const counts = useMemo(() => sectionCounts(comments, id), [comments, id]);
-
-  function commentOnHeading(t: CommentTarget): void {
-    setTarget({ kind: 'section', headingSlug: t.slug, headingText: t.text });
-  }
+  const onHeading = useCallback(
+    (t: CommentTarget) => setTarget(sectionAnchor(t.slug, t.text)),
+    [setTarget],
+  );
+  // Memoized so React renders it once per doc and never reconciles it away
+  // (which would strip the highlight marks the annotation layer injects).
+  const markdown = useMemo(
+    () =>
+      content ? (
+        <Markdown baseDocId={id} onCommentHeading={onHeading}>
+          {content.markdown}
+        </Markdown>
+      ) : null,
+    [id, content, onHeading],
+  );
 
   if (status === 'loading') return <p className="muted pad">Loading {docTitles.get(id) ?? id}…</p>;
   if (status === 'error' || !content) {
@@ -68,19 +70,22 @@ export function DocView({ id }: { id: string }): React.JSX.Element {
 
   return (
     <div className="doc-layout">
-      <article className="doc">
-        <div className="doc-crumb muted small">docs / {id}</div>
-        <Markdown baseDocId={id} onCommentHeading={commentOnHeading} commentCounts={counts}>
-          {content.markdown}
-        </Markdown>
-      </article>
+      <div className="doc-main">
+        <article className="doc" ref={articleRef} {...ann.articleHandlers}>
+          <div className="doc-crumb muted small">docs / {id}</div>
+          {markdown}
+          {ann.overlays}
+        </article>
+      </div>
       <CommentPanel
         topicKind="doc"
         topicId={id}
         headings={headings}
         operator={operator}
-        target={target}
+        target={ann.target}
         setTarget={setTarget}
+        focusId={ann.focusId}
+        onJump={ann.jumpToAnchor}
       />
     </div>
   );

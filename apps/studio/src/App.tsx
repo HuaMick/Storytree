@@ -7,7 +7,7 @@ import type { Comment, DocMeta, GuidanceAsset } from './types';
 import { Sidebar } from './components/Sidebar';
 import { Home } from './components/Home';
 import { DocView } from './components/DocView';
-import { GuidanceLibrary } from './components/GuidanceLibrary';
+import { Library } from './components/Library';
 import { AssetView } from './components/AssetView';
 import { AssetEditor } from './components/AssetEditor';
 
@@ -76,7 +76,7 @@ export function App(): React.JSX.Element {
           </a>
           <nav className="topnav">
             <a href={homeHref}>Overview</a>
-            <a href={libraryHref}>Guidance library</a>
+            <a href={libraryHref()}>Library</a>
           </nav>
           <label className="operator">
             <span>operator</span>
@@ -118,7 +118,7 @@ function RouteView({ route }: { route: ReturnType<typeof useRoute> }): React.JSX
     case 'doc':
       return <DocView id={route.id} />;
     case 'library':
-      return <GuidanceLibrary />;
+      return <Library category={route.category} />;
     case 'asset':
       return <AssetView id={route.id} />;
     case 'asset-edit':

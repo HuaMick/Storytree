@@ -2,26 +2,39 @@
 // for the dev-server JSON store (apps/studio/data/*.json) and the client.
 //
 // Forum framing (see apps/studio/README.md): every **topic** is either a
-// document (an ADR / glossary / open-question) or a guidance **asset**;
-// **comments** are the posts attached to a topic — optionally to a section.
+// document (an ADR / glossary / open-question) or a Library **artifact** (a
+// definition / principle / guideline); **comments** are the posts attached to a
+// topic — to the whole topic, a section heading, or an exact span of text.
 
 export type TopicKind = 'doc' | 'asset';
 
-/** Where on a topic a comment is attached. */
+/**
+ * Where on a topic a comment is attached.
+ *
+ * - `topic`   — the whole document/artifact.
+ * - `section` — a specific heading (`headingSlug` matches the rendered id).
+ * - `text`    — an exact span, anchored by the W3C Web Annotation **text-quote**
+ *   model: the exact `quote` plus a little `prefix`/`suffix` context so it can be
+ *   re-found after the doc re-renders or is edited. `headingSlug` scopes the
+ *   search; `startOffset` is a position hint for disambiguation; `color` is the
+ *   highlight tag.
+ */
 export interface CommentAnchor {
-  /** 'topic' = the whole document/asset; 'section' = a specific heading. */
-  kind: 'topic' | 'section';
-  /** Stable heading slug (matches the rendered heading's id); null for topic-level. */
+  kind: 'topic' | 'section' | 'text';
   headingSlug: string | null;
-  /** Human-readable heading text, for display; null for topic-level. */
   headingText: string | null;
+  quote: string | null;
+  prefix: string | null;
+  suffix: string | null;
+  startOffset: number | null;
+  color: string | null;
 }
 
-/** A post in the forum — feedback attached to a doc or asset. */
+/** A post in the forum — feedback attached to a doc or artifact. */
 export interface Comment {
   id: string;
   topicKind: TopicKind;
-  /** Doc relpath under docs/ (e.g. "decisions/0002-...md") or an asset id. */
+  /** Doc relpath under docs/ (e.g. "decisions/0002-...md") or an artifact id. */
   topicId: string;
   anchor: CommentAnchor;
   /** Markdown. */
@@ -43,24 +56,24 @@ export interface NewComment {
 }
 
 /**
- * The v1 (Agentic) asset taxonomy: a typed, reusable unit of agent guidance.
- * Three core kinds the owner named — principle / definition / guideline — plus
- * the other v1 buckets, cheap to keep. The one-line gloss per category is shown
- * in the UI.
+ * The artifact taxonomy, grounded in the v1 (Agentic) `assets/` corpus: a typed,
+ * reusable unit of agent guidance. The three core kinds the owner named —
+ * principle / definition / guideline — plus the other v1 buckets. The one-line
+ * gloss per category is shown in the UI.
  */
 export type AssetCategory =
   | 'principle' // "how to judge"
   | 'definition' // "what something is"
   | 'guideline' // "what to do"
   | 'context' // "what world we operate in"
-  | 'governance' // "which surface beats another"
-  | 'glossary'; // "canonical term"
+  | 'governance'; // "which surface beats another"
 
 /**
- * A modular, injectable unit of guidance — the seed of the injectable guidance
+ * A modular, injectable Library artifact — the seed of the injectable guidance
  * library (open-questions §9 / adjudication §J). Named `GuidanceAsset`, NOT bare
- * `asset`: the glossary reserves `asset` for tree/game art, and the owner's docs
- * say the knowledge tier, when it returns, must be named something else.
+ * `asset`: the glossary reserves `asset` for tree/game art. ADRs are *not*
+ * artifacts (they are history); a principle/guideline synthesized from an ADR
+ * cites it via `references`.
  */
 export interface GuidanceAsset {
   /** kebab-case slug; unique; the v1 `name`. */
@@ -71,25 +84,22 @@ export interface GuidanceAsset {
   description: string;
   /** Markdown body — the guidance itself. */
   body: string;
-  /** Free-form categorisation. */
-  tags: string[];
   /**
-   * Topic refs this asset points at: "doc:<relpath>" or "asset:<id>". The seed
-   * of v1's reciprocity-checked `current_consumers` references.
+   * Topic refs this artifact points at: "doc:<relpath>" (e.g. its source ADR) or
+   * "asset:<id>". The seed of v1's reciprocity-checked `current_consumers`.
    */
   references: string[];
   createdAt: string;
   updatedAt: string;
 }
 
-/** Fields a client supplies when creating/replacing an asset. */
+/** Fields a client supplies when creating/replacing an artifact. */
 export interface AssetInput {
   id: string;
   category: AssetCategory;
   title: string;
   description: string;
   body: string;
-  tags: string[];
   references: string[];
 }
 
@@ -114,15 +124,30 @@ export const ASSET_CATEGORIES: AssetCategory[] = [
   'guideline',
   'context',
   'governance',
-  'glossary',
 ];
 
-/** One-line gloss per category (shown in the library UI). */
+/** One-line gloss per category (shown in the Library UI). */
 export const ASSET_CATEGORY_GLOSS: Record<AssetCategory, string> = {
   principle: 'how to judge',
   definition: 'what something is',
   guideline: 'what to do',
   context: 'what world we operate in',
   governance: 'which surface beats another',
-  glossary: 'a canonical term',
 };
+
+/** Highlight colour palette for text-anchored comments. */
+export interface HighlightColor {
+  id: string;
+  label: string;
+  value: string;
+}
+
+export const HIGHLIGHT_COLORS: HighlightColor[] = [
+  { id: 'yellow', label: 'Yellow', value: '#f5c542' },
+  { id: 'green', label: 'Green', value: '#34c759' },
+  { id: 'blue', label: 'Blue', value: '#3b9eff' },
+  { id: 'pink', label: 'Pink', value: '#ff5fa2' },
+  { id: 'purple', label: 'Purple', value: '#af52de' },
+];
+
+export const DEFAULT_HIGHLIGHT = '#f5c542';

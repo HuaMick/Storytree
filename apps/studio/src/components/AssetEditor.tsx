@@ -22,7 +22,6 @@ interface FormState {
   title: string;
   description: string;
   body: string;
-  tags: string;
   references: string;
 }
 
@@ -32,7 +31,6 @@ const EMPTY: FormState = {
   title: '',
   description: '',
   body: '',
-  tags: '',
   references: '',
 };
 
@@ -59,7 +57,6 @@ export function AssetEditor({ mode, id }: AssetEditorProps): React.JSX.Element {
         title: existing.title,
         description: existing.description,
         body: existing.body,
-        tags: existing.tags.join(', '),
         references: existing.references.join(', '),
       });
       setIdTouched(true);
@@ -92,7 +89,6 @@ export function AssetEditor({ mode, id }: AssetEditorProps): React.JSX.Element {
       title: form.title.trim(),
       description: form.description.trim(),
       body: form.body,
-      tags: splitList(form.tags),
       references: splitList(form.references),
     };
     try {
@@ -112,9 +108,9 @@ export function AssetEditor({ mode, id }: AssetEditorProps): React.JSX.Element {
   if (mode === 'edit' && !existing) {
     return (
       <div className="pad error-box">
-        <h2>Asset not found</h2>
+        <h2>Artifact not found</h2>
         <p className="muted">
-          Can’t edit <code>{id}</code>. <a href={libraryHref}>Back to the library</a>.
+          Can’t edit <code>{id}</code>. <a href={libraryHref()}>Back to the Library</a>.
         </p>
       </div>
     );
@@ -123,9 +119,9 @@ export function AssetEditor({ mode, id }: AssetEditorProps): React.JSX.Element {
   return (
     <div className="editor pad">
       <div className="doc-crumb muted small">
-        <a href={libraryHref}>guidance library</a> / {mode === 'new' ? 'new asset' : `edit ${id}`}
+        <a href={libraryHref()}>library</a> / {mode === 'new' ? 'new artifact' : `edit ${id}`}
       </div>
-      <h1>{mode === 'new' ? 'New guidance asset' : `Edit “${existing?.title}”`}</h1>
+      <h1>{mode === 'new' ? 'New artifact' : `Edit “${existing?.title}”`}</h1>
 
       <form className="editor-grid" onSubmit={save}>
         <div className="editor-fields">
@@ -189,13 +185,6 @@ export function AssetEditor({ mode, id }: AssetEditorProps): React.JSX.Element {
 
           <label className="field">
             <span>
-              Tags <small className="muted">(comma-separated)</small>
-            </span>
-            <input value={form.tags} onChange={(e) => set('tags', e.target.value)} />
-          </label>
-
-          <label className="field">
-            <span>
               References{' '}
               <small className="muted">
                 (comma-separated; <code>doc:&lt;relpath&gt;</code> or <code>asset:&lt;id&gt;</code>)
@@ -208,9 +197,9 @@ export function AssetEditor({ mode, id }: AssetEditorProps): React.JSX.Element {
 
           <div className="editor-actions">
             <button type="submit" className="btn primary" disabled={busy}>
-              {busy ? 'Saving…' : mode === 'new' ? 'Create asset' : 'Save changes'}
+              {busy ? 'Saving…' : mode === 'new' ? 'Create artifact' : 'Save changes'}
             </button>
-            <a className="btn ghost" href={mode === 'edit' && id ? assetHref(id) : libraryHref}>
+            <a className="btn ghost" href={mode === 'edit' && id ? assetHref(id) : libraryHref()}>
               Cancel
             </a>
           </div>

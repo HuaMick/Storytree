@@ -4,13 +4,7 @@
     "category": "principle",
     "title": "Deep modules",
     "description": "How to judge where a boundary belongs: a module's interface is a cost paid by every caller; its hidden functionality is the benefit. Pay the interface cost only when the hidden work justifies it.",
-    "body": "A module's **interface** is a cost paid by every caller (names to learn, invariants to preserve, parameters to thread). The **functionality** it hides is the benefit. The deep-modules principle: pay the interface cost only when the hidden functionality justifies it.\n\n- **Deep module** — small public surface, large hidden implementation. Callers see one concept and trust it.\n\n- **Shallow module** — wide public surface relative to the work it does. Callers must understand the interface *and* the implementation it leaks; the boundary buys nothing.\n\n### The deletion test\n\n> Imagine deleting the module. If complexity vanishes, it was a pass-through. If complexity reappears across N callers, it was earning its keep.\n\n### Three friction signals (too shallow)\n\n1. Bouncing between many small modules to understand one concept.\n\n2. Interface nearly as complex as the implementation.\n\n3. Pure functions extracted solely for testability, where the real bugs hide in how they are called.\n\n_Attribution: Ousterhout, *A Philosophy of Software Design*, via Matt Pocock. Imported from v1 `assets/principles/deep-modules.yml`. ADR-0002’s work-hierarchy model rests on this._",
-    "tags": [
-      "design",
-      "boundaries",
-      "judgement",
-      "v1-import"
-    ],
+    "body": "A module's **interface** is a cost paid by every caller (names to learn, invariants to preserve, parameters to thread). The **functionality** it hides is the benefit. Pay the interface cost only when the hidden functionality justifies it.\n\n- **Deep module** — small public surface, large hidden implementation. Callers see one concept and trust it.\n\n- **Shallow module** — wide public surface relative to the work it does; the boundary buys nothing.\n\n### The deletion test\n\n> Imagine deleting the module. If complexity vanishes, it was a pass-through. If complexity reappears across N callers, it was earning its keep.\n\n_Attribution: Ousterhout, via Matt Pocock. Imported from v1 `assets/principles/deep-modules.yml`. ADR-0002’s work-hierarchy model rests on this._",
     "references": [
       "doc:decisions/0002-work-hierarchy-story-capability-contract.md"
     ],
@@ -22,13 +16,7 @@
     "category": "guideline",
     "title": "Edit-first curation",
     "description": "Edit is the default; authoring a new artifact is the justified exception. Search before you write.",
-    "body": "**Rule.** Edit is the default. Writing a new artifact (a doc, an asset, a unit) is the exception and must be justified: what search terms were run, what the closest existing artifact was, and why editing it was not the right move.\n\n**Why.**\n\n- Duplicate artifacts split authority — a consumer does not know which to trust.\n\n- An edit keeps the revision history and evidence chain attached to the original.\n\n- Search-before-write is the cheapest duplication defence there is; this makes “I didn’t know it existed” an unacceptable answer.\n\n_Imported from v1 `assets/guidelines/edit-first-curation.yml`._",
-    "tags": [
-      "curation",
-      "dry",
-      "authoring",
-      "v1-import"
-    ],
+    "body": "**Rule.** Edit is the default. Writing a new artifact is the exception and must be justified: what search terms were run, what the closest existing artifact was, and why editing it was not the right move.\n\n- Duplicate artifacts split authority — a consumer does not know which to trust.\n\n- An edit keeps the revision history and evidence chain attached to the original.\n\n- Search-before-write is the cheapest duplication defence there is.\n\n_Imported from v1 `assets/guidelines/edit-first-curation.yml`._",
     "references": [],
     "createdAt": "2026-06-05T00:00:00.000Z",
     "updatedAt": "2026-06-05T00:00:00.000Z"
@@ -38,12 +26,7 @@
     "category": "guideline",
     "title": "Assess tradeoffs by naming both sides",
     "description": "Every tradeoff surfaced must answer “what are we trading — A vs B?” with both sides in concrete, user-facing terms.",
-    "body": "Any tradeoff surfaced (to the owner, in an ADR, in a scope decision, in an implementation choice) must answer **“what are we trading? — A vs B”**, with both sides stated in concrete user-facing terms: latency, blast radius, contract strength, observability, security posture, reversibility.\n\nGeneric “more work” / “more complex” framings do **not** satisfy the rule. In an AI-coded corpus, cascade work amortises and is not by itself a durable cost; the only durable “more work” cost is AI-illegible complexity that guidance and tooling cannot solve — and that bar is high.\n\n_Imported from v1 `assets/guidelines/assess-tradeoffs-by-naming-both-sides.yml`. The ADRs in this corpus follow it (see ADR-0001’s “Alternatives considered”)._",
-    "tags": [
-      "communication",
-      "decisions",
-      "v1-import"
-    ],
+    "body": "Any tradeoff surfaced must answer **“what are we trading? — A vs B”**, with both sides in concrete user-facing terms: latency, blast radius, contract strength, observability, security posture, reversibility.\n\nGeneric “more work” / “more complex” framings do **not** satisfy the rule. In an AI-coded corpus, cascade work amortises; the only durable “more work” cost is AI-illegible complexity guidance and tooling cannot solve.\n\n_Imported from v1. ADR-0001’s “Alternatives considered” follows it._",
     "references": [
       "doc:decisions/0001-foundational-stack.md"
     ],
@@ -55,13 +38,7 @@
     "category": "principle",
     "title": "Prove-it gate",
     "description": "A unit reaches `healthy` only via earned, on-disk evidence — never a hand-edit.",
-    "body": "A unit reaches `healthy` only through earned, on-disk **evidence** produced by one of its proof modes — never a hand-edit. The gate **refuses** invalid work rather than warning about it.\n\nCorollary — **cold-rebuild** (the health invariant): a unit is `healthy` iff an agent starting *cold*, from the unit’s own spec plus its transitive upstream specs and nothing else, can drive it red→green.\n\n_storytree-native; lifted from `docs/glossary.md` (“prove-it-gate”, “cold-rebuild”) and ADR-0007._",
-    "tags": [
-      "proof",
-      "gate",
-      "invariant",
-      "storytree"
-    ],
+    "body": "A unit reaches `healthy` only through earned, on-disk **evidence** produced by one of its proof modes — never a hand-edit. The gate **refuses** invalid work rather than warning about it.\n\nCorollary — **cold-rebuild** (the health invariant): a unit is `healthy` iff an agent starting *cold*, from the unit’s own spec plus its transitive upstream specs and nothing else, can drive it red→green.\n\n_storytree-native; from `docs/glossary.md` and ADR-0007._",
     "references": [
       "doc:glossary.md",
       "doc:decisions/0007-proof-model.md"
@@ -73,16 +50,755 @@
     "id": "proof-mode",
     "category": "definition",
     "title": "Proof mode",
-    "description": "What it is: the three ways a unit earns `healthy` — capability-UAT, contract-test, and operator-attested.",
-    "body": "How a unit earns `healthy`. `packages/core` encodes these as a discriminated `proof_mode` union (ADR-0007).\n\n- **capability-UAT** — an honest scripted walkthrough against *real* collaborators (also generates `dependency` edges).\n\n- **contract-test** — one isolated automated assertion (collaborators stubbed; the mock-UAT seam permits it).\n\n- **operator-attested** — a per-unit, operator-granted signed event for surfaces with neither an honest UAT nor an isolatable test (e.g. the orchestrator’s own routing). An agent can never self-exempt; distinct in the audit trail from a UAT sign.\n\n_storytree-native; from `docs/glossary.md` and ADR-0007 §Decision._",
-    "tags": [
-      "proof",
-      "schema",
-      "storytree"
-    ],
+    "description": "The three ways a unit earns `healthy` — capability-UAT, contract-test, and operator-attested.",
+    "body": "How a unit earns `healthy`. `packages/core` encodes these as a discriminated `proof_mode` union (ADR-0007).\n\n- **capability-UAT** — an honest scripted walkthrough against *real* collaborators (also generates `dependency` edges).\n\n- **contract-test** — one isolated automated assertion (collaborators stubbed; the mock-UAT seam permits it).\n\n- **operator-attested** — a per-unit, operator-granted signed event for surfaces with neither an honest UAT nor an isolatable test. An agent can never self-exempt.",
     "references": [
       "doc:decisions/0007-proof-model.md",
       "doc:decisions/0002-work-hierarchy-story-capability-contract.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "observability-first",
+    "category": "principle",
+    "title": "Observability-first",
+    "description": "If a state change isn’t a typed event the UI can render, it doesn’t exist. The event model is designed before features.",
+    "body": "The event model is designed **before** features. Every state change — pi events and orchestrator events alike — is a typed record in the event store, the single source of truth the studio renders. No external trace SaaS sits in the loop.\n\nTest of the principle: if a state change is not an event the UI can render, **it does not exist**. Observability is not a later pass; it is the foundation.\n\n_Synthesised from ADR-0001 (principles) and ADR-0006 (event store)._",
+    "references": [
+      "doc:decisions/0001-foundational-stack.md",
+      "doc:decisions/0006-event-store-observability-surface.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "own-the-layers",
+    "category": "principle",
+    "title": "Go slow, own the layers",
+    "description": "Own every load-bearing layer; stay model-agnostic and self-hosted. No vibing the parts the system rests on.",
+    "body": "v2’s bet, learned from v1: **design the load-bearing layers up front, go slow, own every layer, stay model-agnostic.** No vibing the parts the system rests on (the event model, concurrency-safe state, the orchestrator spine).\n\nModel-agnostic and self-hosted: API keys, not a subscription; your data and traces stay yours. The orchestrator owns only what pi does not — multi-node scheduling and durable, concurrency-safe shared state.\n\n_Synthesised from ADR-0001._",
+    "references": [
+      "doc:decisions/0001-foundational-stack.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "one-model-boundary",
+    "category": "guideline",
+    "title": "Confine model calls to one boundary",
+    "description": "pi is reached only through packages/pi-adapter; only the orchestrator drives it; a run is an event, never a node; the orchestrator is the sole fan-out point.",
+    "body": "Confine every model call behind one orchestrator-driven boundary, so model-unavailability is a *local* failure, never a system outage.\n\n- pi is reached **only** through `packages/pi-adapter` — the sole place a model runtime is imported.\n\n- **Only** `packages/orchestrator` drives the adapter; `packages/core` and `apps/studio` have no path to a model runtime.\n\n- **Run ≠ node:** a pi run/attempt is an execution event, never a new tree node.\n\n- The orchestrator is the **sole fan-out point** — pi nodes never schedule child nodes.\n\n_Synthesised from ADR-0004._",
+    "references": [
+      "doc:decisions/0004-orchestrator-agent-boundary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "spine-sequences-leaf-judges",
+    "category": "principle",
+    "title": "The spine sequences, the leaf judges",
+    "description": "If a for-loop or a match could express the routing, the spine (code) owns it; if the routing needs the model to decide what comes next, the leaf (pi node) owns it.",
+    "body": "The discriminator for where control-flow lives (carried verbatim from v1):\n\n> If a for-loop or a match could express the routing, the **spine** owns it; if the routing needs the model to decide what comes next, the **leaf** (pi node) owns it.\n\nThe spine is the code-sequenced orchestrator over DBOS workflows — closed, deterministic routing. A pi session’s own model loop is the leaf it delegates to.\n\n_Synthesised from ADR-0005._",
+    "references": [
+      "doc:decisions/0005-orchestration-spine-code-vs-judgment.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "approval-gated-trunk",
+    "category": "principle",
+    "title": "Approval-gated trunk",
+    "description": "A green result is a request for human diff-review, not an automatic merge. The human holds the outer loop; content invariants are never bypassable.",
+    "body": "The studio **drives** agents; the human sits at the **outer loop**.\n\n- **Per-action approval** is first-class (inverts v1’s skip-permissions): approve / reject / steer individual pi actions in-loop.\n\n- **Approval-gated trunk** (inverts auto-merge-on-green): a green result surfaces for human diff-review and lands only on approval, as a signed promotion event.\n\n- Content invariants — contracts green, UAT signed, upstream healthy — are **never bypassable**.\n\n_Synthesised from ADR-0008._",
+    "references": [
+      "doc:decisions/0008-ui-drives-agents-approvals.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "claims-in-the-shared-store",
+    "category": "guideline",
+    "title": "Claims live in the shared store",
+    "description": "Write-ownership is a typed claim checked at node-schedule time in the one shared store; a conflict is a hard refusal, never a warning.",
+    "body": "Coordination moves off git and into the one shared Postgres store (DBOS).\n\n- A **claim** is a typed write-ownership record naming what a node intends to write, checked under a serializable/unique constraint at **node-schedule time**.\n\n- A conflict is a **hard refusal** (a `claim-conflict-refused` event), never a warning.\n\n- DBOS workflow isolation replaces branch-per-session for coordination; DB-allocated ids dissolve the collision classes.\n\n_Synthesised from ADR-0009._",
+    "references": [
+      "doc:decisions/0009-concurrency-isolation-id-allocation.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "story",
+    "category": "definition",
+    "title": "story",
+    "description": "The top-level unit of work you watch grow, and a node on the DAG the studio renders.",
+    "body": "The top-level unit of work you watch grow, and a node on the DAG the\nstudio renders. A coherent, independently-meaningful body of work, *composed of\ncapabilities*. The map grain: the thing a newcomer points at (\"the event store\",\n\"the tree renderer\"). A story is **proven when its capabilities are proven**.\nDeliberately bigger than v1's story.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "capability",
+    "category": "definition",
+    "title": "capability",
+    "description": "A component within a story: independently viable (it stands on its own — the unit you could specify and prove in isolation), proven by an integrated UAT walkthrough, and composed of contracts.",
+    "body": "A component within a story: **independently viable** (it stands\non its own — the unit you could specify and prove in isolation), proven by an\nintegrated **UAT** walkthrough, and composed of **contracts**. The unit\ndependencies are drawn between, and the unit v1 (Agentic) called a \"story\". A\nunit is a capability — not a contract — if a standalone UAT makes sense for it.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "contract",
+    "category": "definition",
+    "title": "contract",
+    "description": "A single test-proven behaviour within a capability: one automated, isolated test (collaborators stubbed).",
+    "body": "A single **test-proven behaviour** within a capability: one\nautomated, isolated test (collaborators stubbed). The leaf. A unit is a\ncontract — not a capability — if the only honest proof is an automated\nassertion, with no walkable journey of its own.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "node",
+    "category": "definition",
+    "title": "node",
+    "description": "A unit being worked on the DAG — a story or capability under construction — driven by one pi session inside a DBOS workflow.",
+    "body": "A unit being worked **on the DAG** — a story or capability under\nconstruction — driven by one pi session inside a DBOS workflow. The\ncoordination/scheduling grain (the thing the orchestrator schedules and the\nisolation/claim layer is keyed on). Distinct from a **run** below: a pi\nrun/attempt against a node is an execution event (many-per-node), never a new\nnode. The execution environment is not the coordination structure (ADR-0004,\nADR-0009).",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0004-orchestrator-agent-boundary.md",
+      "doc:decisions/0009-concurrency-isolation-id-allocation.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "run",
+    "category": "definition",
+    "title": "run",
+    "description": "A single per-node execution attempt, recorded as an event in the event store — many-per-node, never a new node.",
+    "body": "A single per-node **execution** attempt, recorded\nas an event in the event store — many-per-node, never a new node. Distinct from\nv1's overloaded `runs`/`test_runs` table (per-build vs per-event vs id-keyed\ndir); here `run` is strictly the per-node execution attempt (ADR-0004; see\n`open-questions.md` §3, §8).",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0004-orchestrator-agent-boundary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "uat",
+    "category": "definition",
+    "title": "UAT",
+    "description": "A prose journey, run end-to-end against real collaborators, that proves a capability meets its goal.",
+    "body": "A prose journey, run end-to-end against\n*real* collaborators, that proves a capability meets its goal. Minimal-first:\nship one that proves the goal, grow more as defects surface. Lives at the\n**capability** level — contracts get automated tests, not UATs.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "contract-test",
+    "category": "definition",
+    "title": "contract test",
+    "description": "The automated test that proves a contract.",
+    "body": "The automated test that proves a contract. Isolated:\ncollaborators are stubbed, for fast feedback during the build.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "dependency",
+    "category": "definition",
+    "title": "dependency",
+    "description": "A directed edge from one capability to another, generated by UAT need: if A's walkthrough requires B to be real, B is upstream of A.",
+    "body": "A directed edge from one capability to another, **generated by\nUAT need**: if A's walkthrough requires B to be real, B is upstream of A. You\ncannot prove a capability that stands on an unproven one.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "event",
+    "category": "definition",
+    "title": "event",
+    "description": "A typed record of a state change (pi events + orchestrator events) — the unit of observability.",
+    "body": "A typed record of a state change (pi events + orchestrator events) —\nthe unit of observability. If a state change isn't an event the UI can render,\nit doesn't exist (ADR-0001, observability-first). Defined alongside the schema in\n`packages/core`. Includes operator-actor events (see **approval event /\npromotion event**), not just agent activity.",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0001-foundational-stack.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "event-log",
+    "category": "definition",
+    "title": "event log",
+    "description": "The typed, append-only record in the event store — one row per state change — that is the single source of truth the studio renders and the only thing written.",
+    "body": "The typed, **append-only** record in the event store — one row\nper state change — that is the single source of truth the studio renders and the\nonly thing **written**. The artifact behind the `event` term; distinct from the\nderived **node rollup** below (ADR-0006).",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0006-event-store-observability-surface.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "node-rollup",
+    "category": "definition",
+    "title": "node rollup",
+    "description": "The current status and latest verdict per story / capability / contract, derived as a projection over the event log and never hand-maintained.",
+    "body": "The current status and latest `verdict` **per** story /\ncapability / contract, derived as a **projection** over the event log and never\nhand-maintained. A capability's lifecycle status (proposed / building / healthy;\nunhealthy computed) is *read off* the log, not written beside it. v2's answer to\nv1's per-build `runs`-grain mess (ADR-0006).",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0006-event-store-observability-surface.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "pi-event-stream",
+    "category": "definition",
+    "title": "pi event stream",
+    "description": "pi's structured lifecycle event stream (plus edit-tool diffs/patches) emitted as it works inside a node — the agent-activity ingest channel into the event store, normalized by packages/pi-adapter.",
+    "body": "pi's structured lifecycle event stream (plus `edit`-tool\ndiffs/patches) emitted as it works inside a node — the **agent-activity ingest\nchannel** into the event store, normalized by `packages/pi-adapter`. One of\nexactly two defined ingest channels; the other is orchestrator events (ADR-0001,\nADR-0006).",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0001-foundational-stack.md",
+      "doc:decisions/0006-event-store-observability-surface.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "approval-event-promotion-event",
+    "category": "definition",
+    "title": "approval event / promotion event",
+    "description": "Typed events with actor = operator recorded in the event store: an approval / steering event (a human in-loop intervention) and a signed promotion event (the human accepting a capability's green re…",
+    "body": "Typed events with `actor = operator`\nrecorded in the event store: an **approval / steering event** (a human in-loop\nintervention) and a signed **promotion event** (the human accepting a\ncapability's green result onto the trunk, carrying operator identity and the UAT\nverdict). Part of the same observability record as pi's own activity (ADR-0008);\nidentity backing is open (`open-questions.md` §1).",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0008-ui-drives-agents-approvals.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "dag",
+    "category": "definition",
+    "title": "DAG",
+    "description": "The directed acyclic graph the studio renders and watches grow.",
+    "body": "The directed acyclic graph the studio renders and watches grow.\nStories are its visible nodes; capability dependencies are the fine-grained edges\nbeneath. The exact inter-level grain is open (see ADR-0002 → \"What this does NOT\ndecide\").",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0002-work-hierarchy-story-capability-contract.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "proposed",
+    "category": "definition",
+    "title": "proposed",
+    "description": "Authored but not yet selected for implementation.",
+    "body": "Authored but not yet selected for implementation. The initial\nstate.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "building",
+    "category": "definition",
+    "title": "building",
+    "description": "Selected and under active implementation (v1: underconstruction).",
+    "body": "Selected and under active implementation (v1: `under_construction`).\nWritten at pickup as the first commit, before any code edits.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "healthy",
+    "category": "definition",
+    "title": "healthy",
+    "description": "Proven: the unit reached healthy through one of its three proof modes (capability-UAT, contract-test, or operator-attested) at HEAD — for a UAT-proven capability, a UAT pass with fresh green contra…",
+    "body": "Proven: the unit reached `healthy` through one of its three proof\nmodes (capability-UAT, contract-test, or operator-attested) at HEAD — for a\nUAT-proven capability, a UAT pass with fresh green contract tests.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "unhealthy",
+    "category": "definition",
+    "title": "unhealthy",
+    "description": "A once-healthy capability that has drifted (a contract test now fails, owned files changed, or the proof no longer matches HEAD).",
+    "body": "A once-healthy capability that has drifted (a contract test now\nfails, owned files changed, or the proof no longer matches HEAD). **Computed**\nfrom evidence, never written to disk.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "mapped",
+    "category": "definition",
+    "title": "mapped",
+    "description": "Brownfield: the capability is observationally verified by an existing target-repo test suite, without storytree driving a red→green flow.",
+    "body": "Brownfield: the capability is *observationally* verified by an\nexisting target-repo test suite, without storytree driving a red→green flow. A\ndistinct, weaker state than `healthy` — observational green never short-circuits\nto proven. v2 **supports** brownfield; the exact mapping mechanism under pi/DBOS\nis still to design (see `open-questions.md` §2).",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "retired",
+    "category": "definition",
+    "title": "retired",
+    "description": "Terminal off-tree state: pruned from the active tree.",
+    "body": "Terminal off-tree state: pruned from the active tree. May carry\n`retired_reason` (prose) and `superseded_by` (an edge to its replacement).",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "gate",
+    "category": "definition",
+    "title": "gate",
+    "description": "A structural enforcement point that refuses invalid work rather than warning.",
+    "body": "A structural enforcement point that **refuses** invalid work rather\nthan warning. storytree keeps the commit-time / promotion gate (ADR-0001 cites it\nas a proven v1 idea).",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0001-foundational-stack.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "operator-attested",
+    "category": "definition",
+    "title": "operator-attested",
+    "description": "A third proof mode (alongside capability-UAT and contract-test) for behavioural/guardrail surfaces that have neither an honest scripted UAT nor an isolatable automated test — e.g.",
+    "body": "A third proof mode (alongside capability-UAT and\ncontract-test) for behavioural/guardrail surfaces that have neither an honest\nscripted UAT nor an isolatable automated test — e.g. the orchestrator's own\nrouting / approval / steering discipline. Promotion to `healthy` is an explicit,\nper-unit, **operator-granted** attestation recorded as a typed **signed event**;\nan agent can never self-exempt, and the attestation is distinguishable in the\naudit trail from a UAT walkthrough sign. Successor to v1's `manual_signings`\n(Agentic ADR-0024); defined authoritatively in ADR-0007. Distinct from `mapped`\n(observational, never `healthy`). Its persistence/identity backing is still open\n(`open-questions.md` §1).",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0007-proof-model.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "convergence",
+    "category": "definition",
+    "title": "convergence",
+    "description": "Two distinct senses v1 conflated and v2 keeps separate;",
+    "body": "Two **distinct** senses v1 conflated and v2 keeps separate;\nalways qualify which is meant. (1) *DAG-stabilisation* — the dependency DAG is\niterated to a fixed point before any unit goes red (owned by the\ndecomposition/scheduler loop; see `open-questions.md` §4). (2) *cold-rebuild* —\nbelow. (ADR-0003, ADR-0007.)",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0003-v1-reversal-ledger.md",
+      "doc:decisions/0007-proof-model.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "cold-rebuild",
+    "category": "definition",
+    "title": "cold-rebuild",
+    "description": "The convergence contract that is storytree's health invariant: a unit is healthy iff an agent starting cold — from the unit's own spec plus its transitive upstream specs, and nothing else — can dri…",
+    "body": "The convergence contract that is storytree's **health\ninvariant**: a unit is `healthy` iff an agent starting **cold** — from the unit's\nown spec plus its transitive upstream specs, and nothing else — can drive it\nred→green. The cold-rebuild sense of `convergence`, explicitly distinct from\nDAG-stabilisation. The dependency rule (\"you cannot prove a capability that\nstands on an unproven one\") falls out of it (ADR-0007; carried from Agentic\nADR-0006/0027).",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0007-proof-model.md",
+      "doc:decisions/0006-event-store-observability-surface.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "per-node-budget",
+    "category": "definition",
+    "title": "per-node budget",
+    "description": "A code-enforced ceiling (iterations / token-cost / wall-cost — exact unit TBD) on a node's spine loop.",
+    "body": "A code-enforced ceiling (iterations / token-cost /\nwall-cost — exact unit TBD) on a node's spine loop. The loop terminates on green\n**or** budget-exhausted, the latter a typed terminal event with per-round cost\nvisible in the event store. Resurrected for pay-as-you-go (ADR-0005), inverting\nv1's \"cascade rounds are not a cost\"; the concrete unit and default ceiling stay\nopen (`open-questions.md` §6).",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0005-orchestration-spine-code-vs-judgment.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "approval",
+    "category": "definition",
+    "title": "approval",
+    "description": "A first-class, typed operator act (actor = operator) in which the human accepts an agent action, or a capability's green result, onto the trunk via the studio.",
+    "body": "A first-class, typed operator act\n(`actor = operator`) in which the human accepts an agent action, or a\ncapability's green result, **onto the trunk** via the studio. The trunk is\n**approval-gated**: a green signal is a *request for human diff-review*, not an\nautomatic merge (inverts v1's auto-merge-on-green). Distinct from a **gate**\n(which structurally refuses invalid work); an approval is the human admitting\nwork that has already passed the gate's content invariants (ADR-0008). The\nidentity backing the signature is open (`open-questions.md` §1).",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0008-ui-drives-agents-approvals.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "verdict",
+    "category": "definition",
+    "title": "verdict",
+    "description": "The Pass/Fail outcome of a capability's UAT.",
+    "body": "The Pass/Fail outcome of a capability's UAT. Reserved for UAT\noutcomes; v1 also used \"verdict\" for agent conclusions and evidence-row states —\nthose are different concepts and do not claim the word here.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "evidence",
+    "category": "definition",
+    "title": "evidence",
+    "description": "The forensic record that a capability's contracts went red→green and its UAT was signed: an audit trail, not itself the gate.",
+    "body": "The forensic record that a capability's contracts went red→green\nand its UAT was signed: an audit trail, not itself the gate. How v2 persists\nevidence (events vs files) and the attestation/identity model are open\n(`open-questions.md` §1).",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "proof-hash",
+    "category": "definition",
+    "title": "proof hash",
+    "description": "A hash of a unit's proof-bearing content (outcome, contracts, …) that invalidates a prior verdict when the content changes.",
+    "body": "A hash of a unit's proof-bearing content (outcome, contracts, …)\nthat invalidates a prior verdict when the content changes.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "red-green",
+    "category": "definition",
+    "title": "red-green",
+    "description": "The discipline that a failing (red) contract test is authored before the implementation that turns it green.",
+    "body": "The discipline that a failing (red) contract test is authored\nbefore the implementation that turns it green. A *principle*, not a synonym for\n`contract`.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "mock-uat-seam",
+    "category": "definition",
+    "title": "mock-UAT seam",
+    "description": "Mocks/stubs are allowed in contract tests (isolated) but forbidden in a UAT walkthrough (real collaborators) — the same boundary as contract vs capability.",
+    "body": "Mocks/stubs are allowed in contract tests (isolated) but\nforbidden in a UAT walkthrough (real collaborators) — the same boundary as\ncontract vs capability.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "defects-amend-the-owning-story",
+    "category": "definition",
+    "title": "defects-amend-the-owning-story",
+    "description": "A defect amends the capability whose contract it violates (reverting it to building), rather than spawning a new unit.",
+    "body": "A defect amends the capability whose contract\nit violates (reverting it to `building`), rather than spawning a new unit.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "fail-closed-on-dirty-tree",
+    "category": "definition",
+    "title": "fail-closed-on-dirty-tree",
+    "description": "A command that writes attestable evidence refuses to run on a dirty working tree (writes nothing, distinct exit code).",
+    "body": "A command that writes attestable evidence refuses\nto run on a dirty working tree (writes nothing, distinct exit code).",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "standalone-resilient-library",
+    "category": "definition",
+    "title": "standalone-resilient-library",
+    "description": "Structure a unit as a library with minimal load-bearing deps, exercised end-to-end by integration tests, with a thin CLI/adapter wrapper.",
+    "body": "Structure a unit as a library with minimal\nload-bearing deps, exercised end-to-end by integration tests, with a thin\nCLI/adapter wrapper.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "verification-wins",
+    "category": "definition",
+    "title": "verification-wins",
+    "description": "The stance that binding to external truth via tests + on-disk evidence overrides LLM memory consolidation / recency (\"recency-wins\").",
+    "body": "The stance that binding to external truth via tests +\non-disk evidence **overrides** LLM memory consolidation / recency\n(\"recency-wins\"). v2 rejects Dreams-style reconciliation in favour of a\ncommit/event-bound evidence chain. Carried from v1's learning-loop design\n(Agentic ADR-0011); the learning loop's v2 home is still open\n(`open-questions.md` §5).",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "inner-loop-outer-loop",
+    "category": "definition",
+    "title": "inner loop / outer loop",
+    "description": "inner loop = driving one unit from red to green (automatable, owned by a pi node).",
+    "body": "**inner loop** = driving one unit from red to green\n(automatable, owned by a pi node). **outer loop** = accepting a result onto the\ntrunk, accepting a decomposition, or amending / retrying / abandoning a unit\n(held by **human judgment** in the studio). The human-in-the-loop gate sits at\nthe outer loop; the north-star may later dissolve it (ADR-0007, ADR-0008; carried\nfrom Agentic ADR-0006/0020).",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0007-proof-model.md",
+      "doc:decisions/0008-ui-drives-agents-approvals.md",
+      "doc:decisions/0006-event-store-observability-surface.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "outcome",
+    "category": "definition",
+    "title": "outcome",
+    "description": "A capability's plain-English, single-sentence value statement (no conjunctions — split the unit if it needs them).",
+    "body": "A capability's plain-English, single-sentence value statement (no\nconjunctions — split the unit if it needs them).",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "guidance",
+    "category": "definition",
+    "title": "guidance",
+    "description": "Non-obvious technical context needed to rebuild a unit;",
+    "body": "Non-obvious technical context needed to rebuild a unit; only what\nan agent could not derive from outcome + proof.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "title",
+    "category": "definition",
+    "title": "title",
+    "description": "Short human label for a unit;",
+    "body": "Short human label for a unit; not load-bearing for proof.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "id",
+    "category": "definition",
+    "title": "id",
+    "description": "A unit's unique identifier.",
+    "body": "A unit's unique identifier. v2 must allocate these **conflict-free across\nconcurrent sessions** — a stated goal; the DBOS spike validated durable,\ncollision-free workflow IDs as one mechanism.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "claim",
+    "category": "definition",
+    "title": "claim",
+    "description": "A typed write-ownership record (a row/event in the one shared event store) naming what a node intends to write, checked under a serializable/unique constraint at node-schedule time;",
+    "body": "A typed **write-ownership** record (a row/event in the one shared\nevent store) naming what a node intends to write, checked under a\nserializable/unique constraint at **node-schedule time**; a conflict is a **hard\nrefusal** (a `claim-conflict-refused` event), never a warning. The v2 successor\nto v1's per-worktree `session_claims` table (Agentic ADR-0022), now living in the\nsingle shared Postgres store (ADR-0009). Granularity, the conflict-resolution\nceremony, and whether code *edits* still use a git branch/worktree per node are\nopen (`open-questions.md` §3).",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0009-concurrency-isolation-id-allocation.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "write-ownership",
+    "category": "definition",
+    "title": "write-ownership",
+    "description": "The single vocabulary for what surface/unit a node claims the right to write, used by the claim / conflict-detection layer.",
+    "body": "The single vocabulary for *what surface/unit* a node\nclaims the right to write, used by the claim / conflict-detection layer. Unifies\nv1's scattered terms (`declared_scope` vs per-agent `does_not_touch`) into one\nconcept (ADR-0009); the exact shape (node-scoped vs file-glob) is open\n(`open-questions.md` §3).",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0009-concurrency-isolation-id-allocation.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "studio",
+    "category": "definition",
+    "title": "studio",
+    "description": "The live PixiJS web IDE that renders the tree and drives the agents (diffs, approvals, steering, per-node chat).",
+    "body": "The live PixiJS web IDE that renders the tree and **drives** the\nagents (diffs, approvals, steering, per-node chat). Supersedes v1's read-only\n`dashboard` — a richer, driving surface, not merely a renamed view.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "orchestrator",
+    "category": "definition",
+    "title": "orchestrator",
+    "description": "The thin custom TypeScript layer (packages/orchestrator) over DBOS/Postgres (ADR-0001): owns the story-DAG, the scheduler, and the event store, and is the only module that drives the pi-adapter.",
+    "body": "The thin custom TypeScript layer (`packages/orchestrator`)\nover DBOS/Postgres (ADR-0001): owns the story-DAG, the scheduler, and the event\nstore, and is the **only** module that drives the **pi-adapter**. It is the\ncode-sequenced **spine** and the sole **fan-out** point — it schedules nodes; pi\nnodes never schedule child nodes. Distinct from a pi session (which owns work\n*inside* a node) (ADR-0004, ADR-0005).",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0001-foundational-stack.md",
+      "doc:decisions/0004-orchestrator-agent-boundary.md",
+      "doc:decisions/0005-orchestration-spine-code-vs-judgment.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "spine",
+    "category": "definition",
+    "title": "spine",
+    "description": "The code-sequenced control-flow layer (the orchestrator over DBOS workflows) that owns closed, deterministic routing: the order steps run in, when a loop iterates, which branch is taken.",
+    "body": "The code-sequenced control-flow layer (the orchestrator over DBOS\nworkflows) that owns **closed, deterministic routing**: the order steps run in,\nwhen a loop iterates, which branch is taken. A pi session's own model loop is the\n**leaf** it delegates to. Discriminator (carried verbatim from Agentic ADR-0026):\n*if a for-loop or a match could express the routing, the spine owns it; if the\nrouting needs the model to decide what comes next, the leaf (pi node) owns it.*\nAuthoritatively defined by ADR-0005.",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0005-orchestration-spine-code-vs-judgment.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "leaf-step-leaf-judgment",
+    "category": "definition",
+    "title": "leaf step / leaf judgment",
+    "description": "A single step in a code-sequenced cascade whose work is owned by a pi session's own model loop (what to write, how to satisfy a contract) rather than by the spine — the control-flow sense of \"leaf\"…",
+    "body": "A single step in a code-sequenced cascade whose\nwork is owned by a **pi session's own model loop** (what to write, how to satisfy\na contract) rather than by the spine — the **control-flow** sense of \"leaf\"\n(ADR-0005). Distinct from **contract**, the *leaf tier* of the work hierarchy\n(ADR-0002); the two senses must not be conflated.",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0005-orchestration-spine-code-vs-judgment.md",
+      "doc:decisions/0002-work-hierarchy-story-capability-contract.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "pi-adapter",
+    "category": "definition",
+    "title": "pi-adapter",
+    "description": "The project-owned thin wrapper (packages/pi-adapter) and typed-event parser over pi's documented surface (prompt / steer / followUp + lifecycle event stream + edit-tool diffs).",
+    "body": "The project-owned **thin wrapper** (`packages/pi-adapter`) and\ntyped-event parser over pi's documented surface (`prompt` / `steer` / `followUp`\n+ lifecycle event stream + `edit`-tool diffs). The **sole** surface through which\npi is invoked and the **only** place a model runtime is imported: it spawns/steers\npi, normalizes pi's stream into the typed events the event store renders, and\nexposes nothing model-shaped upward. No third-party agent framework sits in this\nrole; `packages/core` and `apps/studio` never parse a pi stream directly\n(ADR-0004, ADR-0006). Carries v1's own-a-thin-wrapper-over-the-agent-runtime\nprinciple (Agentic ADR-0008/0026).",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0004-orchestrator-agent-boundary.md",
+      "doc:decisions/0006-event-store-observability-surface.md",
+      "doc:decisions/0008-ui-drives-agents-approvals.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "trunk",
+    "category": "definition",
+    "title": "trunk",
+    "description": "The canonical integrated mainline a capability lands on once approved.",
+    "body": "The canonical **integrated mainline** a capability lands on once\n**approved**. In v2 the trunk is **approval-gated** (a human admits a green\nresult), never auto-merge-on-green, and never holds knowingly-broken intermediate\nstates (ADR-0008). Supersedes v1's trunk, which auto-merged on green and tolerated\nbroken intermediate states under an eventual-consistency posture.",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0008-ui-drives-agents-approvals.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "steering",
+    "category": "definition",
+    "title": "steering",
+    "description": "A first-class, typed operator act of redirecting an in-flight pi run mid-execution (pi's steer surface), recorded as an event in the event store.",
+    "body": "A first-class, typed operator act of **redirecting an in-flight pi\nrun mid-execution** (pi's `steer` surface), recorded as an event in the event\nstore. The in-loop counterpart to **approval**: the human shapes an action *while\nit runs*, rather than only accepting/rejecting its result (ADR-0008).",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0008-ui-drives-agents-approvals.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "adr",
+    "category": "definition",
+    "title": "ADR",
+    "description": "Architecture Decision Record under docs/decisions/, capturing a cross-cutting decision.",
+    "body": "Architecture Decision Record under `docs/decisions/`, capturing a\ncross-cutting decision.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "fixture",
+    "category": "definition",
+    "title": "fixture",
+    "description": "A test-supporting artifact (data file, scaffold, temp crate) created during a walkthrough and cleaned up before signing.",
+    "body": "A test-supporting artifact (data file, scaffold, temp crate)\ncreated during a walkthrough and cleaned up before signing.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "ndjson",
+    "category": "definition",
+    "title": "ndjson",
+    "description": "Newline-delimited JSON;",
+    "body": "Newline-delimited JSON; the line-delimited record format (a candidate\nbacking for the event stream). v1 used \"JSONL\" interchangeably — standardize on\n**ndjson**.",
+    "references": [
+      "doc:glossary.md"
+    ],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
+    "id": "asset",
+    "category": "definition",
+    "title": "asset",
+    "description": "In storytree, a tree/game art asset for the isometric renderer (ADR-0001, deferred).",
+    "body": "In storytree, a **tree/game art asset** for the isometric renderer\n(ADR-0001, deferred). Note: this is *not* v1's \"asset\" (shared DRY content under\n`assets/`), which does not carry — guard against the collision when importing v1\ndocs.",
+    "references": [
+      "doc:glossary.md",
+      "doc:decisions/0001-foundational-stack.md"
     ],
     "createdAt": "2026-06-05T00:00:00.000Z",
     "updatedAt": "2026-06-05T00:00:00.000Z"

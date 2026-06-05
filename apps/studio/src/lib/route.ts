@@ -2,19 +2,27 @@
 // into a single hash segment so slashes in doc relpaths don't break parsing.
 
 import { useSyncExternalStore } from 'react';
+import { ASSET_CATEGORIES, type AssetCategory } from '../types';
 
 export type Route =
   | { name: 'home' }
   | { name: 'doc'; id: string }
-  | { name: 'library' }
+  | { name: 'library'; category: AssetCategory | null }
   | { name: 'asset'; id: string }
   | { name: 'asset-edit'; id: string }
   | { name: 'asset-new' };
 
+function asCategory(value: string): AssetCategory | null {
+  return (ASSET_CATEGORIES as string[]).includes(value) ? (value as AssetCategory) : null;
+}
+
 export function parseRoute(hash: string): Route {
   const path = hash.replace(/^#/, '');
   if (path === '' || path === '/') return { name: 'home' };
-  if (path === '/library') return { name: 'library' };
+  if (path === '/library') return { name: 'library', category: null };
+  if (path.startsWith('/library/')) {
+    return { name: 'library', category: asCategory(path.slice('/library/'.length)) };
+  }
   if (path.startsWith('/doc/')) {
     return { name: 'doc', id: decodeURIComponent(path.slice('/doc/'.length)) };
   }
@@ -48,7 +56,8 @@ export function navigate(to: string): void {
 }
 
 export const homeHref = '#/';
-export const libraryHref = '#/library';
+export const libraryHref = (category?: AssetCategory | null): string =>
+  category ? `#/library/${category}` : '#/library';
 export const docHref = (id: string): string => `#/doc/${encodeURIComponent(id)}`;
 export const assetHref = (id: string): string => `#/asset/${encodeURIComponent(id)}`;
 export const assetEditHref = (id: string): string => `#/asset/${encodeURIComponent(id)}/edit`;

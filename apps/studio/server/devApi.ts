@@ -17,6 +17,7 @@ import type { Plugin, ResolvedConfig } from 'vite';
 import type {
   AssetCategory,
   Comment,
+  CommentAnchor,
   DocMeta,
   GuidanceAsset,
 } from '../src/types';
@@ -27,7 +28,6 @@ const ASSET_CATEGORIES: AssetCategory[] = [
   'guideline',
   'context',
   'governance',
-  'glossary',
 ];
 
 interface Paths {
@@ -144,6 +144,30 @@ function asStringArray(v: unknown): string[] {
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
 }
 
+function asNumberOrNull(v: unknown): number | null {
+  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+}
+
+/** Normalise an incoming comment anchor (topic / section / text-quote). */
+function readAnchor(raw: Record<string, unknown>): CommentAnchor {
+  const kindRaw = asString(raw.kind);
+  const headingSlug = asString(raw.headingSlug).trim() || null;
+  const quote = typeof raw.quote === 'string' && raw.quote.length > 0 ? raw.quote : null;
+  let kind: CommentAnchor['kind'] = 'topic';
+  if (kindRaw === 'text' && quote) kind = 'text';
+  else if (kindRaw === 'section' && headingSlug) kind = 'section';
+  return {
+    kind,
+    headingSlug,
+    headingText: asString(raw.headingText).trim() || null,
+    quote,
+    prefix: typeof raw.prefix === 'string' ? raw.prefix : null,
+    suffix: typeof raw.suffix === 'string' ? raw.suffix : null,
+    startOffset: asNumberOrNull(raw.startOffset),
+    color: asString(raw.color).trim() || null,
+  };
+}
+
 class HttpError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -182,17 +206,11 @@ async function handleComments(
     if (topicKind !== 'doc' && topicKind !== 'asset') {
       throw new HttpError(400, 'topicKind must be "doc" or "asset"');
     }
-    const anchorRaw = (input.anchor ?? {}) as Record<string, unknown>;
-    const sectionSlug = asString(anchorRaw.headingSlug).trim();
     const comment: Comment = {
       id: randomUUID(),
       topicKind,
       topicId,
-      anchor: {
-        kind: anchorRaw.kind === 'section' && sectionSlug ? 'section' : 'topic',
-        headingSlug: sectionSlug || null,
-        headingText: asString(anchorRaw.headingText).trim() || null,
-      },
+      anchor: readAnchor((input.anchor ?? {}) as Record<string, unknown>),
       body,
       author: asString(input.author).trim() || 'operator',
       createdAt: new Date().toISOString(),
@@ -253,7 +271,6 @@ function readAssetInput(input: Record<string, unknown>): Omit<GuidanceAsset, 'cr
     title,
     description,
     body,
-    tags: asStringArray(input.tags),
     references: asStringArray(input.references),
   };
 }

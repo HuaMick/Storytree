@@ -14,10 +14,8 @@ interface MarkdownProps {
   children: string;
   /** Current doc id, so relative in-corpus links resolve. */
   baseDocId?: string;
-  /** When set, headings render a "comment on section" affordance. */
+  /** When set, headings render a "comment on section" affordance (data-slug). */
   onCommentHeading?: (target: CommentTarget) => void;
-  /** slug -> unresolved comment count, for per-heading badges. */
-  commentCounts?: Record<string, number>;
 }
 
 function nodeToText(node: ReactNode): string {
@@ -30,19 +28,20 @@ function nodeToText(node: ReactNode): string {
   return '';
 }
 
-export function Markdown({
-  children,
-  baseDocId = '',
-  onCommentHeading,
-  commentCounts,
-}: MarkdownProps): React.JSX.Element {
+/**
+ * Renders markdown. Headings get stable slug ids (matching comment anchors) and
+ * an optional "comment on section" button tagged with `data-slug` — the live
+ * comment count on that button is set imperatively by the annotation layer, so
+ * this subtree can be memoized and never reconciled (which would strip
+ * highlight marks).
+ */
+export function Markdown({ children, baseDocId = '', onCommentHeading }: MarkdownProps): React.JSX.Element {
   const { docIds } = useAppData();
 
   function heading(level: 1 | 2 | 3 | 4) {
     return function Heading({ children: kids }: { children?: ReactNode }): React.JSX.Element {
       const text = nodeToText(kids);
       const slug = slugify(text);
-      const count = commentCounts?.[slug] ?? 0;
       const Tag = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4';
       return (
         <Tag id={slug} className="md-heading">
@@ -53,11 +52,12 @@ export function Markdown({
           {onCommentHeading && (
             <button
               type="button"
-              className={count > 0 ? 'md-comment-btn has-comments' : 'md-comment-btn'}
+              className="md-comment-btn"
+              data-slug={slug}
               onClick={() => onCommentHeading({ slug, text })}
-              title={count > 0 ? `${count} comment(s) — add another` : 'Comment on this section'}
+              title="Comment on this section"
             >
-              💬{count > 0 ? ` ${count}` : ''}
+              💬
             </button>
           )}
         </Tag>

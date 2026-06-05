@@ -10,43 +10,52 @@ export function Home(): React.JSX.Element {
     <div className="home pad">
       <h1>storytree studio</h1>
       <p className="lede">
-        The foundation surface — a <strong>forum</strong> over the project’s decision corpus.
-        Documents and guidance assets are <em>topics</em>; comments are <em>posts</em>. (The
-        PixiJS story-tree comes later; this is the static-content foundation.)
+        The foundation surface — a <strong>forum</strong> over the project’s record. Documents and
+        Library artifacts are <em>topics</em>; comments are <em>posts</em>. (The PixiJS story-tree
+        comes later; this is the static-content foundation.)
       </p>
 
       <div className="stat-row">
+        <Stat n={assets.length} label="Library artifacts" href={libraryHref()} />
         <Stat n={docs.length} label="documents" href={firstAdr ? docHref(firstAdr.id) : undefined} />
-        <Stat n={assets.length} label="guidance assets" href={libraryHref} />
         <Stat n={open} label="open comments" />
       </div>
 
       <div className="cap-grid">
-        <CapCard title="Browse & read">
-          Every ADR, the glossary, open-questions, and adjudication — rendered with stable
-          section anchors and in-corpus cross-links. Start in the sidebar.
+        <CapCard title="Read the record">
+          The ADRs are kept as <em>history</em> — the justification record — alongside the glossary,
+          open-questions, and adjudication. Rendered with stable section anchors and in-corpus
+          cross-links. Start in the sidebar.
         </CapCard>
-        <CapCard title="Comment & resolve">
-          Attach feedback to a whole document or a specific section heading, see it inline in the
-          right rail, and resolve it when addressed. Persisted to the repo.
+        <CapCard title="Annotate">
+          Select any text to attach a comment to that exact span — it highlights inline, like a word
+          processor. Comment on a whole document, a section, or a selection; resolve when addressed.
+          Highlights re-anchor to the text, so they survive edits.
         </CapCard>
-        <CapCard title="Guidance library">
-          Modular, injectable guidance <em>assets</em> — typed <code>principle</code> /{' '}
-          <code>definition</code> / <code>guideline</code> units, tagged, browsable, and
-          cross-referenced to the corpus. The seed of an injectable guidance library.
+        <CapCard title="Library">
+          Modular, injectable <em>artifacts</em> — <code>definition</code> / <code>principle</code> /{' '}
+          <code>guideline</code> units, browsable and searchable. The durable guidance is synthesised
+          from the ADRs; each artifact cites the ADR it came from.
         </CapCard>
       </div>
 
       <p className="muted small">
-        Note: “guidance asset” is deliberately qualified — the glossary reserves bare{' '}
-        <code>asset</code> for tree/game art. See the studio README for the data model and design
-        choices.
+        Note: an “artifact” is deliberately not a bare <code>asset</code> — the glossary reserves
+        that for tree/game art. See the studio README for the data model and design choices.
       </p>
     </div>
   );
 }
 
-function Stat({ n, label, href }: { n: number; label: string; href?: string | undefined }): React.JSX.Element {
+function Stat({
+  n,
+  label,
+  href,
+}: {
+  n: number;
+  label: string;
+  href?: string | undefined;
+}): React.JSX.Element {
   const inner = (
     <>
       <span className="stat-n">{n}</span>
