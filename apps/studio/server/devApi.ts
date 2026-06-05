@@ -23,9 +23,13 @@ import type {
 } from '../src/types';
 
 const ASSET_CATEGORIES: AssetCategory[] = [
-  'principle',
   'definition',
+  'principle',
   'guideline',
+  'constraint',
+  'pattern',
+  'anti-pattern',
+  'techstack',
   'context',
   'governance',
 ];

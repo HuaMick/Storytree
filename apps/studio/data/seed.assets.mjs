@@ -132,7 +132,7 @@ const curated = [
   },
   {
     id: 'one-model-boundary',
-    category: 'guideline',
+    category: 'constraint',
     title: 'Confine model calls to one boundary',
     description:
       'pi is reached only through packages/pi-adapter; only the orchestrator drives it; a run is an event, never a node; the orchestrator is the sole fan-out point.',
@@ -162,7 +162,7 @@ const curated = [
   },
   {
     id: 'approval-gated-trunk',
-    category: 'principle',
+    category: 'constraint',
     title: 'Approval-gated trunk',
     description:
       'A green result is a request for human diff-review, not an automatic merge. The human holds the outer loop; content invariants are never bypassable.',
@@ -177,7 +177,7 @@ const curated = [
   },
   {
     id: 'claims-in-the-shared-store',
-    category: 'guideline',
+    category: 'constraint',
     title: 'Claims live in the shared store',
     description:
       'Write-ownership is a typed claim checked at node-schedule time in the one shared store; a conflict is a hard refusal, never a warning.',
@@ -189,6 +189,284 @@ const curated = [
       '_Synthesised from ADR-0009._',
     ),
     references: [adr(9)],
+  },
+
+  // --- techstack (what we build on) ---
+  {
+    id: 'stack-typescript-node-pnpm',
+    category: 'techstack',
+    title: 'TypeScript · Node 24 · pnpm workspaces',
+    description:
+      'The language and runtime: TypeScript on Node 24, organised as pnpm workspaces. Model-agnostic, owns the loop.',
+    body: para(
+      'storytree is a TypeScript / Node 24 / pnpm-workspaces monorepo. TS gives typed boundaries and invalid-state modelling in `packages/core`; pnpm workspaces keep `packages/*` and `apps/*` independent but linked.',
+      'Chosen over v1’s Rust for model-agnostic, own-the-loop development speed.',
+    ),
+    references: [adr(1)],
+  },
+  {
+    id: 'stack-pi-coding-agent',
+    category: 'techstack',
+    title: 'pi — the per-node coding agent',
+    description:
+      'pi (earendil-works/pi) writes the code inside each node: model-agnostic (15+ providers), with a clean lifecycle event stream + edit diffs.',
+    body: para(
+      'pi owns everything *inside* a node — the model loop, steering, diffs, approvals. It is reached only through `packages/pi-adapter`, the sole place a model runtime is imported.',
+      'Model-agnostic and pay-as-you-go: API keys, any provider, not tied to a subscription.',
+    ),
+    references: [adr(1), adr(4)],
+  },
+  {
+    id: 'stack-dbos-postgres',
+    category: 'techstack',
+    title: 'DBOS (Transact-TS) over Postgres',
+    description:
+      'Durable execution: crash-safe concurrent workflows, auto-resume, durable queues — parallelism as a library, not a cluster.',
+    body: para(
+      'DBOS gives crash-safe parallelism: auto-resumed workflows, durable queues with concurrency caps, collision-free workflow ids. The orchestrator owns only what pi does not — multi-node scheduling and durable, concurrency-safe shared state.',
+      'Restate is the reserved alternative if a single self-contained binary is later preferred over a Postgres dependency.',
+    ),
+    references: [adr(1), adr(9)],
+  },
+  {
+    id: 'stack-pixijs-react-studio',
+    category: 'techstack',
+    title: 'PixiJS v8 + @pixi/react studio',
+    description:
+      'The studio is a React web IDE with an embedded PixiJS 2D-isometric tree (deferred): fastest 2D, batches 1000s of live sprites at 60fps.',
+    body: para(
+      'The studio is a React shell embedding a PixiJS v8 (`@pixi/react`) 2D-isometric tree that renders the event store live. Art is deferred; the engine is settled.',
+      '**Note:** this foundation build ships the React forum shell only — no PixiJS yet.',
+    ),
+    references: [adr(1)],
+  },
+  {
+    id: 'stack-rejected-alternatives',
+    category: 'techstack',
+    title: 'Rejected: Mastra · LangGraph/LangSmith · Claude Agent SDK · Google ADK',
+    description: 'What the stack rules out, and why — so it isn’t relitigated.',
+    body: para(
+      '- **Mastra** — good TS agent framework, but redundant once pi owns per-node control; younger concurrency-durability story.',
+      '- **LangGraph.js** — strongest concurrency primitives, but its rich observability is LangSmith, billed per trace — wrong for a watch-everything system we own anyway.',
+      '- **Claude Agent SDK** — excellent and pay-as-you-go, but Anthropic-models-only; fails model-agnostic. (Fine as a *bootstrap* harness.)',
+      '- **Google ADK** — Python is mature, but the TS port is young and Gemini-first.',
+    ),
+    references: [adr(1)],
+  },
+
+  // --- constraint (what must always hold) ---
+  {
+    id: 'never-bypass-the-gate',
+    category: 'constraint',
+    title: 'The gate is never bypassable',
+    description:
+      'Content invariants — contracts green, UAT signed, upstream healthy — can never be bypassed; the gate refuses invalid work rather than warning.',
+    body: para(
+      'A **gate** is a structural enforcement point that **refuses** invalid work, not a warning. Promotion onto the trunk requires its content invariants — contracts green, UAT signed, upstream healthy — and these are **never bypassable**. An operator approval admits work that has *already* passed the gate; it cannot waive it.',
+      '_Synthesised from ADR-0008 / ADR-0007._',
+    ),
+    references: [adr(8), adr(7)],
+  },
+  {
+    id: 'agent-never-self-exempts',
+    category: 'constraint',
+    title: 'An agent can never self-exempt',
+    description:
+      'operator-attested promotion is operator-granted only; an agent can never grant itself the attestation that reaches `healthy`.',
+    body: para(
+      'The `operator-attested` proof mode promotes a unit to `healthy` only via an explicit, per-unit, **operator-granted** signed event. An agent can **never** self-exempt, and the attestation is distinguishable in the audit trail from a UAT walkthrough sign.',
+      '_Synthesised from ADR-0007._',
+    ),
+    references: [adr(7)],
+  },
+  {
+    id: 'run-is-not-a-node',
+    category: 'constraint',
+    title: 'A run is not a node',
+    description:
+      'A pi run/attempt is an execution event (many per node), never a new tree node. The execution environment is not the coordination structure.',
+    body: para(
+      'A pi **run** (attempt) is recorded as an execution **event**, many-per-node — it is **never** a new node on the DAG. The coordination/scheduling grain (the node) is kept distinct from the execution grain (the run).',
+      '_Synthesised from ADR-0004 (glossary: node, run)._',
+    ),
+    references: [adr(4)],
+  },
+  {
+    id: 'orchestrator-is-sole-fan-out',
+    category: 'constraint',
+    title: 'The orchestrator is the sole fan-out point',
+    description:
+      'Only the orchestrator schedules nodes; pi nodes never schedule child nodes (no agent-spawns-agent).',
+    body: para(
+      'The orchestrator is the **only** module that drives the pi-adapter and the **sole fan-out point** — it schedules nodes. A pi node never schedules child nodes; there is no agent-spawns-agent path.',
+      '_Synthesised from ADR-0004 / ADR-0005._',
+    ),
+    references: [adr(4), adr(5)],
+  },
+
+  // --- pattern (a reusable structure) ---
+  {
+    id: 'thin-wrapper-over-the-runtime',
+    category: 'pattern',
+    title: 'Thin wrapper over the runtime',
+    description:
+      'Own a thin, typed wrapper over the agent runtime’s documented surface; expose nothing model-shaped upward.',
+    body: para(
+      '`packages/pi-adapter` is a project-owned thin wrapper over pi’s *documented* surface (`prompt`/`steer`/`followUp` + lifecycle stream + `edit` diffs). It normalizes pi’s stream into the typed events the store renders and exposes nothing model-shaped upward — `core` and `studio` never parse a pi stream directly.',
+      '_Carries v1’s own-a-thin-wrapper-over-the-agent-runtime principle (ADR-0004)._',
+    ),
+    references: [adr(4), adr(6)],
+  },
+  {
+    id: 'event-log-then-projection',
+    category: 'pattern',
+    title: 'Event log, then projection',
+    description:
+      'The append-only event log is the only thing written; per-unit status/verdict is a derived projection (node rollup), never hand-maintained.',
+    body: para(
+      'The **event log** is the typed, append-only record — the single source of truth and the only thing **written**. The **node rollup** (current status + latest verdict per unit) is a **projection** over the log, *read off* it, never written beside it.',
+      'v2’s answer to v1’s per-build `runs`-grain mess.',
+    ),
+    references: [adr(6)],
+  },
+  {
+    id: 'durable-workflow-per-node',
+    category: 'pattern',
+    title: 'One durable workflow per node',
+    description:
+      'Each node is a single pi session driven inside one DBOS workflow — crash-safe and auto-resumed, with isolation keyed on the node.',
+    body: para(
+      'A node under construction is driven by one pi session inside a DBOS workflow. DBOS workflow isolation (not a branch-per-session) provides crash-safe, auto-resumed execution; claims in the shared store handle write-ownership.',
+      '_Synthesised from ADR-0001 / ADR-0009 (glossary: node)._',
+    ),
+    references: [adr(1), adr(9)],
+  },
+  {
+    id: 'standalone-resilient-library',
+    category: 'pattern',
+    title: 'Standalone-resilient library',
+    description:
+      'Structure a unit as a library with minimal load-bearing deps, exercised end-to-end by integration tests, behind a thin CLI/adapter wrapper.',
+    body: para(
+      'Build each unit as a library with minimal load-bearing dependencies, exercised end-to-end by integration tests, behind a thin CLI/adapter wrapper. Keeps units provable in isolation and resilient to surrounding churn.',
+      '_Carried from v1 (glossary: standalone-resilient-library)._',
+    ),
+    references: [GLOSSARY],
+  },
+
+  // --- anti-pattern (a failure mode to avoid) ---
+  {
+    id: 'auto-merge-on-green',
+    category: 'anti-pattern',
+    title: 'Auto-merge on green',
+    description:
+      'v1 auto-merged on green and tolerated a knowingly-broken mainline; v2 rejects it — green is a request for human diff-review.',
+    body: para(
+      'v1’s trunk auto-merged on green and tolerated broken intermediate states under an eventual-consistency posture. v2 **inverts** this: the trunk is approval-gated, a green result is a *request for human diff-review*, and the trunk never holds knowingly-broken states.',
+      '_See the `approval-gated-trunk` constraint (ADR-0008)._',
+    ),
+    references: [adr(8)],
+  },
+  {
+    id: 'faked-uat-theatre',
+    category: 'anti-pattern',
+    title: 'Faked-UAT theatre',
+    description:
+      'Stubbing collaborators in a UAT is a structural defect — the mock-UAT seam forbids it. Guardrail surfaces use operator-attested, not a fake walkthrough.',
+    body: para(
+      'Stubs/mocks are correct in a contract test (isolated) but a **structural defect** in a UAT (real collaborators). Don’t fake a walkthrough for a behavioural/guardrail surface that has no honest UAT — use the `operator-attested` proof mode instead.',
+      '_The mock-UAT seam; synthesised from ADR-0007._',
+    ),
+    references: [adr(7)],
+  },
+  {
+    id: 'vibe-the-load-bearing-layers',
+    category: 'anti-pattern',
+    title: 'Vibing the load-bearing layers',
+    description:
+      'v1’s internals were vibed and became unobservable. Don’t vibe the parts the system rests on — the event model, concurrency-safe state, the spine.',
+    body: para(
+      'v1 proved the *idea* but its internals were vibed and are hard to see. v2’s stance: **go slow, own the load-bearing layers.** The event model, concurrency-safe shared state, and the orchestrator spine are designed up front, not improvised.',
+      '_Synthesised from ADR-0001._',
+    ),
+    references: [adr(1)],
+  },
+  {
+    id: 'store-lock-races-and-id-collisions',
+    category: 'anti-pattern',
+    title: 'Store-lock races & id collisions',
+    description:
+      'v1 hit store-lock races and in-process story-ID collisions under concurrency. v2 designs concurrency-safe state from day one (DBOS + DB-allocated ids).',
+    body: para(
+      'v1’s concurrency scars: store-lock races and in-process story-ID collisions (even duplicate ADR numbers). v2 treats concurrency-safe state as a **foundation, not a retrofit** — DBOS workflow isolation, claims in the one shared store, and DB-allocated collision-free ids.',
+      '_Synthesised from ADR-0001 / ADR-0009._',
+    ),
+    references: [adr(1), adr(9)],
+  },
+
+  // --- context (what world we operate in) ---
+  {
+    id: 'north-star-self-building',
+    category: 'context',
+    title: 'North star: storytree builds itself',
+    description:
+      'Set up the blocks so agents author, test, and UAT-prove stories on the tree — and the tree’s own growth is the product you watch.',
+    body: para(
+      'The goal is for storytree to **build itself**: a fleet of agents author, test, and UAT-prove stories on the tree, and the tree’s growth is the product you watch. v2 is currently bootstrapped by hand; the scaffolding should fall away as the tree becomes self-building.',
+      '_From the README north-star._',
+    ),
+    references: [adr(1)],
+  },
+  {
+    id: 'bootstrap-phase-midwife-harness',
+    category: 'context',
+    title: 'Bootstrap phase: a midwife harness',
+    description:
+      'v2 is being bootstrapped by hand — Claude Code working across the storytree and Agentic repos — until the tree can grow itself.',
+    body: para(
+      'storytree lives as a **sibling** of the v1 Agentic repo (independent git history). During bootstrap it is built via Claude Code working across both repos. This is temporary scaffolding, not the product.',
+      '_From the README development notes._',
+    ),
+    references: [],
+  },
+  {
+    id: 'pay-as-you-go-self-hosted',
+    category: 'context',
+    title: 'Pay-as-you-go, self-hosted',
+    description:
+      'API keys not a subscription; free to try non-Anthropic models; your data and traces stay yours (no per-trace SaaS).',
+    body: para(
+      'v2 runs on pay-as-you-go API billing, free to try non-Anthropic models, and self-hosted: observability lands in our own event store with no external trace SaaS in the loop. Your data and traces stay yours.',
+      '_Synthesised from ADR-0001._',
+    ),
+    references: [adr(1)],
+  },
+
+  // --- governance (which surface beats another) ---
+  {
+    id: 'glossary-wins',
+    category: 'governance',
+    title: 'When a term is in question, the glossary wins',
+    description:
+      'docs/glossary.md is the authoritative terminology every layer speaks; when a term’s meaning is contested, it wins.',
+    body: para(
+      'Every layer — `packages/core` types, the orchestrator, the studio, the ADRs — uses the glossary’s terms as defined. **When a term’s meaning is in question, `docs/glossary.md` wins**; the reasoning lives in the cited ADR.',
+      '_From the glossary preamble (ADR-0002)._',
+    ),
+    references: [GLOSSARY, adr(2)],
+  },
+  {
+    id: 'human-owns-the-outer-loop',
+    category: 'governance',
+    title: 'The human owns the outer loop',
+    description:
+      'Inner loop (drive a unit red→green) is automatable; outer loop (accept to trunk, accept a decomposition, amend/retry/abandon) is human judgment.',
+    body: para(
+      '**inner loop** = driving one unit red→green (automatable, owned by a pi node). **outer loop** = accepting a result onto the trunk, accepting a decomposition, or amending/retrying/abandoning a unit (held by **human judgment** in the studio).',
+      'The human-in-the-loop gate sits at the outer loop; the north-star may later dissolve it.',
+      '_Synthesised from ADR-0008 / ADR-0007._',
+    ),
+    references: [adr(8), adr(7)],
   },
 ];
 

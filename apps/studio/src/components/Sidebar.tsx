@@ -33,7 +33,7 @@ export function Sidebar({ route }: { route: Route }): React.JSX.Element {
                   href={libraryHref(cat)}
                 >
                   <span className={`cat-dot cat-${cat}`} />
-                  <span className="side-item-label">{cat}s</span>
+                  <span className="side-item-label">{cat}</span>
                   <span className="badge ghost">{n}</span>
                 </a>
               </li>

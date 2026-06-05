@@ -94,7 +94,8 @@ comment's `headingSlug`, so anchors line up.
 ```jsonc
 {
   "id": "deep-modules",                // kebab-case slug, unique (the v1 `name`)
-  "category": "principle",             // principle | definition | guideline | context | governance
+  "category": "principle",             // definition | principle | guideline | constraint |
+                                       //   pattern | anti-pattern | techstack | context | governance
   "title": "Deep modules",
   "description": "one line — what it is / when to inject it",
   "body": "markdown",
@@ -104,10 +105,18 @@ comment's `headingSlug`, so anchors line up.
 }
 ```
 
+The **9 categories** are chosen to cover the durable outputs the ADRs actually
+produce — not just guidance but **hard `constraint`s** (invariants you can't
+override), reusable **`pattern`s**, the **`techstack`**, and **`anti-pattern`s**
+(failure modes), alongside `definition` / `principle` / `guideline` / `context` /
+`governance`. Each gloss is shown in the UI; they're a small fixed ontology, not
+the unbounded tags we removed.
+
 The Library ships seeded ([`data/seed.assets.mjs`](data/seed.assets.mjs)) with
-**64 artifacts**: curated principles/guidelines synthesised from the ADRs (each
-`references` its source ADR), a few v1 imports, and one `definition` per glossary
-term (auto-extracted, citing the glossary and any ADRs it mentions).
+**85 artifacts**: curated principles/constraints/patterns/anti-patterns/etc.
+synthesised from the ADRs (each `references` its source ADR), a few v1 imports,
+and one `definition` per glossary term (auto-extracted, citing the glossary and
+any ADRs it mentions).
 
 ### API (dev only)
 

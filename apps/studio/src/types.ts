@@ -56,15 +56,19 @@ export interface NewComment {
 }
 
 /**
- * The artifact taxonomy, grounded in the v1 (Agentic) `assets/` corpus: a typed,
- * reusable unit of agent guidance. The three core kinds the owner named —
- * principle / definition / guideline — plus the other v1 buckets. The one-line
- * gloss per category is shown in the UI.
+ * The artifact taxonomy: a typed, reusable unit of agent guidance. Grounded in
+ * the v1 (Agentic) `assets/` corpus and extended to cover the durable outputs
+ * the ADRs actually produce (hard boundaries, reusable structures, the stack,
+ * failure modes). The one-line gloss per category is shown in the UI.
  */
 export type AssetCategory =
-  | 'principle' // "how to judge"
   | 'definition' // "what something is"
+  | 'principle' // "how to judge"
   | 'guideline' // "what to do"
+  | 'constraint' // "what must always hold" — a hard boundary, not overridable
+  | 'pattern' // "a reusable structure"
+  | 'anti-pattern' // "a failure mode to avoid"
+  | 'techstack' // "what we build on" — a technology choice
   | 'context' // "what world we operate in"
   | 'governance'; // "which surface beats another"
 
@@ -119,18 +123,26 @@ export interface DocContent {
 }
 
 export const ASSET_CATEGORIES: AssetCategory[] = [
-  'principle',
   'definition',
+  'principle',
   'guideline',
+  'constraint',
+  'pattern',
+  'anti-pattern',
+  'techstack',
   'context',
   'governance',
 ];
 
 /** One-line gloss per category (shown in the Library UI). */
 export const ASSET_CATEGORY_GLOSS: Record<AssetCategory, string> = {
-  principle: 'how to judge',
   definition: 'what something is',
+  principle: 'how to judge',
   guideline: 'what to do',
+  constraint: 'what must always hold',
+  pattern: 'a reusable structure',
+  'anti-pattern': 'a failure mode to avoid',
+  techstack: 'what we build on',
   context: 'what world we operate in',
   governance: 'which surface beats another',
 };

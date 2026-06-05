@@ -54,7 +54,7 @@ export function Library({ category }: { category: AssetCategory | null }): React
                 href={libraryHref(cat)}
                 title={ASSET_CATEGORY_GLOSS[cat]}
               >
-                {cat}s ({n})
+                {cat} ({n})
               </a>
             );
           })}
