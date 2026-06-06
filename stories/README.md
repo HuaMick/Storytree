@@ -124,15 +124,14 @@ representation is plain files).
    stage, paired with an honest per-unit proof note (see ADR-0010 §Consequences). Kept here
    for the record.
 
-2. **`resolve-comment` — own capability, or fold into `annotate-topic`?** Kept separate
-   (a distinct verb with a genuine multi-surface propagation walk: header badge, row
-   pill, hide-resolved toggle, section badge, gutter tick, sidebar count, on-disk
-   `resolvedAt`). But its UAT renders a corpus doc for two of those surfaces, which is a
-   `read-corpus` need it does not declare — an entanglement with `annotate-topic` (which
-   *does* depend on `read-corpus`). *Recommendation:* defensible either way; I lean
-   **keep separate** (the fan-out is a real standalone proof and a useful fine-grained
-   example), but if kept, consider adding a `resolve-comment → read-corpus` edge, or fold
-   resolve into `annotate-topic` as extra steps + contracts.
+2. **`resolve-comment` — own capability, or fold into `annotate-topic`? — RESOLVED
+   (owner, 2026-06-06): keep separate, no edge.** It is a distinct verb with a genuine
+   multi-surface propagation walk (header badge, row pill, hide-resolved toggle, section
+   badge, gutter tick, sidebar count, on-disk `resolvedAt`). Its integration test renders a
+   corpus doc for two of those surfaces, but that does **not** create a
+   `resolve-comment → read-corpus` edge: edges track code coupling (ADR-0010 §3) and a test
+   may exercise any real in-story collaborator as scaffolding (ADR-0010 §5). The wider
+   test-collaborator surface is correct, not a missing edge.
 
 3. **`seed-library-corpus` — capability, or a contract-cluster?** Its honest proof is
    largely one observable effect (the written `assets.json`), which smells contract-ish,

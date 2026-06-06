@@ -48,16 +48,14 @@ and drives the real fan-out across every surface. It would:
 7. ASSERT every surface REVERTS to the unresolved baseline: open-count badge climbs back, row loses the 'resolved' class+pill, the 'hide resolved' toggle disappears again (no comment is resolved), the section heading badge count returns, the Sidebar badge climbs back.
 8. RE-READ comments.json and ASSERT resolved:false and resolvedAt cleared back to null (devApi.ts:235) — completing the round-trip.
 
-> **CRACK (model contradiction surfaced) —** This integration test renders a real corpus
-> document (to put the section-badge and gutter surfaces in play), which exercises
-> `read-corpus`'s code — yet `depends_on` lists only the backbone, because static analysis
-> of resolve-comment's own modules finds no import/call into read-corpus (the doc render is
-> set up by the test, not reached through resolve's code). So the test's real collaborator
-> set is wider than the code-derived edge set. This is the README open-call #2 entanglement,
-> now sharpened by ADR-0010's code-derived rule: either (a) accept that the integration
-> test's scaffolding may render a doc the capability does not code-depend on, or (b) add a
-> `resolve-comment → read-corpus` edge, or (c) fold resolve into annotate-topic. Flagged for
-> the owner; left as-is (option a) pending that call.
+> **Note (resolved) —** This integration test renders a real corpus document (to put the
+> section-badge and gutter surfaces in play), which exercises `read-corpus`'s code — yet
+> `depends_on` lists only the backbone, because static analysis of resolve-comment's own
+> modules finds no import/call into read-corpus. That is **correct, not a missing edge**:
+> dependency edges track code coupling (ADR-0010 §3); a test may exercise any real
+> in-story collaborator as scaffolding without that becoming an edge (ADR-0010 §5). Owner
+> call 2026-06-06: keep `resolve-comment` separate, **no** `resolve-comment → read-corpus`
+> edge.
 
 ## Contracts (12)
 

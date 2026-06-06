@@ -175,14 +175,15 @@ iterated to a fixed point before any unit goes red (owned by the
 decomposition/scheduler loop; see `open-questions.md` §4). (2) *cold-rebuild* —
 below. (ADR-0003, ADR-0007.)
 
-**cold-rebuild** — The convergence contract that is storytree's **health
-invariant**, now at **story grain**: a story is `healthy` iff a cold agent — given
-the story's own spec **plus the documented boundaries of its upstream stories**
-(never their internals), and nothing else — can drive it red→green. Microservice
-independence is encoded directly into the invariant. The cold-rebuild sense of
-`convergence`, explicitly distinct from DAG-stabilisation. The dependency rule
-("you cannot prove a unit that stands on an unproven one") falls out of it
-(ADR-0010 §6; ADR-0007; carried from Agentic ADR-0006/0027).
+**cold-rebuild** — An **authoring guideline** (not a gate), at **story grain**: a
+story should be written self-contained enough that a cold agent — given the story's
+own spec **plus the declared interfaces of its upstream stories** (never their
+internals), and nothing else — could rebuild it and pass its UAT. The rebuilt
+*internals* may legitimately differ (many implementations satisfy one UAT). The
+cold-rebuild sense of `convergence`, distinct from DAG-stabilisation. It is **not**
+the definition of `healthy` (earned via the proof modes / prove-it-gate) and is
+**not machine-enforced** — v1 carried it as guidance for agents authoring stories
+and never tested it (ADR-0010 §6; ADR-0007; carried from Agentic ADR-0006/0027).
 
 **per-node budget** — A code-enforced ceiling (iterations / token-cost /
 wall-cost — exact unit TBD) on a node's spine loop. The loop terminates on green

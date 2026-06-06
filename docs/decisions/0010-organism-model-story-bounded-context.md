@@ -90,12 +90,30 @@ name when `packages/core` formalises the schema.
 - **The declared interface is the one stubbable boundary.** A story's UAT may run against a
   stubbed / contract-tested version of an upstream story's interface — exactly like
   acceptance-testing a frontend against a stubbed database. This is isolation, not theatre.
+- **A test's collaborator surface may be wider than its code-derived edges.** A capability's
+  integration test may exercise any *real* in-story collaborator it needs as scaffolding —
+  e.g. `resolve-comment`'s test renders a real document via `read-corpus` — without that
+  becoming a dependency edge. Edges (§3) track code coupling (imports/calls), not test
+  scaffolding; touching a real, non-stubbed in-story collaborator is never a missing edge.
+  (Owner call, 2026-06-06; closes the `resolve-comment`/`read-corpus` entanglement as
+  *keep separate, no edge*.)
 
-### 6. Cold-rebuild, restated (the health invariant)
+### 6. Cold-rebuild — an authoring guideline, not a gate
 
-A story is `healthy` iff a cold agent — given the story's own spec **plus the documented
-interfaces of its upstream stories** (never their internals) — can drive it red→green.
-Microservice independence is encoded directly into the health invariant.
+Cold-rebuild is the aspiration that a story be written **self-contained enough** that a
+cold agent — given the story's own spec plus the declared interfaces of its upstream
+stories (never their internals) — could rebuild it and pass its UAT. The rebuilt
+*internals* may legitimately differ: many implementations satisfy one UAT (many ways to
+skin a cat).
+
+This is **guidance for authoring stories, not a machine-enforced invariant**, and **not**
+the definition of `healthy`. `healthy` is earned through the proof modes (§2) and the
+prove-it-gate; cold-rebuild is never re-derived as a gate (v1 carried it as authoring
+guidance and never enforced it). It is the reason a story should declare its upstream
+*interfaces* well — but **what an interface document must contain, and the exact
+interface/internals line, are deliberately left open** until `packages/core` (or a second
+story) forces them. With one story today nothing depends on anything, so this does not yet
+bite.
 
 ## Consequences
 
