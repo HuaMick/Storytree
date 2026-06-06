@@ -1,0 +1,10 @@
+# Local Terraform state (single operator — no remote backend) and provider cache.
+# Note: .terraform.lock.hcl is intentionally NOT ignored — it pins provider
+# versions and should be committed.
+.terraform/
+*.tfstate
+# Transient Terraform run logs.
+apply.log
+*.tfstate.*
+# Holds operator_email — local only.
+terraform.tfvars

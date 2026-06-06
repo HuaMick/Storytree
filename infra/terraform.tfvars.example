@@ -1,0 +1,2 @@
+# Copy to terraform.tfvars (gitignored) and set your Google account email.
+operator_email = "hua.mick@gmail.com"
