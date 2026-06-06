@@ -148,10 +148,14 @@ representation is plain files).
    upstream capability only if you want "the SPA loads the corpus into one typed context"
    to be its own provable unit.
 
-5. **Lower-stakes notes.** *(a)* The 5-category **taxonomy** is modeled as a closed
-   schema folded into `browse-library` (with one drift-guard contract asserting the
-   server vs `types.ts` lists match), not its own unit — a taxonomy has no end-to-end
-   walk; it could alternatively be a `definition` artifact. *(b)* `GuidanceAsset` is still
+5. **Lower-stakes notes.** *(a)* The **taxonomy** (a closed 7-category schema —
+   `definition`, `principle`, `pattern`, `guardrail`, `techstack`, `template`, `adr`; six
+   populated by the seed, `adr` defined-but-unseeded) is modeled as a closed schema folded
+   into `browse-library` (with one drift-guard contract asserting the server vs `types.ts`
+   lists match), not its own unit — a taxonomy has no end-to-end walk; it could
+   alternatively be a `definition` artifact. NOTE (owner, 2026-06-06): `template` is a real,
+   seeded category (6 scaffolds), but per-category template ENFORCEMENT is not yet worked
+   through. *(b)* `GuidanceAsset` is still
    a *live proposal* for the parked open-questions §9 knowledge tier, so the three Library
    capabilities sit on a model that isn't ratified yet. *(c)* The `slugify` parity
    invariant is asserted in two capabilities (`read-corpus`, `annotate-topic`); it could
