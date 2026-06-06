@@ -408,6 +408,16 @@
     "updatedAt": "2026-06-05T00:00:00.000Z"
   },
   {
+    "id": "template-adr",
+    "category": "template",
+    "title": "Template — adr",
+    "description": "The scaffold a new ADR artifact starts from — the canonical decision-record section shape (Status / Context / Decision / Consequences).",
+    "body": "# ADR-NNNN: <short imperative title>\n\n## Status\n\n_proposed · accepted · superseded by ADR-XXXX_\n\n## Date\n\n_YYYY-MM-DD_\n\n## Context\n\n_The forces at play — what makes this decision necessary now, and the constraints it must satisfy._\n\n## Decision\n\n_What we are doing, stated plainly in the present tense._\n\n## Consequences\n\n_What follows — the trade-offs accepted, the new constraints, what gets easier or harder._\n\n## Alternatives considered\n\n_What else was on the table and why it lost (name both sides of each trade)._\n\n## References\n\n_Source / related ADRs, glossary terms, and Library artifacts._",
+    "references": [],
+    "createdAt": "2026-06-05T00:00:00.000Z",
+    "updatedAt": "2026-06-05T00:00:00.000Z"
+  },
+  {
     "id": "story",
     "category": "definition",
     "title": "story",

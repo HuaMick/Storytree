@@ -1,20 +1,23 @@
 import { useAppData, openCount } from '../lib/appData';
 import { docHref, libraryHref, type Route } from '../lib/route';
-import { LIBRARY_CATEGORIES, type DocMeta, type LibraryCategory } from '../types';
+import { ASSET_CATEGORIES, type AssetCategory, type DocMeta } from '../types';
 
 export function Sidebar({ route }: { route: Route }): React.JSX.Element {
   const { docs, assets, comments } = useAppData();
   // ADRs now live in the Library (counted under the `adr` category below); only
   // the non-decision docs keep a standalone "Reference" section in the sidebar.
-  const adrs = docs.filter((d) => d.group === 'Decisions');
+  const adrDocs = docs.filter((d) => d.group === 'Decisions');
   const reference = docs.filter((d) => d.group !== 'Decisions');
   const activeDocId = route.name === 'doc' ? route.id : null;
   const libCat = route.name === 'library' ? route.category : undefined;
 
-  // Library counts: artifact categories from assets, `adr` from the Decisions docs.
-  const countFor = (cat: LibraryCategory): number =>
-    cat === 'adr' ? adrs.length : assets.filter((a) => a.category === cat).length;
-  const totalItems = assets.length + adrs.length;
+  // Library counts come from the artifacts; `adr` also includes the doc-backed
+  // ADRs folded in from docs/decisions/ (authored adr artifacts + canonical docs).
+  const countFor = (cat: AssetCategory): number => {
+    const artifacts = assets.filter((a) => a.category === cat).length;
+    return cat === 'adr' ? artifacts + adrDocs.length : artifacts;
+  };
+  const totalItems = assets.length + adrDocs.length;
 
   return (
     <aside className="sidebar">
@@ -30,7 +33,7 @@ export function Sidebar({ route }: { route: Route }): React.JSX.Element {
               <span className="badge ghost">{totalItems}</span>
             </a>
           </li>
-          {LIBRARY_CATEGORIES.map((cat) => {
+          {ASSET_CATEGORIES.map((cat) => {
             const n = countFor(cat);
             if (n === 0) return null;
             return (

@@ -2,18 +2,18 @@
 // into a single hash segment so slashes in doc relpaths don't break parsing.
 
 import { useSyncExternalStore } from 'react';
-import { LIBRARY_CATEGORIES, type LibraryCategory } from '../types';
+import { ASSET_CATEGORIES, type AssetCategory } from '../types';
 
 export type Route =
   | { name: 'home' }
   | { name: 'doc'; id: string }
-  | { name: 'library'; category: LibraryCategory | null }
+  | { name: 'library'; category: AssetCategory | null }
   | { name: 'asset'; id: string }
   | { name: 'asset-edit'; id: string }
   | { name: 'asset-new' };
 
-function asCategory(value: string): LibraryCategory | null {
-  return (LIBRARY_CATEGORIES as string[]).includes(value) ? (value as LibraryCategory) : null;
+function asCategory(value: string): AssetCategory | null {
+  return (ASSET_CATEGORIES as string[]).includes(value) ? (value as AssetCategory) : null;
 }
 
 export function parseRoute(hash: string): Route {
@@ -56,7 +56,7 @@ export function navigate(to: string): void {
 }
 
 export const homeHref = '#/';
-export const libraryHref = (category?: LibraryCategory | null): string =>
+export const libraryHref = (category?: AssetCategory | null): string =>
   category ? `#/library/${category}` : '#/library';
 export const docHref = (id: string): string => `#/doc/${encodeURIComponent(id)}`;
 export const assetHref = (id: string): string => `#/asset/${encodeURIComponent(id)}`;

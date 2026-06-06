@@ -432,6 +432,9 @@ const curated = [
 // the editor. The editor enforces required sections on save — notably a
 // guardrail must keep its **Enforced by** section naming the deterministic
 // enforcement (see apps/studio/src/lib/templates.ts).
+// `adr` is a first-class artifact category now: `template-adr` scaffolds a new
+// ADR artifact. (The canonical ADRs under docs/decisions/ also fold into the
+// Library read-only, so the `adr` category spans both.)
 
 const templates = [
   {
@@ -518,6 +521,31 @@ const templates = [
       '_Version pins, boundaries, and what it must not be used for._',
       '## See also',
       '_Source ADR(s) and related artifacts._',
+    ),
+    references: [],
+  },
+  {
+    id: 'template-adr',
+    category: 'template',
+    title: 'Template — adr',
+    description:
+      'The scaffold a new ADR artifact starts from — the canonical decision-record section shape (Status / Context / Decision / Consequences).',
+    body: para(
+      '# ADR-NNNN: <short imperative title>',
+      '## Status',
+      '_proposed · accepted · superseded by ADR-XXXX_',
+      '## Date',
+      '_YYYY-MM-DD_',
+      '## Context',
+      '_The forces at play — what makes this decision necessary now, and the constraints it must satisfy._',
+      '## Decision',
+      '_What we are doing, stated plainly in the present tense._',
+      '## Consequences',
+      '_What follows — the trade-offs accepted, the new constraints, what gets easier or harder._',
+      '## Alternatives considered',
+      '_What else was on the table and why it lost (name both sides of each trade)._',
+      '## References',
+      '_Source / related ADRs, glossary terms, and Library artifacts._',
     ),
     references: [],
   },

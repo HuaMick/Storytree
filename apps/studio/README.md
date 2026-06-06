@@ -96,8 +96,8 @@ comment's `headingSlug`, so anchors line up.
 ```jsonc
 {
   "id": "deep-modules",                // kebab-case slug, unique (the v1 `name`)
-  "category": "principle",             // definition | principle | pattern |
-                                       //   guardrail | techstack | template
+  "category": "principle",             // definition | principle | pattern | guardrail |
+                                       //   techstack | template | adr
   "title": "Deep modules",
   "description": "one line — what it is / when to inject it",
   "body": "markdown",
@@ -107,12 +107,12 @@ comment's `headingSlug`, so anchors line up.
 }
 ```
 
-The **6 artifact categories** cover the durable outputs the ADRs produce:
+The **7 artifact categories** cover the durable outputs the ADRs produce:
 `definition` (what something is), `principle` (how to judge), `pattern` (a
 reusable approach), a **`guardrail`** (a *deterministically-enforced* boundary —
-it must name what enforces it), `techstack` (what we build on), and a
-**`template`** (the shape an artifact conforms to). A small fixed ontology, not
-the unbounded tags we removed.
+it must name what enforces it), `techstack` (what we build on), a **`template`**
+(the shape an artifact conforms to), and an **`adr`** (a decision record). A small
+fixed ontology, not the unbounded tags we removed.
 
 **Templates are enforced.** Each artifact category ships a seeded
 `template-<category>` scaffold. The editor offers a "Start from the <category>
@@ -120,20 +120,25 @@ template" button when authoring a new artifact, and **blocks save** when a
 required section is missing. The load-bearing rule: a **`guardrail`** must include
 an **"Enforced by"** section naming its deterministic enforcement (a gate / schema
 / DB constraint / code path) — else it is a `pattern`, not a guardrail. The
-required-section map lives in [`src/lib/templates.ts`](src/lib/templates.ts).
+required-section map lives in [`src/lib/templates.ts`](src/lib/templates.ts). The
+`adr` category has a `template-adr` scaffold too (the canonical ADR section
+shape), and authoring an `adr` works exactly like the other categories.
 
-**ADRs fold into the Library.** The ADRs also surface in the Library as a
-read-only, doc-backed **`adr`** category. They stay canonical markdown under
-`docs/decisions/` (they are *not* imported into `assets.json`) and open in the
-same `DocView` — rendered markdown with comments + annotation. The glossary /
+**`adr` is a first-class artifact category.** You author ADRs in the editor like
+any other artifact — start from the `template-adr` scaffold; they persist to
+`assets.json` and open in `AssetView`. The Library *also* folds in the canonical
+ADRs under `docs/decisions/` as read-only `adr` rows (opening in the same
+`DocView` — rendered markdown with comments + annotation), so the `adr` category
+spans both authored artifacts and the doc-backed decision records. The glossary /
 open-questions / adjudication / v1 registers stay in the sidebar's **Reference**
 section, not the Library.
 
 The Library ships seeded ([`data/seed.assets.mjs`](data/seed.assets.mjs)) with
-**86 artifacts**: curated guidance synthesised from the ADRs (each `references`
-its source ADR), one `template` per artifact category, a few v1 imports, and one
-`definition` per glossary term (auto-extracted, citing the glossary and any ADRs
-it mentions) — alongside the 9 ADRs surfaced read-only as `adr` cards.
+**87 artifacts**: curated guidance synthesised from the ADRs (each `references`
+its source ADR), six `template` scaffolds (one per authorable category bar
+`template` itself), a few v1 imports, and one `definition` per glossary term
+(auto-extracted, citing the glossary and any ADRs it mentions) — alongside the 9
+canonical ADRs that fold in read-only as `adr` cards.
 
 ### API (dev only)
 
@@ -146,14 +151,15 @@ it mentions) — alongside the 9 ADRs surfaced read-only as `adr` cards.
 
 ## Design choices (for owner review)
 
-- **ADRs are history, not editable artifacts.** The ADRs are *not* imported into
-  `assets.json`; they stay canonical markdown under `docs/decisions/`. They now
-  surface **in the Library** as read-only, doc-backed `adr` cards (opening in
-  `DocView`), so the live artifacts and the justification record browse together
-  while the ADRs stay doc-backed and uneditable. Durable guidance is still
+- **`adr` is a first-class artifact category.** ADRs are authored in the editor
+  like any other artifact and persist to `assets.json`. The **existing** decision
+  records stay canonical markdown under `docs/decisions/` and fold into the same
+  `adr` category read-only (opening in `DocView`), so authored ADRs and the
+  doc-backed record browse together. The historical docs are *not* auto-migrated
+  into `assets.json` — they remain the source of truth for the originals, while
+  new decisions can be authored as `adr` artifacts. Durable guidance is still
   **synthesised out of** the ADRs into principles/patterns/guardrails, each citing
-  its source ADR via `references`. (Synthesis is currently a curated seed — extend
-  freely.)
+  its source ADR via `references`.
 - **Glossary → definitions.** Every `**term** — …` in `docs/glossary.md` becomes a
   `definition` artifact at seed time. `glossary.md` stays as the cited source.
 - **Text-quote anchoring** (W3C Web Annotation) for the highlight layer — see

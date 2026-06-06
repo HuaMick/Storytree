@@ -70,7 +70,8 @@ export type AssetCategory =
   | 'pattern' // "a reusable approach"
   | 'guardrail' // "a deterministically-enforced boundary"
   | 'techstack' // "what we build on"
-  | 'template'; // "the shape an artifact conforms to"
+  | 'template' // "the shape an artifact conforms to"
+  | 'adr'; // "a decision record"
 
 /**
  * A modular, injectable Library artifact — the seed of the injectable guidance
@@ -131,6 +132,7 @@ export const ASSET_CATEGORIES: AssetCategory[] = [
   'guardrail',
   'techstack',
   'template',
+  'adr',
 ];
 
 /** One-line gloss per category (shown in the Library UI). */
@@ -141,32 +143,22 @@ export const ASSET_CATEGORY_GLOSS: Record<AssetCategory, string> = {
   guardrail: 'a deterministically-enforced boundary',
   techstack: 'what we build on',
   template: 'the shape an artifact conforms to',
+  adr: 'a decision record',
 };
 
 /**
- * Documents that also surface in the Library (read-only, doc-backed). Only ADRs
- * fold in — their content stays canonical markdown under docs/decisions/, opened
- * in the existing DocView. The glossary / open-questions / adjudication / v1
- * registers stay in the sidebar's "Reference" section, not the Library.
+ * A unified row in the Library grid. `adr` is a first-class artifact category like
+ * any other — you author them in the editor and they persist to assets.json. The
+ * Library *also* folds in the canonical ADR docs under docs/decisions/ as
+ * read-only `adr` rows, so an item is either an editable artifact
+ * (`kind: 'artifact'` → AssetView) or a doc-backed ADR (`kind: 'doc'` → read-only
+ * DocView). The glossary / open-questions / adjudication / v1 registers stay in
+ * the sidebar's "Reference" section, not the Library.
  */
-export type DocCategory = 'adr';
-
-/** Everything the Library browses: editable artifacts + doc-backed ADRs. */
-export type LibraryCategory = AssetCategory | DocCategory;
-
-export const LIBRARY_CATEGORIES: LibraryCategory[] = [...ASSET_CATEGORIES, 'adr'];
-
-/** One-line gloss per Library category (artifact glosses + the ADR gloss). */
-export const LIBRARY_CATEGORY_GLOSS: Record<LibraryCategory, string> = {
-  ...ASSET_CATEGORY_GLOSS,
-  adr: 'a decision record (history)',
-};
-
-/** A unified row in the Library grid — an editable artifact or a doc-backed ADR. */
 export interface LibraryItem {
   kind: 'artifact' | 'doc';
   id: string;
-  category: LibraryCategory;
+  category: AssetCategory;
   title: string;
   description: string;
 }

@@ -29,6 +29,7 @@ const ASSET_CATEGORIES: AssetCategory[] = [
   'guardrail',
   'techstack',
   'template',
+  'adr',
 ];
 
 interface Paths {

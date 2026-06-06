@@ -2,13 +2,13 @@ import { useMemo, useState } from 'react';
 import { useAppData, openCount } from '../lib/appData';
 import { assetHref, assetNewHref, docHref, libraryHref } from '../lib/route';
 import {
-  LIBRARY_CATEGORIES,
-  LIBRARY_CATEGORY_GLOSS,
-  type LibraryCategory,
+  ASSET_CATEGORIES,
+  ASSET_CATEGORY_GLOSS,
+  type AssetCategory,
   type LibraryItem,
 } from '../types';
 
-export function Library({ category }: { category: LibraryCategory | null }): React.JSX.Element {
+export function Library({ category }: { category: AssetCategory | null }): React.JSX.Element {
   const { docs, assets, comments } = useAppData();
   const [query, setQuery] = useState('');
 
@@ -23,7 +23,7 @@ export function Library({ category }: { category: LibraryCategory | null }): Rea
       title: a.title,
       description: a.description,
     }));
-    const adrItems: LibraryItem[] = docs
+    const adrDocItems: LibraryItem[] = docs
       .filter((d) => d.group === 'Decisions')
       .map((d) => ({
         kind: 'doc',
@@ -32,7 +32,7 @@ export function Library({ category }: { category: LibraryCategory | null }): Rea
         title: d.title,
         description: d.excerpt,
       }));
-    return [...artifactItems, ...adrItems];
+    return [...artifactItems, ...adrDocItems];
   }, [assets, docs]);
 
   const filtered = useMemo(() => {
@@ -54,9 +54,9 @@ export function Library({ category }: { category: LibraryCategory | null }): Rea
           <h1>Library</h1>
           <p className="muted">
             Modular, injectable artifacts — definitions, principles, patterns, guardrails, templates,
-            and the techstack — alongside the ADRs (the decision history, read-only). The durable
-            guidance synthesised from the record; the seed of an injectable guidance library
-            (open-questions §9).
+            the techstack, and ADRs — all first-class, authorable categories. The canonical ADR docs
+            under <code>docs/decisions/</code> also fold in read-only. The durable guidance
+            synthesised from the record; the seed of an injectable guidance library (open-questions §9).
           </p>
         </div>
         <a className="btn primary" href={assetNewHref}>
@@ -69,7 +69,7 @@ export function Library({ category }: { category: LibraryCategory | null }): Rea
           <a className={category === null ? 'chip-btn active' : 'chip-btn'} href={libraryHref()}>
             all ({items.length})
           </a>
-          {LIBRARY_CATEGORIES.map((cat) => {
+          {ASSET_CATEGORIES.map((cat) => {
             const n = items.filter((it) => it.category === cat).length;
             if (n === 0) return null;
             return (
@@ -77,7 +77,7 @@ export function Library({ category }: { category: LibraryCategory | null }): Rea
                 key={cat}
                 className={category === cat ? `chip-btn cat-${cat} active` : `chip-btn cat-${cat}`}
                 href={libraryHref(cat)}
-                title={LIBRARY_CATEGORY_GLOSS[cat]}
+                title={ASSET_CATEGORY_GLOSS[cat]}
               >
                 {cat} ({n})
               </a>
@@ -94,7 +94,7 @@ export function Library({ category }: { category: LibraryCategory | null }): Rea
 
       {category && (
         <p className="muted small cat-gloss">
-          <span className={`cat-dot cat-${category}`} /> {category} — {LIBRARY_CATEGORY_GLOSS[category]}
+          <span className={`cat-dot cat-${category}`} /> {category} — {ASSET_CATEGORY_GLOSS[category]}
         </p>
       )}
 
