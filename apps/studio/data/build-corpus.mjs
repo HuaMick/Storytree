@@ -9,21 +9,23 @@
 //       PLUS the generated template-<kind> units (definition / principle / pattern /
 //       guardrail / techstack / open-question) via generateTemplate, and template-adr
 //       kept verbatim (it scaffolds the ADR source layer, not a knowledge kind).
-//   (b) docs/glossary.generated.md — the definition units regrouped under their
-//       glossary sections, with the preamble, the lifecycle-section intro, and the
-//       "## v1 -> v2 term map" table preserved verbatim.
-//
-//       It is written to a *sidecar* file, NOT over docs/glossary.md. The committed
-//       glossary is the AUTHORITATIVE source (glossary-wins), and the structured
-//       definition bodies are a deliberately-restructured + separately re-termed
-//       derivative of it (round-1 split out "What it is not" / "See also" sections,
-//       and the glossary was later re-termed pi -> owned-loop / packages/agent while
-//       the definition bodies still carry the old "pi" vocabulary — the drift flag in
-//       the analysis). Regrouping reproduces the glossary's STRUCTURE (preamble,
-//       section order, term order, lifecycle intro, term-map table) faithfully, but a
-//       byte-identical glossary cannot be rebuilt from the structured bodies, so we
-//       emit the regeneration beside the source for inspection rather than clobbering
-//       the authoritative file.
+//   (b) docs/glossary.md — the glossary is now a GENERATED VIEW of knowledge.json
+//       (owner decision #2: the glossary becomes a generated view of the structured
+//       knowledge source, not a hand-edited file). Every glossary member is a knowledge
+//       unit carrying `glossarySection` (the `## ` heading it sits under). Sections, the
+//       preamble, the lifecycle-section intro, and the "## v1 -> v2 term map" table are
+//       emitted in the order fixed by GLOSSARY_SECTION_ORDER, which also fixes the within-
+//       section term order. Each term renders as `**label** — paragraph`:
+//         - label    = `glossaryTerm ?? title` (the exact bolded label, asides/casing).
+//         - paragraph for a `definition` = `whatItIs` + (whatItIsNot ? " " + whatItIsNot : "")
+//                      — round-1 split the authoritative paragraph into oneLine/whatItIs/
+//                      whatItIsNot/seeAlso; recomposing whatItIs+whatItIsNot preserves the
+//                      definition's full meaning (seeAlso is links/provenance, not prose).
+//         - paragraph for a NON-definition (principle/pattern/guardrail) = its one-line
+//                      `description` (those members have no whatItIs; their glossary form is
+//                      a terse one-liner). NOTE: `cold-rebuild`'s authoritative glossary
+//                      entry is a rich multi-clause paragraph that `description` does not
+//                      fully carry — see the build-corpus report; flagged for owner review.
 //
 // Asset ORDERING is taken from the existing assets.json; the field VALUES
 // (title/description/references/body) are rendered from knowledge.json — the
@@ -31,7 +33,7 @@
 // renderBody/generateTemplate are driven by the same KIND_SPECS the schema and
 // the parser use — one table, three consumers, ADR-0017 "templates -> schema".
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import {
@@ -44,8 +46,8 @@ const dataDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(dataDir, '..', '..', '..');
 const assetsFile = path.join(dataDir, 'assets.json');
 const knowledgeFile = path.join(dataDir, 'knowledge.json');
-const glossaryFile = path.join(repoRoot, 'docs', 'glossary.md'); // authoritative source (read-only here)
-const glossaryOutFile = path.join(repoRoot, 'docs', 'glossary.generated.md'); // regenerated sidecar
+const glossaryFile = path.join(repoRoot, 'docs', 'glossary.md'); // now a GENERATED view (written here)
+const glossarySidecarFile = path.join(repoRoot, 'docs', 'glossary.generated.md'); // retired sidecar — deleted
 
 const KNOWLEDGE_KINDS = new Set(Object.keys(KIND_SPECS));
 const GENERATED_TEMPLATE_KINDS = new Set([
@@ -127,10 +129,13 @@ capabilities'. Carried from v1's lifecycle, with
 language, \`healthy\` is the status word).`,
 };
 
-// The ordered list of `## ` term sections that group definition units, and the
-// id order within each (matches docs/glossary.md). Non-definition members that
-// live under these headings (e.g. the principles/patterns) are NOT emitted here
-// — they are knowledge units of other kinds, kept out of the glossary body.
+// The ordered list of `## ` term sections, and the id order within each (matches
+// docs/glossary.md). Members are knowledge units of ANY kind that carry
+// `glossarySection`: definitions render from whatItIs+whatItIsNot, non-definitions
+// (principle/pattern/guardrail — e.g. prove-it-gate, cold-rebuild, red-green, and the
+// "Principles & patterns" block) from their one-line `description`. This list fixes
+// heading order and within-section term order; `glossarySection` on each unit is the
+// membership predicate (see assertGlossaryMembership).
 const GLOSSARY_SECTION_ORDER = [
   { heading: 'The work hierarchy', ids: ['story', 'capability', 'contract'] },
   {
@@ -197,27 +202,65 @@ For reading v1 (Agentic) docs. Left = what v1 wrote; right = how to read it here
 | deployment (v1, ×3 overload) | — not carried; v1 conflated VCS-exclusion vs runtime-artifact-exclusion (ADR-0003) — guard against the overload, do not reintroduce the word |`;
 
 /**
- * Render one definition unit as a glossary term entry: `**term** — body`.
- * The glossary form is a single paragraph derived from the definition's
- * `whatItIs` field (the precise meaning), which is the longest faithful form
- * of the original glossary paragraph the round-1 alignment was built from.
- *
- * NOTE: a definition body is a structured multi-section document, so a glossary
- * paragraph cannot be reconstructed byte-for-byte from it. We render the term
- * label + the `whatItIs` prose, which is the closest faithful regrouping. The
- * intentional divergence from the committed glossary is reported by the diff in
- * the round-trip proof.
+ * Render one knowledge unit as a glossary term entry: `label — paragraph`.
+ *   - label     = the verbatim bolded label. `glossaryTerm` carries the FULL label markup
+ *                 (its own `**…**` markers, plus any plain-text aside that sits OUTSIDE the
+ *                 bold in the glossary, e.g. `**run** (owned-loop run / attempt)`); when
+ *                 absent the label is just the bolded `title`.
+ *   - paragraph = `glossaryBody`, the term's canonical glossary blurb stored VERBATIM (the
+ *                 exact prose after `**label** — ` in docs/glossary.md). This is the
+ *                 authoritative source line, intentionally distinct from the Library body
+ *                 fields, so the regenerated glossary is BYTE-IDENTICAL to its source.
+ *                 FALLBACK (only when `glossaryBody` is absent): recompose from the Library
+ *                 fields — a `definition`'s `whatItIs` + (whatItIsNot ? " " + whatItIsNot : ""),
+ *                 or any other kind's one-line `description`.
  */
 function renderGlossaryTerm(doc) {
-  // Term label is the display title (which the glossary uses).
-  return `**${doc.title}** — ${doc.whatItIs}`;
+  const label = doc.glossaryTerm ?? `**${doc.title}**`;
+  const paragraph =
+    doc.glossaryBody ??
+    (doc.kind === 'definition'
+      ? doc.whatItIs + (doc.whatItIsNot ? ' ' + doc.whatItIsNot : '')
+      : doc.description);
+  return `${label} — ${paragraph}`;
+}
+
+/**
+ * Guard against glossary drift: every unit carrying `glossarySection` must be placed
+ * in GLOSSARY_SECTION_ORDER (right heading + listed id), and every listed id must exist
+ * and carry a matching `glossarySection`. Throws on any mismatch so the order table and
+ * the source can never silently diverge.
+ */
+function assertGlossaryMembership(docById) {
+  const placed = new Map(); // id -> heading
+  for (const section of GLOSSARY_SECTION_ORDER) {
+    for (const id of section.ids) {
+      const doc = docById.get(id);
+      if (!doc) throw new Error(`glossary order lists unknown id ${id}`);
+      if (doc.glossarySection !== section.heading) {
+        throw new Error(
+          `glossary id ${id}: glossarySection ${JSON.stringify(doc.glossarySection)} ` +
+            `!= ordered section ${JSON.stringify(section.heading)}`,
+        );
+      }
+      placed.set(id, section.heading);
+    }
+  }
+  for (const doc of docById.values()) {
+    if (doc.glossarySection && !placed.has(doc.id)) {
+      throw new Error(
+        `unit ${doc.id} has glossarySection ${JSON.stringify(doc.glossarySection)} ` +
+          `but is not placed in GLOSSARY_SECTION_ORDER`,
+      );
+    }
+  }
 }
 
 function buildGlossary() {
   const docs = JSON.parse(readFileSync(knowledgeFile, 'utf8'));
-  const defById = new Map(
-    docs.filter((d) => d.kind === 'definition').map((d) => [d.id, d]),
-  );
+  const docById = new Map(docs.map((d) => [d.id, d]));
+
+  assertGlossaryMembership(docById);
 
   const blocks = [GLOSSARY_PREAMBLE];
 
@@ -227,33 +270,26 @@ function buildGlossary() {
       blocks.push(SECTION_INTROS[section.heading]);
     }
     for (const id of section.ids) {
-      const doc = defById.get(id);
-      if (!doc) {
-        // Non-definition member (principle/pattern/guardrail) that lives under
-        // this glossary heading but is a knowledge unit of another kind — skipped.
-        continue;
-      }
-      blocks.push(renderGlossaryTerm(doc));
+      blocks.push(renderGlossaryTerm(docById.get(id)));
     }
   }
 
   blocks.push(TERM_MAP_SECTION);
 
-  const regenerated = blocks.join('\n\n') + '\n';
-  writeFileSync(glossaryOutFile, regenerated, 'utf8');
+  const generated = blocks.join('\n\n') + '\n';
+  // THE FLIP: the glossary is now generated. Write docs/glossary.md directly and
+  // retire the sidecar.
+  writeFileSync(glossaryFile, generated, 'utf8');
+  let removedSidecar = false;
+  if (existsSync(glossarySidecarFile)) {
+    unlinkSync(glossarySidecarFile);
+    removedSidecar = true;
+  }
 
-  // Report closeness against the authoritative glossary (it does not round-trip
-  // byte-for-byte — see the file header). Compare the SET of `## ` section headings
-  // (structure) and the SET of bold term labels (coverage), which DO round-trip.
-  const source = readFileSync(glossaryFile, 'utf8');
   const headings = (s) => (s.match(/^## .+$/gm) ?? []).map((h) => h.trim());
-  const srcHeadings = headings(source);
-  const genHeadings = headings(regenerated);
-  const headingsMatch =
-    srcHeadings.length === genHeadings.length &&
-    srcHeadings.every((h, i) => h === genHeadings[i]);
+  const genHeadings = headings(generated);
 
-  return { glossaryOutFile, headingsMatch, srcHeadings, genHeadings };
+  return { glossaryFile, removedSidecar, genHeadings };
 }
 
 // ---------------------------------------------------------------------------
@@ -264,11 +300,10 @@ function main() {
   const byCat = assets.reduce((acc, a) => ((acc[a.category] = (acc[a.category] ?? 0) + 1), acc), {});
   console.log(`build-corpus OK — wrote ${assets.length} assets -> ${assetsFile}`);
   console.log('  by category:', JSON.stringify(byCat));
-  console.log(`  wrote regenerated glossary -> ${glossary.glossaryOutFile}`);
-  console.log(
-    `  glossary section headings match source: ${glossary.headingsMatch} ` +
-      `(${glossary.genHeadings.length} sections)`,
-  );
+  console.log(`  wrote generated glossary -> ${glossary.glossaryFile} (${glossary.genHeadings.length} sections)`);
+  if (glossary.removedSidecar) {
+    console.log('  retired sidecar -> docs/glossary.generated.md (deleted)');
+  }
 }
 
 main();

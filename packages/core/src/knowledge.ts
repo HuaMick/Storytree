@@ -285,8 +285,20 @@ export const KIND_SPECS: Readonly<Record<KnowledgeKind, readonly KindFieldSpec[]
  *
  * `references` are `doc:<relpath>` / `asset:<id>` pointers. `provenance` is the optional
  * attribution line (markdown); see the file header for why it is usually empty.
- * `glossarySection` (definition only) records which `docs/glossary.md` `## ` section the
- * term sits under, for regrouping bodies back into the glossary.
+ *
+ * `glossarySection`, `glossaryTerm` and `glossaryBody` are GLOSSARY-PROJECTION METADATA,
+ * carried by any kind (not just `definition`): a unit is a glossary member iff it has
+ * `glossarySection` (the `docs/glossary.md` `## ` heading it sits under), `glossaryTerm` is the
+ * exact label MARKUP to print when it differs from the default `**title**` — including its own
+ * `**…**` markers and any plain-text aside outside the bold (e.g.
+ * `**run** (owned-loop run / attempt)`, `**proof mode**`) — and `glossaryBody` is the term's
+ * canonical glossary paragraph, stored VERBATIM (the exact prose after `**label** — ` in
+ * `docs/glossary.md`, preserving all markdown/citations/clauses). It is intentionally distinct
+ * from the Library body fields (whatItIs/whatItIsNot/description, …): the glossary blurb is the
+ * authoritative source line, so `glossaryTerm + " — " + glossaryBody` reproduces it byte-for-byte.
+ * All three are METADATA only: they are NOT in KIND_SPECS, so `renderBody`/`generateTemplate`
+ * never emit them — the rendered asset bodies stay byte-identical. See
+ * apps/studio/data/build-corpus.mjs (the glossary generator).
  */
 const commonShape = {
   id: z.string(),
@@ -294,6 +306,9 @@ const commonShape = {
   description: z.string(), // one-line
   references: z.array(z.string()).default([]),
   provenance: Markdown.optional(),
+  glossarySection: z.string().optional(),
+  glossaryTerm: z.string().optional(),
+  glossaryBody: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 } as const;
@@ -301,20 +316,18 @@ const commonShape = {
 /**
  * Build a per-kind zod object from its field spec table. Required fields are `Markdown`;
  * optional fields are `Markdown.optional()`. The `kind` literal discriminates the union.
- * `definition` additionally gets the optional `glossarySection` field.
+ * The glossary-projection metadata (`glossarySection` / `glossaryTerm`) lives in
+ * {@link commonShape}, so every kind may carry it.
  */
 function buildKindSchema(kind: KnowledgeKind) {
   const fieldShape: Record<string, z.ZodTypeAny> = {};
   for (const spec of KIND_SPECS[kind]) {
     fieldShape[spec.field] = spec.required ? Markdown : Markdown.optional();
   }
-  const extra: Record<string, z.ZodTypeAny> =
-    kind === "definition" ? { glossarySection: z.string().optional() } : {};
   return z
     .object({
       kind: z.literal(kind),
       ...commonShape,
-      ...extra,
       ...fieldShape,
     })
     .strict();
