@@ -150,6 +150,56 @@ None of these were actioned — all leave `id`/`category` intact pending owner d
 
 ---
 
+## 5b. Update — round 2: mutations applied + durability findings (2026-06-07)
+
+After owner authorization to "mutate misfits to align where value isn't lost," I dug into
+how `assets.json` is produced and acted on the high-confidence misfits.
+
+### Architecture discovered (key onboarding context)
+
+- **`apps/studio/data/assets.json` is the runtime store** the dev server reads/writes.
+- **`apps/studio/data/seed.assets.mjs` is the provenance generator** (`--force` regenerates
+  the store). It (1) **hand-curates** the principles/patterns/guardrails/techstack, (2) ships
+  the 6 templates, and (3) **auto-extracts the 54 `definition` units from `docs/glossary.md`**,
+  hard-coding `category: 'definition'` and taking each glossary paragraph **verbatim** as the
+  body (`description` = its first sentence).
+- **`category` is functional**: `apps/studio/src/lib/templates.ts` blocks saving a `guardrail`
+  whose body lacks an "Enforced by" section.
+- **A blessed override mechanism already exists**: `deep-modules` and
+  `standalone-resilient-library` are glossary terms that the seeder lists in `curated` with a
+  non-definition category; the extractor skips any id already curated. This is exactly how a
+  "glossary term that is really a principle/pattern" is meant to be handled.
+
+### Mutations applied (durable — seeder + store, verified by a `--force` reseed)
+
+Recategorized 5 glossary terms that the glossary's own "## Principles & patterns" section
+already classifies as rules/stances, via the curated-override mechanism above, and rewrote
+each body to its **new** kind's template:
+
+| id | definition → | Basis |
+|---|---|---|
+| `red-green` | **principle** | Glossary: "A *principle*, not a synonym for `contract`." |
+| `verification-wins` | **principle** | Glossary: "The **stance** that…"; listed under Principles & patterns. |
+| `cold-rebuild` | **principle** | Glossary: "An **authoring guideline** (not a gate)." (Also fixed its truncated `…` description.) |
+| `defects-amend-the-owning-story` | **pattern** | Glossary Principles & patterns; a reusable defect-handling approach. *Soft call — could be a principle; reversible.* |
+| `fail-closed-on-dirty-tree` | **guardrail** | A deterministically-enforced refusal (writes nothing, distinct exit code); given a proper "Enforced by". *Soft call — could be a principle; reversible.* |
+
+New counts: principle 8, pattern 12, definition 49, guardrail 9, techstack 4, template 6.
+`id` and `references` unchanged for all 5; bodies follow the target template.
+
+### Durability gap raised (NOT resolved — needs owner direction)
+
+The **body alignments from round 1 are NOT yet durable**: the seeder still hand-curates the
+other 28 non-definition bodies in their pre-alignment form, and re-extracts all definition
+bodies as **raw glossary prose**. A `--force` reseed today reverts every aligned body except
+the 5 recategorized units (whose new bodies are now in the seeder). The aligned bodies live
+only in the runtime store. Making them durable is the **#1 open decision** (see §7) — and it
+collides with a real constraint: the glossary extractor splits on blank lines and takes one
+paragraph as the body, so the multi-section definition template **cannot** be pushed back
+into `glossary.md` without breaking extraction. Options are in §7.
+
+---
+
 ## 6. Method & guardrails respected
 
 - **Stayed in lane:** only `apps/studio/data/assets.json` was modified. No `infra/`,
@@ -162,3 +212,73 @@ None of these were actioned — all leave `id`/`category` intact pending owner d
 - Body authoring was fanned out across six subagents (one per disjoint id-set, each writing
   an isolated patch file), then assembled by a single script that controlled all structural
   fields — so no field outside `body`/`updatedAt`/`template-adr.description` could change.
+- Round 2 added the 5 curated overrides to `seed.assets.mjs` and verified a `--force` reseed
+  reproduces the new categories/bodies identically (then restored the hand-aligned store).
+
+---
+
+## 7. Open decisions — detail for the owner
+
+These were **not** mutated: each is a genuine fork (destructive, or touches the authoritative
+glossary, or is your design taste). My recommendation is marked ★.
+
+### D1 — Durability of the body alignments vs the seeder *(the big one)*
+
+Round 1 aligned 82 bodies in the runtime store; the seeder would revert all but the 5
+recategorized units on `--force`. Constraint: the glossary extractor takes one verbatim
+paragraph per term, so the multi-section **definition** template can't live in `glossary.md`.
+
+- **D1-A — Store is source of record.** Treat `assets.json` as authoritative; the seeder
+  stays a bootstrap/reset fallback (regenerates less-polished bodies). Simplest, zero further
+  work; cost: provenance drifts, a naive reseed degrades quality. *(This matches ADR-0017's
+  end-state "the store is source, markdown is the view" — but informally, not yet enforced.)*
+- **D1-B — Seeder authoritative, definitions mechanically wrapped.** Sync the 28 curated
+  bodies + template refinements into the seeder, and teach the extractor to wrap each glossary
+  def as `**In one line.** {first sentence}` + `## What it is` + {prose}. Fully regenerable;
+  cost: definitions lose round 1's hand-crafted "What it is not" / "See also" splits.
+- ★ **D1-C — Hybrid.** Seeder authoritative for curated + templates; definitions get the
+  mechanical wrap as the regenerable baseline, **and** the ~15 defs that have genuine
+  "what it is not" / cross-link content are promoted to curated overrides (like deep-modules).
+  Best durability/quality balance; cost: a follow-up pass to pick and curate those defs.
+
+### D2 — The "cautionary lessons" anti-patterns
+
+`auto-merge-on-green`, `vibe-the-load-bearing-layers`, `store-lock-races-and-id-collisions`
+sit under the seeder's `// pattern: practices & cautionary lessons` comment — an **intentional**
+sub-bucket of `pattern`. They describe v1 mistakes, not approaches you apply.
+
+- ★ **D2-A — Keep as-is**, just cross-link each to its positive counterpart
+  (`approval-gated-trunk`, `own-the-layers`, `claims-in-the-shared-store`). Honours the intent,
+  no deletion.
+- **D2-B — Merge & retire**: fold each lesson's v1 evidence into its counterpart's "Why" and
+  retire the unit. DRY-est; destructive (loses standalone discoverability of the lesson).
+- **D2-C — Recategorize → `principle`** (stated negatively). Keeps them standalone but stops
+  calling them "patterns."
+
+### D3 — Redundant pairs
+
+`inner-loop-outer-loop` (definition) ≈ `human-owns-the-outer-loop` (guardrail); and
+`own-the-layers` (principle) ≈ `vibe-the-load-bearing-layers` (pattern).
+
+- ★ **D3-A — Keep both, trim overlap + cross-link.** The definition carries neutral
+  vocabulary; the guardrail/pattern carries the enforced/cautionary claim. Non-destructive.
+- **D3-B — Merge & retire one side of each.** Fewer units; destructive.
+
+### D4 — Thin units that are authoritative glossary terms
+
+The lifecycle statuses (`proposed` / `building` / `healthy` / `unhealthy` / `mapped` /
+`retired`) and `title` / `id` are thin, but each is a canonical `docs/glossary.md` term
+auto-extracted into the Library. Consolidating them means **editing the glossary** (the
+source of truth `glossary-wins` defers to) — a heavier move than a Library edit.
+
+- ★ **D4-A — Leave as-is.** Thinness is fine for canonical vocabulary; one addressable unit
+  per term has injection value.
+- **D4-B — Consolidate** lifecycle statuses into one "lifecycle status" definition and
+  `title`/`id`/`outcome`/`guidance` into one "unit fields" definition — requires a glossary
+  edit + an extractor that understands grouped terms. (`proof-hash` would also be expanded
+  with the ADR-0016 staleness anchor, or left as a terse leaf.)
+
+### D5 — Soft recategorization calls to confirm/veto (already applied, reversible)
+
+`defects-amend-the-owning-story → pattern` and `fail-closed-on-dirty-tree → guardrail` are
+defensible but debatable (both could be `principle`). Flag if you want either flipped.

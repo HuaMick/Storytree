@@ -728,10 +728,10 @@
   },
   {
     "id": "cold-rebuild",
-    "category": "definition",
+    "category": "principle",
     "title": "cold-rebuild",
-    "description": "An authoring guideline (not a gate), at story grain: a story should be written self-contained enough that a cold agent — given the story's own spec plus the declared interfaces of its upstream stor…",
-    "body": "**In one line.** An authoring guideline (not a gate), at story grain: a story should be written self-contained enough that a cold agent could rebuild it from its own spec plus its upstream stories' declared interfaces and pass its UAT.\n\n## What it is\n\nAn **authoring guideline** (not a gate), at **story grain**: a story should be written self-contained enough that a cold agent — given the story's own spec **plus the declared interfaces of its upstream stories** (never their internals), and nothing else — could rebuild it and pass its UAT. The rebuilt *internals* may legitimately differ (many implementations satisfy one UAT). This is the cold-rebuild sense of `convergence`, distinct from DAG-stabilisation.\n\n## What it is not\n\nIt is **not** the definition of `healthy` (earned via the proof modes / prove-it-gate) and is **not machine-enforced** — v1 carried it as guidance for agents authoring stories and never tested it. Distinct from the DAG-stabilisation sense of `convergence`.\n\n## See also\n\n_`docs/glossary.md`; ADR-0010 §6; ADR-0007; carried from Agentic ADR-0006/0027. Related: `convergence`, `healthy`, `prove-it-gate`, `uat`._",
+    "description": "An authoring guideline (not a gate), at story grain: a story should be self-contained enough that a cold agent could rebuild it from its own spec plus its upstream stories' declared interfaces — and pass its UAT.",
+    "body": "**The principle.** A story should be written self-contained enough that a cold agent — given the story's own spec **plus the declared interfaces of its upstream stories** (never their internals), and nothing else — could rebuild it and pass its UAT.\n\n## Why\n\nIt is an **authoring guideline** (not a gate), at **story grain**: self-containment is what lets a story be rebuilt and re-proven without spelunking its neighbours' internals. The rebuilt *internals* may legitimately differ — many implementations satisfy one UAT.\n\n## How to apply\n\nWhen authoring a story, check it could be rebuilt from its own spec + its upstream stories' **declared interfaces** alone. This is the cold-rebuild sense of `convergence`, distinct from DAG-stabilisation. It is **not** the definition of `healthy` (earned via the proof modes / prove-it-gate) and is **not machine-enforced** — v1 carried it as guidance for agents authoring stories and never tested it.\n\n## See also\n\n_`docs/glossary.md`; ADR-0010 §6; ADR-0007; ADR-0006. Carried from Agentic ADR-0006/0027._",
     "references": [
       "doc:glossary.md",
       "doc:decisions/0010-organism-model-story-bounded-context.md",
@@ -805,10 +805,10 @@
   },
   {
     "id": "red-green",
-    "category": "definition",
+    "category": "principle",
     "title": "red-green",
     "description": "The discipline that a failing (red) contract test is authored before the implementation that turns it green.",
-    "body": "**In one line.** The discipline that a failing (red) contract test is authored before the implementation that turns it green.\n\n## What it is\n\nThe discipline that a failing (red) contract test is authored before the implementation that turns it green.\n\n## What it is not\n\nA *principle*, not a synonym for `contract`.\n\n## See also\n\n_`docs/glossary.md`. Related: `contract`, `contract-test`, `evidence`._",
+    "body": "**The principle.** A failing (red) contract test is authored before the implementation that turns it green.\n\n## Why\n\nA test that has never been seen to fail is not trusted evidence — writing the implementation first invites tests shaped to pass vacuously. Authoring the test red first proves it actually exercises the behaviour.\n\n## How to apply\n\nWrite the contract test, watch it fail (red), then write the implementation that turns it green. This is a discipline — **not** a synonym for the noun `contract`.\n\n## See also\n\n_`docs/glossary.md`. Per the v1→v2 term map, v1's \"story is a contract\" / red-green reads as this principle, not the noun `contract`._",
     "references": [
       "doc:glossary.md"
     ],
@@ -830,10 +830,10 @@
   },
   {
     "id": "defects-amend-the-owning-story",
-    "category": "definition",
+    "category": "pattern",
     "title": "defects-amend-the-owning-story",
     "description": "A defect amends the capability whose contract it violates (reverting it to building), rather than spawning a new unit.",
-    "body": "**In one line.** The rule that a defect amends the capability whose contract it violates (reverting it to `building`), rather than spawning a new unit.\n\n## What it is\n\nA defect amends the capability whose contract it violates (reverting it to `building`), rather than spawning a new unit.\n\n## See also\n\n_`docs/glossary.md`. Related: `building`, `contract`, `unhealthy`._",
+    "body": "**The pattern.** When a defect violates a capability's contract, amend the owning capability (reverting it to `building`) rather than spawning a new unit.\n\n## Problem\n\nA defect could be filed as a brand-new unit, fragmenting ownership of a behaviour across the unit that owns it and the unit that records its bug.\n\n## Approach\n\nRoute the defect to the capability whose contract it violates; revert that capability to `building` and fix it under its existing contract.\n\n## Tradeoffs\n\nYou trade a new unit's clean slate for a single accountable owner per behaviour and an intact contract/evidence chain on the original capability.\n\n## See also\n\n_`docs/glossary.md`._",
     "references": [
       "doc:glossary.md"
     ],
@@ -842,10 +842,10 @@
   },
   {
     "id": "fail-closed-on-dirty-tree",
-    "category": "definition",
+    "category": "guardrail",
     "title": "fail-closed-on-dirty-tree",
     "description": "A command that writes attestable evidence refuses to run on a dirty working tree (writes nothing, distinct exit code).",
-    "body": "**In one line.** The rule that a command writing attestable evidence refuses to run on a dirty working tree (writes nothing, distinct exit code).\n\n## What it is\n\nA command that writes attestable evidence refuses to run on a dirty working tree (writes nothing, distinct exit code).\n\n## See also\n\n_`docs/glossary.md`. Related: `evidence`, `gate`._",
+    "body": "**The boundary.** A command that writes attestable evidence must not run on a dirty working tree.\n\n## Rule\n\nSuch a command refuses to run when the working tree is dirty — it writes nothing and exits with a distinct code.\n\n## Enforced by\n\nThe command checks working-tree cleanliness before doing any evidence-writing work and aborts on a dirty tree — no writes, distinct non-zero exit code. A code-path guard, not a warning.\n\n## Failure mode prevented\n\nEvidence attributed to a clean commit could silently include uncommitted changes, corrupting the proof/evidence chain that promotion depends on.\n\n## See also\n\n_`docs/glossary.md`._",
     "references": [
       "doc:glossary.md"
     ],
@@ -854,10 +854,10 @@
   },
   {
     "id": "verification-wins",
-    "category": "definition",
+    "category": "principle",
     "title": "verification-wins",
     "description": "The stance that binding to external truth via tests + on-disk evidence overrides LLM memory consolidation / recency (\"recency-wins\").",
-    "body": "**In one line.** The stance that binding to external truth via tests plus on-disk evidence overrides LLM memory consolidation / recency (\"recency-wins\").\n\n## What it is\n\nThe stance that binding to external truth via tests + on-disk evidence **overrides** LLM memory consolidation / recency (\"recency-wins\"). v2 rejects Dreams-style reconciliation in favour of a commit/event-bound evidence chain.\n\n## What it is not\n\nNot \"recency-wins\" — it is the deliberate inversion of LLM memory-consolidation/recency, and rejects Dreams-style reconciliation.\n\n## See also\n\n_`docs/glossary.md`; carried from v1's learning-loop design (Agentic ADR-0011). The learning loop's v2 home is still open (`open-questions.md` §5). Related: `evidence`, `red-green`._",
+    "body": "**The principle.** Binding to external truth via tests + on-disk evidence **overrides** LLM memory consolidation / recency (\"recency-wins\").\n\n## Why\n\nA confident-but-stale model recollection can override what the tests and evidence actually show. v2 rejects Dreams-style memory reconciliation in favour of a commit/event-bound evidence chain.\n\n## How to apply\n\nWhen the model's memory and the evidence chain disagree, the evidence wins — trust the tests + on-disk record over recency.\n\n## See also\n\n_`docs/glossary.md`. Carried from v1's learning-loop design (Agentic ADR-0011); the learning loop's v2 home is still open (`open-questions.md` §5)._",
     "references": [
       "doc:glossary.md"
     ],

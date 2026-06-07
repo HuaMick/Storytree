@@ -427,6 +427,101 @@ const curated = [
     ),
     references: [adr(8), adr(7)],
   },
+
+  // --- glossary terms that are really principles/patterns/guardrails ----------
+  // These appear in docs/glossary.md (under "Principles & patterns" etc.) but are
+  // NOT "what something is" — they are rules/stances. Curated here with their true
+  // category so the glossary auto-extractor skips them (same override deep-modules
+  // and standalone-resilient-library already use). Bodies follow the kind template.
+  {
+    id: 'red-green',
+    category: 'principle',
+    title: 'red-green',
+    description:
+      'The discipline that a failing (red) contract test is authored before the implementation that turns it green.',
+    body: para(
+      '**The principle.** A failing (red) contract test is authored before the implementation that turns it green.',
+      '## Why',
+      'A test that has never been seen to fail is not trusted evidence — writing the implementation first invites tests shaped to pass vacuously. Authoring the test red first proves it actually exercises the behaviour.',
+      '## How to apply',
+      'Write the contract test, watch it fail (red), then write the implementation that turns it green. This is a discipline — **not** a synonym for the noun `contract`.',
+      '## See also',
+      '_`docs/glossary.md`. Per the v1→v2 term map, v1\'s "story is a contract" / red-green reads as this principle, not the noun `contract`._',
+    ),
+    references: [GLOSSARY],
+  },
+  {
+    id: 'verification-wins',
+    category: 'principle',
+    title: 'verification-wins',
+    description:
+      'The stance that binding to external truth via tests + on-disk evidence overrides LLM memory consolidation / recency ("recency-wins").',
+    body: para(
+      '**The principle.** Binding to external truth via tests + on-disk evidence **overrides** LLM memory consolidation / recency ("recency-wins").',
+      '## Why',
+      'A confident-but-stale model recollection can override what the tests and evidence actually show. v2 rejects Dreams-style memory reconciliation in favour of a commit/event-bound evidence chain.',
+      '## How to apply',
+      "When the model's memory and the evidence chain disagree, the evidence wins — trust the tests + on-disk record over recency.",
+      '## See also',
+      "_`docs/glossary.md`. Carried from v1's learning-loop design (Agentic ADR-0011); the learning loop's v2 home is still open (`open-questions.md` §5)._",
+    ),
+    references: [GLOSSARY],
+  },
+  {
+    id: 'cold-rebuild',
+    category: 'principle',
+    title: 'cold-rebuild',
+    description:
+      "An authoring guideline (not a gate), at story grain: a story should be self-contained enough that a cold agent could rebuild it from its own spec plus its upstream stories' declared interfaces — and pass its UAT.",
+    body: para(
+      "**The principle.** A story should be written self-contained enough that a cold agent — given the story's own spec **plus the declared interfaces of its upstream stories** (never their internals), and nothing else — could rebuild it and pass its UAT.",
+      '## Why',
+      "It is an **authoring guideline** (not a gate), at **story grain**: self-containment is what lets a story be rebuilt and re-proven without spelunking its neighbours' internals. The rebuilt *internals* may legitimately differ — many implementations satisfy one UAT.",
+      '## How to apply',
+      "When authoring a story, check it could be rebuilt from its own spec + its upstream stories' **declared interfaces** alone. This is the cold-rebuild sense of `convergence`, distinct from DAG-stabilisation. It is **not** the definition of `healthy` (earned via the proof modes / prove-it-gate) and is **not machine-enforced** — v1 carried it as guidance for agents authoring stories and never tested it.",
+      '## See also',
+      '_`docs/glossary.md`; ADR-0010 §6; ADR-0007; ADR-0006. Carried from Agentic ADR-0006/0027._',
+    ),
+    references: [GLOSSARY, adr(10), adr(7), adr(6)],
+  },
+  {
+    id: 'defects-amend-the-owning-story',
+    category: 'pattern',
+    title: 'defects-amend-the-owning-story',
+    description:
+      'A defect amends the capability whose contract it violates (reverting it to building), rather than spawning a new unit.',
+    body: para(
+      "**The pattern.** When a defect violates a capability's contract, amend the owning capability (reverting it to `building`) rather than spawning a new unit.",
+      '## Problem',
+      'A defect could be filed as a brand-new unit, fragmenting ownership of a behaviour across the unit that owns it and the unit that records its bug.',
+      '## Approach',
+      'Route the defect to the capability whose contract it violates; revert that capability to `building` and fix it under its existing contract.',
+      '## Tradeoffs',
+      "You trade a new unit's clean slate for a single accountable owner per behaviour and an intact contract/evidence chain on the original capability.",
+      '## See also',
+      '_`docs/glossary.md`._',
+    ),
+    references: [GLOSSARY],
+  },
+  {
+    id: 'fail-closed-on-dirty-tree',
+    category: 'guardrail',
+    title: 'fail-closed-on-dirty-tree',
+    description:
+      'A command that writes attestable evidence refuses to run on a dirty working tree (writes nothing, distinct exit code).',
+    body: para(
+      '**The boundary.** A command that writes attestable evidence must not run on a dirty working tree.',
+      '## Rule',
+      'Such a command refuses to run when the working tree is dirty — it writes nothing and exits with a distinct code.',
+      '## Enforced by',
+      'The command checks working-tree cleanliness before doing any evidence-writing work and aborts on a dirty tree — no writes, distinct non-zero exit code. A code-path guard, not a warning.',
+      '## Failure mode prevented',
+      'Evidence attributed to a clean commit could silently include uncommitted changes, corrupting the proof/evidence chain that promotion depends on.',
+      '## See also',
+      '_`docs/glossary.md`._',
+    ),
+    references: [GLOSSARY],
+  },
 ];
 
 // --- templates (one fillable scaffold per artifact category) -----------------
