@@ -16,7 +16,7 @@ and the tier-boundary rules live in
 
 ## Supporting terms
 
-**node** — A unit being worked **on the DAG** — a story or capability under construction — driven by one pi session inside a DBOS workflow. The coordination/scheduling grain: the thing the orchestrator schedules and the isolation/claim layer is keyed on.
+**node** — A unit being worked **on the DAG** — a story or capability under construction — driven by one owned-loop session inside a DBOS workflow. The coordination/scheduling grain: the thing the orchestrator schedules and the isolation/claim layer is keyed on.
 
 **run** — A single per-node **execution** attempt, recorded as an event in the event store — many-per-node, never a new node. Here `run` is strictly the per-node execution attempt (ADR-0004; see `open-questions.md` §3, §8).
 
@@ -28,15 +28,15 @@ and the tier-boundary rules live in
 
 **boundary** — The declared, documented seam between two stories — the **only** legal cross-story coupling: two organisms dependent to deliver an outcome but each still functioning in isolation against the seam, the way a frontend depends on a database.
 
-**event** — A typed record of a state change (pi events + orchestrator events) — the unit of observability. If a state change isn't an event the UI can render, it doesn't exist (ADR-0001, observability-first). Defined alongside the schema in `packages/core`. Includes operator-actor events (see **approval event / promotion event**), not just agent activity.
+**event** — A typed record of a state change (owned-loop events + orchestrator events) — the unit of observability. If a state change isn't an event the UI can render, it doesn't exist (ADR-0001, observability-first). Defined alongside the schema in `packages/core`. Includes operator-actor events (see **approval event / promotion event**), not just agent activity.
 
 **event log** — The typed, **append-only** record in the event store — one row per state change — that is the single source of truth the studio renders and the only thing **written**. The artifact behind the `event` term.
 
 **node rollup** — The current status and latest `verdict` **per** story / capability / contract, derived as a **projection** over the event log and never hand-maintained. A capability's lifecycle status (proposed / building / healthy; unhealthy computed) is *read off* the log, not written beside it. v2's answer to v1's per-build `runs`-grain mess (ADR-0006).
 
-**pi event stream** — pi's structured lifecycle event stream (plus `edit`-tool diffs/patches) emitted as it works inside a node — the **agent-activity ingest channel** into the event store, normalized by `packages/pi-adapter`. One of exactly two defined ingest channels.
+**owned-loop event stream** — The owned loop's structured lifecycle event stream (plus `edit`-tool diffs/patches) emitted as it works inside a node — the **agent-activity ingest channel** into the event store, normalized by `packages/agent`. One of exactly two defined ingest channels.
 
-**approval event / promotion event** — Typed events with `actor = operator` recorded in the event store: an **approval / steering event** (a human in-loop intervention) and a signed **promotion event** (the human accepting a unit's green result onto the trunk, carrying operator identity and, for a story, the UAT verdict). Part of the same observability record as pi's own activity (ADR-0008).
+**approval event / promotion event** — Typed events with `actor = operator` recorded in the event store: an **approval / steering event** (a human in-loop intervention) and a signed **promotion event** (the human accepting a unit's green result onto the trunk, carrying operator identity and, for a story, the UAT verdict). Part of the same observability record as the owned loop's own activity (ADR-0008).
 
 **DAG** — The directed acyclic graph the studio renders and watches grow. Stories are its visible nodes; capability dependencies are the fine-grained edges beneath. The exact inter-level grain is open (see ADR-0002 → "What this does NOT decide").
 
@@ -57,7 +57,7 @@ language, `healthy` is the status word).
 
 **unhealthy** — A once-healthy capability that has drifted (a contract test now fails, owned files changed, or the proof no longer matches HEAD). **Computed** from evidence, never written to disk.
 
-**mapped** — Brownfield: the capability is *observationally* verified by an existing target-repo test suite, without storytree driving a red→green flow. v2 **supports** brownfield; the exact mapping mechanism under pi/DBOS is still to design (see `open-questions.md` §2).
+**mapped** — Brownfield: the capability is *observationally* verified by an existing target-repo test suite, without storytree driving a red→green flow. v2 **supports** brownfield; the exact mapping mechanism under the owned loop / DBOS is still to design (see `open-questions.md` §2).
 
 **retired** — Terminal off-tree state: pruned from the active tree. May carry `retired_reason` (prose) and `superseded_by` (an edge to its replacement).
 
@@ -93,7 +93,7 @@ language, `healthy` is the status word).
 
 ## Principles & patterns (carried from v1)
 
-**inner loop / outer loop** — **inner loop** = driving one unit from red to green (automatable, owned by a pi node). **outer loop** = accepting a result onto the trunk, accepting a decomposition, or amending / retrying / abandoning a unit (held by **human judgment** in the studio). The human-in-the-loop gate sits at the outer loop; the north-star may later dissolve it.
+**inner loop / outer loop** — **inner loop** = driving one unit from red to green (automatable, owned by an owned-loop node). **outer loop** = accepting a result onto the trunk, accepting a decomposition, or amending / retrying / abandoning a unit (held by **human judgment** in the studio). The human-in-the-loop gate sits at the outer loop; the north-star may later dissolve it.
 
 ## Unit fields
 
@@ -117,17 +117,17 @@ Granularity, the conflict-resolution ceremony, and whether code *edits* still us
 
 **studio** — The live PixiJS web IDE that renders the tree and **drives** the agents (diffs, approvals, steering, per-node chat).
 
-**orchestrator** — The thin custom TypeScript layer (`packages/orchestrator`) over DBOS/Postgres (ADR-0001): it owns the story-DAG, the scheduler, and the event store, and is the **only** module that drives the **pi-adapter**. It is the code-sequenced **spine** and the sole **fan-out** point — it schedules nodes; pi nodes never schedule child nodes.
+**orchestrator** — The thin custom TypeScript layer (`packages/orchestrator`) over DBOS/Postgres (ADR-0001): it owns the story-DAG, the scheduler, and the event store, and is the **only** module that drives `packages/agent` (the owned loop). It is the code-sequenced **spine** and the sole **fan-out** point — it schedules nodes; owned-loop nodes never schedule child nodes.
 
-**spine** — The code-sequenced control-flow layer (the orchestrator over DBOS workflows) that owns **closed, deterministic routing**: the order steps run in, when a loop iterates, which branch is taken. The discriminator (carried verbatim from Agentic ADR-0026): *if a for-loop or a match could express the routing, the spine owns it; if the routing needs the model to decide what comes next, the leaf (pi node) owns it.*
+**spine** — The code-sequenced control-flow layer (the orchestrator over DBOS workflows) that owns **closed, deterministic routing**: the order steps run in, when a loop iterates, which branch is taken. The discriminator (carried verbatim from Agentic ADR-0026): *if a for-loop or a match could express the routing, the spine owns it; if the routing needs the model to decide what comes next, the leaf (owned-loop node) owns it.*
 
-**leaf step / leaf judgment** — A single step in a code-sequenced cascade whose work is owned by a **pi session's own model loop** (what to write, how to satisfy a contract) rather than by the spine — the **control-flow** sense of "leaf" (ADR-0005).
+**leaf step / leaf judgment** — A single step in a code-sequenced cascade whose work is owned by the **owned loop** (what to write, how to satisfy a contract) rather than by the spine — the **control-flow** sense of "leaf" (ADR-0005, ADR-0011).
 
-**pi-adapter** — The project-owned **thin wrapper** (`packages/pi-adapter`) and typed-event parser over pi's documented surface (`prompt` / `steer` / `followUp` + lifecycle event stream + `edit`-tool diffs). It is the **sole** surface through which pi is invoked and the **only** place a model runtime is imported: it spawns/steers pi, normalizes pi's stream into the typed events the event store renders, and exposes nothing model-shaped upward.
+**agent package** — The project-owned **thin wrapper** (`packages/agent`) and typed-event parser over the owned loop's surface (`prompt` / `steer` / `follow-up` + lifecycle events + `edit`-tool diffs). It owns the loop on the Messages API and is the **sole** surface through which the owned loop is invoked and the **only** place a model runtime is imported: it spawns/steers the owned loop, normalizes its stream into the typed events the event store renders, and exposes nothing model-shaped upward.
 
 **trunk** — The canonical **integrated mainline** a capability lands on once **approved**. In v2 the trunk is **approval-gated** (a human admits a green result), never auto-merge-on-green, and never holds knowingly-broken intermediate states (ADR-0008).
 
-**steering** — A first-class, typed operator act of **redirecting an in-flight pi run mid-execution** (pi's `steer` surface), recorded as an event in the event store.
+**steering** — A first-class, typed operator act of **redirecting an in-flight owned-loop run mid-execution** (the owned loop's `steer` operation), recorded as an event in the event store.
 
 **ADR** — An Architecture Decision Record under `docs/decisions/`, capturing a cross-cutting decision.
 

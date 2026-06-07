@@ -25,8 +25,9 @@
 //       emit the regeneration beside the source for inspection rather than clobbering
 //       the authoritative file.
 //
-// The asset ordering, and every field other than `body`, are taken from the
-// existing committed assets.json so the regeneration is a clean round-trip diff.
+// Asset ORDERING is taken from the existing assets.json; the field VALUES
+// (title/description/references/body) are rendered from knowledge.json — the
+// structured source of truth (id/category + timestamps are stable keys).
 // renderBody/generateTemplate are driven by the same KIND_SPECS the schema and
 // the parser use — one table, three consumers, ADR-0017 "templates -> schema".
 
@@ -72,8 +73,19 @@ function buildAssets() {
       if (doc.kind !== a.category) {
         throw new Error(`unit ${a.id}: kind ${doc.kind} != category ${a.category}`);
       }
-      // Render body from the structured source; keep every other field verbatim.
-      return { ...a, body: renderBody(doc) };
+      // Render the WHOLE asset from the structured source (knowledge.json is the
+      // source of truth for title/description/references/body, not just body).
+      // id/category and timestamps are stable keys; field order matches the store.
+      return {
+        id: a.id,
+        category: a.category,
+        title: doc.title,
+        description: doc.description,
+        body: renderBody(doc),
+        references: doc.references,
+        createdAt: doc.createdAt ?? a.createdAt,
+        updatedAt: doc.updatedAt ?? a.updatedAt,
+      };
     }
     if (a.category === 'template') {
       if (GENERATED_TEMPLATE_KINDS.has(a.id)) {
