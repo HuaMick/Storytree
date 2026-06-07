@@ -10,6 +10,18 @@ SurrealDB-on-GCE `e2-small`, Phase 0/0.5/1 ladder), which is already withdrawn t
 **Retires** the Vite dev-middleware JSON stopgap (`apps/studio/server/devApi.ts` →
 `apps/studio/data/*.json`).
 
+**Correction (2026-06-07) — the "corpus → git" two-tier map is wrong; see
+[ADR-0017](0017-cross-cutting-knowledge-tier.md) §2.** This ADR (title + §Context's two-tier
+table + §6) placed the artifact corpus in git, shared via the git remote, with per-worktree
+divergence "by design." That cannot give parallel sessions/worktrees a shared live state — the
+very thing [ADR-0009](0009-concurrency-isolation-id-allocation.md) collapsed git-as-coordination
+to avoid, and [ADR-0006](0006-event-store-observability-surface.md)'s node-rollup projection
+already puts unit state in Postgres. **Corrected model:** the artifact corpus lives in the
+**shared Postgres event store** (as zod-validated JSONB documents; current state = projection,
+history = events); **git holds the code and an optional generated markdown view, not the source of
+artifact state.** Everything else in this ADR (Cloud SQL choice, keyless auth, DBOS co-location,
+stop/start + backstop, cost envelope) stands.
+
 ## Date
 
 2026-06-06
