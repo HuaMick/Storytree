@@ -54,15 +54,28 @@ Run `pnpm -r test` before assuming anything is unbuilt. The packages:
 
 ## Library / knowledge tier — where the source of truth is
 
-- **STRUCTURED SOURCE (edit here):** `apps/studio/data/knowledge.json` (74 units, zod-validated).
-- **GENERATOR:** `apps/studio/data/build-corpus.mjs` → `apps/studio/data/assets.json` +
-  `docs/glossary.md`. These are **generated views — never hand-edit them**; re-run the generator
-  (`npx tsx apps/studio/data/build-corpus.mjs`) after editing `knowledge.json`.
-- **LIVE RUNTIME COPY:** the shared Cloud SQL Postgres (`events.library_artifact` projection +
-  `events.library_event` log), loaded via `packages/store/src/load-corpus.ts`.
-- **STOPGAP:** `apps/studio/server/devApi.ts` still reads/writes the `data/*.json` files and calls
-  itself "the whole backend, no database." That's pre-DB. The **studio↔store swap is PENDING** — don't
-  treat the JSON as the live store, and don't hand-edit `assets.json` (the generator clobbers it).
+**As of ADR-0022, the shared Cloud SQL Postgres store is the LIVE source of truth for artifact
+state; `knowledge.json` is the migration seed/export, not the edit-here surface.** This is what lets
+multiple sessions iterate on different artifacts in parallel (per-id rows, transactional upserts — no
+file conflicts).
+
+- **ITERATE ON ARTIFACTS (multiple parallel sessions OK):** use the CLI against the live DB —
+  `storytree library artifact new --json '<doc>' --pg` / `… edit <id> --set <field>=<value> --pg`
+  (writes are refused without `--pg`; bring the DB up first with `pnpm db:up`). Different artifacts
+  never contend; **same** artifact across sessions is not yet coordinated (ADR-0009 claims are
+  DBOS-deferred). **Do NOT hand-edit `knowledge.json` for live changes, and do NOT run
+  `load-corpus.ts --force` against a live DB with CLI edits — it reverts them.**
+- **EXPLORE (read, offline OK):** `storytree library` (dashboard) · `… artifact <id>` ·
+  `… artifact list <category>` · `… library tree focus <id>` — choose-your-own-adventure, just-in-time
+  (ADR-0022). Read commands run offline (in-memory seed); no DB needed.
+- **SEED / EXPORT VIEW:** `apps/studio/data/knowledge.json` (the structured corpus the DB was migrated
+  from) + the **generated** `apps/studio/data/assets.json` + `docs/glossary.md` (via
+  `npx tsx apps/studio/data/build-corpus.mjs`; never hand-edit the generated two). These reflect the
+  seed, not live CLI edits — a DB→seed export is later work.
+- **STUDIO UI (one parallel session at a time):** run it in store mode —
+  `STORYTREE_STUDIO_STORE=pg pnpm --filter studio dev` — to read/write the live DB and see CLI edits.
+  Unset, it falls back to the pre-DB JSON backend (`apps/studio/server/devApi.ts`), which won't reflect
+  CLI writes. Keep the UI session out of artifact data; keep artifact sessions out of `apps/studio/src`.
 
 ## How to run
 
@@ -74,7 +87,10 @@ Run `pnpm -r test` before assuming anything is unbuilt. The packages:
   Run the library migration: `STORYTREE_DB_USER=<iam-email> npx tsx packages/store/src/load-corpus.ts`.
 - Prove-it-gate: `packages/orchestrator/src/prove-it-gate.ts` (+ `.e2e.test.ts`). Red-green is enforced
   spine-side (phase machine + per-phase write-scope + spine-observed RED/GREEN + a signed verdict).
-- Studio UI: `pnpm --filter studio dev` (Vite, port 5173).
+- Library CLI (ADR-0022): `pnpm storytree library` (explore; offline). Writes need the live DB:
+  `pnpm db:up` then `… artifact edit <id> --set <field>=<value> --pg`. See the Library section above.
+- Studio UI: `pnpm --filter studio dev` (Vite, port 5173); add `STORYTREE_STUDIO_STORE=pg` to back it
+  with the live store (so it reflects CLI edits).
 
 ## Legacy — `legacy/Agentic/` is REFERENCE-ONLY
 

@@ -31,9 +31,16 @@ async function buildStore(usePg: boolean): Promise<{ store: Store; close: () => 
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
-  const { store, close } = await buildStore(argv.includes("--pg"));
+  const usePg = argv.includes("--pg");
+  const { store, close } = await buildStore(usePg);
   try {
-    const env = await run(argv, { store });
+    // Writes only persist against the live --pg store; the offline copy is read-only-by-convention.
+    const actor = process.env["STORYTREE_ACTOR"];
+    const env = await run(argv, {
+      store,
+      writable: usePg,
+      ...(actor !== undefined ? { actor } : {}),
+    });
     process.stdout.write(formatEnvelope(env));
     process.exitCode = env.ok ? 0 : 1;
   } finally {

@@ -85,3 +85,84 @@ test("tree focus on a missing id is guidance, not a throw", async () => {
   assert.equal(env.ok, false);
   assert.match(env.body, /no artifact "ghost" to focus/);
 });
+
+const NEW_DOC = JSON.stringify({
+  id: "cli-test-note",
+  category: "definition",
+  title: "CLI test note",
+  description: "a throwaway artifact created by a test",
+  body: "## What it is\n\nA test.",
+  references: [],
+});
+
+test("a write without --pg is refused with guidance (not an ephemeral write)", async () => {
+  const env = await run(["library", "artifact", "edit", "edit-first-curation", "--set", "description=x"], {
+    store: await seeded(),
+  });
+  assert.equal(env.ok, false);
+  assert.match(env.body, /writes go to the shared store/);
+});
+
+test("artifact new creates a validated artifact in a writable store", async () => {
+  const store = await seeded();
+  const env = await run(["library", "artifact", "new", "--json", NEW_DOC], { store, writable: true });
+  assert.equal(env.ok, true);
+  assert.match(env.body, /created cli-test-note/);
+  const got = await store.getDoc("cli-test-note");
+  assert.ok(got, "artifact was persisted");
+});
+
+test("artifact new refuses to overwrite an existing id (edit-first)", async () => {
+  const store = await seeded();
+  const dup = JSON.stringify({
+    id: "glossary-wins",
+    category: "pattern",
+    title: "dupe",
+    description: "d",
+    body: "b",
+    references: [],
+  });
+  const env = await run(["library", "artifact", "new", "--json", dup], { store, writable: true });
+  assert.equal(env.ok, false);
+  assert.match(env.body, /already exists — edit it/);
+});
+
+test("artifact new rejects an invalid doc with the validation message as guidance", async () => {
+  const store = await seeded();
+  const env = await run(["library", "artifact", "new", "--json", '{"id":"x"}'], { store, writable: true });
+  assert.equal(env.ok, false);
+  assert.match(env.body, /failed validation/);
+});
+
+test("artifact edit --set patches a field and re-persists", async () => {
+  const store = await seeded();
+  const env = await run(
+    ["library", "artifact", "edit", "edit-first-curation", "--set", "description=patched by test"],
+    { store, writable: true },
+  );
+  assert.equal(env.ok, true);
+  assert.match(env.body, /updated edit-first-curation \(set description\)/);
+  const got = await store.getDoc("edit-first-curation");
+  assert.equal((got?.doc as { description?: string }).description, "patched by test");
+});
+
+test("artifact edit on a missing id is guidance", async () => {
+  const env = await run(["library", "artifact", "edit", "ghost", "--set", "title=x"], {
+    store: await seeded(),
+    writable: true,
+  });
+  assert.equal(env.ok, false);
+  assert.match(env.body, /no artifact "ghost" to edit/);
+});
+
+test("artifact edit that breaks the schema is refused, not persisted", async () => {
+  const store = await seeded();
+  const env = await run(
+    ["library", "artifact", "edit", "edit-first-curation", "--set", "bogusField=nope"],
+    { store, writable: true },
+  );
+  assert.equal(env.ok, false);
+  assert.match(env.body, /would make "edit-first-curation" invalid/);
+  const got = await store.getDoc("edit-first-curation");
+  assert.equal((got?.doc as { bogusField?: string }).bogusField, undefined, "not persisted");
+});

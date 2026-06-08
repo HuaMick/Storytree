@@ -1,9 +1,15 @@
+import { readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 
 import type { Store, StoredDoc } from "@storytree/core";
+import { validateLibraryDoc } from "@storytree/core";
 import { renderStoredDoc } from "@storytree/store";
 
 import type { Envelope } from "./envelope.js";
+
+/** The edit-first-curation pointer, reused wherever a write surface should nudge search-before-write. */
+const EDIT_FIRST =
+  "edit-first-curation — search before you write; edit beats create.  (storytree library artifact edit-first-curation)";
 
 /**
  * The Library commands (ADR-0022). Read-only walking skeleton: `library` (dashboard), `artifact <id>`
@@ -95,10 +101,11 @@ export async function dashboard(store: Store): Promise<Envelope> {
   }
   lines.push(
     "commands  (drill in with `storytree library <command> --help`):",
-    "  artifact <id>              view one artifact",
-    "  artifact list <category>   list a category",
-    "  tree focus <id>            the local DAG of one artifact",
-    "  (coming soon: artifact new|edit|comment)",
+    "  artifact <id>                 view one artifact",
+    "  artifact list <category>      list a category",
+    "  artifact new | edit <id>      create / edit (writes need --pg)",
+    "  tree focus <id>               the local DAG of one artifact",
+    "  (coming soon: artifact comment)",
   );
   return {
     ok: true,
@@ -153,10 +160,182 @@ export async function listCategory(store: Store, category: string | undefined): 
   return {
     ok: true,
     body,
-    doctrine: [
-      "edit-first-curation — search before you write; edit beats create.  (storytree library artifact edit-first-curation)",
-    ],
+    doctrine: [EDIT_FIRST],
     next: ["storytree library artifact <id>"],
+  };
+}
+
+/** Guidance returned when a write is attempted against the offline (ephemeral) store. */
+function notWritable(): Envelope {
+  return {
+    ok: false,
+    body: "writes go to the shared store, not the offline copy — run with --pg (and bring the DB up first: pnpm db:up).",
+    next: [
+      "pnpm db:up",
+      "STORYTREE_DB_USER=<iam-email> storytree library artifact edit <id> --pg --set <field>=<value>",
+    ],
+  };
+}
+
+/** Pull `id` + `kind` off a validated doc (structured units carry `kind`; rendered assets carry `category`). */
+function idKindOf(doc: Record<string, unknown>): { id: string; kind: string } {
+  const id = typeof doc.id === "string" ? doc.id : "";
+  const kind =
+    typeof doc.kind === "string"
+      ? doc.kind
+      : typeof doc.category === "string"
+        ? doc.category
+        : "";
+  return { id, kind };
+}
+
+/**
+ * `storytree library artifact new --json '<doc>' | --file <path>` — create one artifact in the
+ * shared store. Validates at the boundary (loud, but returned as guidance, not a throw) and REFUSES
+ * to overwrite an existing id — pointing at `edit` instead (edit-first-curation as a guardrail).
+ */
+export async function newArtifact(
+  deps: RunDeps,
+  opts: { json: string | undefined; file: string | undefined },
+): Promise<Envelope> {
+  if (deps.writable !== true) return notWritable();
+
+  let raw = opts.json;
+  if (raw === undefined && opts.file !== undefined) {
+    try {
+      raw = await readFile(opts.file, "utf8");
+    } catch (e) {
+      return {
+        ok: false,
+        body: `could not read --file ${opts.file}: ${(e as Error).message}`,
+        next: ["storytree library artifact list <category>"],
+      };
+    }
+  }
+  if (raw === undefined) {
+    return {
+      ok: false,
+      body: "new needs the artifact as JSON: --json '<doc>' or --file <path>.",
+      doctrine: [EDIT_FIRST],
+      next: ["storytree library artifact list <category>   (search before you write)"],
+    };
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (e) {
+    return { ok: false, body: `invalid JSON: ${(e as Error).message}`, next: [] };
+  }
+  let valid: unknown;
+  try {
+    valid = validateLibraryDoc(parsed);
+  } catch (e) {
+    return { ok: false, body: `doc failed validation:\n${(e as Error).message}`, next: [] };
+  }
+
+  const { id, kind } = idKindOf(valid as Record<string, unknown>);
+  if (!id) return { ok: false, body: "doc has no id.", next: [] };
+  if (await deps.store.getDoc(id)) {
+    return {
+      ok: false,
+      body: `"${id}" already exists — edit it, don't recreate it.`,
+      doctrine: [EDIT_FIRST],
+      next: [`storytree library artifact edit ${id} --set <field>=<value>`],
+    };
+  }
+  const saved = await deps.store.upsertDoc({ id, kind, doc: valid, actor: deps.actor ?? "cli" });
+  return {
+    ok: true,
+    body: `created ${saved.id}  [${saved.kind}].`,
+    next: [`storytree library artifact ${saved.id}`, `storytree library tree focus ${saved.id}`],
+  };
+}
+
+/**
+ * `storytree library artifact edit <id> --set <field>=<value> ...` (or `--json`/`--file` to replace
+ * wholesale) — patch one artifact in the shared store. Loads it, applies the change, re-validates
+ * (a bad edit returns the validation message as guidance, never persists), then upserts (one event +
+ * projection update). The id must already exist — `new` creates.
+ */
+export async function editArtifact(
+  deps: RunDeps,
+  id: string | undefined,
+  opts: { sets: readonly string[]; json: string | undefined; file: string | undefined },
+): Promise<Envelope> {
+  if (deps.writable !== true) return notWritable();
+  if (id === undefined) {
+    return {
+      ok: false,
+      body: "edit needs an id: storytree library artifact edit <id> --set <field>=<value>",
+      next: ["storytree library artifact list <category>"],
+    };
+  }
+  const existing = await deps.store.getDoc(id);
+  if (!existing) {
+    return {
+      ok: false,
+      body: `no artifact "${id}" to edit.`,
+      next: ["storytree library artifact list <category>", "storytree library artifact new --json '<doc>'"],
+    };
+  }
+
+  let nextDoc: unknown;
+  let summary: string;
+  if (opts.json !== undefined || opts.file !== undefined) {
+    let raw = opts.json;
+    if (raw === undefined && opts.file !== undefined) {
+      try {
+        raw = await readFile(opts.file, "utf8");
+      } catch (e) {
+        return { ok: false, body: `could not read --file ${opts.file}: ${(e as Error).message}`, next: [] };
+      }
+    }
+    try {
+      nextDoc = JSON.parse(raw as string);
+    } catch (e) {
+      return { ok: false, body: `invalid JSON: ${(e as Error).message}`, next: [] };
+    }
+    summary = "replaced whole doc";
+  } else {
+    if (opts.sets.length === 0) {
+      return {
+        ok: false,
+        body: "nothing to change — pass --set <field>=<value> (repeatable), or --json/--file to replace.",
+        next: [`storytree library artifact ${id}`],
+      };
+    }
+    const base: Record<string, unknown> =
+      typeof existing.doc === "object" && existing.doc !== null
+        ? { ...(existing.doc as Record<string, unknown>) }
+        : {};
+    const changed: string[] = [];
+    for (const s of opts.sets) {
+      const i = s.indexOf("=");
+      if (i < 0) return { ok: false, body: `bad --set "${s}" — use field=value.`, next: [] };
+      base[s.slice(0, i)] = s.slice(i + 1);
+      changed.push(s.slice(0, i));
+    }
+    nextDoc = base;
+    summary = `set ${changed.join(", ")}`;
+  }
+
+  let valid: unknown;
+  try {
+    valid = validateLibraryDoc(nextDoc);
+  } catch (e) {
+    return {
+      ok: false,
+      body: `edit would make "${id}" invalid:\n${(e as Error).message}`,
+      next: [`storytree library artifact ${id}`],
+    };
+  }
+  const { id: vid, kind } = idKindOf(valid as Record<string, unknown>);
+  const saved = await deps.store.upsertDoc({ id: vid || id, kind, doc: valid, actor: deps.actor ?? "cli" });
+  return {
+    ok: true,
+    body: `updated ${saved.id} (${summary}).`,
+    next: [`storytree library artifact ${saved.id}`, `storytree library tree focus ${saved.id}`],
   };
 }
 
@@ -282,9 +461,11 @@ function artifactHelp(): Envelope {
     body: [
       "storytree library artifact — view and (soon) author Library artifacts.",
       "",
-      "  storytree library artifact <id>            print an artifact to stdout",
-      "  storytree library artifact list <category> list artifacts in a category",
-      "  (coming soon: new <kind>, edit <id>, comment <id>)",
+      "  storytree library artifact <id>             print an artifact to stdout",
+      "  storytree library artifact list <category>  list artifacts in a category",
+      "  storytree library artifact new --json '<doc>' | --file <p>   create (needs --pg)",
+      "  storytree library artifact edit <id> --set <field>=<value>   edit (needs --pg)",
+      "  (coming soon: comment <id>)",
     ].join("\n"),
     next: ["storytree library", "storytree library artifact list <category>"],
   };
@@ -292,6 +473,10 @@ function artifactHelp(): Envelope {
 
 export interface RunDeps {
   readonly store: Store;
+  /** True when the store persists across sessions (the live --pg store). Writes require it. */
+  readonly writable?: boolean;
+  /** Recorded as the event `actor` on writes (per-session attribution). Defaults to "cli". */
+  readonly actor?: string;
 }
 
 /**
@@ -302,6 +487,13 @@ export interface RunDeps {
 export async function run(argv: readonly string[], deps: RunDeps): Promise<Envelope> {
   let positionals: string[];
   let help: boolean;
+  let values: {
+    help?: boolean;
+    pg?: boolean;
+    json?: string;
+    file?: string;
+    set?: string[];
+  };
   try {
     const parsed = parseArgs({
       args: [...argv],
@@ -309,9 +501,13 @@ export async function run(argv: readonly string[], deps: RunDeps): Promise<Envel
       options: {
         pg: { type: "boolean", default: false },
         help: { type: "boolean", short: "h", default: false },
+        json: { type: "string" },
+        file: { type: "string" },
+        set: { type: "string", multiple: true },
       },
     });
     positionals = parsed.positionals;
+    values = parsed.values;
     help = parsed.values.help === true;
   } catch (err) {
     return {
@@ -349,6 +545,21 @@ export async function run(argv: readonly string[], deps: RunDeps): Promise<Envel
   if (sub === "artifact") {
     if (third === undefined || help) return artifactHelp();
     if (third === "list") return listCategory(deps.store, fourth);
+    if (third === "new") return newArtifact(deps, { json: values.json, file: values.file });
+    if (third === "edit") {
+      return editArtifact(deps, fourth, {
+        sets: values.set ?? [],
+        json: values.json,
+        file: values.file,
+      });
+    }
+    if (third === "comment") {
+      return {
+        ok: false,
+        body: "artifact comment is coming soon (it writes to the separate comment store).",
+        next: ["storytree library artifact <id>"],
+      };
+    }
     return viewArtifact(deps.store, third);
   }
 

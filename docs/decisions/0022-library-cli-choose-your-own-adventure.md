@@ -95,6 +95,26 @@ just-in-time principle a *navigational affordance*, not just a context-assembly 
    baseline is a floor of zero, not a ceiling. **Posture: minimalist and flexible — build first, let
    friction prove what guidance is actually needed** rather than speculatively engineering it.
 
+10. **Fast-iteration write mode (interim).** To let multiple sessions iterate on artifacts in
+    parallel *now*, artifact writes go **directly** to the shared store via the CLI (`artifact new` /
+    `edit`), each as one event + projection upsert — **the gated proposal flow of §5 is deferred**.
+    Justification at single-operator scale: the operator drives each session, so "human owns the
+    outer loop" is preserved by *who runs the session*, not by an in-CLI approval gate. Concurrency
+    is safe by construction — `library_artifact` is keyed by `id` and `upsertDoc` is transactional, so
+    **different artifacts never contend**; *same-artifact* concurrency (which would need ADR-0009
+    claims, DBOS-deferred) is out of scope. `new` still refuses to overwrite an existing id (pointing
+    at `edit` — edit-first-curation as a guardrail), and every write re-validates at the boundary
+    (`validateLibraryDoc`), returning the failure as guidance rather than persisting.
+
+11. **The shared store is the live source of truth for artifact state; `knowledge.json` is a seed.**
+    Parallel artifact work goes through the CLI to the **live `--pg` store** (the offline in-memory
+    copy is read-only-by-convention — a write without `--pg` is refused with guidance). `knowledge.json`
+    + the generated `assets.json` / `docs/glossary.md` are the **migration seed / export view**, no
+    longer the edit-here surface for live changes. **Do not re-run `load-corpus.ts --force`** against a
+    live DB that has CLI edits — it would revert them (a DB→seed export path is later work). The studio
+    reflects CLI edits only when run in store mode (`STORYTREE_STUDIO_STORE=pg`) — the single UI
+    session's concern; this ADR changes no studio code.
+
 ## Consequences
 
 - **A new top-level `storytree` CLI** (provisionally `packages/cli`), run via `tsx`, no build step
