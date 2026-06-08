@@ -60,11 +60,14 @@ multiple sessions iterate on different artifacts in parallel (per-id rows, trans
 file conflicts).
 
 - **ITERATE ON ARTIFACTS (multiple parallel sessions OK):** use the CLI against the live DB —
-  `storytree library artifact new --json '<doc>' --pg` / `… edit <id> --set <field>=<value> --pg`
-  (writes are refused without `--pg`; bring the DB up first with `pnpm db:up`). Different artifacts
-  never contend; **same** artifact across sessions is not yet coordinated (ADR-0009 claims are
-  DBOS-deferred). **Do NOT hand-edit `knowledge.json` for live changes, and do NOT run
-  `load-corpus.ts --force` against a live DB with CLI edits — it reverts them.**
+  `pnpm storytree library artifact edit <id> --set <field>=<value> --pg` and
+  `pnpm storytree library artifact new --file <doc.json> --pg` (writes are refused without `--pg`;
+  bring the DB up first with `pnpm db:up`). Different artifacts never contend; **same** artifact
+  across sessions is not yet coordinated (ADR-0009 claims are DBOS-deferred). **Do NOT hand-edit
+  `knowledge.json` for live changes, and do NOT run `load-corpus.ts --force` against a live DB with
+  CLI edits — it reverts them.**
+  *(Invocation note: `pnpm storytree …` forwards every flag EXCEPT `--json` — pnpm reserves that —
+  so pass a doc via `--file`, or use inline `--json` only via `npx tsx packages/cli/src/main.ts …`.)*
 - **EXPLORE (read, offline OK):** `storytree library` (dashboard) · `… artifact <id>` ·
   `… artifact list <category>` · `… library tree focus <id>` — choose-your-own-adventure, just-in-time
   (ADR-0022). Read commands run offline (in-memory seed); no DB needed.
@@ -88,7 +91,8 @@ file conflicts).
 - Prove-it-gate: `packages/orchestrator/src/prove-it-gate.ts` (+ `.e2e.test.ts`). Red-green is enforced
   spine-side (phase machine + per-phase write-scope + spine-observed RED/GREEN + a signed verdict).
 - Library CLI (ADR-0022): `pnpm storytree library` (explore; offline). Writes need the live DB:
-  `pnpm db:up` then `… artifact edit <id> --set <field>=<value> --pg`. See the Library section above.
+  `pnpm db:up` then `pnpm storytree library artifact edit <id> --set <field>=<value> --pg`. See the
+  Library section above (note: inline `--json` needs `npx tsx packages/cli/src/main.ts`, not `pnpm`).
 - Studio UI: `pnpm --filter studio dev` (Vite, port 5173); add `STORYTREE_STUDIO_STORE=pg` to back it
   with the live store (so it reflects CLI edits).
 
