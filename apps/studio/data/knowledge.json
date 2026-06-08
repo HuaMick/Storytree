@@ -1276,41 +1276,5 @@
     "options": "- **A — Keep + cross-link** each to its positive counterpart. Non-destructive; honours the intentional bucket.\n\n- **B — Merge & retire**: fold each lesson’s v1 evidence into its counterpart’s \"Why\" and retire the standalone unit. DRY-est; loses standalone discoverability.\n\n- **C — Recategorize → `principle`** (stated negatively). Keeps them standalone but stops calling them patterns.",
     "recommendation": "A (keep + cross-link). Non-binding until you decide.",
     "seeAlso": "_`docs/research/library-template-alignment.md` §7 D2; ADR-0008, ADR-0009. Related: `approval-gated-trunk`, `claims-in-the-shared-store`, `durable-workflow-per-node`._"
-  },
-  {
-    "kind": "open-question",
-    "id": "oq-knowledge-tier-name",
-    "title": "What do we name the cross-cutting knowledge tier?",
-    "description": "ADR-0017 deferred the tier's name (provisional 'knowledge'); 'asset' is reserved for game art and bare 'guidance' collides with the per-capability note. Needed for the Phase-2 type/table.",
-    "references": [
-      "doc:decisions/0017-cross-cutting-knowledge-tier.md",
-      "doc:glossary.md"
-    ],
-    "createdAt": "2026-06-08T00:00:00.000Z",
-    "updatedAt": "2026-06-08T00:00:00.000Z",
-    "statement": "What is the canonical name for the cross-cutting knowledge tier — the type/table the Phase-2 store and the `packages/core` union will use?",
-    "context": "ADR-0017 parked this. `asset` is reserved (glossary = game art); bare `guidance` collides with the per-capability `Guidance` note (ADR-0011); the working name is **`knowledge`** (a \"knowledge unit\"). The studio surface is called the **Library**. A name is needed before the Phase-2 schema hardens.",
-    "options": "- **`knowledge`** — ADR-0017’s provisional working name (\"knowledge unit\" / \"knowledge tier\"). Neutral, accurate, no collisions.\n\n- **`library`** — matches the studio UI surface; friendly, but conflates the *container* (the Library) with the *unit*.\n\n- **something else** — propose a term.",
-    "recommendation": "`knowledge` for the unit/type, keeping \"Library\" as the UI surface name. Non-binding until you decide.",
-    "seeAlso": "_ADR-0017 (deferred names); `docs/glossary.md` (`asset`, `guidance`)._"
-  },
-  {
-    "kind": "open-question",
-    "id": "oq-store-execution-model",
-    "title": "Phase 2: wire DBOS now, or start with a plain Postgres connection?",
-    "description": "The corpus migration needs read/write + event/projection tables on Cloud SQL. Start with a plain typed pg connection and add DBOS when the orchestrator needs durable workflows, or adopt DBOS from day one?",
-    "references": [
-      "doc:decisions/0015-gcp-hosting-cloud-sql-event-store.md",
-      "doc:decisions/0001-foundational-stack.md",
-      "doc:decisions/0009-concurrency-isolation-id-allocation.md",
-      "doc:decisions/0017-cross-cutting-knowledge-tier.md"
-    ],
-    "createdAt": "2026-06-08T00:00:00.000Z",
-    "updatedAt": "2026-06-08T00:00:00.000Z",
-    "statement": "For the Phase-2 corpus migration, do we wire DBOS from the start, or begin with a plain Postgres (Cloud SQL / IAM) connection and add DBOS when the orchestrator / agent-loop needs durable execution?",
-    "context": "ADR-0015 provisioned Cloud SQL Postgres 16 (IAM auth) with reserved `dbos` and `events` schemas; ADR-0001 / ADR-0009 chose DBOS for durable, concurrency-safe workflows and put coordination `claim`s in the shared store. But the knowledge-tier migration itself is mostly read/write of artifacts + an append-only event log + a projection — it does not yet need durable-workflow orchestration.",
-    "options": "- **A — Plain connection first.** A thin typed Postgres client (Cloud SQL connector + IAM) writes the artifact / event / projection tables; DBOS lands later with the orchestrator / agent-loop, which actually needs durable workflows. Faster to migrate the corpus; less upfront machinery.\n\n- **B — DBOS from day one.** Adopt DBOS now for all writes, consistent with ADR-0001 / ADR-0009 (durable + crash-safe immediately; `claim`s already presume the shared store). More setup before the corpus lands.",
-    "recommendation": "A for the corpus migration (it is CRUD + events, not workflows); bring DBOS in with the orchestrator. ADR-0009's claims-in-the-store argues for B if you want one write path from the start — your call.",
-    "seeAlso": "_ADR-0015 (Cloud SQL store), ADR-0001 / ADR-0009 (DBOS), ADR-0017 (the tier moves into the store)._"
   }
 ]
