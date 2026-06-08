@@ -10,7 +10,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "validate": "tsx scripts/validate-corpus.ts",
-    "test": "tsx scripts/validate-corpus.ts"
+    "test": "tsx scripts/validate-corpus.ts && node --import tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "yaml": "^2.6.1",

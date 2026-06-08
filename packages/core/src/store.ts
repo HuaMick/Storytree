@@ -1,0 +1,237 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { Knowledge } from "./knowledge.js";
+
+/**
+ * The narrow Store seam + an in-memory implementation + a REUSABLE parity suite
+ * (ported from legacy/Agentic/crates/agentic-store's Store trait + trait-parity tests;
+ * surrealkv DROPPED). ADR-0017: history = events, current = projection; relationships
+ * are ID refs inside docs, NEVER foreign keys.
+ *
+ * The interface is intentionally minimal. packages/store implements the SAME interface over
+ * Postgres and runs {@link storeParitySuite} to prove behavioural equivalence.
+ */
+
+/** The current-state projection of a document. */
+export interface StoredDoc {
+  id: string;
+  kind: string;
+  doc: unknown;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** An append-only event in the history log. `seq` is a monotonic per-store sequence. */
+export interface StoreEvent {
+  seq: number;
+  id: string;
+  kind: string;
+  type: "created" | "updated" | "deleted";
+  doc: unknown;
+  actor: string;
+  at: string;
+}
+
+/**
+ * The Store seam. KEPT NARROW on purpose.
+ *
+ * `upsertDoc` does TWO things atomically (ADR-0017): it appends a `created`/`updated` event to
+ * history AND updates the current-state projection. `getDoc` of an absent id returns `null`,
+ * never throws. Relationships between docs are expressed as ID references inside the doc bodies,
+ * never as foreign keys at this layer.
+ */
+export interface Store {
+  upsertDoc(input: {
+    id: string;
+    kind: string;
+    doc: unknown;
+    actor?: string;
+  }): Promise<StoredDoc>;
+  getDoc(id: string): Promise<StoredDoc | null>;
+  queryDocs(filter?: { kind?: string }): Promise<StoredDoc[]>;
+  deleteDoc(id: string): Promise<boolean>;
+  appendEvent(e: {
+    id: string;
+    kind: string;
+    type: "created" | "updated" | "deleted";
+    doc: unknown;
+    actor?: string;
+  }): Promise<StoreEvent>;
+  readEvents(filter?: { id?: string }): Promise<StoreEvent[]>;
+}
+
+const DEFAULT_ACTOR = "system";
+
+/**
+ * In-memory {@link Store}: a Map for the current-state projection and an array for the event
+ * history. `appendEvent` assigns a monotonic `seq`; `upsertDoc` appends the event and updates
+ * the projection together, in-process (no await between the two -> atomic for this impl).
+ */
+export class InMemoryStore implements Store {
+  #docs = new Map<string, StoredDoc>();
+  #events: StoreEvent[] = [];
+  #seq = 0;
+
+  async upsertDoc(input: {
+    id: string;
+    kind: string;
+    doc: unknown;
+    actor?: string;
+  }): Promise<StoredDoc> {
+    const now = new Date().toISOString();
+    const existing = this.#docs.get(input.id);
+    const actor = input.actor ?? DEFAULT_ACTOR;
+    const stored: StoredDoc = {
+      id: input.id,
+      kind: input.kind,
+      doc: input.doc,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+    };
+    this.#appendEventSync({
+      id: input.id,
+      kind: input.kind,
+      type: existing ? "updated" : "created",
+      doc: input.doc,
+      actor,
+    });
+    this.#docs.set(input.id, stored);
+    return stored;
+  }
+
+  async getDoc(id: string): Promise<StoredDoc | null> {
+    return this.#docs.get(id) ?? null;
+  }
+
+  async queryDocs(filter?: { kind?: string }): Promise<StoredDoc[]> {
+    const all = [...this.#docs.values()];
+    if (filter?.kind === undefined) return all;
+    return all.filter((d) => d.kind === filter.kind);
+  }
+
+  async deleteDoc(id: string): Promise<boolean> {
+    const existing = this.#docs.get(id);
+    if (!existing) return false;
+    this.#docs.delete(id);
+    this.#appendEventSync({
+      id,
+      kind: existing.kind,
+      type: "deleted",
+      doc: existing.doc,
+      actor: DEFAULT_ACTOR,
+    });
+    return true;
+  }
+
+  async appendEvent(e: {
+    id: string;
+    kind: string;
+    type: "created" | "updated" | "deleted";
+    doc: unknown;
+    actor?: string;
+  }): Promise<StoreEvent> {
+    return this.#appendEventSync(e);
+  }
+
+  async readEvents(filter?: { id?: string }): Promise<StoreEvent[]> {
+    if (filter?.id === undefined) return [...this.#events];
+    return this.#events.filter((ev) => ev.id === filter.id);
+  }
+
+  #appendEventSync(e: {
+    id: string;
+    kind: string;
+    type: "created" | "updated" | "deleted";
+    doc: unknown;
+    actor?: string;
+  }): StoreEvent {
+    const event: StoreEvent = {
+      seq: ++this.#seq,
+      id: e.id,
+      kind: e.kind,
+      type: e.type,
+      doc: e.doc,
+      actor: e.actor ?? DEFAULT_ACTOR,
+      at: new Date().toISOString(),
+    };
+    this.#events.push(event);
+    return event;
+  }
+}
+
+/**
+ * The zod write-boundary validator for library documents. A library doc is a member of the
+ * existing {@link Knowledge} union (ADR-0019's Knowledge->Library rename is deferred, so the
+ * type name stays `Knowledge`; this function is the library-doc validator the store layer uses).
+ * Throws on malformed input (loud write boundary).
+ */
+export function validateLibraryDoc(input: unknown): Knowledge {
+  return Knowledge.parse(input);
+}
+
+/**
+ * A REUSABLE behavioural-parity suite (node:test). Registers the 5 Store contracts so any
+ * implementation — InMemoryStore here, Postgres in packages/store — can be held to the same bar.
+ *
+ * EXPORTED on purpose: packages/store calls `storeParitySuite('PostgresStore', () => ...)`.
+ */
+export function storeParitySuite(
+  name: string,
+  makeStore: () => Store | Promise<Store>,
+): void {
+  test(`${name} parity: upsertDoc replaces on same id and bumps updatedAt`, async () => {
+    const store = await makeStore();
+    const first = await store.upsertDoc({ id: "u1", kind: "note", doc: { v: 1 } });
+    // Force a clock tick so updatedAt is observably newer.
+    await new Promise((r) => setTimeout(r, 2));
+    const second = await store.upsertDoc({ id: "u1", kind: "note", doc: { v: 2 } });
+    const current = await store.getDoc("u1");
+    assert.equal(current?.doc && (current.doc as { v: number }).v, 2);
+    assert.equal(second.createdAt, first.createdAt, "createdAt preserved on replace");
+    assert.ok(
+      second.updatedAt >= first.updatedAt,
+      "updatedAt is bumped (>=) on replace",
+    );
+    const all = await store.queryDocs();
+    assert.equal(all.length, 1, "same id replaces, does not duplicate");
+  });
+
+  test(`${name} parity: appendEvent preserves insertion order with increasing seq`, async () => {
+    const store = await makeStore();
+    await store.appendEvent({ id: "a", kind: "k", type: "created", doc: {} });
+    await store.appendEvent({ id: "b", kind: "k", type: "created", doc: {} });
+    await store.appendEvent({ id: "c", kind: "k", type: "updated", doc: {} });
+    const events = await store.readEvents();
+    assert.deepEqual(
+      events.map((e) => e.id),
+      ["a", "b", "c"],
+      "insertion order preserved",
+    );
+    for (let i = 1; i < events.length; i++) {
+      const prev = events[i - 1];
+      const cur = events[i];
+      assert.ok(prev && cur && cur.seq > prev.seq, "seq strictly increasing");
+    }
+  });
+
+  test(`${name} parity: getDoc(absent) returns null (not throw)`, async () => {
+    const store = await makeStore();
+    const got = await store.getDoc("does-not-exist");
+    assert.equal(got, null);
+  });
+
+  test(`${name} parity: queryDocs on empty store returns [] (not throw)`, async () => {
+    const store = await makeStore();
+    const docs = await store.queryDocs();
+    assert.deepEqual(docs, []);
+    const filtered = await store.queryDocs({ kind: "anything" });
+    assert.deepEqual(filtered, []);
+  });
+
+  test(`${name} parity: deleteDoc is idempotent (true then false)`, async () => {
+    const store = await makeStore();
+    await store.upsertDoc({ id: "d1", kind: "note", doc: {} });
+    assert.equal(await store.deleteDoc("d1"), true, "first delete reports true");
+    assert.equal(await store.deleteDoc("d1"), false, "second delete reports false");
+  });
+}
