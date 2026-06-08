@@ -190,16 +190,24 @@ export class JsonBackend implements LibraryBackend {
 // PgBackend — the live Cloud SQL Postgres store (lazy pool).
 // ---------------------------------------------------------------------------
 
-// Imported by name (cross-package, ESM). createPool builds the keyless-IAM pool; PgLibraryStore +
-// PgCommentStore + renderStoredDoc are the Stage-1 store APIs.
-import {
-  createPool,
-  closePool,
-  PgLibraryStore,
-  PgCommentStore,
-  renderStoredDoc,
-  type PoolHandle,
-} from '@storytree/store';
+// Cross-package, ESM. The runtime values (createPool/closePool/PgLibraryStore/PgCommentStore/
+// renderStoredDoc) are loaded LAZILY via a dynamic import the first time PgBackend is used — NOT a
+// static top-level import. That matters: this module is reached at Vite config-load / `vite build`
+// time (vite.config.ts → devApi.ts → here), where the loader has no tsx transform and cannot resolve
+// @storytree/store's `.js` re-export specifiers (ERR_MODULE_NOT_FOUND on src/connection.js). It is
+// also Node-only (pg / cloud-sql-connector) and has no place in a browser build. Keeping the import
+// dynamic means the store is only touched when STORYTREE_STUDIO_STORE='pg' actually runs the dev API.
+// Types are `import type` only (fully erased under verbatimModuleSyntax), so they add no runtime import.
+import type { PoolHandle, PgLibraryStore, PgCommentStore } from '@storytree/store';
+
+type StoreModule = typeof import('@storytree/store');
+
+let storeModulePromise: Promise<StoreModule> | null = null;
+
+/** Load @storytree/store once, on first PgBackend use (never at config-load / build time). */
+function loadStoreModule(): Promise<StoreModule> {
+  return (storeModulePromise ??= import('@storytree/store'));
+}
 
 const DEFAULT_ACTOR = 'operator';
 
@@ -227,29 +235,36 @@ function toGuidanceAsset(rendered: {
 }
 
 export class PgBackend implements LibraryBackend {
+  #store: StoreModule | null = null;
   #handle: PoolHandle | null = null;
   #library: PgLibraryStore | null = null;
   #comments: PgCommentStore | null = null;
 
   /** Build the pool + stores on first use (the JSON default must never touch pg). */
-  async #ready(): Promise<{ library: PgLibraryStore; comments: PgCommentStore }> {
-    if (this.#library === null || this.#comments === null) {
-      const handle = await createPool();
+  async #ready(): Promise<{
+    store: StoreModule;
+    library: PgLibraryStore;
+    comments: PgCommentStore;
+  }> {
+    if (this.#store === null || this.#library === null || this.#comments === null) {
+      const store = await loadStoreModule();
+      const handle = await store.createPool();
+      this.#store = store;
       this.#handle = handle;
-      this.#library = new PgLibraryStore(handle.pool);
-      this.#comments = new PgCommentStore(handle.pool);
+      this.#library = new store.PgLibraryStore(handle.pool);
+      this.#comments = new store.PgCommentStore(handle.pool);
     }
-    return { library: this.#library, comments: this.#comments };
+    return { store: this.#store, library: this.#library, comments: this.#comments };
   }
 
   async listAssets(): Promise<GuidanceAsset[]> {
-    const { library } = await this.#ready();
+    const { store, library } = await this.#ready();
     const docs = await library.queryDocs();
-    return docs.map((d) => toGuidanceAsset(renderStoredDoc(d)));
+    return docs.map((d) => toGuidanceAsset(store.renderStoredDoc(d)));
   }
 
   async createAsset(input: AssetInput): Promise<GuidanceAsset> {
-    const { library } = await this.#ready();
+    const { store, library } = await this.#ready();
     if (await library.getDoc(input.id)) throw new AssetConflictError(input.id);
     const stored = await library.upsertDoc({
       id: input.id,
@@ -257,11 +272,11 @@ export class PgBackend implements LibraryBackend {
       doc: input,
       actor: DEFAULT_ACTOR,
     });
-    return toGuidanceAsset(renderStoredDoc(stored));
+    return toGuidanceAsset(store.renderStoredDoc(stored));
   }
 
   async updateAsset(id: string, input: AssetInput): Promise<GuidanceAsset | null> {
-    const { library } = await this.#ready();
+    const { store, library } = await this.#ready();
     if (!(await library.getDoc(id))) return null;
     const stored = await library.upsertDoc({
       id,
@@ -269,7 +284,7 @@ export class PgBackend implements LibraryBackend {
       doc: { ...input, id },
       actor: DEFAULT_ACTOR,
     });
-    return toGuidanceAsset(renderStoredDoc(stored));
+    return toGuidanceAsset(store.renderStoredDoc(stored));
   }
 
   async deleteAsset(id: string): Promise<boolean> {
@@ -308,11 +323,12 @@ export class PgBackend implements LibraryBackend {
   }
 
   async close(): Promise<void> {
-    if (this.#handle) {
-      await closePool(this.#handle.pool, this.#handle.connector);
+    if (this.#handle && this.#store) {
+      await this.#store.closePool(this.#handle.pool, this.#handle.connector);
       this.#handle = null;
       this.#library = null;
       this.#comments = null;
+      this.#store = null;
     }
   }
 }
