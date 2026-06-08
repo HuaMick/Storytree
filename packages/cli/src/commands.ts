@@ -33,6 +33,16 @@ function fieldOf(stored: StoredDoc, key: "title" | "description"): string {
   return "";
 }
 
+/** Read the `references` string[] off a stored doc body (the only edge field today). */
+function refsOf(stored: StoredDoc): string[] {
+  const doc = stored.doc;
+  if (typeof doc === "object" && doc !== null) {
+    const v = (doc as Record<string, unknown>).references;
+    if (Array.isArray(v)) return v.filter((x): x is string => typeof x === "string");
+  }
+  return [];
+}
+
 function groupByKind(docs: readonly StoredDoc[]): Map<string, StoredDoc[]> {
   const m = new Map<string, StoredDoc[]>();
   for (const d of docs) {
@@ -87,7 +97,8 @@ export async function dashboard(store: Store): Promise<Envelope> {
     "commands  (drill in with `storytree library <command> --help`):",
     "  artifact <id>              view one artifact",
     "  artifact list <category>   list a category",
-    "  (coming soon: artifact new|edit|comment, tree focus <id>)",
+    "  tree focus <id>            the local DAG of one artifact",
+    "  (coming soon: artifact new|edit|comment)",
   );
   return {
     ok: true,
@@ -120,7 +131,7 @@ export async function viewArtifact(store: Store, id: string): Promise<Envelope> 
     ok: true,
     body: lines.join("\n"),
     next: [
-      `storytree library tree focus ${a.id}   (coming soon — its local DAG)`,
+      `storytree library tree focus ${a.id}   (its local DAG)`,
       `storytree library artifact edit ${a.id}   (coming soon)`,
     ],
   };
@@ -146,6 +157,88 @@ export async function listCategory(store: Store, category: string | undefined): 
       "edit-first-curation — search before you write; edit beats create.  (storytree library artifact edit-first-curation)",
     ],
     next: ["storytree library artifact <id>"],
+  };
+}
+
+/**
+ * `storytree library tree focus <id>` — the DAG **for one node only** (ADR-0022): its outbound
+ * references (intra-library `asset:` edges + `doc:` source/ADR pointers, the latter surfaced on
+ * demand) and the inbound `asset:` edges that point at it (a derived back-edge scan). Honest about
+ * sparsity: intra-library edges are few today, so the view doubles as a friction signal for the
+ * typed `derives_from` / `consumes` edges a later slice will add.
+ */
+export async function treeFocus(store: Store, id: string | undefined): Promise<Envelope> {
+  if (id === undefined) {
+    return {
+      ok: false,
+      body: "tree focus needs an id: storytree library tree focus <id>",
+      next: ["storytree library"],
+    };
+  }
+  const stored = await store.getDoc(id);
+  if (!stored) {
+    return {
+      ok: false,
+      body: `no artifact "${id}" to focus.`,
+      next: ["storytree library", "storytree library artifact list <category>"],
+    };
+  }
+  const all = await store.queryDocs();
+  const byId = new Map(all.map((d) => [d.id, d] as const));
+
+  const outbound: string[] = [];
+  let firstLibraryNeighbour: string | undefined;
+  for (const r of refsOf(stored)) {
+    if (r.startsWith("asset:")) {
+      const tid = r.slice("asset:".length);
+      const t = byId.get(tid);
+      firstLibraryNeighbour ??= tid;
+      outbound.push(`  → ${tid}${t ? `  ${fieldOf(t, "title")}  [${t.kind}]` : "  (missing target)"}   (library)`);
+    } else {
+      outbound.push(`  → ${r}   (source — surfaced on demand)`);
+    }
+  }
+
+  const needle = `asset:${id}`;
+  const inbound = all
+    .filter((d) => d.id !== id && refsOf(d).includes(needle))
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((d) => `  ← ${d.id}  ${fieldOf(d, "title")}  [${d.kind}]`);
+
+  const hasLibraryEdge = outbound.some((l) => l.includes("(library)")) || inbound.length > 0;
+  const lines: string[] = [
+    `# ${fieldOf(stored, "title")}    [${stored.kind}]   — tree focus`,
+    `id: ${id}`,
+    "",
+    "outbound  (what this references / derives from):",
+    ...(outbound.length > 0 ? outbound : ["  (none)"]),
+    "",
+    "inbound  (what references this):",
+    ...(inbound.length > 0 ? inbound : ["  (none yet)"]),
+  ];
+  if (!hasLibraryEdge) {
+    lines.push(
+      "",
+      "note: no intra-library edges here yet — typed derives_from / consumes land in a later slice.",
+    );
+  }
+
+  const next = [`storytree library artifact ${id}`];
+  if (firstLibraryNeighbour !== undefined) {
+    next.push(`storytree library tree focus ${firstLibraryNeighbour}`);
+  }
+  return { ok: true, body: lines.join("\n"), next };
+}
+
+function treeHelp(): Envelope {
+  return {
+    ok: true,
+    body: [
+      "storytree library tree — navigate the DAG, one node at a time.",
+      "",
+      "  storytree library tree focus <id>   the local DAG of one artifact (in/out edges)",
+    ].join("\n"),
+    next: ["storytree library"],
   };
 }
 
@@ -176,7 +269,8 @@ function libraryHelp(): Envelope {
       "  storytree library                          health + dashboard + commands",
       "  storytree library artifact <id>            view one artifact",
       "  storytree library artifact list <category> list a category",
-      "  (coming soon: artifact new|edit|comment, tree focus <id>)",
+      "  storytree library tree focus <id>          the local DAG of one artifact",
+      "  (coming soon: artifact new|edit|comment)",
     ].join("\n"),
     next: ["storytree library"],
   };
@@ -239,15 +333,28 @@ export async function run(argv: readonly string[], deps: RunDeps): Promise<Envel
   }
 
   if (sub === undefined) return help ? libraryHelp() : dashboard(deps.store);
-  if (sub !== "artifact") {
-    return {
-      ok: false,
-      body: `unknown library command "${sub}".`,
-      next: ["storytree library", "storytree library artifact list <category>"],
-    };
+
+  if (sub === "tree") {
+    if (third === undefined || help) return treeHelp();
+    if (third !== "focus") {
+      return {
+        ok: false,
+        body: `unknown tree command "${third}". try: storytree library tree focus <id>`,
+        next: ["storytree library"],
+      };
+    }
+    return treeFocus(deps.store, fourth);
   }
 
-  if (third === undefined || help) return artifactHelp();
-  if (third === "list") return listCategory(deps.store, fourth);
-  return viewArtifact(deps.store, third);
+  if (sub === "artifact") {
+    if (third === undefined || help) return artifactHelp();
+    if (third === "list") return listCategory(deps.store, fourth);
+    return viewArtifact(deps.store, third);
+  }
+
+  return {
+    ok: false,
+    body: `unknown library command "${sub}".`,
+    next: ["storytree library", "storytree library artifact list <category>"],
+  };
 }

@@ -60,3 +60,28 @@ test("an unknown area is guided back to library", async () => {
   assert.equal(env.ok, false);
   assert.match(env.body, /unknown area "wat"/);
 });
+
+test("tree focus <id> renders the node's outbound source refs", async () => {
+  // glossary-wins references doc: pointers (ADRs/glossary) — outbound 'source' edges.
+  const env = await run(["library", "tree", "focus", "glossary-wins"], { store: await seeded() });
+  assert.equal(env.ok, true);
+  assert.match(env.body, /— tree focus/);
+  assert.match(env.body, /outbound/);
+  assert.match(env.body, /source — surfaced on demand/);
+});
+
+test("tree focus shows inbound intra-library edges (back-edge scan)", async () => {
+  // oq-anti-pattern-lessons has `asset:approval-gated-trunk`, so focusing the target sees it inbound.
+  const env = await run(["library", "tree", "focus", "approval-gated-trunk"], {
+    store: await seeded(),
+  });
+  assert.equal(env.ok, true);
+  assert.match(env.body, /inbound/);
+  assert.match(env.body, /← oq-anti-pattern-lessons/);
+});
+
+test("tree focus on a missing id is guidance, not a throw", async () => {
+  const env = await run(["library", "tree", "focus", "ghost"], { store: await seeded() });
+  assert.equal(env.ok, false);
+  assert.match(env.body, /no artifact "ghost" to focus/);
+});
