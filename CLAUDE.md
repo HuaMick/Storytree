@@ -70,7 +70,10 @@ Run `pnpm -r test` before assuming anything is unbuilt. The packages:
 - Gate: `pnpm -r typecheck` · `pnpm -r test` (tests are offline — no DB or API key needed)
 - **Cloud SQL** (not local Docker): `pnpm db:up` / `pnpm db:status` / `pnpm db:down`
   (gcloud against instance `storytree-498613:australia-southeast1:storytree-pg`). It is **STOPPED by
-  default** for cost — bring it up only for a burst, and bring it back **down** when done.
+  default** for cost — bring it up only for a burst. Auto-stop is **idle-aware** now (ADR-0015 §5,
+  `infra/idle-stop.tf`): a Cloud Function stops it only after ~60 min with **zero DB connections**, so
+  it won't stop a live session, but a long idle gap will — re-`db:up` if a query can't connect (a
+  daily blunt cron is the cost floor behind it).
   Run the library migration: `STORYTREE_DB_USER=<iam-email> npx tsx packages/store/src/load-corpus.ts`.
 - Prove-it-gate: `packages/orchestrator/src/prove-it-gate.ts` (+ `.e2e.test.ts`). Red-green is enforced
   spine-side (phase machine + per-phase write-scope + spine-observed RED/GREEN + a signed verdict).

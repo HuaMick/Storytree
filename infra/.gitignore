@@ -8,3 +8,5 @@ apply.log
 *.tfstate.*
 # Holds operator_email — local only.
 terraform.tfvars
+# Transient function-source zip built by the archive_file data source.
+.terraform-tmp/
