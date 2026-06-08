@@ -1,4 +1,4 @@
-# ADR-0022: Agents reach the Library through an exploratory, just-in-time CLI
+# ADR-0023: Agents reach the Library through an exploratory, just-in-time CLI
 
 ## Status
 

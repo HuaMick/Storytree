@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "storytree CLI (ADR-0022): the agent's exploratory, just-in-time interface to the Library. Choose-your-own-adventure — every command emits a result + doctrine + next envelope.",
+  "description": "storytree CLI (ADR-0023): the agent's exploratory, just-in-time interface to the Library. Choose-your-own-adventure — every command emits a result + doctrine + next envelope.",
   "exports": {
     ".": "./src/index.ts"
   },

@@ -12,7 +12,7 @@ const EDIT_FIRST =
   "edit-first-curation — search before you write; edit beats create.  (storytree library artifact edit-first-curation)";
 
 /**
- * The Library commands (ADR-0022). Read-only walking skeleton: `library` (dashboard), `artifact <id>`
+ * The Library commands (ADR-0023). Read-only walking skeleton: `library` (dashboard), `artifact <id>`
  * (view), `artifact list <category>` (the interim search). Each returns an {@link Envelope} — the
  * result plus choose-your-own-adventure guidance. `run` parses argv and dispatches; it NEVER throws
  * on an expected miss (unknown id / bad category) — it returns an `ok: false` envelope with `next`.
@@ -340,7 +340,7 @@ export async function editArtifact(
 }
 
 /**
- * `storytree library tree focus <id>` — the DAG **for one node only** (ADR-0022): its outbound
+ * `storytree library tree focus <id>` — the DAG **for one node only** (ADR-0023): its outbound
  * references (intra-library `asset:` edges + `doc:` source/ADR pointers, the latter surfaced on
  * demand) and the inbound `asset:` edges that point at it (a derived back-edge scan). Honest about
  * sparsity: intra-library edges are few today, so the view doubles as a friction signal for the
@@ -425,7 +425,7 @@ function topHelp(): Envelope {
   return {
     ok: true,
     body: [
-      "storytree — the agent's interface to the project (ADR-0022).",
+      "storytree — the agent's interface to the project (ADR-0023).",
       "",
       "areas:",
       "  library          explore + curate the Library (the knowledge tier)",

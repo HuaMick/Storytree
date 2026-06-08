@@ -1,5 +1,5 @@
 /**
- * The guidance envelope (ADR-0022 §4). EVERY command returns one — not bare data. It carries the
+ * The guidance envelope (ADR-0023 §4). EVERY command returns one — not bare data. It carries the
  * `result`, the **applicable doctrine** (pointers INTO the Library, never inlined text — the agent
  * earns the detail by exploring, choose-your-own-adventure), and **`next`** (suggested follow-up
  * commands). Errors are guidance, not bare failures: a blocked/empty result still ships `next` so

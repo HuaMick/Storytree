@@ -1,4 +1,4 @@
-// @storytree/cli — the agent's exploratory, just-in-time interface to the Library (ADR-0022).
+// @storytree/cli — the agent's exploratory, just-in-time interface to the Library (ADR-0023).
 // The dispatch (`run`) + the guidance envelope are exported for embedding and tests; `main.ts`
 // is the executable entry that wires the store and prints.
 export {

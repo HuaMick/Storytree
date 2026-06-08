@@ -23,7 +23,7 @@ knowledge-graph engineering (iText2KG, Graphiti, provenance semirings); framewor
 §6's Sources block.
 
 > **Decided since (2026-06-08):** the interaction *model* is settled in
-> [ADR-0022](../decisions/0022-library-cli-choose-your-own-adventure.md) — agents reach the Library
+> [ADR-0023](../decisions/0023-library-cli-choose-your-own-adventure.md) — agents reach the Library
 > through an exploratory **choose-your-own-adventure CLI**, not a `pull` step. §1's pull/doctrine-floor
 > read model is **superseded** by that ADR (context is *explored* via tooling, surface #2; the boot
 > baseline is map-only). §2–§6 (edit/curation/references/staleness/DAG analysis) still stand as the

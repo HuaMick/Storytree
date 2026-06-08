@@ -14,7 +14,7 @@ import { run } from "./commands.js";
 import { formatEnvelope } from "./envelope.js";
 
 /**
- * The `storytree` CLI entry (ADR-0022). Offline-first: by default it runs against an in-memory store
+ * The `storytree` CLI entry (ADR-0023). Offline-first: by default it runs against an in-memory store
  * seeded from the studio data files (`loadCorpus`), so the read commands work with NO Cloud SQL and
  * NO API key. `--pg` swaps in the live Postgres store (the instance is STOPPED by default — bring it
  * up first). The dispatch lives in `run`; this file only wires the store and prints the envelope.
