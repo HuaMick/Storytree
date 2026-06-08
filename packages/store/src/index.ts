@@ -12,3 +12,12 @@ export { applySchema, SCHEMA_SQL_PATH } from "./migrate.js";
 export { PgLibraryStore } from "./pg-store.js";
 export { loadCorpus, loadComments } from "./load-corpus.js";
 export type { LoadCorpusResult } from "./load-corpus.js";
+export { renderStoredDoc } from "./render-doc.js";
+export type { RenderedAsset } from "./render-doc.js";
+export { PgCommentStore, mergeCommentPatch } from "./pg-comment-store.js";
+export type {
+  Comment,
+  CommentAnchor,
+  CommentPatch,
+  CommentFilter,
+} from "./pg-comment-store.js";

@@ -70,6 +70,24 @@ test("validateLibraryDoc accepts a generated template artifact", () => {
   assert.ok("category" in parsed && parsed.category === "template");
 });
 
+test("validateLibraryDoc accepts a general edited asset (any category + body)", () => {
+  // The studio edits a structured unit and persists it in rendered form: a body-bearing asset
+  // whose category is NOT 'template' (here a 'definition'). The generalised boundary accepts it.
+  const asset = {
+    id: "owned-loop",
+    category: "definition",
+    title: "Owned loop",
+    description: "the agent loop we build and own",
+    body: "**In one line.** The loop we own end to end.\n\n## What it is\n\nOurs.",
+    references: ["doc:decisions/0019-...md"],
+    createdAt: "2026-06-08T00:00:00Z",
+    updatedAt: "2026-06-08T00:00:00Z",
+  };
+  const parsed = validateLibraryDoc(asset);
+  assert.ok("category" in parsed && parsed.category === "definition");
+  assert.ok("body" in parsed && typeof parsed.body === "string");
+});
+
 test("validateLibraryDoc throws on malformed input (loud write boundary)", () => {
   assert.throws(() => validateLibraryDoc({ kind: "principle", id: "p1" }));
   assert.throws(() => validateLibraryDoc({ kind: "not-a-kind" }));

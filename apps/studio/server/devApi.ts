@@ -17,9 +17,11 @@
 //     it writes gets CLOBBERED on the next build-corpus run — edit knowledge.json
 //     and rebuild instead.)
 //   • The Library is ALSO migrated into the shared Cloud SQL Postgres store
-//     (packages/store). The studio ↔ store swap (reading/writing the Library
-//     through Postgres instead of these JSON files) is PENDING — until then this
-//     file-backed path stays the studio's live persistence.
+//     (packages/store). The studio ↔ store swap is now WIRED behind a
+//     LibraryBackend seam (server/libraryBackend.ts): STORYTREE_STUDIO_STORE='pg'
+//     reads/writes the Library + comments through Postgres; unset (the default)
+//     keeps this file-backed JSON path, byte-identical to before. The /api/*
+//     request/response shapes the React client sees are the same for both.
 
 import { promises as fs, existsSync } from 'node:fs';
 import path from 'node:path';
@@ -31,8 +33,15 @@ import type {
   Comment,
   CommentAnchor,
   DocMeta,
-  GuidanceAsset,
 } from '../src/types';
+import {
+  createBackend,
+  selectedStore,
+  AssetConflictError,
+  type LibraryBackend,
+  type AssetInput,
+  type CommentPatch,
+} from './libraryBackend';
 
 const ASSET_CATEGORIES: AssetCategory[] = [
   'definition',
@@ -91,19 +100,6 @@ async function readJsonBody<T>(req: IncomingMessage): Promise<T> {
   } catch {
     throw new HttpError(400, 'invalid JSON body');
   }
-}
-
-// ---------- json store helpers ----------
-
-async function readStore<T>(file: string, fallback: T): Promise<T> {
-  if (!existsSync(file)) return fallback;
-  const raw = await fs.readFile(file, 'utf8');
-  return raw.trim() ? (JSON.parse(raw) as T) : fallback;
-}
-
-async function writeStore(file: string, data: unknown): Promise<void> {
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  await fs.writeFile(file, JSON.stringify(data, null, 2) + '\n', 'utf8');
 }
 
 // ---------- docs (read-only, live from <repo>/docs) ----------
@@ -220,20 +216,17 @@ async function handleComments(
   req: IncomingMessage,
   res: ServerResponse,
   url: URL,
-  paths: Paths,
+  backend: LibraryBackend,
 ): Promise<void> {
   const method = req.method ?? 'GET';
-  const comments = await readStore<Comment[]>(paths.commentsFile, []);
 
   if (method === 'GET') {
     const topicId = url.searchParams.get('topicId');
     const topicKind = url.searchParams.get('topicKind');
-    const filtered = comments.filter(
-      (c) =>
-        (!topicId || c.topicId === topicId) &&
-        (!topicKind || c.topicKind === topicKind),
-    );
-    return sendJson(res, 200, filtered);
+    const filter: { topicId?: string; topicKind?: 'doc' | 'asset' } = {};
+    if (topicId) filter.topicId = topicId;
+    if (topicKind === 'doc' || topicKind === 'asset') filter.topicKind = topicKind;
+    return sendJson(res, 200, await backend.listComments(filter));
   }
 
   if (method === 'POST') {
@@ -257,33 +250,23 @@ async function handleComments(
       resolved: false,
       resolvedAt: null,
     };
-    comments.push(comment);
-    await writeStore(paths.commentsFile, comments);
-    return sendJson(res, 201, comment);
+    return sendJson(res, 201, await backend.createComment(comment));
   }
 
   if (method === 'PATCH') {
-    const id = url.searchParams.get('id');
-    const idx = comments.findIndex((c) => c.id === id);
-    if (idx === -1) throw new HttpError(404, 'comment not found');
-    const existing = comments[idx] as Comment;
-    const patch = await readJsonBody<Record<string, unknown>>(req);
-    const next: Comment = { ...existing };
-    if (typeof patch.body === 'string' && patch.body.trim()) next.body = patch.body.trim();
-    if (typeof patch.resolved === 'boolean') {
-      next.resolved = patch.resolved;
-      next.resolvedAt = patch.resolved ? new Date().toISOString() : null;
-    }
-    comments[idx] = next;
-    await writeStore(paths.commentsFile, comments);
+    const id = url.searchParams.get('id') ?? '';
+    const raw = await readJsonBody<Record<string, unknown>>(req);
+    const patch: CommentPatch = {};
+    if (typeof raw.body === 'string' && raw.body.trim()) patch.body = raw.body.trim();
+    if (typeof raw.resolved === 'boolean') patch.resolved = raw.resolved;
+    const next = await backend.updateComment(id, patch);
+    if (!next) throw new HttpError(404, 'comment not found');
     return sendJson(res, 200, next);
   }
 
   if (method === 'DELETE') {
-    const id = url.searchParams.get('id');
-    const next = comments.filter((c) => c.id !== id);
-    if (next.length === comments.length) throw new HttpError(404, 'comment not found');
-    await writeStore(paths.commentsFile, next);
+    const id = url.searchParams.get('id') ?? '';
+    if (!(await backend.deleteComment(id))) throw new HttpError(404, 'comment not found');
     return sendJson(res, 200, { ok: true });
   }
 
@@ -294,7 +277,7 @@ function isValidSlug(s: string): boolean {
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(s);
 }
 
-function readAssetInput(input: Record<string, unknown>): Omit<GuidanceAsset, 'createdAt' | 'updatedAt'> {
+function readAssetInput(input: Record<string, unknown>): AssetInput {
   const id = asString(input.id).trim();
   const category = asString(input.category) as AssetCategory;
   const title = asString(input.title).trim();
@@ -319,44 +302,39 @@ async function handleAssets(
   req: IncomingMessage,
   res: ServerResponse,
   url: URL,
-  paths: Paths,
+  backend: LibraryBackend,
 ): Promise<void> {
   const method = req.method ?? 'GET';
-  const assets = await readStore<GuidanceAsset[]>(paths.assetsFile, []);
 
   if (method === 'GET') {
-    return sendJson(res, 200, assets);
+    return sendJson(res, 200, await backend.listAssets());
   }
 
   if (method === 'POST') {
     const input = readAssetInput(await readJsonBody<Record<string, unknown>>(req));
-    if (assets.some((a) => a.id === input.id)) {
-      throw new HttpError(409, `an asset with id "${input.id}" already exists`);
+    try {
+      return sendJson(res, 201, await backend.createAsset(input));
+    } catch (err) {
+      if (err instanceof AssetConflictError) throw new HttpError(409, err.message);
+      throw err;
     }
-    const now = new Date().toISOString();
-    const asset: GuidanceAsset = { ...input, createdAt: now, updatedAt: now };
-    assets.push(asset);
-    await writeStore(paths.assetsFile, assets);
-    return sendJson(res, 201, asset);
   }
 
   if (method === 'PATCH') {
-    const id = url.searchParams.get('id');
-    const idx = assets.findIndex((a) => a.id === id);
-    if (idx === -1) throw new HttpError(404, 'asset not found');
-    const existing = assets[idx] as GuidanceAsset;
-    const input = readAssetInput({ ...existing, ...(await readJsonBody<Record<string, unknown>>(req)), id: existing.id });
-    const next: GuidanceAsset = { ...input, createdAt: existing.createdAt, updatedAt: new Date().toISOString() };
-    assets[idx] = next;
-    await writeStore(paths.assetsFile, assets);
+    const id = url.searchParams.get('id') ?? '';
+    // The id is fixed by the path; the body supplies the new category/title/description/body/refs.
+    const input = readAssetInput({
+      ...(await readJsonBody<Record<string, unknown>>(req)),
+      id,
+    });
+    const next = await backend.updateAsset(id, input);
+    if (!next) throw new HttpError(404, 'asset not found');
     return sendJson(res, 200, next);
   }
 
   if (method === 'DELETE') {
-    const id = url.searchParams.get('id');
-    const next = assets.filter((a) => a.id !== id);
-    if (next.length === assets.length) throw new HttpError(404, 'asset not found');
-    await writeStore(paths.assetsFile, next);
+    const id = url.searchParams.get('id') ?? '';
+    if (!(await backend.deleteAsset(id))) throw new HttpError(404, 'asset not found');
     return sendJson(res, 200, { ok: true });
   }
 
@@ -384,15 +362,30 @@ async function handleDocs(
 
 export function storytreeDataApi(): Plugin {
   let paths: Paths;
+  let backend: LibraryBackend;
   return {
     name: 'storytree-data-api',
     configResolved(config) {
       paths = resolvePaths(config);
+      // The pg pool (if store='pg') is built lazily on first use; this just picks the impl.
+      backend = createBackend({
+        assetsFile: paths.assetsFile,
+        commentsFile: paths.commentsFile,
+      });
     },
     configureServer(server) {
+      const store = selectedStore();
+      const target =
+        store === 'pg'
+          ? 'Cloud SQL Postgres (STORYTREE_STUDIO_STORE=pg)'
+          : 'apps/studio/data/';
       server.config.logger.info(
-        `  storytree data api: docs ← ${path.relative(paths.repoRoot, paths.docsDir)}/  ·  store → apps/studio/data/`,
+        `  storytree data api: docs ← ${path.relative(paths.repoRoot, paths.docsDir)}/  ·  library/comments → ${target}`,
       );
+      // Tear the pg pool down with the dev server (no-op for the JSON backend).
+      server.httpServer?.on('close', () => {
+        void backend.close();
+      });
       // Registered directly (not in a returned post-hook) so /api/* is handled
       // BEFORE Vite's SPA fallback would rewrite it to index.html.
       server.middlewares.use((req, res, next) => {
@@ -403,9 +396,9 @@ export function storytreeDataApi(): Plugin {
             if (url.pathname.startsWith('/api/docs')) {
               await handleDocs(req, res, url, paths);
             } else if (url.pathname === '/api/comments') {
-              await handleComments(req, res, url, paths);
+              await handleComments(req, res, url, backend);
             } else if (url.pathname === '/api/assets') {
-              await handleAssets(req, res, url, paths);
+              await handleAssets(req, res, url, backend);
             } else {
               throw new HttpError(404, 'unknown endpoint');
             }

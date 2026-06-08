@@ -1,0 +1,339 @@
+// LibraryBackend — the persistence seam behind the studio dev API's /api/assets and
+// /api/comments endpoints (see server/devApi.ts). The HTTP handlers parse + validate the
+// request, stamp ids/timestamps, and map errors to status codes; the backend just persists.
+//
+// Two implementations sit behind the SAME interface so the /api/* request/response shapes the
+// React client sees are byte-identical regardless of where state lives:
+//   • JsonBackend — the original behaviour: reads/writes apps/studio/data/{assets,comments}.json.
+//     The DEFAULT (offline dev). Selected when STORYTREE_STUDIO_STORE is unset / not 'pg'.
+//   • PgBackend — the live shared Cloud SQL Postgres store (packages/store): a PgLibraryStore for
+//     assets (stored as rendered GuidanceAsset docs) + a PgCommentStore for comments. Selected by
+//     STORYTREE_STUDIO_STORE='pg'. Built lazily (first pg use) so the JSON default never touches pg.
+//
+// Asset write semantics (pg): editing a structured Knowledge unit stores it in RENDERED form (the
+// GuidanceAsset doc), one-way — apps/studio/data/knowledge.json stays the structured authoring
+// source. Reads render each stored Library doc back into the GuidanceAsset wire shape via
+// renderStoredDoc (a structured unit → renderBody(doc); a doc that already has a string body →
+// served as-is).
+
+import { promises as fs, existsSync } from 'node:fs';
+import path from 'node:path';
+import type {
+  AssetCategory,
+  Comment,
+  GuidanceAsset,
+} from '../src/types';
+
+/** Fields the API validates from a create/update asset request (no server-stamped timestamps). */
+export interface AssetInput {
+  id: string;
+  category: AssetCategory;
+  title: string;
+  description: string;
+  body: string;
+  references: string[];
+}
+
+/** Filter for listing comments: by topic id and/or topic kind (mirrors the JSON dev API filter). */
+export interface CommentFilter {
+  topicId?: string;
+  topicKind?: 'doc' | 'asset';
+}
+
+/** A partial update to a comment, as the API derives it from a PATCH body. */
+export interface CommentPatch {
+  body?: string;
+  resolved?: boolean;
+  resolvedAt?: string | null;
+}
+
+/** Thrown by createAsset when an asset with the requested id already exists (→ HTTP 409). */
+export class AssetConflictError extends Error {
+  constructor(public readonly assetId: string) {
+    super(`an asset with id "${assetId}" already exists`);
+    this.name = 'AssetConflictError';
+  }
+}
+
+/**
+ * The persistence seam. Assets and comments only. Docs (/api/docs) are NOT here — they are read
+ * live from the filesystem and never touch the store.
+ */
+export interface LibraryBackend {
+  listAssets(): Promise<GuidanceAsset[]>;
+  /** Throws {@link AssetConflictError} if `input.id` already exists. */
+  createAsset(input: AssetInput): Promise<GuidanceAsset>;
+  /** Returns the updated asset, or `null` if `id` does not exist. */
+  updateAsset(id: string, input: AssetInput): Promise<GuidanceAsset | null>;
+  /** Returns `true` if a row was removed, `false` if `id` did not exist. */
+  deleteAsset(id: string): Promise<boolean>;
+
+  listComments(filter: CommentFilter): Promise<Comment[]>;
+  createComment(comment: Comment): Promise<Comment>;
+  /** Returns the merged comment, or `null` if `id` does not exist. */
+  updateComment(id: string, patch: CommentPatch): Promise<Comment | null>;
+  /** Returns `true` if a row was removed, `false` if `id` did not exist. */
+  deleteComment(id: string): Promise<boolean>;
+
+  /** Release any resources (the pg pool). No-op for the JSON backend. */
+  close(): Promise<void>;
+}
+
+// ---------------------------------------------------------------------------
+// JsonBackend — the original data/*.json behaviour, refactored out of the handlers.
+// ---------------------------------------------------------------------------
+
+async function readStore<T>(file: string, fallback: T): Promise<T> {
+  if (!existsSync(file)) return fallback;
+  const raw = await fs.readFile(file, 'utf8');
+  return raw.trim() ? (JSON.parse(raw) as T) : fallback;
+}
+
+async function writeStore(file: string, data: unknown): Promise<void> {
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.writeFile(file, JSON.stringify(data, null, 2) + '\n', 'utf8');
+}
+
+export class JsonBackend implements LibraryBackend {
+  readonly #assetsFile: string;
+  readonly #commentsFile: string;
+
+  constructor(opts: { assetsFile: string; commentsFile: string }) {
+    this.#assetsFile = opts.assetsFile;
+    this.#commentsFile = opts.commentsFile;
+  }
+
+  async listAssets(): Promise<GuidanceAsset[]> {
+    return readStore<GuidanceAsset[]>(this.#assetsFile, []);
+  }
+
+  async createAsset(input: AssetInput): Promise<GuidanceAsset> {
+    const assets = await this.listAssets();
+    if (assets.some((a) => a.id === input.id)) throw new AssetConflictError(input.id);
+    const now = new Date().toISOString();
+    const asset: GuidanceAsset = { ...input, createdAt: now, updatedAt: now };
+    assets.push(asset);
+    await writeStore(this.#assetsFile, assets);
+    return asset;
+  }
+
+  async updateAsset(id: string, input: AssetInput): Promise<GuidanceAsset | null> {
+    const assets = await this.listAssets();
+    const idx = assets.findIndex((a) => a.id === id);
+    if (idx === -1) return null;
+    const existing = assets[idx] as GuidanceAsset;
+    const next: GuidanceAsset = {
+      ...input,
+      id: existing.id,
+      createdAt: existing.createdAt,
+      updatedAt: new Date().toISOString(),
+    };
+    assets[idx] = next;
+    await writeStore(this.#assetsFile, assets);
+    return next;
+  }
+
+  async deleteAsset(id: string): Promise<boolean> {
+    const assets = await this.listAssets();
+    const next = assets.filter((a) => a.id !== id);
+    if (next.length === assets.length) return false;
+    await writeStore(this.#assetsFile, next);
+    return true;
+  }
+
+  async listComments(filter: CommentFilter): Promise<Comment[]> {
+    const comments = await readStore<Comment[]>(this.#commentsFile, []);
+    return comments.filter(
+      (c) =>
+        (filter.topicId === undefined || c.topicId === filter.topicId) &&
+        (filter.topicKind === undefined || c.topicKind === filter.topicKind),
+    );
+  }
+
+  async createComment(comment: Comment): Promise<Comment> {
+    const comments = await readStore<Comment[]>(this.#commentsFile, []);
+    comments.push(comment);
+    await writeStore(this.#commentsFile, comments);
+    return comment;
+  }
+
+  async updateComment(id: string, patch: CommentPatch): Promise<Comment | null> {
+    const comments = await readStore<Comment[]>(this.#commentsFile, []);
+    const idx = comments.findIndex((c) => c.id === id);
+    if (idx === -1) return null;
+    const existing = comments[idx] as Comment;
+    const next: Comment = { ...existing };
+    if (patch.body !== undefined) next.body = patch.body;
+    if (patch.resolved !== undefined) {
+      next.resolved = patch.resolved;
+      next.resolvedAt = patch.resolved ? new Date().toISOString() : null;
+    }
+    comments[idx] = next;
+    await writeStore(this.#commentsFile, comments);
+    return next;
+  }
+
+  async deleteComment(id: string): Promise<boolean> {
+    const comments = await readStore<Comment[]>(this.#commentsFile, []);
+    const next = comments.filter((c) => c.id !== id);
+    if (next.length === comments.length) return false;
+    await writeStore(this.#commentsFile, next);
+    return true;
+  }
+
+  async close(): Promise<void> {
+    /* no resources to release */
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PgBackend — the live Cloud SQL Postgres store (lazy pool).
+// ---------------------------------------------------------------------------
+
+// Imported by name (cross-package, ESM). createPool builds the keyless-IAM pool; PgLibraryStore +
+// PgCommentStore + renderStoredDoc are the Stage-1 store APIs.
+import {
+  createPool,
+  closePool,
+  PgLibraryStore,
+  PgCommentStore,
+  renderStoredDoc,
+  type PoolHandle,
+} from '@storytree/store';
+
+const DEFAULT_ACTOR = 'operator';
+
+/** Coerce a rendered store doc (category: string) into the GuidanceAsset wire shape. */
+function toGuidanceAsset(rendered: {
+  id: string;
+  category: string;
+  title: string;
+  description: string;
+  body: string;
+  references: string[];
+  createdAt: string;
+  updatedAt: string;
+}): GuidanceAsset {
+  return {
+    id: rendered.id,
+    category: rendered.category as AssetCategory,
+    title: rendered.title,
+    description: rendered.description,
+    body: rendered.body,
+    references: rendered.references,
+    createdAt: rendered.createdAt,
+    updatedAt: rendered.updatedAt,
+  };
+}
+
+export class PgBackend implements LibraryBackend {
+  #handle: PoolHandle | null = null;
+  #library: PgLibraryStore | null = null;
+  #comments: PgCommentStore | null = null;
+
+  /** Build the pool + stores on first use (the JSON default must never touch pg). */
+  async #ready(): Promise<{ library: PgLibraryStore; comments: PgCommentStore }> {
+    if (this.#library === null || this.#comments === null) {
+      const handle = await createPool();
+      this.#handle = handle;
+      this.#library = new PgLibraryStore(handle.pool);
+      this.#comments = new PgCommentStore(handle.pool);
+    }
+    return { library: this.#library, comments: this.#comments };
+  }
+
+  async listAssets(): Promise<GuidanceAsset[]> {
+    const { library } = await this.#ready();
+    const docs = await library.queryDocs();
+    return docs.map((d) => toGuidanceAsset(renderStoredDoc(d)));
+  }
+
+  async createAsset(input: AssetInput): Promise<GuidanceAsset> {
+    const { library } = await this.#ready();
+    if (await library.getDoc(input.id)) throw new AssetConflictError(input.id);
+    const stored = await library.upsertDoc({
+      id: input.id,
+      kind: input.category,
+      doc: input,
+      actor: DEFAULT_ACTOR,
+    });
+    return toGuidanceAsset(renderStoredDoc(stored));
+  }
+
+  async updateAsset(id: string, input: AssetInput): Promise<GuidanceAsset | null> {
+    const { library } = await this.#ready();
+    if (!(await library.getDoc(id))) return null;
+    const stored = await library.upsertDoc({
+      id,
+      kind: input.category,
+      doc: { ...input, id },
+      actor: DEFAULT_ACTOR,
+    });
+    return toGuidanceAsset(renderStoredDoc(stored));
+  }
+
+  async deleteAsset(id: string): Promise<boolean> {
+    const { library } = await this.#ready();
+    return library.deleteDoc(id);
+  }
+
+  async listComments(filter: CommentFilter): Promise<Comment[]> {
+    const { comments } = await this.#ready();
+    const list = await comments.list(filter);
+    return list as Comment[];
+  }
+
+  async createComment(comment: Comment): Promise<Comment> {
+    const { comments } = await this.#ready();
+    const created = await comments.create(comment, DEFAULT_ACTOR);
+    return created as Comment;
+  }
+
+  async updateComment(id: string, patch: CommentPatch): Promise<Comment | null> {
+    const { comments } = await this.#ready();
+    // resolvedAt is derived here (mirroring the JSON backend) so the stored doc matches the wire shape.
+    const merge: { body?: string; resolved?: boolean; resolvedAt?: string | null } = {};
+    if (patch.body !== undefined) merge.body = patch.body;
+    if (patch.resolved !== undefined) {
+      merge.resolved = patch.resolved;
+      merge.resolvedAt = patch.resolved ? new Date().toISOString() : null;
+    }
+    const merged = await comments.update(id, merge, DEFAULT_ACTOR);
+    return merged as Comment | null;
+  }
+
+  async deleteComment(id: string): Promise<boolean> {
+    const { comments } = await this.#ready();
+    return comments.remove(id, DEFAULT_ACTOR);
+  }
+
+  async close(): Promise<void> {
+    if (this.#handle) {
+      await closePool(this.#handle.pool, this.#handle.connector);
+      this.#handle = null;
+      this.#library = null;
+      this.#comments = null;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Backend selection.
+// ---------------------------------------------------------------------------
+
+export type StudioStore = 'json' | 'pg';
+
+/** The active backend kind, from STORYTREE_STUDIO_STORE ('pg' → pg, else json — the default). */
+export function selectedStore(): StudioStore {
+  return process.env['STORYTREE_STUDIO_STORE'] === 'pg' ? 'pg' : 'json';
+}
+
+/** Build the backend for the active store. The pg pool inside PgBackend is still created lazily. */
+export function createBackend(opts: {
+  assetsFile: string;
+  commentsFile: string;
+}): LibraryBackend {
+  return selectedStore() === 'pg'
+    ? new PgBackend()
+    : new JsonBackend({ assetsFile: opts.assetsFile, commentsFile: opts.commentsFile });
+}

@@ -161,16 +161,17 @@ export class InMemoryStore implements Store {
 }
 
 /**
- * A `template` library artifact. Templates are GENERATED views of the schema (generateTemplate over
- * KIND_SPECS), not structured source units, so they carry no per-kind fields — they are first-class
- * Library artifacts only in their rendered {@link https://|GuidanceAsset} form (`category: 'template'`,
- * a markdown `body`). They are stored so the DB holds the COMPLETE Library (all artifacts the studio
- * shows), not just the structured-source units. The 6 `template-<kind>` units + `template-adr`.
+ * A rendered (markdown-`body`) library artifact at the write boundary — the GuidanceAsset shape the
+ * studio persists when it edits ANY non-structured-source unit. Unlike a structured {@link Knowledge}
+ * unit (whose body is DERIVED from per-kind fields), a LibraryAsset carries the markdown `body`
+ * directly and its `category` is a free string (the asset taxonomy: definition / principle / pattern /
+ * guardrail / techstack / template / adr / open-question). This is how the studio stores an edited
+ * unit (one-way rendered) and the generated `template-*` artifacts (which have no structured source).
  */
-export const LibraryTemplate = z
+export const LibraryAsset = z
   .object({
     id: z.string(),
-    category: z.literal("template"),
+    category: z.string(),
     title: z.string(),
     description: z.string(),
     body: z.string(),
@@ -179,21 +180,29 @@ export const LibraryTemplate = z
     updatedAt: z.string().optional(),
   })
   .strict();
-export type LibraryTemplate = z.infer<typeof LibraryTemplate>;
+export type LibraryAsset = z.infer<typeof LibraryAsset>;
+
+/**
+ * Back-compat alias: a `template` artifact is just a {@link LibraryAsset} with `category: 'template'`.
+ * Kept so existing importers of `LibraryTemplate` keep working after the generalisation.
+ */
+export const LibraryTemplate = LibraryAsset;
+export type LibraryTemplate = LibraryAsset;
 
 /**
  * A library artifact at the write boundary: a structured {@link Knowledge} unit (definition /
- * principle / pattern / guardrail / techstack / open-question) OR a generated {@link LibraryTemplate}.
- * Together these are every artifact the studio Library shows.
+ * principle / pattern / guardrail / techstack / open-question) OR a rendered {@link LibraryAsset}
+ * (markdown-`body`, any category — templates and previously-edited assets). Together these are every
+ * artifact the studio Library shows.
  */
-export const LibraryDoc = z.union([Knowledge, LibraryTemplate]);
+export const LibraryDoc = z.union([Knowledge, LibraryAsset]);
 export type LibraryDoc = z.infer<typeof LibraryDoc>;
 
 /**
  * The zod write-boundary validator for library documents (ADR-0017: zod-validated at write). Accepts
- * a structured {@link Knowledge} unit or a generated {@link LibraryTemplate}. Throws on malformed
- * input (loud write boundary). (ADR-0019's Knowledge->Library rename is deferred, so the structured
- * type name stays `Knowledge`.)
+ * a structured {@link Knowledge} unit or a rendered {@link LibraryAsset} (any category). Throws on
+ * malformed input (loud write boundary). (ADR-0019's Knowledge->Library rename is deferred, so the
+ * structured type name stays `Knowledge`.)
  */
 export function validateLibraryDoc(input: unknown): LibraryDoc {
   return LibraryDoc.parse(input);
