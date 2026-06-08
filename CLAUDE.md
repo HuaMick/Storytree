@@ -54,15 +54,31 @@ Run `pnpm -r test` before assuming anything is unbuilt. The packages:
 
 ## Library / knowledge tier — where the source of truth is
 
-- **STRUCTURED SOURCE (edit here):** `apps/studio/data/knowledge.json` (74 units, zod-validated).
-- **GENERATOR:** `apps/studio/data/build-corpus.mjs` → `apps/studio/data/assets.json` +
-  `docs/glossary.md`. These are **generated views — never hand-edit them**; re-run the generator
-  (`npx tsx apps/studio/data/build-corpus.mjs`) after editing `knowledge.json`.
-- **LIVE RUNTIME COPY:** the shared Cloud SQL Postgres (`events.library_artifact` projection +
-  `events.library_event` log), loaded via `packages/store/src/load-corpus.ts`.
-- **STOPGAP:** `apps/studio/server/devApi.ts` still reads/writes the `data/*.json` files and calls
-  itself "the whole backend, no database." That's pre-DB. The **studio↔store swap is PENDING** — don't
-  treat the JSON as the live store, and don't hand-edit `assets.json` (the generator clobbers it).
+**As of ADR-0023, the shared Cloud SQL Postgres store is the LIVE source of truth for artifact
+state; `knowledge.json` is the migration seed/export, not the edit-here surface.** This is what lets
+multiple sessions iterate on different artifacts in parallel (per-id rows, transactional upserts — no
+file conflicts).
+
+- **ITERATE ON ARTIFACTS (multiple parallel sessions OK):** use the CLI against the live DB —
+  `pnpm storytree library artifact edit <id> --set <field>=<value> --pg` and
+  `pnpm storytree library artifact new --file <doc.json> --pg` (writes are refused without `--pg`;
+  bring the DB up first with `pnpm db:up`). Different artifacts never contend; **same** artifact
+  across sessions is not yet coordinated (ADR-0009 claims are DBOS-deferred). **Do NOT hand-edit
+  `knowledge.json` for live changes, and do NOT run `load-corpus.ts --force` against a live DB with
+  CLI edits — it reverts them.**
+  *(Invocation note: `pnpm storytree …` forwards every flag EXCEPT `--json` — pnpm reserves that —
+  so pass a doc via `--file`, or use inline `--json` only via `npx tsx packages/cli/src/main.ts …`.)*
+- **EXPLORE (read, offline OK):** `storytree library` (dashboard) · `… artifact <id>` ·
+  `… artifact list <category>` · `… library tree focus <id>` — choose-your-own-adventure, just-in-time
+  (ADR-0023). Read commands run offline (in-memory seed); no DB needed.
+- **SEED / EXPORT VIEW:** `apps/studio/data/knowledge.json` (the structured corpus the DB was migrated
+  from) + the **generated** `apps/studio/data/assets.json` + `docs/glossary.md` (via
+  `npx tsx apps/studio/data/build-corpus.mjs`; never hand-edit the generated two). These reflect the
+  seed, not live CLI edits — a DB→seed export is later work.
+- **STUDIO UI (one parallel session at a time):** run it in store mode —
+  `STORYTREE_STUDIO_STORE=pg pnpm --filter studio dev` — to read/write the live DB and see CLI edits.
+  Unset, it falls back to the pre-DB JSON backend (`apps/studio/server/devApi.ts`), which won't reflect
+  CLI writes. Keep the UI session out of artifact data; keep artifact sessions out of `apps/studio/src`.
 
 ## How to run
 
@@ -77,7 +93,11 @@ Run `pnpm -r test` before assuming anything is unbuilt. The packages:
   Run the library migration: `STORYTREE_DB_USER=<iam-email> npx tsx packages/store/src/load-corpus.ts`.
 - Prove-it-gate: `packages/orchestrator/src/prove-it-gate.ts` (+ `.e2e.test.ts`). Red-green is enforced
   spine-side (phase machine + per-phase write-scope + spine-observed RED/GREEN + a signed verdict).
-- Studio UI: `pnpm --filter studio dev` (Vite, port 5173).
+- Library CLI (ADR-0023): `pnpm storytree library` (explore; offline). Writes need the live DB:
+  `pnpm db:up` then `pnpm storytree library artifact edit <id> --set <field>=<value> --pg`. See the
+  Library section above (note: inline `--json` needs `npx tsx packages/cli/src/main.ts`, not `pnpm`).
+- Studio UI: `pnpm --filter studio dev` (Vite, port 5173); add `STORYTREE_STUDIO_STORE=pg` to back it
+  with the live store (so it reflects CLI edits).
 
 ## Legacy — `legacy/Agentic/` is REFERENCE-ONLY
 
@@ -87,7 +107,7 @@ foundation was ported *conceptually* from it (see `docs/research/agentic-foundat
 
 ## Load-bearing ADRs
 
-`docs/decisions/` runs **0001–0021 on `main`** (if `MEMORY.md` mentions 0024–0028, those are other
+`docs/decisions/` runs **0001–0023 on `main`** (if `MEMORY.md` mentions 0024–0028, those are other
 branches — calibrate to what's on disk). Read the older ADRs' **Status lines first** (many are
 superseded-in-part). The current-state set:
 
@@ -97,6 +117,8 @@ superseded-in-part). The current-state set:
 - **0019** — the tier is named "library"; **DBOS deferred** ← the big one
 - **0020** — red-green enforcement on the owned loop (the gate is built)
 - **0021** — keyless agent/DB auth; the Phase-2 migration ran
+- **0022** — CI green gate + auto-merge-on-green (inside free Actions)
+- **0023** — agent↔Library interaction is a choose-your-own-adventure CLI (`packages/cli`)
 
 ## Conventions
 
