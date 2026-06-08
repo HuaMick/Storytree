@@ -45,12 +45,15 @@ jobs:
 
       # @storytree/core corpus validation + the node:test suites across packages.
       # This is the gate per CLAUDE.md ("Gate: pnpm -r typecheck · pnpm -r test").
-      # `pnpm -r build` is intentionally NOT run: packages export raw TS, and the
-      # only buildable target (apps/studio) currently fails to `vite build`
-      # (its devApi pulls in the Node-only @storytree/store) — a pre-existing
-      # issue tracked separately, not a gate concern.
       - name: Test
         run: pnpm -r test
+
+      # The only buildable target is apps/studio (`vite build`); the packages
+      # export raw TS and have no build step. studio's `vite build` used to fail
+      # because its dev API pulled the Node-only @storytree/store into config load;
+      # that store import is now lazy, so the gate verifies the client build too.
+      - name: Build
+        run: pnpm -r build
 
   # ---------------------------------------------------------------------------
   # Auto-merge-on-green, done inside free Actions (GitHub-native auto-merge is
