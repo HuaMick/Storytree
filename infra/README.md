@@ -31,14 +31,43 @@ terraform output instance_connection_name      # the non-secret string sessions 
 
 ## Cost posture — stop when idle (ADR-0015 §5)
 
-Stop/start is out-of-band (not in Terraform, so it isn't treated as drift):
+Stop/start is out-of-band (not in Terraform, so it isn't treated as drift). Use the
+package.json scripts (root) for manual control:
 
 ```bash
-gcloud sql instances patch storytree-pg --activation-policy NEVER    # stop  → ~$3-5/mo (storage only)
-gcloud sql instances patch storytree-pg --activation-policy ALWAYS   # start → ~1-2 min cold start
+pnpm db:up        # start → ~1-2 min cold start (activation-policy ALWAYS)
+pnpm db:down      # stop  → ~$3-5/mo, storage only (activation-policy NEVER)
+pnpm db:status    # show state + activation policy
 ```
 
-Scriptable via Cloud Scheduler later. Tear the whole thing down with `terraform destroy`.
+### Auto-stop is idle-aware (`idle-stop.tf`)
+
+Two Terraform-managed mechanisms keep a forgotten instance from bleeding ~$25/mo —
+**without** stopping one you're actively using:
+
+1. **Idle-aware Cloud Function** (`storytree-pg-idle-stop`, source in `functions/idle-stop/`)
+   — Cloud Scheduler pings it every 15 min (`idle_check_schedule`). It reads the Cloud
+   Monitoring `database/network/connections` metric and stops the instance **only after
+   `idle_minutes` (default 60) with zero DB connections**. While a session / the Cloud SQL
+   Auth Proxy holds a connection, the timer never fires — so it "counts from the last
+   request" and won't kill live work. It runs as a least-privilege SA (`sql-idle-stopper`:
+   `roles/cloudsql.editor` + `roles/monitoring.viewer`, no keys) and is invoked privately
+   by the scheduler over an OIDC token (not public). On any error, or when metric data is
+   missing (e.g. a freshly-started instance), it **does not stop** and logs loudly.
+
+2. **Daily hard floor** (`storytree-pg-stop-backstop`, `cost-backstop.tf`) — the original
+   blunt cron, relaxed from **hourly to daily** (04:30 Australia/Sydney). It stops the
+   instance unconditionally, on purpose: it's the last line of cost defense for the case
+   where the idle function is itself broken. (It used to be hourly, which is what stopped an
+   instance mid-session.)
+
+Tune via `terraform apply -var=idle_minutes=120` (or set it in `terraform.tfvars`).
+
+> **Known gap:** an Auth Proxy left running in the background keeps a connection open, so
+> the idle function will treat the instance as "active" indefinitely — the daily floor is
+> what catches that. Close the proxy (or `pnpm db:down`) when you finish a burst.
+
+Tear the whole thing down with `terraform destroy`.
 
 ## Connect locally (after apply)
 

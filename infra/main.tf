@@ -11,6 +11,10 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 6.0"
     }
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.4"
+    }
   }
   # Remote state in GCS so it survives worktree disposal and is reachable from
   # any checkout (the infra now lives on main). Bucket has versioning on for
@@ -47,7 +51,7 @@ resource "google_sql_database_instance" "storytree" {
   region           = var.region
 
   settings {
-    edition           = "ENTERPRISE" # shared-core tiers (db-g1-small) require ENTERPRISE, not ENTERPRISE_PLUS
+    edition           = "ENTERPRISE"  # shared-core tiers (db-g1-small) require ENTERPRISE, not ENTERPRISE_PLUS
     tier              = "db-g1-small" # ~$25/mo always-on; ~$3-5/mo stopped (storage only)
     availability_type = "ZONAL"       # no HA — single operator
     disk_size         = 10

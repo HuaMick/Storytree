@@ -1,20 +1,21 @@
-# Cost backstop (ADR-0015 §5). A Cloud Scheduler job forces storytree-pg to
-# STOPPED hourly, so an instance left running — by a crash, a forgotten manual
-# start, or a future orchestrator bug — cannot quietly bleep ~$25/mo.
+# Cost backstop FLOOR (ADR-0015 §5). A Cloud Scheduler job forces storytree-pg to
+# STOPPED once a DAY, so an instance left running — by a crash, a forgotten manual
+# start, or a broken idle-checker — cannot quietly bleed ~$25/mo for more than a day.
 #
-# Deliberately BLUNT: it stops unconditionally, with no idle-awareness. That is
-# correct as a safety net but means it will also stop an instance you started
-# manually within the hour (until the orchestrator's own wake-on-demand +
-# idle-stop lands and this becomes a pure backstop). Start work with `db:up`
-# (root package.json); it re-stops within ≤1h of that start regardless.
+# This is the BLUNT floor BEHIND the idle-aware function (idle-stop.tf), which does
+# the real day-to-day stopping: it stops only after a sustained-idle window and so
+# never kills a live session. Because the idle function is the primary mechanism,
+# this cron was relaxed from hourly (which stopped the owner's instance mid-work) to
+# DAILY, run at a quiet hour — its sole job now is to catch the case where the idle
+# function is itself broken (then it's the last line of cost defense). It stays
+# deliberately unconditional/dumb ON PURPOSE: a smarter floor that shared the idle
+# function's code could share its bug. Start work with `db:up` (root package.json).
 #
 # Validated 2026-06-06: against a RUNNING instance the job succeeds and stops it
 # (the sql-stopper SA issues the UPDATE). Against an ALREADY-STOPPED instance the
 # Cloud SQL API returns a benign 400 ("properties other than activation policy
-# ... when stopped") and the job logs a failed execution — harmless (it's a
-# no-op) but expect failed runs in the job history during idle periods. An
-# idle-aware version (a tiny Cloud Function: stop only if RUNNABLE) would remove
-# that noise; deferred as disproportionate for a single-operator backstop.
+# ... when stopped") and the job logs a failed execution — harmless (it's a no-op).
+# At a daily cadence that benign failure shows up at most once a day, not hourly.
 
 resource "google_project_service" "scheduler" {
   service            = "cloudscheduler.googleapis.com"
@@ -36,9 +37,9 @@ resource "google_project_iam_member" "sql_stopper_editor" {
 
 resource "google_cloud_scheduler_job" "stop_db" {
   name        = "storytree-pg-stop-backstop"
-  description = "Forces storytree-pg to STOPPED hourly (cost safety net)"
+  description = "Forces storytree-pg to STOPPED once daily (hard cost floor behind the idle-aware function)"
   region      = var.region
-  schedule    = "0 * * * *" # top of every hour
+  schedule    = "30 4 * * *" # 04:30 Australia/Sydney — a quiet hour; daily floor only
   time_zone   = "Australia/Sydney"
 
   http_target {

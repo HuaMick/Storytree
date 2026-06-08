@@ -152,13 +152,30 @@ three pieces:
   (studio → orchestrator → PG), so it can measure idleness and, after X min with **no
   active/pending DBOS workflows**, stop the instance. Stopping a merely paused-and-durable
   workflow is safe (it resumes on next wake); stopping mid-step is not — hence the gate. (Seam
-  now; auto-timer deferred until sessions are frequent enough to warrant it.)
-- **Cron backstop — the part that's built.** A **Cloud Scheduler** job (`storytree-pg-stop-backstop`,
-  hourly) forces the instance to STOPPED via the Admin API under a least-privilege `sql-stopper`
-  service account (`roles/cloudsql.editor`, no key). This caps the cost of a crash-without-stop or
-  a forgotten manual start at ≤1h. It is deliberately blunt (unconditional stop); validated to
-  stop a running instance, and a benign no-op (logged 400) when already stopped. An idle-aware
-  Cloud Function would remove that log noise — deferred. See `infra/cost-backstop.tf`.
+  now; the orchestrator-internal auto-timer is still deferred — but an **external** idle-stop
+  now exists, see the next bullet.)
+- **Idle-aware auto-stop — BUILT (resolves the deferred Cloud Function).** A Gen2 **Cloud
+  Function** (`storytree-pg-idle-stop`, `infra/idle-stop.tf` + `infra/functions/idle-stop/`),
+  fired by Cloud Scheduler every 15 min, stops the instance **only after `idle_minutes`
+  (default 60) with zero DB connections** — read from the Cloud Monitoring
+  `database/network/connections` metric. While a session / the Auth Proxy holds a connection
+  the timer never fires, so it "counts from the last request" and **does not stop an instance
+  in active use** (the failure the blunt hourly cron caused, fixed here). It runs under a
+  least-privilege `sql-idle-stopper` SA (`roles/cloudsql.editor` + `roles/monitoring.viewer`,
+  no key), invoked privately by a scheduler SA over OIDC. Fail-safe: on any error, or when
+  metric data is absent (freshly-started instance), it does **not** stop and logs loudly —
+  killing a live session because the checker hiccuped is the failure mode being avoided.
+  **Update (2026-06-08):** this supersedes the "idle-aware Cloud Function … deferred" note
+  below; the deferral is now resolved.
+- **Cron backstop — now the DAILY hard floor behind the idle function.** A **Cloud Scheduler**
+  job (`storytree-pg-stop-backstop`) forces the instance to STOPPED via the Admin API under a
+  least-privilege `sql-stopper` service account (`roles/cloudsql.editor`, no key). It is
+  deliberately blunt (unconditional stop) — and stays that way on purpose: a smarter floor that
+  shared the idle function's code could share its bug. With the idle function now doing the
+  real day-to-day stopping, this cron was **relaxed from hourly to daily** (04:30
+  Australia/Sydney, a quiet hour); its sole remaining job is to cap cost at ≤1 day if the idle
+  function is itself broken. Validated to stop a running instance, and a benign no-op (logged
+  400) when already stopped — now at most once a day, not hourly. See `infra/cost-backstop.tf`.
 
 ### 6. Migration off repo JSON
 
