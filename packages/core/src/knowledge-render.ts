@@ -8,8 +8,9 @@ import { KIND_SPECS, type Knowledge, type KnowledgeKind } from "./knowledge.js";
  * Layout: the lead field renders as `${heading} ${value}` (e.g. `**In one line.** ...`),
  * then each present non-lead field renders as `## ${heading}\n\n${value}`. Blocks are joined
  * by a blank line (`\n\n`). Optional fields that are absent emit nothing — never an empty
- * heading. The `## See also` heading is therefore emitted only when its field is present
- * (for current units it always is, carrying the provenance line verbatim).
+ * heading. Citations are NOT part of the body: there is no `## See also` section — related
+ * material is the structured `references` field, rendered separately as a grouped "Sources"
+ * view (see `groupSources` in knowledge-sources.ts).
  *
  * This is the inverse of the per-kind parse rules and reproduces the stored bodies
  * byte-for-byte for round-trip fidelity.

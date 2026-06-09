@@ -92,9 +92,15 @@ export interface GuidanceAsset {
   body: string;
   /**
    * Topic refs this artifact points at: "doc:<relpath>" (e.g. its source ADR) or
-   * "asset:<id>". The seed of v1's reciprocity-checked `current_consumers`.
+   * "asset:<id>". The SINGLE citation source — rendered grouped-by-type as "Sources"
+   * (no body `## See also`). The seed of v1's reciprocity-checked `current_consumers`.
    */
   references: string[];
+  /**
+   * Optional attribution prose shown under Sources that a bare pointer can't carry —
+   * origin ("Imported from v1"), deferral, or "still open" caveats. Markdown.
+   */
+  provenance?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -107,6 +113,7 @@ export interface AssetInput {
   description: string;
   body: string;
   references: string[];
+  provenance?: string;
 }
 
 /** Lightweight listing entry for a document topic. */

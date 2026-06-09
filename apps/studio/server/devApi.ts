@@ -288,6 +288,7 @@ function readAssetInput(input: Record<string, unknown>): AssetInput {
   if (!title) throw new HttpError(400, 'title is required');
   if (!description) throw new HttpError(400, 'description is required');
   if (!body) throw new HttpError(400, 'body is required');
+  const provenance = asString(input.provenance).trim();
   return {
     id,
     category,
@@ -295,6 +296,7 @@ function readAssetInput(input: Record<string, unknown>): AssetInput {
     description,
     body,
     references: asStringArray(input.references),
+    ...(provenance ? { provenance } : {}),
   };
 }
 

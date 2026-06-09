@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 
 import type { Store, StoredDoc } from "@storytree/core";
-import { validateLibraryDoc } from "@storytree/core";
+import { validateLibraryDoc, groupSources } from "@storytree/core";
 import { renderStoredDoc } from "@storytree/store";
 
 import type { Envelope } from "./envelope.js";
@@ -131,9 +131,20 @@ export async function viewArtifact(store: Store, id: string): Promise<Envelope> 
   const lines: string[] = [`# ${a.title}    [${a.category}]`, `id: ${a.id}`, ""];
   if (a.description) lines.push(a.description, "");
   lines.push(a.body);
-  if (a.references.length > 0) {
-    lines.push("", "references:", ...a.references.map((r) => `  - ${r}`));
+  // "Sources": references grouped by target type, resolved against the corpus (asset:<id> -> kind).
+  const byId = new Map((await store.queryDocs()).map((d) => [d.id, d] as const));
+  const sources = groupSources(a.references, (refId) => {
+    const t = byId.get(refId);
+    return t ? { kind: t.kind, title: fieldOf(t, "title") } : null;
+  });
+  if (sources.length > 0) {
+    lines.push("", "Sources:");
+    for (const group of sources) {
+      lines.push(`  ${group.group}:`);
+      for (const item of group.items) lines.push(`    - ${item.label}  (${item.ref})`);
+    }
   }
+  if (a.provenance) lines.push("", `provenance: ${a.provenance}`);
   return {
     ok: true,
     body: lines.join("\n"),
