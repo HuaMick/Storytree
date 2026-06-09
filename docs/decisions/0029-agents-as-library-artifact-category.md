@@ -180,7 +180,37 @@ data model.
    `storytree agents <name>` read its role's `agent` unit as one input, but that binding is ADR-0011
    territory and out of scope here.
 
-7. **Obsolete-as-agent dispositions are recorded too, not silently dropped.** The roster mapping (cited
+7. **Design rule: reference, don't restate — the agent body is an index, not a copy of the doctrine.**
+   An `agent` unit's durable operating discipline lives as **Library artifacts** (`principle` /
+   `guardrail` / `pattern` units), referenced by typed `asset:` / `doc:` pointers in the unit's
+   `requiredReading` and `references`. The artifact body is kept **lean**: the role, the authority
+   boundary, the workflow *shape*, and POINTERS — never restated rule prose. A `rules` /
+   `antiPatterns` entry is a name plus at most a one-line gloss plus the citation; the mechanics,
+   the why, and the lesson live in the cited unit. Role-*specific* shape (an output contract, a
+   fixed taxonomy, a phase boundary) stays in the body — the rule governs *shared doctrine*, the
+   content two or more bodies could otherwise duplicate.
+
+   This is not a new idea; it is the **v2 form of V1's `inputs.yml required_reading` + `assets/`
+   mechanism**, and the lineage did not drift on the way here. V1 kept durable content once under
+   `assets/` and had agent specs point at it: `legacy/Agentic/agents/planner/story-writer/inputs.yml`
+   `required_reading` entries literally say "See assets/definitions/story-schema-contract.yml",
+   "Reference rather than re-paraphrase in story prose", "Cited in process.yml guidance.rules as the
+   edit-default rule" — and `legacy/Agentic/agents/README.md` lists "reference don't restate" among
+   its ten non-negotiable principles, with CLAUDE.md kept as a thin pointer so "a single edit
+   propagates rather than drifting across copies". In v2 the DRY layer IS the Library
+   (ADR-0017/0019/0023), and ADR-0011 owns the delivery mechanism: the context engine injects the
+   referenced unit's content **just-in-time, per step** — guidance is pulled from Library artifacts
+   at the moment it governs an action, not baked into the spec that names the role. One edit to the
+   Library unit propagates to every agent that cites it; a restated copy would drift exactly the way
+   "reference don't restate" exists to stop.
+
+   Mechanically: where a needed unit does not exist yet, the agent draft cites a **candidate** unit
+   (drafted in the Library's structured shape; see `docs/research/agent-guidance-candidates.json`)
+   and marks it `(candidate)` until the owner ratifies it. The blank template's `Rules` placeholder
+   (§3 above) already states the per-field form of this rule; this section makes it a kind-level
+   design invariant rather than a template hint.
+
+8. **Obsolete-as-agent dispositions are recorded too, not silently dropped.** The roster mapping (cited
    below) marks five V1 agents `obsolete` and six `evolve`/`merge`. Both are recorded as `agent` units:
    an obsolete one carries its disposition in `oneLine`/`role` ("Obsolete as a v2 agent; its routing
    body became `packages/orchestrator`") and points `provenance`/`references` at the ADR that absorbed
@@ -274,10 +304,11 @@ the task brief, not re-typed here.
   forgotten enumeration is a red gate, not a silent gap.
 - The `agent` kind deliberately overlaps with `pattern`/`guardrail`/`principle`: an agent's *Rules* and
   *Anti-patterns* often graduate into standalone `pattern`/`guardrail` units (e.g. build-rust's
-  source-fix-not-bandaid → a `principle`). The intended posture (per ADR-0023 §9 / the V1 guidance-
-  writer's reference-don't-restate discipline) is that the `agent` unit's *Rules* field **cites** those
-  units via `references` rather than restating them — the agent unit is the role's index, not a copy of
-  the doctrine.
+  source-fix-not-bandaid → the existing `dogfood-fix-the-source` principle). Decision §7 makes the
+  posture a design invariant: the `agent` unit's *Rules* field **cites** those units via typed refs
+  rather than restating them — the agent unit is the role's index, not a copy of the doctrine. The
+  candidate units the eight drafts need beyond the existing corpus are drafted in
+  `docs/research/agent-guidance-candidates.json`, awaiting ratification alongside the kind itself.
 
 ## Open questions for the owner
 
@@ -293,7 +324,7 @@ the task brief, not re-typed here.
    Library-only — they are roles, not vocabulary — but the owner holds the glossary surface.)
 
 3. **Should obsolete-as-agent units live in the `agent` kind at all, or in a `lifecycle-status`-style
-   note?** Recording dissolutions as `agent` units (decision §7) makes the mapping uniform and
+   note?** Recording dissolutions as `agent` units (decision §8) makes the mapping uniform and
    queryable, but an "obsolete agent" is arguably a *historical* record more than a live role — closer
    to an ADR than an artifact (ADR-0017: "ADRs are history, not artifacts"). Alternative: record only the
    six surviving agents as `agent` units and fold the five obsoletions into this ADR's prose. (Leaning

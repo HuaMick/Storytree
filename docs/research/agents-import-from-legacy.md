@@ -137,6 +137,49 @@ The three **obsolete-as-agent** V1 roles (`session-orchestrator`, `escalation-sc
 `brief-writer`) are *not* drafted as live `agent` units in the array; whether they should be recorded
 as retired-provenance units is open call 4 below.
 
+## DRY retrofit — reference, don't restate (2026-06-10)
+
+The first cut of the eight drafts carried good typed refs but **restated** the shared discipline
+inline at length in `body`/`rules`/`antiPatterns`/`workflow` — preservation-bias, edit-first,
+right-kind-red, partial-Pass-is-Fail and the rest, each copied into the spec that consumed it.
+That is exactly the drift "reference don't restate" exists to stop, and the lineage is direct:
+V1 kept durable content once under `assets/` and had specs point at it (`story-writer/inputs.yml`
+`required_reading`: "Reference rather than re-paraphrase in story prose"; `agents/README.md` lists
+the rule among its ten non-negotiables so "a single edit propagates rather than drifting across
+copies"). In v2 the DRY layer IS the Library (ADR-0017/0019/0023) and ADR-0011's context engine
+injects referenced units just-in-time per step — so the spec should carry pointers, not prose.
+
+The retrofit (now in the drafts; design rule ratified-as-proposed in **ADR-0029 §7**):
+
+- Every restated rule/anti-pattern was audited against the live Library corpus (98 artifacts).
+  Where an existing unit covers it, the draft now cites it — e.g. source-fix-not-bandaid →
+  `asset:dogfood-fix-the-source`; the story-22 hollow-implementation cascade →
+  `asset:implementer-shortcut-patterns`; depth-not-shape → `asset:test-creation-principles`;
+  fixtures → `asset:test-fixtures-mirror-production-failure-modes`; never-self-attest →
+  `asset:agent-never-self-exempts`; clean-tree-at-signing → `asset:fail-closed-on-dirty-tree`;
+  edit-first → `asset:edit-first-curation`; thin-brief/staleness →
+  `asset:pull-based-context-architecture`; propose-don't-promote →
+  `asset:human-owns-the-outer-loop`; no-spawn → `asset:orchestrator-is-sole-fan-out`;
+  verify-persisted → `asset:verify-edit-write-persisted-or-escalate`.
+- Where no unit exists, the discipline moved into a **candidate unit** drafted in the Library's
+  structured shape (KIND_SPECS-conformant fields) in
+  **`docs/research/agent-guidance-candidates.json`**, and the draft cites it marked `(candidate)`.
+  The sixteen candidates: `reference-dont-restate` (the rule itself, as a `principle`),
+  `slow-growth-minimum-to-green`, `baseline-preservation`, `no-claim-without-evidence` (folds the
+  f53caac verbatim-summary lesson, the evidence_path rule, and the works-on-my-machine bar into
+  one), `authoritative-source-beats-derived` (flagged alternative: extend
+  `doc-vs-implementation-precedence` instead), `journey-principle`, `splitting-rule`,
+  `survival-test-for-adrs`, `two-consumer-extraction` (flagged alternative: fold into
+  `edit-first-curation`), `least-authority-tool-grants`, `stateless-vs-stateful-graduation`
+  (principles); `proof-walkthrough-first` (pattern); `right-kind-red`, `spine-observes-red-green`,
+  `partial-pass-is-fail`, `live-store-is-the-edit-surface` (guardrails, each with a deterministic
+  `enforcedBy` in the built gate/CLI).
+- What stayed inline is **role-specific shape** only: the investigator's structured-return
+  contract, the friction taxonomy, the phase write-scope boundaries, the curation step's
+  one-post-one-proposal — content no second body would share.
+- Each draft's `provenance` records the retrofit; the original restated prose is recoverable from
+  git history if a candidate unit needs re-harvesting.
+
 ## Open modeling calls for the owner
 
 These need an owner decision before any of this moves from proposal to the live Library. The first is
@@ -177,3 +220,14 @@ the gating one.
 6. **Drift-guard scope.** Is the `KIND_SPECS` ↔ zod parity test sufficient, or should an
    `agent`-`references`-resolve check be added (WARN → GATE per ADR-0026 §6)? Whether v2 agent names
    should become glossary terms or stay Library-only is a smaller sub-call (leaning Library-only).
+
+7. **Ratify the reference-don't-restate design rule + the candidate guidance units.** ADR-0029 §7
+   now makes "the agent body is an index, not a copy of the doctrine" a kind-level design invariant,
+   and the eight drafts conform to it — which means they now *depend on* the sixteen candidate
+   units in `docs/research/agent-guidance-candidates.json` (the drafts cite them marked
+   `(candidate)`). Ratifying the `agent` kind therefore bundles three sub-calls: (a) accept the
+   design rule itself; (b) accept/trim the candidate list — two candidates carry explicit
+   edit-instead-of-create alternatives (`authoritative-source-beats-derived` →
+   `doc-vs-implementation-precedence`; `two-consumer-extraction` → `edit-first-curation`) per the
+   edit-first discipline; (c) confirm the `(candidate)` markers are stripped as each unit lands in
+   the live Library. None of the candidates is seeded anywhere — they are proposal JSON only.

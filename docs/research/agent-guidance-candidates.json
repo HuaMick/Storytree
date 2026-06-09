@@ -1,0 +1,286 @@
+[
+  {
+    "id": "reference-dont-restate",
+    "kind": "principle",
+    "title": "Reference, don't restate",
+    "description": "Durable discipline lives once in the Library; every other surface cites it via a typed reference, never copies it.",
+    "statement": "Durable discipline lives ONCE as a Library unit; every consumer — an agent spec, a work unit, a report — cites it via a typed `asset:`/`doc:` reference, never restates it in prose.",
+    "why": "Restated prose drifts: when doctrine is copied into N bodies, an edit to the source leaves N-1 stale copies, and no consumer knows which copy is canonical. V1 learned this the hard way and encoded it twice — `agents/README.md` lists \"reference don't restate\" among its ten non-negotiable principles (\"a single edit propagates rather than drifting across copies\"), and `agents/planner/story-writer/inputs.yml` `required_reading` entries say literally \"See assets/definitions/story-schema-contract.yml … Reference rather than re-paraphrase in story prose\". In v2 the pointer is even cheaper to follow: the Library is the durable DRY layer (ADR-0017/0019/0023) and the owned loop's context engine (ADR-0011) injects a referenced unit just-in-time at the step that needs it, so a citation costs nothing at read time and buys one-edit propagation.",
+    "howToApply": "Before writing rule prose into any body, ask: does a Library unit cover this? If yes, cite it (`asset:<id>`) with at most a one-line gloss naming why it binds here. If no, draft the unit and cite it — the prose belongs in the unit, not in the consumer. A consumer body keeps only what is its own: role, authority boundary, workflow shape, and pointers. The smell test: if two bodies could share a paragraph, that paragraph is a unit.",
+    "references": [
+      "doc:decisions/0011-own-the-agent-loop-and-context-engineering.md",
+      "doc:decisions/0017-cross-cutting-knowledge-tier.md",
+      "doc:decisions/0023-library-cli-choose-your-own-adventure.md",
+      "doc:decisions/0029-agents-as-library-artifact-category.md",
+      "asset:signal-and-noise",
+      "asset:edit-first-curation",
+      "asset:pull-based-context-architecture"
+    ],
+    "provenance": "The v2 form of V1's `inputs.yml required_reading` + `assets/` mechanism (`legacy/Agentic/agents/README.md` ten principles; story-writer `inputs.yml`). Consumers: all eight draft `agent` units in docs/research/agent-artifacts-draft.json, plus `signal-and-noise`'s 'link the single source' move and `pull-based-context-architecture`'s 'pointers, not payloads'.",
+    "createdAt": "2026-06-10T00:00:00Z",
+    "updatedAt": "2026-06-10T00:00:00Z"
+  },
+  {
+    "id": "slow-growth-minimum-to-green",
+    "kind": "principle",
+    "title": "Slow growth: the minimum to green",
+    "description": "Write the minimum source that turns one failing test green — no speculative abstraction, dependency, or refactor.",
+    "statement": "Write the minimum source that turns ONE failing test green — no speculative abstraction, no speculative dependency, no wide refactor disguised as a fix.",
+    "why": "Source built ahead of a proving test is unproven surface area: an interface with one implementation, a dependency no test demanded, a refactor smuggled into a fix all add behaviour the red-green cycle never pinned, so the proof ladder attests to less than what shipped.",
+    "howToApply": "Pick the one red test; make the smallest change in the owning package's source that turns it green; iterate one test at a time. Smells: an interface with a single impl, a package added without naming the test that demands it, a diff that touches files the failing test never reaches.",
+    "references": [
+      "doc:decisions/0020-red-green-enforcement-on-the-owned-loop.md",
+      "asset:red-green",
+      "asset:deep-modules"
+    ],
+    "provenance": "Harvested from V1 `build-rust` guidance.rules (slow growth) via the `agent-owned-loop-builder` draft. Consumers: agent-owned-loop-builder.",
+    "createdAt": "2026-06-10T00:00:00Z",
+    "updatedAt": "2026-06-10T00:00:00Z"
+  },
+  {
+    "id": "baseline-preservation",
+    "kind": "principle",
+    "title": "Baseline preservation",
+    "description": "Every test green before your change stays green after it; an existing passing test is never yours to edit.",
+    "statement": "Every test that was green before your change must still be green after it, and an existing passing test is never yours to edit to make your work fit.",
+    "why": "A regression rationalised as \"unrelated\" is how broken trunks accumulate — if a test was green in your baseline and is red after your edit, your edit is the cause until proven otherwise. And editing a passing test to manufacture a red (or dodge one) softens red-state evidence into a convention: the test stops being proof and becomes decoration.",
+    "howToApply": "Record the baseline with a full-suite run at session start; re-run after every change and diff against it. A baseline-green test now red: stop, diagnose, fix within your write scope or escalate — never rationalise. New behaviour gets a NEW test; re-authoring an existing test under a moved contract is the spine/curator's call, not the leaf's.",
+    "references": [
+      "doc:decisions/0020-red-green-enforcement-on-the-owned-loop.md",
+      "asset:red-green",
+      "asset:no-proof-preservation"
+    ],
+    "provenance": "Harvested from V1 `build-rust` (baseline preservation) + `test-builder` (preserve-existing) via the builder and test-author drafts. Consumers: agent-owned-loop-builder, agent-owned-loop-test-author.",
+    "createdAt": "2026-06-10T00:00:00Z",
+    "updatedAt": "2026-06-10T00:00:00Z"
+  },
+  {
+    "id": "right-kind-red",
+    "kind": "guardrail",
+    "title": "The red must be the right kind",
+    "description": "CONFIRM_RED advances only on the red the test pins — missing symbol or failing assertion — never a syntax error or unrelated breakage.",
+    "statement": "A unit's red must be the red its test pins — a missing symbol or a failing assertion — never a syntax error or an unrelated breakage.",
+    "rule": "The CONFIRM_RED phase advances to IMPLEMENT only on an observed red of the right kind: compile-red = the missing symbol the test names; runtime-red = the assertion/panic the test encodes. A syntax error, an unrelated module-level failure, or a test that passes on a fresh tree all fail the phase closed.",
+    "enforcedBy": "`defaultClassifyKind` (packages/orchestrator/src/shell-test-executor.ts) classifies the observed red; `nextPhase(\"CONFIRM_RED\", obs)` (packages/orchestrator/src/phase-machine.ts) gates the transition and fails closed on anything that is not a real, attributable red.",
+    "failureMode": "A wrong-kind red counts as the unit's red, so the subsequent green \"proves\" behaviour no test ever pinned — the gate signs evidence about an accident, not the contract.",
+    "references": [
+      "doc:decisions/0020-red-green-enforcement-on-the-owned-loop.md",
+      "asset:red-green"
+    ],
+    "provenance": "Harvested from V1 `test-builder` (right-kind red) via the `agent-owned-loop-test-author` draft. Consumers: agent-owned-loop-test-author, agent-owned-loop-builder (escalation path).",
+    "createdAt": "2026-06-10T00:00:00Z",
+    "updatedAt": "2026-06-10T00:00:00Z"
+  },
+  {
+    "id": "spine-observes-red-green",
+    "kind": "guardrail",
+    "title": "The spine observes red and green",
+    "description": "RED/GREEN is data the spine derives from a process exit code; a model sentence is never the trust anchor.",
+    "statement": "Red and green are observed by the spine's test executor, never reported by the model.",
+    "rule": "A model sentence — \"tests pass\", \"it fails as expected\" — is never the trust anchor for any phase transition or verdict. RED/GREEN is data the spine derives from a process exit code via the injected TestExecutor; the leaf authors and implements, the executor observes.",
+    "enforcedBy": "The `TestExecutor` seam (`ShellTestExecutor`, packages/orchestrator/src/shell-test-executor.ts): CONFIRM_RED and CONFIRM_GREEN consume `TestObservation`s produced by the spine running the test process — there is no code path by which a leaf's text return feeds the phase machine (ADR-0020 §3).",
+    "failureMode": "Verdicts attest to claims instead of observations: a hallucinated, optimistic, or forged \"pass\" reaches the gate and the signing event certifies something nobody observed.",
+    "references": [
+      "doc:decisions/0020-red-green-enforcement-on-the-owned-loop.md",
+      "asset:agent-never-self-exempts",
+      "asset:reward-hacking"
+    ],
+    "provenance": "Harvested from V1 `test-builder`/`test-uat` (the verdict-recording half that moved spine-side) via the test-author and verdict-hand drafts. Consumers: agent-owned-loop-test-author, agent-prove-it-gate-verdict, agent-owned-loop-builder.",
+    "createdAt": "2026-06-10T00:00:00Z",
+    "updatedAt": "2026-06-10T00:00:00Z"
+  },
+  {
+    "id": "partial-pass-is-fail",
+    "kind": "guardrail",
+    "title": "A partial Pass is a Fail",
+    "description": "Any red, regression, or gate refusal yields no proof and writes no signing row — there is no 'mostly green' promotion.",
+    "statement": "A Pass is a whole-walkthrough Pass; any red, any baseline regression, or any gate refusal yields no proof and writes no row.",
+    "rule": "Promotion requires every check to hold: CONFIRM_GREEN saw a spine-observed GREEN with no baseline regression, the tree is clean at a known commit, and the signer resolved. Any failure anywhere yields a fail-closed result naming the phase it died at, and NO signing event is appended — an unproven unit leaves no promotion event behind.",
+    "enforcedBy": "`proveUnit` (packages/orchestrator/src/prove-it-gate.ts): the single `appendEvent` of the signing row sits after every gate check; every refusal path returns a `ProveResult` before reaching it.",
+    "failureMode": "\"Mostly green\" promotes: a unit with a red rung, a regressed baseline, or an unverifiable tree acquires a verdict, and the trunk accumulates partially-proven work behind a whole-looking Pass.",
+    "references": [
+      "doc:decisions/0020-red-green-enforcement-on-the-owned-loop.md",
+      "asset:never-bypass-the-gate",
+      "asset:fail-closed-on-dirty-tree",
+      "asset:prove-it-gate"
+    ],
+    "provenance": "Harvested from V1 `test-uat` (partial-Pass-is-Fail) via the `agent-prove-it-gate-verdict` draft. Consumers: agent-prove-it-gate-verdict.",
+    "createdAt": "2026-06-10T00:00:00Z",
+    "updatedAt": "2026-06-10T00:00:00Z"
+  },
+  {
+    "id": "no-claim-without-evidence",
+    "kind": "principle",
+    "title": "No claim without evidence",
+    "description": "A claim is admissible only with the evidence that proves it — verbatim output, a citable path/line, an event id — never a paraphrase or an impression.",
+    "statement": "A claim is admissible only with the evidence that proves it — a verbatim runner summary, a citable path and line, a named command and field, an event id — never a paraphrase, an impression, or a guess.",
+    "why": "The f53caac lesson: \"all tests pass\", reported without the verbatim final summary line, was falsified by an empirical re-run. Paraphrase is the smell — it is where optimism, hallucination, and reward-hacking hide. The same failure generalises: a finding asserted from impression fabricates state, and an \"environment / OS / flaky\" framing dodges falsification entirely.",
+    "howToApply": "Test claims: run the canonical command end-to-end on the post-change tree, read its output, attach the verbatim final summary line. Findings: every one carries an evidence path that names a real source proving it — path:line, command + field, or an event-store query; when the corpus is silent, return \"could not determine\", never a guess. Environment/flaky framings are inadmissible without three-run determinism evidence, an authoritative citation, or an in-corpus counter-example check — search the workspace for a working idiom first.",
+    "references": [
+      "asset:reward-hacking",
+      "asset:verification-wins",
+      "asset:verify-edit-write-persisted-or-escalate"
+    ],
+    "provenance": "Harvested from V1 `build-rust` (verify-before-claiming-green, falsifiability-over-works-on-my-machine, the f53caac lesson) + `system-investigator` (verifiable evidence_path, no-speculation) + `trace-explorer` (evidence-based findings). Consumers: agent-owned-loop-builder, library-investigator, friction-analyst.",
+    "createdAt": "2026-06-10T00:00:00Z",
+    "updatedAt": "2026-06-10T00:00:00Z"
+  },
+  {
+    "id": "authoritative-source-beats-derived",
+    "kind": "principle",
+    "title": "The authoritative source beats the derived one",
+    "description": "When sources disagree, resolve to the one the system enforces — the live projection beats the seed, the schema beats prose, the event log beats hand-written status.",
+    "statement": "When two sources disagree, resolve to the one the system ENFORCES — the source that would fail a load or a validation if it were wrong — not the one that merely mentions the fact.",
+    "why": "Derived sources lag and drift, and in v2 the staleness runs both ways: prose (CLAUDE.md, README) lags the ADRs it summarises, while the offline seed (`knowledge.json`) lags the live CLI edits it was exported from. Building on the derived copy means building on a snapshot somebody else has already moved past — the default hazard when artifact state lives in one shared DB many sessions mutate concurrently (ADR-0009/0023).",
+    "howToApply": "The v2 precedence chain: the live `--pg` Library projection beats the offline seed / `knowledge.json`; the zod schema (`packages/core/knowledge.ts`) beats any prose about valid fields/kinds; an artifact's own row beats a doc that mentions it; the ADR text beats CLAUDE.md/README's reference to it; the event log / node rollup beats any hand-written status. When two sources disagree, NAME the disagreement and resolve to the enforced one.",
+    "references": [
+      "doc:decisions/0009-concurrency-isolation-id-allocation.md",
+      "doc:decisions/0023-library-cli-choose-your-own-adventure.md",
+      "asset:doc-vs-implementation-precedence",
+      "asset:verification-wins",
+      "asset:pull-based-context-architecture"
+    ],
+    "provenance": "Harvested from V1 `system-investigator` (authoritative-source-beats-derived), re-pointed to the v2 source map, via the `library-investigator` draft. Nearest existing neighbour is `doc-vs-implementation-precedence` (code beats doc); per `edit-first-curation` the owner may prefer extending that unit instead of adding this one — flagged as an explicit alternative. Consumers: library-investigator, library-curator.",
+    "createdAt": "2026-06-10T00:00:00Z",
+    "updatedAt": "2026-06-10T00:00:00Z"
+  },
+  {
+    "id": "journey-principle",
+    "kind": "principle",
+    "title": "The journey principle",
+    "description": "A story encompasses one complete user journey; if finishing A naturally leads the user to need B, they are the same story.",
+    "statement": "A story encompasses one complete user journey — if finishing story A naturally leads the user to need story B, they are the same journey and likely the same story.",
+    "why": "Fragmenting one journey across units scatters its proof: no single UAT walks the user's actual end-to-end path, and the seams between fragments are exactly where unproven behaviour hides. The v2 story is deliberately bigger than v1's (a bounded-context organism, ADR-0010) precisely to keep one journey in one provable unit.",
+    "howToApply": "This decides WHETHER to split; the `splitting-rule` refines HOW. Default: do not split. Ask of any proposed boundary: would the user, on finishing the first unit's journey, immediately need the second to get value? If yes, it is one journey.",
+    "references": [
+      "doc:decisions/0010-organism-model-story-bounded-context.md",
+      "doc:glossary.md",
+      "asset:deep-modules",
+      "asset:splitting-rule"
+    ],
+    "provenance": "Harvested from V1 `story-writer` guidance.rules (journey-principle), re-tiered to the v2 story, via the `library-curator` draft. Consumers: library-curator.",
+    "createdAt": "2026-06-10T00:00:00Z",
+    "updatedAt": "2026-06-10T00:00:00Z"
+  },
+  {
+    "id": "splitting-rule",
+    "kind": "principle",
+    "title": "The splitting rule",
+    "description": "Split only when the outcome needs conjunctions or the proof shares no common precondition and observable; length is never a criterion.",
+    "statement": "Split a unit only when EITHER its outcome cannot be stated in one sentence without conjunctions, OR its proof does not share a common precondition and observable.",
+    "why": "Premature splits fragment a journey and multiply seams (the failure the `journey-principle` exists to stop); refusing to split leaves units whose outcome is a list and whose proof is two unrelated walkthroughs stapled together. The rule gives the two falsifiable triggers, so the call is testable rather than aesthetic.",
+    "howToApply": "Tiebreakers — split if 2+ hold: distinct REAL user populations (not role labels worn by the same person), two separate rebuild briefs, a spike mixed with delivery, an internal contradiction. Length is NEVER a splitting criterion. After deciding to split, re-check each side against the journey-principle and the tier rules (ADR-0010).",
+    "references": [
+      "doc:decisions/0010-organism-model-story-bounded-context.md",
+      "doc:decisions/0002-work-hierarchy-story-capability-contract.md",
+      "asset:journey-principle",
+      "asset:deep-modules"
+    ],
+    "provenance": "Harvested from V1 `story-writer` guidance.rules (splitting-rule) via the `library-curator` draft. Consumers: library-curator.",
+    "createdAt": "2026-06-10T00:00:00Z",
+    "updatedAt": "2026-06-10T00:00:00Z"
+  },
+  {
+    "id": "proof-walkthrough-first",
+    "kind": "pattern",
+    "title": "Proof-walkthrough first",
+    "description": "Draft the unit's proof-walkthrough before its prose; if no coherent walkthrough exists, the unit is the wrong size or tier.",
+    "statement": "Draft the unit's proof-walkthrough before its prose — the walkthrough is the sizing test that re-tiers a wrong-sized unit before it is authored.",
+    "problem": "A unit authored prose-first can read coherently while being unprovable at its tier: too big for one walkthrough, too small to need one, or placed at a tier whose proof mode does not fit its behaviour. The defect only surfaces later, when someone tries to prove it.",
+    "approach": "Before drafting the unit, write its proof at the tier's rung: for a STORY, the integrated UAT prose (the complete-journey test); for a CAPABILITY, the integration-test sketch against real in-story collaborators; for a CONTRACT, the isolated unit assertion. If you cannot write a coherent walkthrough, the unit is the wrong size or the wrong tier — re-tier or re-bound before drafting. Never author the walkthrough last or thicken a thin one with prose to justify a unit that already exists.",
+    "tradeoffs": "You spend walkthrough effort on units that may not survive sizing, against discovering unprovability after the unit is authored and cited — when re-tiering means rework across every consumer.",
+    "references": [
+      "doc:decisions/0010-organism-model-story-bounded-context.md",
+      "asset:splitting-rule",
+      "asset:faked-uat-theatre"
+    ],
+    "provenance": "Harvested from V1 `story-writer` (proof-walkthrough-as-sizing-test) via the `library-curator` draft. Consumers: library-curator.",
+    "createdAt": "2026-06-10T00:00:00Z",
+    "updatedAt": "2026-06-10T00:00:00Z"
+  },
+  {
+    "id": "survival-test-for-adrs",
+    "kind": "principle",
+    "title": "The survival test for ADRs",
+    "description": "Author an ADR only when the decision would outlive the unit that prompted it; otherwise it lives in the unit's guidance.",
+    "statement": "Author an ADR only when the decision passes the survival test — \"would this outlive the unit that prompted it?\" — otherwise the decision lives in the unit's own guidance.",
+    "why": "ADRs are the cross-cutting decision record (glossary); filling them with unit-local calls buries the load-bearing decisions under noise, while leaving genuinely cross-cutting calls in a unit's guidance hides them from every other unit they govern.",
+    "howToApply": "When an authoring pass surfaces a decision, ask the survival question. Passes → draft the ADR in the same session (narrow shared authority); fails → write it into the unit's guidance field. Amending an EXISTING ADR is always surfaced to the owner, never done unilaterally.",
+    "references": [
+      "doc:glossary.md",
+      "asset:signal-and-noise"
+    ],
+    "provenance": "Harvested from V1 `story-writer` (narrow shared ADR authority + survival test) via the `library-curator` draft. Consumers: library-curator.",
+    "createdAt": "2026-06-10T00:00:00Z",
+    "updatedAt": "2026-06-10T00:00:00Z"
+  },
+  {
+    "id": "two-consumer-extraction",
+    "kind": "principle",
+    "title": "Two-consumer extraction",
+    "description": "Extract shared content into its own unit only when 2+ current consumers share it; one consumer plus a hoped-for second is speculation.",
+    "statement": "Extract shared content into its own unit only when two or more CURRENT consumers share it — one consumer plus a hoped-for second is speculation, not extraction.",
+    "why": "A unit extracted for a single consumer is indirection with no DRY payoff: it adds a hop for every reader, splits authority between the unit and its lone consumer, and bets context-budget on a future that may never arrive.",
+    "howToApply": "Count actual consumers before extracting; cite them in the new unit's provenance. Below two, leave the content where it lives. (The complement of `reference-dont-restate`: that rule says cite-don't-copy once a unit exists; this rule says when a unit should exist at all. Tie-break consolidation questions with `deep-modules`' deletion test.)",
+    "references": [
+      "asset:reference-dont-restate",
+      "asset:deep-modules",
+      "asset:edit-first-curation"
+    ],
+    "provenance": "Harvested from V1 `guidance-writer` (2+-consumer extraction) via the `library-curator-agent-spec-half` draft. Per `edit-first-curation` the owner may prefer folding this into that pattern's Approach instead of a new unit — flagged as an alternative. Consumers: library-curator (both halves).",
+    "createdAt": "2026-06-10T00:00:00Z",
+    "updatedAt": "2026-06-10T00:00:00Z"
+  },
+  {
+    "id": "least-authority-tool-grants",
+    "kind": "principle",
+    "title": "Least-authority tool grants",
+    "description": "Grant an agent only the tools a named workflow step actually uses; every grant names the step that demands it.",
+    "statement": "An agent's tool grant lists only the tools a named workflow step actually uses; every grant names the step that demands it, and silent widening is a defect.",
+    "why": "An ungranted tool is a wall an agent cannot rationalise its way past; an over-granted one is an authority the spec's discipline must then police in prose. V1's authority walls came from process isolation; v2's come from the grant — so the grant IS the boundary, and bloat in it is bloat in the agent's authority.",
+    "howToApply": "When authoring or auditing an agent spec, walk the workflow steps and map each tool to the step that uses it; a tool with no step is removed, a step with no tool is an escalation. Widening a grant requires naming the new step that demands the new tool.",
+    "references": [
+      "doc:decisions/0011-own-the-agent-loop-and-context-engineering.md",
+      "doc:decisions/0029-agents-as-library-artifact-category.md",
+      "asset:pull-based-context-architecture"
+    ],
+    "provenance": "Harvested from V1 `guidance-writer` (minimal-tool-grants) via the `library-curator-agent-spec-half` draft. Consumers: library-curator (agent-spec half), every authored `agent` unit's Tools field.",
+    "createdAt": "2026-06-10T00:00:00Z",
+    "updatedAt": "2026-06-10T00:00:00Z"
+  },
+  {
+    "id": "live-store-is-the-edit-surface",
+    "kind": "guardrail",
+    "title": "The live store is the edit surface",
+    "description": "Live artifact state is edited only through the CLI write boundary against the live store — never by hand-editing the seed or force-reloading it.",
+    "statement": "Live artifact state is edited only through the CLI write boundary against the live store — never by hand-editing the seed, and never by force-reloading the seed over live edits.",
+    "rule": "Writes go through `storytree library artifact new|edit --pg`, validated at the boundary. `knowledge.json` is the migration seed/export view, not an edit surface; `load-corpus.ts --force` against a live DB that carries CLI edits is forbidden — it silently reverts parallel sessions' work (ADR-0023 §11).",
+    "enforcedBy": "The CLI refuses writes without `--pg` and re-validates every write via the boundary upcaster (`upcastAndValidate`/`validateLibraryDoc`). Residual gap, flagged for the owner: nothing deterministically blocks `load-corpus.ts --force` against a live DB — until that check exists, that half of the boundary is procedural.",
+    "failureMode": "Parallel sessions' CLI edits are silently reverted by a seed reload, or the seed and the live store fork — consumers can no longer tell which corpus state is canonical.",
+    "references": [
+      "doc:decisions/0023-library-cli-choose-your-own-adventure.md",
+      "doc:decisions/0017-cross-cutting-knowledge-tier.md",
+      "asset:edit-first-curation"
+    ],
+    "provenance": "Harvested from the CLAUDE.md library-iteration rules and ADR-0023 §11 via the two `library-curator` draft halves. Consumers: library-curator (both halves), library-investigator (read-side precedence).",
+    "createdAt": "2026-06-10T00:00:00Z",
+    "updatedAt": "2026-06-10T00:00:00Z"
+  },
+  {
+    "id": "stateless-vs-stateful-graduation",
+    "kind": "principle",
+    "title": "Stateless graduates, stateful stays",
+    "description": "Only stateless rules graduate into durable guidance; stateful context stays ephemeral, and uncertainty withholds (preservation bias).",
+    "statement": "Only a STATELESS rule — one that applies the same way every read, with no dependence on prior sessions, host paths, or accumulated context — graduates into durable guidance; STATEFUL context stays ephemeral, and UNCERTAIN withholds (preservation bias).",
+    "why": "A stateful rule promoted to durable guidance mis-fires in every context that lacks its hidden state, and durable guidance is read by every future session — so a wrong graduation propagates exactly as far as a right one. The asymmetry favours withholding: a stateless post left un-graduated another round costs one round; a stateful rule graduated costs every consumer until someone notices.",
+    "howToApply": "Classify each candidate: STATELESS → graduation candidate; STATEFUL → stays where it is; UNCERTAIN → withhold. State which side of the discriminator a candidate falls on in every proposal — the classification is the load-bearing logic, not a formality.",
+    "references": [
+      "doc:decisions/0008-ui-drives-agents-approvals.md",
+      "asset:oq-feedback-graduation-mechanism",
+      "asset:human-owns-the-outer-loop"
+    ],
+    "provenance": "Harvested from V1 `memory-curator` (stateless-vs-stateful discriminator + preservation bias) via the `agent-notice-board-curation-step` draft. Consumers: agent-notice-board-curation-step.",
+    "createdAt": "2026-06-10T00:00:00Z",
+    "updatedAt": "2026-06-10T00:00:00Z"
+  }
+]
