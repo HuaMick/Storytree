@@ -2,6 +2,14 @@ export * from "./schema.js";
 export { loadUnit, parseUnit } from "./loader.js";
 export * from "./knowledge.js";
 export { renderBody, generateTemplate } from "./knowledge-render.js";
+export {
+  groupSources,
+  SOURCE_GROUP_ORDER,
+  type SourceGroup,
+  type SourceGroupName,
+  type ResolvedSource,
+  type AssetTarget,
+} from "./knowledge-sources.js";
 export * from "./proof.js";
 export * from "./signer.js";
 export * from "./model-events.js";

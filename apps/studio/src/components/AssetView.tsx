@@ -1,4 +1,5 @@
 import { useMemo, useRef } from 'react';
+import { groupSources } from '@storytree/core/sources';
 import { api } from '../api';
 import { useAppData } from '../lib/appData';
 import { useOperator } from '../lib/operator';
@@ -19,6 +20,16 @@ export function AssetView({ id }: { id: string }): React.JSX.Element {
   const headings = useMemo(() => (asset ? parseHeadings(asset.body) : []), [asset]);
   // Memoized so React renders it once and never strips the highlight marks.
   const body = useMemo(() => <Markdown>{asset?.body ?? ''}</Markdown>, [asset?.body]);
+  // "Sources": the unit's `references` grouped by the type of thing each points at, resolved live
+  // against the loaded corpus (asset:<id> -> its category). A view, never stored.
+  const sources = useMemo(
+    () =>
+      groupSources(asset?.references ?? [], (refId) => {
+        const target = assets.find((a) => a.id === refId);
+        return target ? { kind: target.category, title: target.title } : null;
+      }),
+    [asset?.references, assets],
+  );
 
   if (!asset) {
     return (
@@ -55,16 +66,26 @@ export function AssetView({ id }: { id: string }): React.JSX.Element {
 
         <div className="asset-body">{body}</div>
 
-        {asset.references.length > 0 && (
+        {(sources.length > 0 || asset.provenance) && (
           <div className="asset-refs">
-            <h4>References</h4>
-            <ul>
-              {asset.references.map((r) => (
-                <li key={r}>
-                  <RefLink refStr={r} />
-                </li>
-              ))}
-            </ul>
+            <h4>Sources</h4>
+            {sources.map((group) => (
+              <div className="asset-refs-group" key={group.group}>
+                <h5>{group.group}</h5>
+                <ul>
+                  {group.items.map((item) => (
+                    <li key={item.ref}>
+                      <RefLink refStr={item.ref} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+            {asset.provenance && (
+              <div className="asset-provenance muted small">
+                <Markdown>{asset.provenance}</Markdown>
+              </div>
+            )}
           </div>
         )}
 

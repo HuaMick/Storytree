@@ -16,12 +16,14 @@ import { Markdown } from "./schema.js";
  *   (c) the blank template generator `generateTemplate` (knowledge-render.ts).
  *
  * Each field is markdown. The `lead` field renders as a bold-labelled one-liner
- * (`**In one line.** ...`); the rest render as `## Heading` sections. Provenance — the
- * `_Imported from .../Synthesised from ADR-X_` attribution — is a COMMON optional field;
- * for most kinds the attribution lives inside the trailing `## See also` italic line, so
- * `seeAlso` carries it verbatim and `provenance` is left empty (see knowledge-render.ts /
- * the loader for the round-trip contract). The schema stays agnostic about that fusion: it
- * stores whatever markdown each field holds.
+ * (`**In one line.** ...`); the rest render as `## Heading` sections.
+ *
+ * CITATIONS (docs/research/library-sources-unification.md): a unit cites related material ONLY via
+ * the structured `references` field (`doc:`/`asset:` pointers); there is no body `## See also`
+ * section. Renderers group `references` by target type into a live **Sources** view (see
+ * {@link groupSources} in knowledge-sources.ts) — it is NOT part of the body round-trip. The
+ * optional `provenance` field carries the residual attribution prose a bare pointer can't (origin,
+ * "still open" caveats), rendered as one line under Sources.
  */
 
 /** One field in a kind's body, in render order. Drives schema + renderer + template. */
@@ -84,14 +86,6 @@ export const KIND_SPECS: Readonly<Record<KnowledgeKind, readonly KindFieldSpec[]
       placeholder:
         "_The nearest neighbours it must not be confused with, and the distinction. Omit this section if the term has no easily-confused neighbour._",
     },
-    {
-      field: "seeAlso",
-      lead: false,
-      heading: "See also",
-      required: false,
-      placeholder:
-        "_The glossary entry / ADR(s) that govern the term, related artifacts, and any provenance (where it was imported or carried from)._",
-    },
   ],
   principle: [
     {
@@ -115,13 +109,6 @@ export const KIND_SPECS: Readonly<Record<KnowledgeKind, readonly KindFieldSpec[]
       required: true,
       placeholder:
         "_What following it looks like in practice: the test you run, the question you ask._",
-    },
-    {
-      field: "seeAlso",
-      lead: false,
-      heading: "See also",
-      required: false,
-      placeholder: "_Source ADR(s), related artifacts, and provenance._",
     },
   ],
   pattern: [
@@ -152,13 +139,6 @@ export const KIND_SPECS: Readonly<Record<KnowledgeKind, readonly KindFieldSpec[]
       heading: "Tradeoffs",
       required: false,
       placeholder: "_What you trade — A vs B — in concrete, user-facing terms._",
-    },
-    {
-      field: "seeAlso",
-      lead: false,
-      heading: "See also",
-      required: false,
-      placeholder: "_Source ADR(s), related artifacts, and provenance._",
     },
   ],
   guardrail: [
@@ -191,13 +171,6 @@ export const KIND_SPECS: Readonly<Record<KnowledgeKind, readonly KindFieldSpec[]
       required: true,
       placeholder: "_What breaks if the boundary is crossed._",
     },
-    {
-      field: "seeAlso",
-      lead: false,
-      heading: "See also",
-      required: false,
-      placeholder: "_Source ADR(s), related artifacts, and provenance._",
-    },
   ],
   techstack: [
     {
@@ -227,13 +200,6 @@ export const KIND_SPECS: Readonly<Record<KnowledgeKind, readonly KindFieldSpec[]
       heading: "Constraints",
       required: false,
       placeholder: "_Version pins, boundaries, and what it must not be used for._",
-    },
-    {
-      field: "seeAlso",
-      lead: false,
-      heading: "See also",
-      required: false,
-      placeholder: "_Source ADR(s), related artifacts, and provenance._",
     },
   ],
   "open-question": [
@@ -268,14 +234,6 @@ export const KIND_SPECS: Readonly<Record<KnowledgeKind, readonly KindFieldSpec[]
       placeholder:
         "_The proposed answer and why — explicitly non-binding until the owner decides._",
     },
-    {
-      field: "seeAlso",
-      lead: false,
-      heading: "See also",
-      required: false,
-      placeholder:
-        "_Source ADR(s), the report / thread that raised it, and related artifacts._",
-    },
   ],
 } as const;
 
@@ -283,8 +241,9 @@ export const KIND_SPECS: Readonly<Record<KnowledgeKind, readonly KindFieldSpec[]
  * Fields shared by every knowledge kind. Mirrors the runtime-store JSON shape (the `kind`
  * discriminator maps from the source `category` key elsewhere; here it is `kind`).
  *
- * `references` are `doc:<relpath>` / `asset:<id>` pointers. `provenance` is the optional
- * attribution line (markdown); see the file header for why it is usually empty.
+ * `references` are `doc:<relpath>` / `asset:<id>` pointers — the SINGLE citation source, rendered
+ * grouped-by-type as "Sources" ({@link groupSources}). `provenance` is the optional attribution
+ * line (markdown) shown under Sources for prose a bare pointer can't carry.
  *
  * `glossarySection`, `glossaryTerm` and `glossaryBody` are GLOSSARY-PROJECTION METADATA,
  * carried by any kind (not just `definition`): a unit is a glossary member iff it has

@@ -32,6 +32,7 @@ export interface AssetInput {
   description: string;
   body: string;
   references: string[];
+  provenance?: string;
 }
 
 /** Filter for listing comments: by topic id and/or topic kind (mirrors the JSON dev API filter). */
@@ -219,6 +220,7 @@ function toGuidanceAsset(rendered: {
   description: string;
   body: string;
   references: string[];
+  provenance?: string;
   createdAt: string;
   updatedAt: string;
 }): GuidanceAsset {
@@ -229,6 +231,7 @@ function toGuidanceAsset(rendered: {
     description: rendered.description,
     body: rendered.body,
     references: rendered.references,
+    ...(rendered.provenance ? { provenance: rendered.provenance } : {}),
     createdAt: rendered.createdAt,
     updatedAt: rendered.updatedAt,
   };

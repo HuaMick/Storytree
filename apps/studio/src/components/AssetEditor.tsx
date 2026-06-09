@@ -24,6 +24,7 @@ interface FormState {
   description: string;
   body: string;
   references: string;
+  provenance: string;
 }
 
 const EMPTY: FormState = {
@@ -33,6 +34,7 @@ const EMPTY: FormState = {
   description: '',
   body: '',
   references: '',
+  provenance: '',
 };
 
 function splitList(value: string): string[] {
@@ -59,6 +61,7 @@ export function AssetEditor({ mode, id }: AssetEditorProps): React.JSX.Element {
         description: existing.description,
         body: existing.body,
         references: existing.references.join(', '),
+        provenance: existing.provenance ?? '',
       });
       setIdTouched(true);
     } else if (mode === 'new') {
@@ -99,6 +102,7 @@ export function AssetEditor({ mode, id }: AssetEditorProps): React.JSX.Element {
   async function save(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     setError('');
+    const provenance = form.provenance.trim();
     const input: AssetInput = {
       id: form.id.trim(),
       category: form.category,
@@ -106,6 +110,7 @@ export function AssetEditor({ mode, id }: AssetEditorProps): React.JSX.Element {
       description: form.description.trim(),
       body: form.body,
       references: splitList(form.references),
+      ...(provenance ? { provenance } : {}),
     };
     // Enforce the per-category template: block save when a required section is
     // missing (a guardrail must name how it is deterministically enforced).
@@ -231,12 +236,27 @@ export function AssetEditor({ mode, id }: AssetEditorProps): React.JSX.Element {
 
           <label className="field">
             <span>
-              References{' '}
+              Sources{' '}
               <small className="muted">
-                (comma-separated; <code>doc:&lt;relpath&gt;</code> or <code>asset:&lt;id&gt;</code>)
+                (comma-separated; <code>doc:&lt;relpath&gt;</code> or <code>asset:&lt;id&gt;</code> —
+                grouped by type when shown)
               </small>
             </span>
             <input value={form.references} onChange={(e) => set('references', e.target.value)} />
+          </label>
+
+          <label className="field">
+            <span>
+              Provenance{' '}
+              <small className="muted">
+                (optional: origin / "still open" prose a bare pointer can't carry)
+              </small>
+            </span>
+            <textarea
+              value={form.provenance}
+              onChange={(e) => set('provenance', e.target.value)}
+              rows={2}
+            />
           </label>
 
           {error && <p className="error-text">{error}</p>}

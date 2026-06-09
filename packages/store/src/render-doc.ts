@@ -26,6 +26,7 @@ export interface RenderedAsset {
   description: string;
   body: string;
   references: string[];
+  provenance?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -38,6 +39,7 @@ interface AssetDocLike {
   description?: unknown;
   body?: unknown;
   references?: unknown;
+  provenance?: unknown;
 }
 
 function asString(value: unknown): string {
@@ -70,6 +72,9 @@ export function renderStoredDoc(stored: StoredDoc): RenderedAsset {
       description: asString(doc.description),
       body: doc.body,
       references: asStringArray(doc.references),
+      ...(typeof doc.provenance === "string" && doc.provenance
+        ? { provenance: doc.provenance }
+        : {}),
       createdAt: stored.createdAt,
       updatedAt: stored.updatedAt,
     };
@@ -84,6 +89,9 @@ export function renderStoredDoc(stored: StoredDoc): RenderedAsset {
     description: asString(knowledge.description),
     body: renderBody(knowledge),
     references: asStringArray(knowledge.references),
+    ...(typeof knowledge.provenance === "string" && knowledge.provenance
+      ? { provenance: knowledge.provenance }
+      : {}),
     createdAt: stored.createdAt,
     updatedAt: stored.updatedAt,
   };

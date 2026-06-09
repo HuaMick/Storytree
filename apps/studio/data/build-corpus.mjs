@@ -74,6 +74,9 @@ function renderKnowledgeAsset(doc, prevAsset) {
     description: doc.description,
     body: renderBody(doc),
     references: doc.references,
+    // Citations are structured-only now: `references` (grouped as "Sources" at render time) plus
+    // the optional `provenance` prose. No body `## See also`. Carry provenance through when present.
+    ...(doc.provenance ? { provenance: doc.provenance } : {}),
     createdAt: doc.createdAt ?? prevAsset?.createdAt,
     updatedAt: doc.updatedAt ?? prevAsset?.updatedAt,
   };
