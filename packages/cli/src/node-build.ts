@@ -68,9 +68,13 @@ function honestFramingReal(persisted: boolean): string {
     "under hook-enforced write scope, the registry's REAL proof command run by the spine for both\n" +
     "red and green, a spine-side commit of the authored files, and a GATE that read genuine\n" +
     "`git status` off that worktree. What is still NOT proven: the authored commit lives only in the\n" +
-    `temp worktree (unreferenced after cleanup — landing it is later promotion work), ${verdictFate(persisted)},\n` +
-    "and only the node's registered proof command ran (not the full package suite — the worktree has\n" +
-    "no node_modules by design, builtins-only targets)."
+    "temp worktree (unreferenced after cleanup — landing it is later promotion work)" +
+    (persisted ? "" : ", the verdict\nlanded in an in-memory store and is gone") +
+    ", and only the\nnode's registered proof command ran (not the full package suite — the worktree has no\n" +
+    "node_modules by design, builtins-only targets)." +
+    (persisted
+      ? "\nWhat DID persist: the signed verdict — events.verdict in the shared store (the rollup can\nderive from it across sessions)."
+      : "")
   );
 }
 
