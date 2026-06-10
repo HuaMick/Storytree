@@ -11,6 +11,8 @@ import {
   commitAuthored,
   promoteRealPass,
   platformShellCommand,
+  runRegressionSuite,
+  runWorktreeTypecheck,
 } from "./build-worktree.js";
 import { gitTreeState } from "./prove-it-gate.js";
 
@@ -188,6 +190,30 @@ test("createBuildWorktree install seam: the injected installer runs in the workt
     }),
     /dependency install failed/,
   );
+});
+
+test("runWorktreeTypecheck / runRegressionSuite observe green/red by exit code only (offline node -e)", async () => {
+  // The same honest observation the gate makes — exit 0 is the only green channel. Offline by
+  // construction: the command IS the seam (any file+argv), so a `node -e` stands in for tsc/pnpm.
+  const cmd = (script: string): { file: string; args: string[] } => ({
+    file: process.execPath,
+    args: ["-e", script],
+  });
+
+  const tcGreen = await runWorktreeTypecheck({ command: cmd("process.exit(0)"), cwd: os.tmpdir() });
+  assert.equal(tcGreen.result, "green");
+  // The declare-presence lesson: a type error is a RED (exit non-zero), never an exception — the
+  // caller turns it into push-withheld, not a crash.
+  const tcRed = await runWorktreeTypecheck({
+    command: cmd("console.error('error TS2375: exactOptionalPropertyTypes'); process.exit(2)"),
+    cwd: os.tmpdir(),
+  });
+  assert.equal(tcRed.result, "red");
+
+  const suiteGreen = await runRegressionSuite({ command: cmd("process.exit(0)"), cwd: os.tmpdir() });
+  assert.equal(suiteGreen.result, "green");
+  const suiteRed = await runRegressionSuite({ command: cmd("process.exit(1)"), cwd: os.tmpdir() });
+  assert.equal(suiteRed.result, "red");
 });
 
 test("platformShellCommand wraps pnpm via cmd.exe on win32 and passes everything else through", () => {

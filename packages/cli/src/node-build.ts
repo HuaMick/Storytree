@@ -24,6 +24,7 @@ import {
   registeredNodeIds,
   resolveProveSpec,
   runRegressionSuite,
+  runWorktreeTypecheck,
 } from "@storytree/orchestrator";
 import type {
   BuildWorktree,
@@ -69,6 +70,7 @@ function honestFramingReal(
   persisted: boolean,
   promotion: PromotionResult | undefined,
   regression: "green" | "red" | undefined,
+  typecheck: "green" | "red" | undefined,
 ): string {
   const commitFate =
     promotion !== undefined
@@ -77,7 +79,9 @@ function honestFramingReal(
   const suiteClause =
     regression === undefined
       ? "only the\nnode's registered proof command ran (not the full package suite — no-install worktree,\nbuiltins-only target)"
-      : `the node's proof command ran AND the package regression suite was observed ${regression.toUpperCase()}\nin the installed worktree`;
+      : typecheck === undefined
+        ? `the node's proof command ran AND the package regression suite was observed ${regression.toUpperCase()}\nin the installed worktree`
+        : `the node's proof command ran AND the package regression suite was observed ${regression.toUpperCase()}\nand the package typecheck ${typecheck.toUpperCase()} in the installed worktree (the proof run is\ntsx-driven — types stripped — so only the typecheck sees type-illegal code)`;
   return (
     "honest framing: a REAL build (ADR-0031). What was real: a fresh git worktree of THIS repo, the\n" +
     "node's REAL test/impl files at their real repo paths authored by a live Claude Agent SDK leaf\n" +
@@ -363,6 +367,20 @@ export async function nodeBuild(
       next: buildable.map((id) => `storytree node build ${id} --real`),
     };
   }
+  // Install-bearing targets must also register the package typecheck (fail-closed, before any
+  // worktree is cut): the proof run and the regression suite are tsx-driven — types STRIPPED — so
+  // without a worktree `tsc --noEmit` a type-illegal-but-runtime-green leaf would push and only
+  // PR-time CI would catch it (it did, once).
+  if (real && realConfig?.install === true && realConfig.typecheck === undefined) {
+    return {
+      ok: false,
+      body:
+        `node "${spec.id}" has install:true but no real.typecheck command registered — an installed ` +
+        `worktree's promotion requires the package typecheck observed green (tsx strips types; the ` +
+        `proof run cannot see type errors). Register real.typecheck in the test-command registry.`,
+      next: [],
+    };
+  }
 
   const modeFlag = real ? "--real" : live ? "--live" : "--dry-run";
   const storeChoice = await resolveVerdictStore(
@@ -381,6 +399,7 @@ export async function nodeBuild(
     let promotion: PromotionResult | undefined;
     let promotionSkipped: string | undefined;
     let regression: "green" | "red" | undefined;
+    let typecheck: "green" | "red" | undefined;
 
     if (real) {
       // The REAL walk: a fresh DETACHED git worktree of this repo (the node's real source at
@@ -418,13 +437,22 @@ export async function nodeBuild(
 
         // Promotion (ADR-0031): a signed REAL pass lands, it does not evaporate. The proven
         // commit is parked on a claude/real/<id>-<run> branch BEFORE the worktree goes away;
-        // an installed worktree first re-observes the whole package suite (a green leaf must
-        // not break its package) — a red suite keeps the branch local-only (forensics, no PR).
+        // an installed worktree first re-observes the package typecheck (tsx strips types — the
+        // proof run cannot see type errors) AND the whole package suite (a green leaf must not
+        // break its package) — a red of either keeps the branch local-only (forensics, no PR).
         if (result.ok) {
           if (result.verdict.commitSha === worktree.headSha) {
             promotionSkipped = "nothing authored — the verdict attests the unchanged HEAD";
           } else {
             if (realConfig?.install === true && buildConfig !== null) {
+              if (realConfig.typecheck !== undefined) {
+                typecheck = (
+                  await runWorktreeTypecheck({
+                    command: realConfig.typecheck,
+                    cwd: worktree.root,
+                  })
+                ).result;
+              }
               regression = (
                 await runRegressionSuite({ command: buildConfig.command, cwd: worktree.root })
               ).result;
@@ -434,7 +462,7 @@ export async function nodeBuild(
               unitId: spec.id,
               runId,
               commitSha: result.verdict.commitSha,
-              ...(regression === "red" ? { push: false } : {}),
+              ...(regression === "red" || typecheck === "red" ? { push: false } : {}),
             });
           }
         }
@@ -481,6 +509,11 @@ export async function nodeBuild(
       `phase trail: ${result.phasesVisited.join(" → ")}`,
     ];
     const promotionLines = [
+      ...(typecheck !== undefined
+        ? [
+            `typecheck:   package typecheck ${typecheck.toUpperCase()} in the worktree${typecheck === "red" ? " — push withheld (tsx strips types; only tsc sees type-illegal code)" : ""}`,
+          ]
+        : []),
       ...(regression !== undefined
         ? [
             `regression:  package suite ${regression.toUpperCase()} in the worktree${regression === "red" ? " — push withheld (a green leaf must not break its package)" : ""}`,
@@ -494,7 +527,7 @@ export async function nodeBuild(
       ...(promotionSkipped !== undefined ? [`promotion:   skipped — ${promotionSkipped}`] : []),
     ];
     const framing = real
-      ? honestFramingReal(persisted, promotion, regression)
+      ? honestFramingReal(persisted, promotion, regression, typecheck)
       : live
         ? honestFramingLive(persisted)
         : HONEST_FRAMING_DRY;
@@ -562,7 +595,8 @@ export function nodeHelp(): Envelope {
       "      state. Needs Claude Code auth. A signed PASS is PROMOTED (ADR-0031): the proven",
       "      commit is parked on claude/real/<id>-<run> and pushed when origin exists — land it",
       "      via PR with a NON-SQUASH merge. Registry nodes with real.install get a lockfile-only",
-      "      pnpm install in the worktree plus a package-suite regression run before any push.",
+      "      pnpm install in the worktree plus a package typecheck (tsx strips types; tsc must",
+      "      agree) and a package-suite regression run — a red of either withholds the push.",
       "",
       "  --store pg   (--live/--real only) persist the building mark + signed verdict to the",
       "      live work tables (events.work_event/events.verdict) instead of an in-memory store.",
