@@ -25,7 +25,9 @@ the 2026-05-06 source-fix adjudication) and they remain correct under v2.
 
 What changed is the *substrate*, not the methodology. The five reversals (CLAUDE.md) move ground
 truth from on-disk YAML to a live Cloud SQL Library (ADR-0017/0019/0023), collapse the per-node
-runtime to one owned loop (ADR-0011), turn routing into deterministic spine code (ADR-0004/0005),
+runtime to one owned loop (ADR-0011; since ADR-0030 the *live* leaf runtime is the Claude Agent SDK
+behind the `PhaseAuthor` executor seam, the owned loop staying as the offline/deterministic
+executor and pivot-out fallback), turn routing into deterministic spine code (ADR-0004/0005),
 build the red-green gate spine-side (ADR-0020), and hand the outer loop to a human in the studio
 (ADR-0008). Under those reversals much of the roster's *work* became code or human judgment — but
 its *discipline* is exactly what v2's leaves, gate, and curators need as their behavioural floor.
@@ -63,6 +65,15 @@ merge 1 · obsolete 3** (`guidance-writer` is the merge; it folds into `library-
 > ("spine proposes, operator approves") as *decided-but-unbuilt*, carried forward as the
 > `oq-feedback-graduation-mechanism` open-question in the Library. Read "ADR-0014" in this table as
 > "the graduation intent now owned by ADR-0017, tracked by `oq-feedback-graduation-mechanism`".
+
+> **Supersession note (2026-06-10, ADR-0030):** rows above that read the **owned loop** as *the*
+> per-node runtime (the `build-rust` / `test-builder` "owned-loop" surfaces, and any "ADR-0011" cited
+> as current runtime truth) should be read with
+> [ADR-0030](../decisions/0030-all-in-on-claude-agent-sdk.md): the **live** leaf runtime is now the
+> Claude Agent SDK (`ClaudeAgentAuthor`), driven through the runtime-agnostic `PhaseAuthor` executor
+> seam; the owned loop remains the offline/deterministic executor and the pivot-out fallback. The
+> phase discipline the rows carry (write-scoping, spine-observed RED/GREEN, never-self-attest) is
+> runtime-agnostic and survives unchanged — ADR-0020's trust base never entered the leaf runtime.
 
 ### How the roster nets out
 

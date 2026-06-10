@@ -927,15 +927,16 @@
     "category": "definition",
     "title": "spine",
     "description": "The code-sequenced control-flow layer (the orchestrator over plain Postgres, DBOS deferred — ADR-0019) that owns closed, deterministic routing: the order steps run in, when a loop iterates, which branch is taken.",
-    "body": "**In one line.** The code-sequenced control-flow layer (the orchestrator over plain Postgres, DBOS deferred — ADR-0019) that owns closed, deterministic routing — the order steps run in, when a loop iterates, which branch is taken.\n\n## What it is\n\nThe code-sequenced control-flow layer (the orchestrator over plain Postgres — DBOS is deferred, ADR-0019) that owns **closed, deterministic routing**: the order steps run in, when a loop iterates, which branch is taken. The discriminator (carried verbatim from Agentic ADR-0026): *if a for-loop or a match could express the routing, the spine owns it; if the routing needs the model to decide what comes next, the leaf (owned-loop node) owns it.*\n\n## What it is not\n\nNot the **leaf** — the owned loop is the leaf the spine delegates to.",
+    "body": "**In one line.** The code-sequenced control-flow layer (the orchestrator over plain Postgres, DBOS deferred — ADR-0019) that owns closed, deterministic routing — the order steps run in, when a loop iterates, which branch is taken.\n\n## What it is\n\nThe code-sequenced control-flow layer (the orchestrator over plain Postgres — DBOS is deferred, ADR-0019) that owns **closed, deterministic routing**: the order steps run in, when a loop iterates, which branch is taken. The discriminator (carried verbatim from Agentic ADR-0026): *if a for-loop or a match could express the routing, the spine owns it; if the routing needs the model to decide what comes next, the leaf (owned-loop node) owns it.*\n\n## What it is not\n\nNot the **leaf** — the leaf runtime the spine delegates to (live: the Claude Agent SDK; offline/fallback: the owned loop — ADR-0030).",
     "references": [
       "doc:glossary.md",
       "doc:decisions/0005-orchestration-spine-code-vs-judgment.md",
       "doc:decisions/0019-library-tier-name-and-defer-dbos.md",
+      "doc:decisions/0030-all-in-on-claude-agent-sdk.md",
       "asset:leaf-step-leaf-judgment",
       "asset:orchestrator"
     ],
-    "provenance": "Carried verbatim from Agentic ADR-0026; DBOS deferred by ADR-0019.",
+    "provenance": "Carried verbatim from Agentic ADR-0026; DBOS deferred by ADR-0019; leaf runtime split live/offline by ADR-0030.",
     "createdAt": "2026-06-05T00:00:00.000Z",
     "updatedAt": "2026-06-08T00:00:00.000Z"
   },
@@ -943,11 +944,12 @@
     "id": "leaf-step-leaf-judgment",
     "category": "definition",
     "title": "leaf step / leaf judgment",
-    "description": "A single step in a code-sequenced cascade whose work is owned by the owned loop (what to write, how to satisfy a contract) rather than by the spine — the control-flow sense of \"leaf\"…",
-    "body": "**In one line.** A single step in a code-sequenced cascade whose work is owned by the owned loop (what to write, how to satisfy a contract) rather than by the spine — the control-flow sense of \"leaf\".\n\n## What it is\n\nA single step in a code-sequenced cascade whose work is owned by the **owned loop** (what to write, how to satisfy a contract) rather than by the spine — the **control-flow** sense of \"leaf\" (ADR-0005, ADR-0011).\n\n## What it is not\n\nDistinct from **contract**, the *leaf tier* of the work hierarchy (ADR-0002); the two senses of \"leaf\" must not be conflated.",
+    "description": "A single step in a code-sequenced cascade whose work is owned by the leaf runtime (what to write, how to satisfy a contract) rather than by the spine — the control-flow sense of \"leaf\"…",
+    "body": "**In one line.** A single step in a code-sequenced cascade whose work is owned by the leaf runtime (what to write, how to satisfy a contract) rather than by the spine — the control-flow sense of \"leaf\".\n\n## What it is\n\nA single step in a code-sequenced cascade whose work is owned by the **leaf runtime** (what to write, how to satisfy a contract) rather than by the spine — the **control-flow** sense of \"leaf\" (ADR-0005, ADR-0011). The leaf runs behind the executor seam: live, the Claude Agent SDK; offline/fallback, the owned loop (ADR-0030).\n\n## What it is not\n\nDistinct from **contract**, the *leaf tier* of the work hierarchy (ADR-0002); the two senses of \"leaf\" must not be conflated.",
     "references": [
       "doc:glossary.md",
       "doc:decisions/0005-orchestration-spine-code-vs-judgment.md",
+      "doc:decisions/0030-all-in-on-claude-agent-sdk.md",
       "doc:decisions/0002-work-hierarchy-story-capability-contract.md",
       "asset:spine",
       "asset:contract"
@@ -959,14 +961,15 @@
     "id": "pi-adapter",
     "category": "definition",
     "title": "agent package",
-    "description": "The project-owned thin wrapper (`packages/agent`) and typed-event parser over the owned loop's surface (prompt / steer / follow-up + lifecycle events + edit-tool diffs).",
-    "body": "**In one line.** The project-owned thin wrapper (`packages/agent`) and typed-event parser over the owned loop's surface (`prompt` / `steer` / `follow-up` + lifecycle events + `edit`-tool diffs).\n\n## What it is\n\nThe project-owned **thin wrapper** (`packages/agent`) and typed-event parser over the owned loop's surface (`prompt` / `steer` / `follow-up` + lifecycle events + `edit`-tool diffs). It owns the loop on the Messages API and is the **sole** surface through which the owned loop is invoked and the **only** place a model runtime is imported: it spawns/steers the owned loop, normalizes its stream into the typed events the event store renders, and exposes nothing model-shaped upward.\n\n## What it is not\n\nNo third-party agent framework sits in this role; `packages/core` and `apps/studio` never parse the owned loop's stream directly (ADR-0004, ADR-0006, ADR-0011).",
+    "description": "The project-owned thin wrapper (`packages/agent`) and typed-event parser over the leaf surface (prompt / steer / follow-up + lifecycle events + edit-tool diffs).",
+    "body": "**In one line.** The project-owned thin wrapper (`packages/agent`) and typed-event parser over the leaf surface (`prompt` / `steer` / `follow-up` + lifecycle events + `edit`-tool diffs).\n\n## What it is\n\nThe project-owned **thin wrapper** (`packages/agent`) and typed-event parser over the leaf surface (`prompt` / `steer` / `follow-up` + lifecycle events + `edit`-tool diffs). The **sole** surface through which a leaf runtime is invoked and the **only** place a model runtime is imported. It hosts both executors behind the `PhaseAuthor` seam: the owned loop on the Messages API (offline/deterministic + pivot-out fallback, ADR-0011) and the Claude Agent SDK leaf (`ClaudeAgentAuthor` — the live runtime, ADR-0030); it normalizes the stream into the typed events the event store renders, and exposes nothing model-shaped upward.\n\n## What it is not\n\nNo third-party agent framework other than the single-import-site Agent SDK sits in this role; `packages/core` and `apps/studio` never parse the leaf's stream directly (ADR-0004, ADR-0006, ADR-0011, ADR-0030).",
     "references": [
       "doc:glossary.md",
       "doc:decisions/0004-orchestrator-agent-boundary.md",
       "doc:decisions/0006-event-store-observability-surface.md",
       "doc:decisions/0008-ui-drives-agents-approvals.md",
       "doc:decisions/0011-own-the-agent-loop-and-context-engineering.md",
+      "doc:decisions/0030-all-in-on-claude-agent-sdk.md",
       "asset:orchestrator",
       "asset:thin-wrapper-over-the-runtime"
     ],

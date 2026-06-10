@@ -17,11 +17,11 @@ A v2 rebuild of the AgenticEngineering project: a multi-agent system that grows 
 ## ⚠️ Current state — READ THE REVERSALS FIRST
 
 Much of `README.md` / `.env.example` / `infra/` prose and the older ADRs (0001–0009) describe a
-**pre-reversal world**. Five reversals are the current truth; calibrate everything to these:
+**pre-reversal world**. Six reversals are the current truth; calibrate everything to these:
 
 1. **pi is GONE** (ADR-0011). We **own the agent loop** on the raw Anthropic Messages API
    (`@anthropic-ai/sdk`, Anthropic-only for now). `packages/pi-adapter` is removed; `packages/agent`
-   is the real loop.
+   is the loop's home — but see reversal 6 for which executor is *live*.
 2. **DBOS is DEFERRED** (ADR-0019, reaffirmed ADR-0020). The store is a **plain typed `node-pg`
    Postgres connection** — no DBOS, no durable workflows yet. DBOS stays a *named, reserved* future
    target. **Trap:** ADR-0011 §5 "DBOS/Postgres durable execution stands" (2026-06-06) is *overtaken*
@@ -33,6 +33,9 @@ Much of `README.md` / `.env.example` / `infra/` prose and the older ADRs (0001�
 5. **DB auth is KEYLESS** Cloud SQL IAM via ambient ADC (ADR-0021). **Credentials are present** —
    verify with `gcloud auth application-default print-access-token`, do **not** assume you're
    unauthenticated. The Phase-2 library migration has already run (the library is in the live DB).
+6. **The Claude Agent SDK is the LIVE runtime** (ADR-0030, supersedes ADR-0011 in part):
+   live node builds run `ClaudeAgentAuthor` on subscription auth; the owned loop is **demoted** to
+   the offline/deterministic test executor + pivot-out fallback, behind the `PhaseAuthor` seam.
 
 ## The foundation is built and green (do not re-scaffold)
 
@@ -42,9 +45,13 @@ Run `pnpm -r test` before assuming anything is unbuilt. The packages:
   (`knowledge.ts`), and the foundation types: `proof.ts` (ProofMode/Verdict/SigningRow),
   `signer.ts` (fail-closed identity chain), `model-events.ts` (typed content blocks),
   `store.ts` (the narrow `Store` + `InMemoryStore` + `validateLibraryDoc` + a reusable parity suite).
-- **`packages/agent`** — the owned loop (ADR-0011): `model.ts` (the `Model` seam + `ScriptedModel` +
-  `AnthropicModel`), `run-turn.ts`, `step.ts` (fail-closed `runStep`/`runStepValidated`),
-  `tool-executor.ts`, `fs-tools.ts` (the real local file tool surface — read/write/edit/list/run).
+- **`packages/agent`** — both leaf executors behind the `PhaseAuthor` seam (`phase-author.ts`,
+  ADR-0030): the **owned loop** (ADR-0011 — now the offline/deterministic executor + pivot-out
+  fallback): `model.ts` (the `Model` seam + `ScriptedModel` + `AnthropicModel`), `run-turn.ts`,
+  `step.ts` (fail-closed `runStep`/`runStepValidated`), `tool-executor.ts`, `fs-tools.ts` (the real
+  local file tool surface — read/write/edit/list/run); and **`ClaudeAgentAuthor`** (`sdk-author.ts`
+  — the **live** runtime on the Claude Agent SDK, subscription-funded, write scope held by a
+  fail-closed `PreToolUse` hook).
 - **`packages/orchestrator`** — the deterministic spine (ADR-0005): `sequence.ts` (`runSequence` /
   `runLoop`, with the *halted-is-never-a-pass* guard), and the **working prove-it-gate** (ADR-0020):
   `phase-machine.ts`, `write-scoped-executor.ts`, `shell-test-executor.ts`, `prove-it-gate.ts`.
@@ -93,6 +100,8 @@ file conflicts).
   Run the library migration: `STORYTREE_DB_USER=<iam-email> npx tsx packages/store/src/load-corpus.ts`.
 - Prove-it-gate: `packages/orchestrator/src/prove-it-gate.ts` (+ `.e2e.test.ts`). Red-green is enforced
   spine-side (phase machine + per-phase write-scope + spine-observed RED/GREEN + a signed verdict).
+  Live smoke (ADR-0030, subscription-billed): `pnpm storytree node build <id> --live`
+  (`--dry-run` is the offline scripted walk).
 - Library CLI (ADR-0023): `pnpm storytree library` (explore; offline). Writes need the live DB:
   `pnpm db:up` then `pnpm storytree library artifact edit <id> --set <field>=<value> --pg`. See the
   Library section above (note: inline `--json` needs `npx tsx packages/cli/src/main.ts`, not `pnpm`).
@@ -107,11 +116,10 @@ foundation was ported *conceptually* from it (see `docs/research/agentic-foundat
 
 ## Load-bearing ADRs
 
-`docs/decisions/` runs **0001–0023 on `main`** (if `MEMORY.md` mentions 0024–0028, those are other
-branches — calibrate to what's on disk). Read the older ADRs' **Status lines first** (many are
-superseded-in-part). The current-state set:
+`docs/decisions/` runs **0001–0030 on `main`** — calibrate to what's on disk. Read the older ADRs'
+**Status lines first** (many are superseded-in-part). The current-state set:
 
-- **0011** — own the agent loop (pi retired)
+- **0011** — own the agent loop (pi retired) — *superseded in part by 0030*
 - **0017** — the knowledge/library tier lives in shared Postgres
 - **0018** — Phase-1 structured source (`knowledge.json`); the glossary is generated
 - **0019** — the tier is named "library"; **DBOS deferred** ← the big one
@@ -119,6 +127,8 @@ superseded-in-part). The current-state set:
 - **0021** — keyless agent/DB auth; the Phase-2 migration ran
 - **0022** — CI green gate + auto-merge-on-green (inside free Actions)
 - **0023** — agent↔Library interaction is a choose-your-own-adventure CLI (`packages/cli`)
+- **0030** — all-in on the Claude Agent SDK as the **live** runtime (subscription auth); the owned
+  loop is the offline/deterministic executor + pivot-out fallback, behind the `PhaseAuthor` seam
 
 ## Conventions
 

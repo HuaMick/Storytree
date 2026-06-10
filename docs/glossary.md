@@ -269,26 +269,30 @@ node) (ADR-0004, ADR-0005, ADR-0011).
 
 **spine** — The code-sequenced control-flow layer (the orchestrator over plain
 Postgres — DBOS deferred, ADR-0019) that owns **closed, deterministic routing**:
-the order steps run in, when a loop iterates, which branch is taken. The owned
-loop is the **leaf** it delegates to. Discriminator (carried verbatim from
+the order steps run in, when a loop iterates, which branch is taken. The **leaf**
+it delegates to runs behind the executor seam (live: the Claude Agent SDK; offline/fallback:
+the owned loop — ADR-0030). Discriminator (carried verbatim from
 Agentic ADR-0026): *if a for-loop or a match could express the routing, the spine
 owns it; if the routing needs the model to decide what comes next, the leaf
-(owned-loop node) owns it.* Authoritatively defined by ADR-0005.
+owns it.* Authoritatively defined by ADR-0005.
 
 **leaf step / leaf judgment** — A single step in a code-sequenced cascade whose
-work is owned by the **owned loop** (what to write, how to satisfy
+work is owned by the **leaf runtime** (what to write, how to satisfy
 a contract) rather than by the spine — the **control-flow** sense of "leaf"
-(ADR-0005, ADR-0011). Distinct from **contract**, the *leaf tier* of the work hierarchy
+(ADR-0005, ADR-0011). The leaf runs behind the executor seam: live, the Claude
+Agent SDK; offline/fallback, the owned loop (ADR-0030). Distinct from **contract**,
+the *leaf tier* of the work hierarchy
 (ADR-0002); the two senses must not be conflated.
 
 **agent package** (`packages/agent`) — The project-owned **thin wrapper** (`packages/agent`) and
-typed-event parser over the owned loop's surface (prompt / steer / follow-up
+typed-event parser over the leaf surface (prompt / steer / follow-up
 + lifecycle events + `edit`-tool diffs). The **sole** surface through which
-the owned loop is invoked and the **only** place a model runtime is imported: it spawns/steers
-the owned loop, normalizes its stream into the typed events the event store renders, and
-exposes nothing model-shaped upward. No third-party agent framework sits in this
-role; `packages/core` and `apps/studio` never parse the owned loop's stream directly
-(ADR-0004, ADR-0006, ADR-0011). Carries v1's own-a-thin-wrapper-over-the-agent-runtime
+a leaf runtime is invoked and the **only** place a model runtime is imported. It hosts **both**
+executors behind the `PhaseAuthor` seam: the **owned loop** (offline/deterministic + pivot-out
+fallback, ADR-0011) and the **Claude Agent SDK** leaf (`ClaudeAgentAuthor` — the live runtime,
+ADR-0030); it normalizes the stream into the typed events the event store renders, and
+exposes nothing model-shaped upward. `packages/core` and `apps/studio` never parse the leaf's stream directly
+(ADR-0004, ADR-0006, ADR-0011, ADR-0030). Carries v1's own-a-thin-wrapper-over-the-agent-runtime
 principle (Agentic ADR-0008/0026).
 
 **trunk** — The canonical **integrated mainline** a capability lands on once
