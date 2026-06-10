@@ -1,0 +1,121 @@
+---
+id: "notice-board"
+tier: story
+title: "The notice board — parallel sessions declare presence anchored to story nodes"
+outcome: "Every session (interactive or spine-driven) is visible on a shared board — who exists, what worktree, what it is working on — woven into the CLI orientation surfaces so a session zoning into a story node sees its neighbours."
+status: proposed
+proof_mode: UAT
+capabilities: [declare-presence, presence-store, noticeboard-cli, tree-view, ambient-integration]
+---
+
+# The notice board — parallel sessions declare presence anchored to story nodes
+
+**Outcome —** Every session (interactive or spine-driven) is visible on a shared board — who
+exists, what worktree, what it is working on — woven into the CLI orientation surfaces so a
+session zoning into a story node sees its neighbours.
+
+This is the **coordination** organ ([ADR-0033](../../docs/decisions/0033-session-presence-notice-board.md),
+the deciding ADR; legacy lineage: V1 `Agentic` ADR-0022's channel — deliberately *minus* its claims
+gate). It is the V2 answer to "sessions can't see across worktrees": the shared Cloud SQL store
+already carries cross-session state; what is missing is purely the presence surface. The sibling
+**feedback** organ (cites, archival, synthesis) is [`stories/feedback-graduation`](../feedback-graduation/story.md)
+(ADR-0032) — this story carries the `notice-board` name because presence *is* what the notice
+board always meant to the owner: "a simple declaration of *I exist and I'm working on xyz*".
+
+**Greenfield, through the drive.** Every capability is `proposed` — authored first, built through
+the prove-it-gate (`node build`/`story build`, ADR-0030/0031). Registry entries are NOT
+pre-created — registration is the deliberate act done per node when its build is actually next.
+The capability split deliberately follows REAL-build mechanics (ADR-0031): each node's registered
+proof is ONE test file that runs OFFLINE in the build worktree, so a signed PASS honestly attests
+what it ran. Where live SQL is inherent (`presence-store`; `ambient-integration`'s DB-up legs),
+the registered file proves the offline portion (pure helpers, a fake transactional client, config
+audits) and the live behaviour follows the house live-gated, human-verified pattern — never
+attested by a worktree PASS.
+
+## Design floor (from ADR-0033)
+
+- **Presence, not enforcement.** One declaration doc per session, upserted over append-only
+  history (`events.session_event` + `events.session`, the house event+projection pattern). The
+  board *shows* overlap; nothing refuses anything. Claims-with-refusal (legacy ADR-0022) is
+  named-deferred, like DBOS.
+- **Identity is the worktree name** — derived, never typed; **no signer chain** (presence is not
+  proof; ADR-0020's fail-closed signing posture deliberately does not apply).
+- **`workingOn` is required prose; `nodes` is optional work-hierarchy ids.** Granularity grows by
+  declaring finer node ids — no schema change.
+- **Staleness replaces release discipline.** The board ages rows by `lastSeenAt`; `done` is
+  politeness. No release ceremony.
+- **Automation never blocks.** The board never touches a blocking-capable hook (`Stop`,
+  `PreToolUse`, `UserPromptSubmit`); a board write failure never fails the enclosing action. The
+  V1 hook-loop lesson, encoded structurally.
+- **Live-DB only, degrade gracefully.** Presence needs `pnpm db:up`; offline surfaces render
+  without presence lines rather than failing.
+
+## Capabilities (5)
+
+Listed roots-first. All `proposed` — no code exists; the Proof note in each file is a would-be
+test, not evidence.
+
+| # | capability | outcome | status | depends on |
+|---|---|---|---|---|
+| 1 | [`declare-presence`](declare-presence.md) | A session's presence declaration is a validated doc with derived staleness and pure upsert-merge semantics — fail-closed on any missing identity or substance field (`sessionId`, `branch`, `workingOn`). | proposed | — |
+| 2 | [`presence-store`](presence-store.md) | Declarations persist through the store seam as append-only events plus a one-row-per-session projection, atomically. | proposed | `declare-presence` |
+| 3 | [`noticeboard-cli`](noticeboard-cli.md) | `storytree noticeboard` lists active sessions grouped by story node with staleness; `declare`/`done` write with worktree-derived identity. | proposed | `declare-presence`, `presence-store` |
+| 4 | [`tree-view`](tree-view.md) | `storytree tree [<story>]` renders the work hierarchy offline and weaves the presence block in when the live store is reachable. | proposed | `declare-presence`, `presence-store` |
+| 5 | [`ambient-integration`](ambient-integration.md) | Presence declares itself: spine-side around SDK builds, fail-silent session hooks, a statusline glance — never via a blocking-capable hook. | proposed | `noticeboard-cli`, `tree-view` |
+
+## Dependency graph (predicted, not code-derived)
+
+Greenfield story: these edges are the *designed* couplings the integration tests will assert,
+to be re-derived from real imports once code exists (the `library` story's standard).
+
+- `presence-store` → `declare-presence` — the store persists the core doc shape and reuses its
+  pure merge/validation.
+- `noticeboard-cli` → `declare-presence`, `presence-store` — the CLI derives identity, validates
+  via core, reads/writes via the store.
+- `tree-view` → `declare-presence`, `presence-store` — the presence block derives staleness via
+  core and reads the projection.
+- `ambient-integration` → `noticeboard-cli`, `tree-view` — automation invokes the CLI surfaces
+  (hooks, statusline) and the spine declares through the same store path the CLI uses.
+
+**Cross-story boundary (ADR-0010 §4):** `presence-store` consumes the **store connection seam**
+owned by the `library` story (`event-sourced-store-seam` — `createPool`/keyless IAM); `tree-view`
+reads the **node-spec/registry surface** owned by the drive machinery (`findNodeSpecFile`/
+`NODE_BUILD_REGISTRY` in `packages/orchestrator`). Declared, not absorbed.
+
+## Story UAT (would-be)
+
+**Goal —** Two parallel sessions and one operator: each session sees the other before writing,
+a dead session ages out visibly, spine builds appear without anyone declaring them, and offline
+nothing breaks.
+
+1. **Declare:** session A (worktree `alpha-…`) runs
+   `storytree noticeboard declare --working-on "building cite-event" --node feedback-graduation --pg`.
+   **Success —** the board lists A with its branch, prose and node; identity was derived from the
+   worktree, never typed; `events.session_event` holds one event, `events.session` one row.
+2. **See the neighbour:** session B runs `storytree tree feedback-graduation --pg`. **Success —**
+   the story view weaves in "sessions here: alpha-… — 'building cite-event', last seen <1m".
+3. **Re-declare finer:** A re-declares with `--node cite-event`. **Success —** still one
+   projection row (upsert), two history events, the board shows the finer node.
+4. **Staleness:** A goes silent past the threshold. **Success —** the board renders A dimmed/stale
+   by derived age; nothing was released or deleted.
+5. **Spine presence:** a `storytree node build <id> --real --store pg` run declares itself around
+   the leaf and marks done after. **Success —** the build appeared on the board mid-run with the
+   node id, and dropped to `done` after — with no hook involved.
+6. **Done + history:** A runs `storytree noticeboard done`. **Success —** A leaves the active
+   board; its full event history remains readable.
+7. **Offline degrade:** with the DB down, `storytree tree feedback-graduation` renders the
+   hierarchy with no presence lines and no error; `noticeboard declare` refuses with guidance
+   (`pnpm db:up`), exit non-zero, **without** failing any enclosing hook (fire-and-forget wrapper
+   swallows it).
+
+## Open modeling calls (for the owner)
+
+1. **Staleness threshold.** The dim/stale age (UAT assumes "minutes-fresh, hours-stale") — fixed
+   constant first, tunable later?
+2. **Statusline heartbeat.** Ship the debounced `lastSeenAt` bump in the first
+   `ambient-integration` cut, or glance-only (heartbeat as follow-up)?
+3. **`storytree tree` scope.** First cut renders stories + capabilities + registry/verdict status
+   from local files; how much verdict detail (events.verdict rollup when live) belongs in v1?
+4. **Hook installation.** `SessionStart`/`SessionEnd` hooks land in the repo's
+   `.claude/settings.json` (shared, every session gets them) vs documented-but-manual — shared is
+   the proposal, given the fail-silent wrapper.
