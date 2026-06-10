@@ -118,6 +118,7 @@ test("the verdict-line entry carries a REAL proof config whose write walls reall
     "declare-presence",
     "noticeboard-cli",
     "presence-store",
+    "tree-view",
     "verdict-line",
   ]);
   const real = lookupNodeBuildConfig("verdict-line")?.real;
@@ -194,6 +195,25 @@ test("the noticeboard-cli entry is REAL-buildable with install and walls excludi
   // The dispatch wiring is spine work AFTER promotion — the leaf can never reach it.
   assert.equal(scope.isWriteAllowed("IMPLEMENT", "packages/cli/src/commands.ts"), false);
   assert.equal(scope.isWriteAllowed("IMPLEMENT", "packages/cli/src/main.ts"), false);
+});
+
+test("the tree-view entry is REAL-buildable with install and walls excluding the dispatch", () => {
+  const real = lookupNodeBuildConfig("tree-view")?.real;
+  assert.ok(real !== undefined);
+  assert.equal(real.testFile, "packages/cli/src/tree.test.ts");
+  assert.equal(real.sourceFile, "packages/cli/src/tree.ts");
+  assert.equal(real.install, true);
+  assert.deepEqual(real.typecheck, {
+    file: "pnpm",
+    args: ["--filter", "@storytree/cli", "typecheck"],
+  });
+  const scope = new PathWriteScope(real.scope);
+  assert.equal(scope.isWriteAllowed("AUTHOR_TEST", real.testFile), true);
+  assert.equal(scope.isWriteAllowed("IMPLEMENT", real.sourceFile), true);
+  assert.equal(scope.isWriteAllowed("IMPLEMENT", real.testFile), false);
+  // The sibling proven module and the dispatch stay out of reach.
+  assert.equal(scope.isWriteAllowed("IMPLEMENT", "packages/cli/src/noticeboard.ts"), false);
+  assert.equal(scope.isWriteAllowed("IMPLEMENT", "packages/cli/src/commands.ts"), false);
 });
 
 test("every install-bearing REAL entry registers a typecheck command (the registry-wide invariant)", () => {
@@ -327,6 +347,7 @@ test("real mode fails closed on a registered node WITHOUT a real-proof config", 
     "declare-presence",
     "noticeboard-cli",
     "presence-store",
+    "tree-view",
     "verdict-line",
   ]);
 });
