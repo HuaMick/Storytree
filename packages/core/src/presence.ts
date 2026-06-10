@@ -65,10 +65,16 @@ export type PresenceDeclarationDoc = z.infer<typeof PresenceDeclaration>;
 /**
  * A partial update to a stored presence declaration.
  * `sessionId` and `startedAt` are anchors — they cannot appear in a patch.
+ *
+ * Explicit `undefined` values are admitted by the type because the merge ignores them at
+ * runtime (the `mergeCommentPatch` semantic) — under `exactOptionalPropertyTypes` a plain
+ * `Partial` would reject the very payloads the contract promises to tolerate.
  */
-export type PresenceDeclarationPatch = Partial<
-  Omit<PresenceDeclarationDoc, "sessionId" | "startedAt">
->;
+export type PresenceDeclarationPatch = {
+  [K in keyof Omit<PresenceDeclarationDoc, "sessionId" | "startedAt">]?:
+    | Omit<PresenceDeclarationDoc, "sessionId" | "startedAt">[K]
+    | undefined;
+};
 
 // ---------------------------------------------------------------------------
 // Staleness classification
