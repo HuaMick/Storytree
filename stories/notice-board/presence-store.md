@@ -62,13 +62,17 @@ write scope, do not touch it): history is **`events.session_event`** (`seq BIGSE
   arrives on the incoming doc (callers bump it).
 - **The test is OFFLINE-ONLY (the registered REAL proof):** drive a FAKE `PresencePool` whose
   client records every `query(text, values)` call and returns canned projection rows
-  (`{ rows: [{ id, doc }] }` shaped). Assert: (1) one declare = exactly `BEGIN`, one
-  `session_event` INSERT, one `session` upsert, `COMMIT`, all on the SAME client, and a
-  fake-induced failure on the upsert → `ROLLBACK` issued, no `COMMIT` (abort-together); (2) a
+  (`{ rows: [{ id, doc }] }` shaped). One declare issues, in order, on the SAME client:
+  `BEGIN` → the projection SELECT → exactly ONE `session_event` INSERT → exactly ONE `session`
+  upsert → `COMMIT` (five statements total — the SELECT is part of the transaction, count it).
+  Assert by ORDERED SUBSEQUENCE and by counting the INSERTs, never by an exact total-call-count or
+  byte-exact SQL strings (match fragments like `INSERT INTO events.session_event`) — you cannot
+  run this test yourself, so brittle assertions are how this build dies. Also assert: a
+  fake-induced failure on the upsert → `ROLLBACK` issued, no `COMMIT` (abort-together); a
   re-declare for the same `sessionId` (the fake returns the previously stored row) persists the
   MERGED doc — `startedAt` survives, the changed `workingOn`/`nodes` land — still keyed on the same
-  id (upsert, never a second row) while history grows by one event; (3) `done` appends a third
-  event and flips the persisted projection doc's status, and `history` returns events in order.
+  id (upsert, never a second row) while history grows by one event; `done` appends a third
+  event and flips the persisted projection doc's status; `history` returns events in order.
   NO live DB, no `STORYTREE_DB_LIVE` leg, no env probing — the live parity run is explicitly
   OUTSIDE this proof (later spine work: live-gated per-file, truncating ONLY the session tables).
 - **No signer chain, advisory writes:** presence is not proof (ADR-0033 Decision 1) — rows carry the
