@@ -1,4 +1,4 @@
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
 
 import { rollupParitySuite, rollupStatus, workEvent } from "@storytree/core";
@@ -177,10 +177,12 @@ test("the doc surface fails loud — this store is event-only", async () => {
 // ---- Live-gated: the shared rollup-parity bar over the real tables --------------------------
 
 /** Build a PgWorkStore against the live DB, truncating the work tables so each run starts clean. */
+const livePools: Array<() => Promise<void>> = [];
 async function makePgWorkStore(): Promise<Store> {
-  const { createPool } = await import("./connection.js");
+  const { createPool, closePool } = await import("./connection.js");
   const { applySchema } = await import("./migrate.js");
-  const { pool } = await createPool();
+  const { pool, connector } = await createPool();
+  livePools.push(() => closePool(pool, connector));
   await applySchema(pool);
   await pool.query("TRUNCATE events.work_event, events.verdict RESTART IDENTITY");
   return new PgWorkStore(pool);
@@ -188,6 +190,10 @@ async function makePgWorkStore(): Promise<Store> {
 
 if (LIVE) {
   rollupParitySuite("PgWorkStore", makePgWorkStore);
+  after(async () => {
+    // Close every leaked pool so the test process can exit (the parity suite has no teardown seam).
+    await Promise.allSettled(livePools.map((close) => close()));
+  });
 } else {
   test("PgWorkStore rollup parity (skipped: set STORYTREE_DB_LIVE=1 to run)", { skip: true }, () => {
     // The live DB is stopped by default; the fake-client tests above prove the SQL routing
