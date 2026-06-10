@@ -88,6 +88,7 @@ export {
   commitAuthored,
   promoteRealPass,
   runRegressionSuite,
+  runWorktreeTypecheck,
   platformShellCommand,
 } from "./build-worktree.js";
 

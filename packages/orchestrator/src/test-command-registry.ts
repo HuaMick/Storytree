@@ -33,9 +33,11 @@ export interface NodeBuildConfig {
  * erased and fine) — the right shape for NET-NEW, dependency-free leaves. With `install: true`,
  * the worktree gets a LOCKFILE-ONLY `pnpm install` first (shared-store cheap), the authored files
  * may import workspace dependencies, and promotion additionally requires the node's package suite
- * (the registry `command`) green in the worktree — a green leaf must not break its package. The
- * leaf can never ADD a dependency either way: `package.json`/`pnpm-lock.yaml` sit outside every
- * write scope (deny-by-default).
+ * (the registry `command`) AND the package typecheck (`typecheck`) green in the worktree — a green
+ * leaf must not break its package, and the proof run is tsx-driven (types STRIPPED), so only a
+ * real `tsc --noEmit` can see type-illegal-but-runtime-green code. The leaf can never ADD a
+ * dependency either way: `package.json`/`pnpm-lock.yaml` sit outside every write scope
+ * (deny-by-default).
  */
 export interface RealProofConfig {
   /** Repo-relative TS test file the REAL proof runs. AUTHOR_TEST may write exactly this. */
@@ -46,11 +48,25 @@ export interface RealProofConfig {
   scope: PathWriteScopeConfig;
   /** Lockfile-only `pnpm install` in the worktree first (dependency-bearing targets, ADR-0031). */
   install?: boolean;
+  /**
+   * The package typecheck command (`tsc --noEmit` via the package's `typecheck` script), run in the
+   * installed worktree alongside the regression suite before a promotion may push. REQUIRED when
+   * `install` is true (the CLI refuses an install-bearing entry without it): the proof command runs
+   * under tsx, which strips types, so a leaf can author runtime-green code that violates the repo's
+   * strict flags (it happened — exactOptionalPropertyTypes, declare-presence, 2026-06-11) and only
+   * a worktree `tsc` catches it before the PR-time CI does. Needs node_modules, hence install-only.
+   */
+  typecheck?: ShellCommand;
 }
 
 const pnpmTest = (pkg: string): ShellCommand => ({
   file: "pnpm",
   args: ["--filter", pkg, "test"],
+});
+
+const pnpmTypecheck = (pkg: string): ShellCommand => ({
+  file: "pnpm",
+  args: ["--filter", pkg, "typecheck"],
 });
 
 const pkgScope = (pkg: string): PathWriteScopeConfig => ({
@@ -104,6 +120,7 @@ export const NODE_BUILD_REGISTRY: Readonly<Record<string, NodeBuildConfig>> = {
         sourceGlobs: ["packages/core/src/presence.ts"],
       },
       install: true,
+      typecheck: pnpmTypecheck("@storytree/core"),
     },
   },
   // The notice-board store node (ADR-0033): the pg presence store — event+projection mirroring
@@ -121,6 +138,7 @@ export const NODE_BUILD_REGISTRY: Readonly<Record<string, NodeBuildConfig>> = {
         sourceGlobs: ["packages/store/src/presence-store.ts"],
       },
       install: true,
+      typecheck: pnpmTypecheck("@storytree/store"),
     },
   },
   // The notice-board CLI node (ADR-0033): the `storytree noticeboard` command module — a
@@ -137,6 +155,7 @@ export const NODE_BUILD_REGISTRY: Readonly<Record<string, NodeBuildConfig>> = {
         sourceGlobs: ["packages/cli/src/noticeboard.ts"],
       },
       install: true,
+      typecheck: pnpmTypecheck("@storytree/cli"),
     },
   },
 };

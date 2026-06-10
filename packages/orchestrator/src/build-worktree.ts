@@ -228,10 +228,34 @@ export async function runRegressionSuite(args: {
   command: ShellCommand;
   cwd: string;
 }): Promise<{ result: "green" | "red" }> {
+  return observeWorktreeCommand("regression-suite", args);
+}
+
+/**
+ * Run the package typecheck (`tsc --noEmit` via the registry's `typecheck` command) in the
+ * (installed) worktree and observe green/red by exit code, exactly like {@link runRegressionSuite}.
+ * The hole it closes: the node's proof command and the regression suite both run under tsx, which
+ * STRIPS types — a leaf can author type-illegal code that is runtime-green and would otherwise
+ * surface only at PR-time CI (declare-presence, 2026-06-11: explicit-undefined patch literals vs
+ * `exactOptionalPropertyTypes`). A red here is treated like a red suite: promotion parks the
+ * branch local-only, the push is withheld.
+ */
+export async function runWorktreeTypecheck(args: {
+  command: ShellCommand;
+  cwd: string;
+}): Promise<{ result: "green" | "red" }> {
+  return observeWorktreeCommand("worktree-typecheck", args);
+}
+
+/** The shared observer: spawn the command in the worktree, read green/red off the exit code only. */
+async function observeWorktreeCommand(
+  label: string,
+  args: { command: ShellCommand; cwd: string },
+): Promise<{ result: "green" | "red" }> {
   const executor = new ShellTestExecutor({
     command: (): ShellCommand => platformShellCommand({ ...args.command, cwd: args.cwd }),
   });
-  const observation = await executor.run("regression-suite");
+  const observation = await executor.run(label);
   return { result: observation.result };
 }
 

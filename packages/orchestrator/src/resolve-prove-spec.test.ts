@@ -141,6 +141,12 @@ test("the declare-presence entry is REAL-buildable with install (zod import) and
   assert.equal(real.testFile, "packages/core/src/presence.test.ts");
   assert.equal(real.sourceFile, "packages/core/src/presence.ts");
   assert.equal(real.install, true);
+  // install:true implies the typecheck wall (tsx strips types — the proof run cannot see type
+  // errors; the 2026-06-11 exactOptionalPropertyTypes escape is the lesson).
+  assert.deepEqual(real.typecheck, {
+    file: "pnpm",
+    args: ["--filter", "@storytree/core", "typecheck"],
+  });
   const scope = new PathWriteScope(real.scope);
   assert.equal(scope.isWriteAllowed("AUTHOR_TEST", real.testFile), true);
   assert.equal(scope.isWriteAllowed("AUTHOR_TEST", real.sourceFile), false);
@@ -157,6 +163,10 @@ test("the presence-store entry is REAL-buildable with install (core import) and 
   assert.equal(real.testFile, "packages/store/src/presence-store.test.ts");
   assert.equal(real.sourceFile, "packages/store/src/presence-store.ts");
   assert.equal(real.install, true);
+  assert.deepEqual(real.typecheck, {
+    file: "pnpm",
+    args: ["--filter", "@storytree/store", "typecheck"],
+  });
   const scope = new PathWriteScope(real.scope);
   assert.equal(scope.isWriteAllowed("AUTHOR_TEST", real.testFile), true);
   assert.equal(scope.isWriteAllowed("AUTHOR_TEST", real.sourceFile), false);
@@ -173,6 +183,10 @@ test("the noticeboard-cli entry is REAL-buildable with install and walls excludi
   assert.equal(real.testFile, "packages/cli/src/noticeboard.test.ts");
   assert.equal(real.sourceFile, "packages/cli/src/noticeboard.ts");
   assert.equal(real.install, true);
+  assert.deepEqual(real.typecheck, {
+    file: "pnpm",
+    args: ["--filter", "@storytree/cli", "typecheck"],
+  });
   const scope = new PathWriteScope(real.scope);
   assert.equal(scope.isWriteAllowed("AUTHOR_TEST", real.testFile), true);
   assert.equal(scope.isWriteAllowed("IMPLEMENT", real.sourceFile), true);
@@ -180,6 +194,19 @@ test("the noticeboard-cli entry is REAL-buildable with install and walls excludi
   // The dispatch wiring is spine work AFTER promotion — the leaf can never reach it.
   assert.equal(scope.isWriteAllowed("IMPLEMENT", "packages/cli/src/commands.ts"), false);
   assert.equal(scope.isWriteAllowed("IMPLEMENT", "packages/cli/src/main.ts"), false);
+});
+
+test("every install-bearing REAL entry registers a typecheck command (the registry-wide invariant)", () => {
+  // tsx strips types in both the proof run and the regression suite; without a registered
+  // `tsc --noEmit` an install:true node's promotion would push type-illegal code to PR CI.
+  for (const id of realBuildableNodeIds()) {
+    const real = lookupNodeBuildConfig(id)?.real;
+    assert.ok(real !== undefined, `${id} carries a real config`);
+    if (real.install === true) {
+      assert.ok(real.typecheck !== undefined, `${id}: install:true requires real.typecheck`);
+      assert.ok(real.typecheck.args.includes("typecheck"), `${id}: typecheck targets the script`);
+    }
+  }
 });
 
 // ── prompt assembly (real briefs off the real spec) ──────────────────────────────────────────────
@@ -316,6 +343,19 @@ test("realPrompts names the REAL files, the REAL proof command, and the no-node_
   assert.match(prompts.authorTest, /Guidance from the node spec/);
   assert.match(prompts.implement, /packages\/core\/src\/verdict-line\.ts/);
   assert.match(prompts.implement, /Writes to the test file are refused/);
+});
+
+test("realPrompts for an install-bearing node names the typecheck wall (type-legal from the start)", () => {
+  const spec = loadNodeSpec(path.join(STORIES_DIR, "notice-board", "declare-presence.md"));
+  const real = lookupNodeBuildConfig("declare-presence")?.real;
+  assert.ok(real !== undefined);
+  const prompts = realPrompts(spec, real);
+  // The install-mode brief: dependencies are present, but the leaf is told promotion also runs
+  // tsc --noEmit — runtime-green is not enough (the tsx type-strip hole, closed).
+  assert.match(prompts.authorTest, /dependencies installed/);
+  assert.match(prompts.authorTest, /tsc --noEmit/);
+  assert.match(prompts.authorTest, /exactOptionalPropertyTypes/);
+  assert.match(prompts.implement, /tsc --noEmit/);
 });
 
 /**

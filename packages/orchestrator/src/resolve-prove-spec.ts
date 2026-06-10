@@ -367,7 +367,11 @@ export function realPrompts(spec: NodeSpec, real: RealProofConfig): PhasePrompts
       ? `- the worktree HAS its workspace dependencies installed (lockfile-only): you may import ` +
         `workspace packages and existing dependencies per the surrounding code's idiom, but you ` +
         `can NEVER add one — \`package.json\`/\`pnpm-lock.yaml\` are outside your write scope, ` +
-        `and a new-dependency need means the node spec is wrong (stop, do not work around it).`
+        `and a new-dependency need means the node spec is wrong (stop, do not work around it).\n` +
+        `- the proof command runs under tsx (types stripped), but promotion ALSO runs the package ` +
+        `typecheck (\`tsc --noEmit\`, full strict flags incl. \`exactOptionalPropertyTypes\` and ` +
+        `\`noUncheckedIndexedAccess\`) — type-illegal code that happens to be runtime-green will ` +
+        `not land, so author type-legal code from the start.`
       : `- the worktree has NO node_modules: the test and the implementation may import ONLY ` +
         `\`node:\` builtins and relative files. \`import type { ... } from "./x.js"\` is fine ` +
         `(erased at runtime); a VALUE import of any package (zod etc.) will crash the proof run.`;
