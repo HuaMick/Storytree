@@ -9,7 +9,8 @@ that [ADR-0027](0027-supersede-adr-0014-notice-board.md) carried forward from th
 an ADR, then retire the open-question* — for its third case (ADR-0018 was the first, ADR-0027 the
 second). Records the owner decision (studio comment on the OQ, `a50e0372-99b5-461c-9d3c-1b5e9d6bd25e`,
 now marked resolved). **Refines** ADR-0014's C3 and bullet-2, and **reshapes** the `notice-board`
-story (`stories/notice-board/`, authored in PR #32). Builds on
+story (`stories/feedback-graduation/`, authored in PR #32 as `notice-board`; renamed 2026-06-11 —
+the `notice-board` name moved to the session-presence story, ADR-0033). Builds on
 [ADR-0017](0017-cross-cutting-knowledge-tier.md) (the Library tier; the consciously-deferred
 citing/reciprocity bundle this settles) and [ADR-0008](0008-ui-drives-agents-approvals.md) (operator
 identity as a signed event).
@@ -88,7 +89,7 @@ count, an operator who approves — with much of the design weight spent on maki
   here.** A forward-pointer is added to ADR-0027.
 - **ADR-0017 Deferred** ("the citing / reference / reciprocity mechanism … and the comments layer") →
   the citing half is settled here (the comments layer shipped); a pointer is added.
-- **The `notice-board` story** (`stories/notice-board/`) is re-authored to this direction: `cite-event`
+- **The `notice-board` story** (now `stories/feedback-graduation/`) is re-authored to this direction: `cite-event`
   becomes cite-as-link; `graduation-candidates` (the deterministic threshold scan) and
   `graduate-to-library` (land-a-guidance-artifact) are replaced by one deferred `signal-synthesis`
   capability (the future agent); `archive-with-reason` is unchanged.
@@ -99,8 +100,8 @@ count, an operator who approves — with much of the design weight spent on maki
   event — history preserved, current-state projection drops it) plus removal from the
   `apps/studio/data/knowledge.json` seed, and the generated views (`assets.json`, `docs/glossary.md`)
   regenerated. The Library's open-questions go from four to three. The *build* of the mechanism stays
-  tracked by the `notice-board` story, not by an open question.
-- **Near-term buildable** in `notice-board`: `cite-event` (as a typed link) and `archive-with-reason`.
+  tracked by the `feedback-graduation` story, not by an open question.
+- **Near-term buildable** in `feedback-graduation`: `cite-event` (as a typed link) and `archive-with-reason`.
   **Deferred**: `signal-synthesis` (the future agent; its trust in agent-authored signal waits on
   identity §1).
 - **No anti-gaming scaffolding is built.** This is a deliberate non-goal, revisited only on evidence.
@@ -120,5 +121,5 @@ count, an operator who approves — with much of the design weight spent on maki
 - The retired OQ `oq-feedback-graduation-mechanism`; the resolved owner comment
   `a50e0372-99b5-461c-9d3c-1b5e9d6bd25e` on the live store.
 - `packages/store/src/pg-comment-store.ts` (the substrate `events.cite` mirrors);
-  `stories/notice-board/` (the build vehicle, re-authored here).
+  `stories/feedback-graduation/` (the build vehicle, re-authored here).
 - Design conversation, 2026-06-10.

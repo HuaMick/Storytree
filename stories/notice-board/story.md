@@ -1,102 +1,121 @@
 ---
 id: "notice-board"
 tier: story
-title: "The notice board — cites link feedback into a signal-graph a synthesis agent graduates"
-outcome: "Operator and session feedback becomes a connected, attributable signal-graph via cites; a future synthesis agent graduates accumulated signal into open-questions and proposals."
+title: "The notice board — parallel sessions declare presence anchored to story nodes"
+outcome: "Every session (interactive or spine-driven) is visible on a shared board — who exists, what worktree, what it is working on — woven into the CLI orientation surfaces so a session zoning into a story node sees its neighbours."
 status: proposed
 proof_mode: UAT
-capabilities: [cite-event, archive-with-reason, signal-synthesis]
+capabilities: [declare-presence, presence-store, noticeboard-cli, tree-view, ambient-integration]
 ---
 
-# The notice board — cites link feedback into a signal-graph a synthesis agent graduates
+# The notice board — parallel sessions declare presence anchored to story nodes
 
-**Outcome —** Operator and session feedback becomes a connected, attributable signal-graph via
-cites; a future synthesis agent graduates accumulated signal into open-questions and proposals.
+**Outcome —** Every session (interactive or spine-driven) is visible on a shared board — who
+exists, what worktree, what it is working on — woven into the CLI orientation surfaces so a
+session zoning into a story node sees its neighbours.
 
-This is the cite / graduation mechanism that [ADR-0027](../../docs/decisions/0027-supersede-adr-0014-notice-board.md)
-carried forward from the superseded ADR-0014, and that
-[ADR-0032](../../docs/decisions/0032-cite-graduation-mechanism.md) now **decides**. The
-**post substrate is already built and is NOT re-scoped here**: posts/comments persist as typed
-events (`events.comment` projection + append-only `events.comment_event`; `PgCommentStore` in
-`packages/store`), and the studio reads/writes them against the shared store. This story builds
-what sits ON that substrate: cites-as-links, reasoned archival, and — deferred — the synthesis
-agent that graduates accumulated signal.
+This is the **coordination** organ ([ADR-0033](../../docs/decisions/0033-session-presence-notice-board.md),
+the deciding ADR; legacy lineage: V1 `Agentic` ADR-0022's channel — deliberately *minus* its claims
+gate). It is the V2 answer to "sessions can't see across worktrees": the shared Cloud SQL store
+already carries cross-session state; what is missing is purely the presence surface. The sibling
+**feedback** organ (cites, archival, synthesis) is [`stories/feedback-graduation`](../feedback-graduation/story.md)
+(ADR-0032) — this story carries the `notice-board` name because presence *is* what the notice
+board always meant to the owner: "a simple declaration of *I exist and I'm working on xyz*".
 
-**First feature story through the drive (intent).** Unlike the seed stories (retrospective specs
-over existing code), every capability here is greenfield `proposed` — authored first, to be built
-through the prove-it-gate (`node build`/`story build`), with REAL worktree builds now able to
-import workspace packages (`install: true`, ADR-0031 §2) and signed passes landing by promotion
-(ADR-0031 §1). Registry entries are NOT pre-created — registration is the deliberate act that
-makes a node buildable, done per node when its build is actually next.
+**Greenfield, through the drive.** Every capability is `proposed` — authored first, built through
+the prove-it-gate (`node build`/`story build`, ADR-0030/0031). Registry entries are NOT
+pre-created — registration is the deliberate act done per node when its build is actually next.
+The capability split deliberately follows REAL-build mechanics (ADR-0031): each node's registered
+proof is ONE test file that runs OFFLINE in the build worktree, so a signed PASS honestly attests
+what it ran. Where live SQL is inherent (`presence-store`; `ambient-integration`'s DB-up legs),
+the registered file proves the offline portion (pure helpers, a fake transactional client, config
+audits) and the live behaviour follows the house live-gated, human-verified pattern — never
+attested by a worktree PASS.
 
-## Design floor (from ADR-0032, the deciding ADR)
+## Design floor (from ADR-0033)
 
-- A **comment** is a signal that an artifact needs attention. A **cite** is a typed **link**, not a
-  counter: it reinforces a signal *and* connects signals and artifacts — and a cite may target
-  another **artifact**, not just a comment — so cites compose into a **signal-graph** across the
-  whole system. Cites are events; any count is derived, never stored.
-- **Graduation is a future synthesis agent**: it reads the accumulated signal-graph and synthesises
-  **open-questions / proposals** into the ADR-0018 OQ→ADR flow. There is **no** deterministic
-  cite-threshold scan and **no** auto-promotion. This capability is deferred — named, not built.
-- Wrong or handled posts are **archived with a reason**, never deleted: history stays, the
-  projection drops them from the live surface.
-- **No anti-gaming machinery** (cite-density math, forge defences, signal-vs-noise thresholds) — a
-  deliberate non-goal per ADR-0032 §5, revisited only on observed evidence of abuse.
+- **Presence, not enforcement.** One declaration doc per session, upserted over append-only
+  history (`events.session_event` + `events.session`, the house event+projection pattern). The
+  board *shows* overlap; nothing refuses anything. Claims-with-refusal (legacy ADR-0022) is
+  named-deferred, like DBOS.
+- **Identity is the worktree name** — derived, never typed; **no signer chain** (presence is not
+  proof; ADR-0020's fail-closed signing posture deliberately does not apply).
+- **`workingOn` is required prose; `nodes` is optional work-hierarchy ids.** Granularity grows by
+  declaring finer node ids — no schema change.
+- **Staleness replaces release discipline.** The board ages rows by `lastSeenAt`; `done` is
+  politeness. No release ceremony.
+- **Automation never blocks.** The board never touches a blocking-capable hook (`Stop`,
+  `PreToolUse`, `UserPromptSubmit`); a board write failure never fails the enclosing action. The
+  V1 hook-loop lesson, encoded structurally.
+- **Live-DB only, degrade gracefully.** Presence needs `pnpm db:up`; offline surfaces render
+  without presence lines rather than failing.
 
-## Capabilities (3)
+## Capabilities (5)
 
 Listed roots-first. All `proposed` — no code exists; the Proof note in each file is a would-be
-integration test, not evidence.
+test, not evidence.
 
 | # | capability | outcome | status | depends on |
 |---|---|---|---|---|
-| 1 | [`cite-event`](cite-event.md) | A cite is an attributable typed link between comments, cites, and artifacts; counts are derived, never stored. | proposed | — |
-| 2 | [`archive-with-reason`](archive-with-reason.md) | A wrong post is archived by a reasoned event that preserves history and removes it from the live surface. | proposed | — |
-| 3 | [`signal-synthesis`](signal-synthesis.md) | **Deferred** — a future synthesis agent reads the signal-graph and proposes open-questions / proposals for operator review. | proposed (deferred) | `cite-event`, `archive-with-reason` |
+| 1 | [`declare-presence`](declare-presence.md) | A session's presence declaration is a validated doc with derived staleness and pure upsert-merge semantics — fail-closed on any missing identity or substance field (`sessionId`, `branch`, `workingOn`). | proposed | — |
+| 2 | [`presence-store`](presence-store.md) | Declarations persist through the store seam as append-only events plus a one-row-per-session projection, atomically. | proposed | `declare-presence` |
+| 3 | [`noticeboard-cli`](noticeboard-cli.md) | `storytree noticeboard` lists active sessions grouped by story node with staleness; `declare`/`done` write with worktree-derived identity. | proposed | `declare-presence`, `presence-store` |
+| 4 | [`tree-view`](tree-view.md) | `storytree tree [<story>]` renders the work hierarchy offline and weaves the presence block in when the live store is reachable. | proposed | `declare-presence`, `presence-store` |
+| 5 | [`ambient-integration`](ambient-integration.md) | Presence declares itself: spine-side around SDK builds, fail-silent session hooks, a statusline glance — never via a blocking-capable hook. | proposed | `noticeboard-cli`, `tree-view` |
 
 ## Dependency graph (predicted, not code-derived)
 
 Greenfield story: these edges are the *designed* couplings the integration tests will assert,
 to be re-derived from real imports once code exists (the `library` story's standard).
 
-- `signal-synthesis` → `cite-event` — the agent traverses cite links to read the signal-graph.
-- `signal-synthesis` → `archive-with-reason` — the agent ignores archived signal.
+- `presence-store` → `declare-presence` — the store persists the core doc shape and reuses its
+  pure merge/validation.
+- `noticeboard-cli` → `declare-presence`, `presence-store` — the CLI derives identity, validates
+  via core, reads/writes via the store.
+- `tree-view` → `declare-presence`, `presence-store` — the presence block derives staleness via
+  core and reads the projection.
+- `ambient-integration` → `noticeboard-cli`, `tree-view` — automation invokes the CLI surfaces
+  (hooks, statusline) and the spine declares through the same store path the CLI uses.
 
-**Cross-story boundary (owner call #3):** every capability here consumes the **comment/post
-substrate** owned by the existing organisms (`events.comment*` via the store seam), and
-`signal-synthesis` (when built) emits through the **open-question / proposal authoring path** in the
-`library` story (the ADR-0018 OQ→ADR flow). Under ADR-0010 §4 these are cross-story interfaces and
-should be declared, not absorbed.
+**Cross-story boundary (ADR-0010 §4):** `presence-store` consumes the **store connection seam**
+owned by the `library` story (`event-sourced-store-seam` — `createPool`/keyless IAM); `tree-view`
+reads the **node-spec/registry surface** owned by the drive machinery (`findNodeSpecFile`/
+`NODE_BUILD_REGISTRY` in `packages/orchestrator`). Declared, not absorbed.
 
 ## Story UAT (would-be)
 
-**Goal —** One operator, one session: feedback becomes a connected, attributable signal-graph, a
-wrong post leaves the surface without losing history, and accumulated signal is legible to a future
-synthesis agent. The synthesis step itself is deferred (see `signal-synthesis`); the near-term UAT
-proves the substrate it will read.
+**Goal —** Two parallel sessions and one operator: each session sees the other before writing,
+a dead session ages out visibly, spine builds appear without anyone declaring them, and offline
+nothing breaks.
 
-1. **Cite (reinforce):** two different sessions cite an existing post, each with a why. **Success —**
-   two cite events persist (from/to/why/actor), the post's *derived* cite count reads 2, and no
-   stored counter exists anywhere.
-2. **Cite (link across artifacts):** a session cites *from* a comment *to* another artifact (a node
-   or Library unit). **Success —** the cite event records both endpoints; traversing the cite graph
-   from the artifact reaches the originating comment — signal that spans the tree, not a per-post
-   tally.
-3. **Archive:** a different, wrong post is archived with a reason. **Success —** the archival event
-   (who/when/reason) persists, the post leaves the live surface, and its full history (incl. its
-   cites) remains readable.
-4. **Synthesis (deferred):** *when `signal-synthesis` is built* — the agent reads the signal-graph
-   and emits an open-question / proposal candidate referencing the signal it synthesised, through the
-   ADR-0018 authoring path. Out of scope for this story's first build; recorded as the next frontier.
+1. **Declare:** session A (worktree `alpha-…`) runs
+   `storytree noticeboard declare --working-on "building cite-event" --node feedback-graduation --pg`.
+   **Success —** the board lists A with its branch, prose and node; identity was derived from the
+   worktree, never typed; `events.session_event` holds one event, `events.session` one row.
+2. **See the neighbour:** session B runs `storytree tree feedback-graduation --pg`. **Success —**
+   the story view weaves in "sessions here: alpha-… — 'building cite-event', last seen <1m".
+3. **Re-declare finer:** A re-declares with `--node cite-event`. **Success —** still one
+   projection row (upsert), two history events, the board shows the finer node.
+4. **Staleness:** A goes silent past the threshold. **Success —** the board renders A dimmed/stale
+   by derived age; nothing was released or deleted.
+5. **Spine presence:** a `storytree node build <id> --real --store pg` run declares itself around
+   the leaf and marks done after. **Success —** the build appeared on the board mid-run with the
+   node id, and dropped to `done` after — with no hook involved.
+6. **Done + history:** A runs `storytree noticeboard done`. **Success —** A leaves the active
+   board; its full event history remains readable.
+7. **Offline degrade:** with the DB down, `storytree tree feedback-graduation` renders the
+   hierarchy with no presence lines and no error; `noticeboard declare` refuses with guidance
+   (`pnpm db:up`), exit non-zero, **without** failing any enclosing hook (fire-and-forget wrapper
+   swallows it).
 
 ## Open modeling calls (for the owner)
 
-1. **RESOLVED by ADR-0032 — cite identity (ADR-0014's C4).** Identity is provenance on the cite
-   `actor`, not a gate in a threshold. `citedBy`/`actor` resolves through the fail-closed signer
-   chain; what an *agent-session* cite is worth is the residual that ties to `open-questions.md` §1
-   and is the synthesis agent's concern, not the cite primitive's.
-2. **RESOLVED by ADR-0032 — graduation shape.** Not a deterministic threshold scan: a future
-   synthesis agent produces open-questions / proposals. No threshold policy to set; no anti-gaming
-   machinery to build.
-3. **Declare the cross-story interfaces** (comment substrate; the OQ/proposal authoring path) per
-   ADR-0010 §4 — this story would be the first consumer of a declared interface.
+1. **Staleness threshold.** The dim/stale age (UAT assumes "minutes-fresh, hours-stale") — fixed
+   constant first, tunable later?
+2. **Statusline heartbeat.** Ship the debounced `lastSeenAt` bump in the first
+   `ambient-integration` cut, or glance-only (heartbeat as follow-up)?
+3. **`storytree tree` scope.** First cut renders stories + capabilities + registry/verdict status
+   from local files; how much verdict detail (events.verdict rollup when live) belongs in v1?
+4. **Hook installation.** `SessionStart`/`SessionEnd` hooks land in the repo's
+   `.claude/settings.json` (shared, every session gets them) vs documented-but-manual — shared is
+   the proposal, given the fail-silent wrapper.

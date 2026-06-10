@@ -1,7 +1,7 @@
 ---
 id: "cite-event"
 tier: capability
-story: notice-board
+story: feedback-graduation
 title: "Cites are attributable typed links; counts are derived, never stored"
 outcome: "A cite is an attributable typed link between comments, cites, and artifacts; counts are derived, never stored."
 status: proposed
