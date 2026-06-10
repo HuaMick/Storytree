@@ -1,7 +1,7 @@
 ---
 id: "archive-with-reason"
 tier: capability
-story: notice-board
+story: feedback-graduation
 title: "Wrong posts are archived with a reason, never deleted"
 outcome: "A wrong post is archived by a reasoned event that preserves history and removes it from the live surface."
 status: proposed

@@ -1,17 +1,22 @@
 ---
-id: "notice-board"
+id: "feedback-graduation"
 tier: story
-title: "The notice board — cites link feedback into a signal-graph a synthesis agent graduates"
+title: "Feedback graduation — cites link feedback into a signal-graph a synthesis agent graduates"
 outcome: "Operator and session feedback becomes a connected, attributable signal-graph via cites; a future synthesis agent graduates accumulated signal into open-questions and proposals."
 status: proposed
 proof_mode: UAT
 capabilities: [cite-event, archive-with-reason, signal-synthesis]
 ---
 
-# The notice board — cites link feedback into a signal-graph a synthesis agent graduates
+# Feedback graduation — cites link feedback into a signal-graph a synthesis agent graduates
 
 **Outcome —** Operator and session feedback becomes a connected, attributable signal-graph via
 cites; a future synthesis agent graduates accumulated signal into open-questions and proposals.
+
+> **Renamed from `notice-board` (2026-06-11, owner call).** The `notice-board` name now belongs to
+> the session-presence coordination story ([`stories/notice-board`](../notice-board/story.md),
+> ADR-0033) — the legacy-lineage meaning of the term (sessions seeing each other in flight). This
+> story is the *feedback* organ that legacy called the forum: cites, archival, and graduation.
 
 This is the cite / graduation mechanism that [ADR-0027](../../docs/decisions/0027-supersede-adr-0014-notice-board.md)
 carried forward from the superseded ADR-0014, and that

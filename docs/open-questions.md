@@ -201,6 +201,6 @@ now DECIDED and retired by [ADR-0032](decisions/0032-cite-graduation-mechanism.m
 (2026-06-10):** a cite is a typed *link* (composing into a signal-graph across the system),
 graduation is a future *synthesis agent* that emits open-questions / proposals, and the
 anti-gaming/cite-density machinery is a deliberate non-goal. The build is tracked by the
-`notice-board` story, not by an open question.
+`feedback-graduation` story (renamed from `notice-board` 2026-06-11), not by an open question.
 *Terms:* asset (v1 shared DRY content), cross-cutting knowledge, referenced entity,
 reciprocity check, consume / consumes.

@@ -136,7 +136,8 @@ exactly the junk-becomes-noise risk the owner flagged. Disposition: **fold in, b
   merge commit) — recorded here as the operating rule; enforcement automation is later work.
 - REAL targets are no longer limited to dependency-free leaves: a registry entry with
   `install: true` can name files that import workspace packages, which unlocks REAL builds for
-  the notice-board story's nodes (the first feature story authored after this ADR).
+  the feedback-graduation story's nodes (the first feature story authored after this ADR, as
+  `notice-board`; renamed 2026-06-11 — the name moved to the session-presence story, ADR-0033).
 - Chaining promotion through `story build --real` (one branch per story run vs per node) is named
   future work, not designed here.
 - Offline coverage: promotion (fixture repos, bare-origin push, withheld push), install seam

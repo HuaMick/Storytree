@@ -1,7 +1,7 @@
 ---
 id: "signal-synthesis"
 tier: capability
-story: notice-board
+story: feedback-graduation
 title: "A synthesis agent graduates accumulated signal into open-questions / proposals (deferred)"
 outcome: "A future synthesis agent reads the signal-graph and proposes open-questions / proposals for operator review."
 status: proposed
