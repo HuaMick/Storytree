@@ -5,10 +5,11 @@
 // Two implementations sit behind the SAME interface so the /api/* request/response shapes the
 // React client sees are byte-identical regardless of where state lives:
 //   • JsonBackend — the original behaviour: reads/writes apps/studio/data/{assets,comments}.json.
-//     The DEFAULT (offline dev). Selected when STORYTREE_STUDIO_STORE is unset / not 'pg'.
+//     The offline opt-out (no DB, $0, per-worktree state). Selected by STORYTREE_STUDIO_STORE='json'.
 //   • PgBackend — the live shared Cloud SQL Postgres store (packages/store): a PgLibraryStore for
-//     assets (stored as rendered GuidanceAsset docs) + a PgCommentStore for comments. Selected by
-//     STORYTREE_STUDIO_STORE='pg'. Built lazily (first pg use) so the JSON default never touches pg.
+//     assets (stored as rendered GuidanceAsset docs) + a PgCommentStore for comments. The DEFAULT
+//     (oq-studio-store-default → B, dogfooding shared state); needs `pnpm db:up` first. Built lazily
+//     (first pg use) so an offline json session never touches pg.
 //
 // Asset write semantics (pg): editing a structured Knowledge unit stores it in RENDERED form (the
 // GuidanceAsset doc), one-way — apps/studio/data/knowledge.json stays the structured authoring
@@ -342,9 +343,9 @@ export class PgBackend implements LibraryBackend {
 
 export type StudioStore = 'json' | 'pg';
 
-/** The active backend kind, from STORYTREE_STUDIO_STORE ('pg' → pg, else json — the default). */
+/** The active backend kind, from STORYTREE_STUDIO_STORE ('json' → offline json; else pg — the default). */
 export function selectedStore(): StudioStore {
-  return process.env['STORYTREE_STUDIO_STORE'] === 'pg' ? 'pg' : 'json';
+  return process.env['STORYTREE_STUDIO_STORE'] === 'json' ? 'json' : 'pg';
 }
 
 /** Build the backend for the active store. The pg pool inside PgBackend is still created lazily. */

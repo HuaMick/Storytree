@@ -82,10 +82,11 @@ file conflicts).
   from) + the **generated** `apps/studio/data/assets.json` + `docs/glossary.md` (via
   `npx tsx apps/studio/data/build-corpus.mjs`; never hand-edit the generated two). These reflect the
   seed, not live CLI edits — a DB→seed export is later work.
-- **STUDIO UI (one parallel session at a time):** run it in store mode —
-  `STORYTREE_STUDIO_STORE=pg pnpm --filter studio dev` — to read/write the live DB and see CLI edits.
-  Unset, it falls back to the pre-DB JSON backend (`apps/studio/server/devApi.ts`), which won't reflect
-  CLI writes. Keep the UI session out of artifact data; keep artifact sessions out of `apps/studio/src`.
+- **STUDIO UI (one parallel session at a time):** the live store is now the **default**
+  (`oq-studio-store-default` → B) — `pnpm --filter studio dev` reads/writes the live DB and sees CLI
+  edits (bring the DB up first with `pnpm db:up`). For offline work set `STORYTREE_STUDIO_STORE=json`
+  to fall back to the pre-DB JSON backend (`apps/studio/server/devApi.ts`), which won't reflect CLI
+  writes. Keep the UI session out of artifact data; keep artifact sessions out of `apps/studio/src`.
 
 ## How to run
 
@@ -109,8 +110,9 @@ file conflicts).
 - Library CLI (ADR-0023): `pnpm storytree library` (explore; offline). Writes need the live DB:
   `pnpm db:up` then `pnpm storytree library artifact edit <id> --set <field>=<value> --pg`. See the
   Library section above (note: inline `--json` needs `npx tsx packages/cli/src/main.ts`, not `pnpm`).
-- Studio UI: `pnpm --filter studio dev` (Vite, port 5173); add `STORYTREE_STUDIO_STORE=pg` to back it
-  with the live store (so it reflects CLI edits).
+- Studio UI: `pnpm --filter studio dev` (Vite, port 5173) — backed by the live store **by default**
+  (`oq-studio-store-default` → B; bring the DB up with `pnpm db:up` first). Set
+  `STORYTREE_STUDIO_STORE=json` for the offline JSON backend (won't reflect CLI edits).
 
 ## Legacy — `legacy/Agentic/` is REFERENCE-ONLY
 
