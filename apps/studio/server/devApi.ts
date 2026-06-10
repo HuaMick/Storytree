@@ -18,10 +18,10 @@
 //     and rebuild instead.)
 //   • The Library is ALSO migrated into the shared Cloud SQL Postgres store
 //     (packages/store). The studio ↔ store swap is now WIRED behind a
-//     LibraryBackend seam (server/libraryBackend.ts): STORYTREE_STUDIO_STORE='pg'
-//     reads/writes the Library + comments through Postgres; unset (the default)
-//     keeps this file-backed JSON path, byte-identical to before. The /api/*
-//     request/response shapes the React client sees are the same for both.
+//     LibraryBackend seam (server/libraryBackend.ts): the default reads/writes the
+//     Library + comments through Postgres (oq-studio-store-default → B); set
+//     STORYTREE_STUDIO_STORE='json' to keep this file-backed JSON path for offline
+//     work. The /api/* request/response shapes the React client sees are the same for both.
 
 import { promises as fs, existsSync } from 'node:fs';
 import path from 'node:path';
