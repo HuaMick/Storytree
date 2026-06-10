@@ -29,7 +29,7 @@ import type { Envelope } from "./envelope.js";
  *
  * HONEST FRAMING (repeated in the envelope): a dry-run proves the GLUE — spec → ProveSpec → gate →
  * signed verdict → rollup — not the node's actual proofs. The model is scripted and the red→green
- * is synthetic. `--live` is gated on owner decisions (API key, budget — plan Phase 0/D).
+ * is synthetic. `--live` is the ADR-0030 SDK smoke (subscription-funded, SDK-enforced budget).
  */
 
 const HONEST_FRAMING_DRY =

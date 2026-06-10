@@ -11,6 +11,32 @@ that spend money or commit a schema.
 
 ---
 
+## Addendum — 2026-06-10: ADR-0030 overtakes the Phase 0/D wording (recorded, not rewritten)
+
+The plan below is preserved as written; the same day,
+[ADR-0030](../decisions/0030-all-in-on-claude-agent-sdk.md) went **all-in on the Claude Agent SDK
+as the live runtime**, and Phase D landed on it (PR #26: first live signed PASS through the gate,
+write wall held live). Read the stale spots against this ledger:
+
+- **Phase D is DONE — on the SDK executor, not `AnthropicModel`.** The live leaf is
+  `ClaudeAgentAuthor` (`packages/agent/src/sdk-author.ts`), driven through the runtime-agnostic
+  **`PhaseAuthor` executor seam** (`packages/agent/src/phase-author.ts`); the owned loop
+  (`OwnedLoopAuthor`) remains the offline/deterministic executor and the pivot-out fallback.
+  `storytree node build <id> --live` is the working smoke.
+- **Auth is the subscription token, not an API key.** Phase 0's "API-key handling" decision (and
+  §8 open decision 1) is overtaken: `claude setup-token` → `CLAUDE_CODE_OAUTH_TOKEN`,
+  subscription-billed (ADR-0030 §Decision 1). `--live` is no longer gated on an owner key
+  decision.
+- **Budget is SDK-enforced.** The per-slice ceiling is `ClaudeAgentAuthor`'s `maxBudgetUsd`
+  (+ `maxTurns`); per-node accounting reads SDK-reported usage against the shared monthly pool
+  (ADR-0030 §Consequences) rather than metering an API key.
+- **"The 14 `ProveSpec` fields" is stale.** Since the executor seam landed, `ProveSpec`
+  (`packages/orchestrator/src/prove-it-gate.ts`) takes a single `author: PhaseAuthor` in place of
+  the old `model` / `tools` / `scope` / `writeTools` quartet — the §2 table's rows for those four
+  collapse into "construct a `PhaseAuthor`".
+
+---
+
 ## 1. Where we actually are (verified this session)
 
 | Piece | State | Evidence |
@@ -30,8 +56,9 @@ that spend money or commit a schema.
    the pg store that currently lands in `events.library_event` — i.e. **verdicts co-mingle with library
    docs today.** A dedicated `events.verdict`/`events.work_event` table is the clean home (Phase A).
 2. **`proveUnit` proves ONE unit in isolation.** Everything it needs is injected (the 14 `ProveSpec`
-   fields). There is no node→source mapping, no dependency chaining, no CLI — that *injection layer* is
-   the whole gap (Phase B/C/E).
+   fields — *count since overtaken: the leaf-runtime four are now a single `author: PhaseAuthor`,
+   see the 2026-06-10 addendum*). There is no node→source mapping, no dependency chaining, no CLI —
+   that *injection layer* is the whole gap (Phase B/C/E).
 
 ---
 
@@ -49,6 +76,9 @@ signed verdict, and (e) lets a node's status be **computed** from those events (
 honoring ADR-0020 (`healthy` only via gate evidence) and ADR-0006 (status is a projection).
 
 ### The crux: supplying the 14 `ProveSpec` fields
+
+> *Overtaken in part (see the 2026-06-10 addendum): the `model`/`tools`/`scope`/`writeTools` rows
+> below now resolve to one `author: PhaseAuthor` behind the executor seam (ADR-0030 §2).*
 
 This table *is* Phase B. Each field already exists as a type; the work is the resolver that fills it.
 
@@ -78,6 +108,7 @@ plumbing [OWNER]**, **per-node write-scope config**, and **prompt assembly** fro
 
 ### Phase 0 — Decisions **[OWNER]** (gate D/E/F; A/B/C can proceed without them)
 - **API-key handling** — where `ANTHROPIC_API_KEY` comes from for `--live`; never logged.
+  *(Overtaken — see addendum: `--live` runs on the subscription token via the SDK, ADR-0030.)*
 - **Per-node budget ceiling** — ADR-0005's open `per-node budget` (unit + default). Needed before any
   unbounded live loop. The loop must terminate on green **or** budget-exhausted (typed terminal event).
 - **Work-hierarchy tables now, or defer?** — adding `events.work_event` + `events.verdict` is plain
@@ -124,7 +155,7 @@ plumbing [OWNER]**, **per-node write-scope config**, and **prompt assembly** fro
   without a resolved signer (`fail-closed-on-dirty-tree`). `--dry-run` uses the scripted model +
   `InMemoryStore` and spends nothing.
 
-### Phase D — Live-API smoke **[OWNER go: spends money]**
+### Phase D — Live-API smoke **[OWNER go: spends money]** *(DONE 2026-06-10 — on the SDK executor, not `AnthropicModel`; see addendum)*
 - First real `AnthropicModel` run through the gate on a **trivial throwaway node** (one contract, e.g.
   an `add(a,b)` function) under a hard budget. Proves the live loop end-to-end before pointing it at
   anything real. Expect to shake out SDK/prompt/tool-loop issues here.
@@ -200,7 +231,7 @@ only the live-API + budget + promotion decisions to you.
 ---
 
 ## 8. Open decisions for the owner (consolidated)
-1. API-key source for `--live` (Phase 0).
+1. API-key source for `--live` (Phase 0). *(Overtaken — subscription token via the SDK, see addendum.)*
 2. Per-node budget unit + default ceiling (ADR-0005 open).
 3. Add `events.work_event` + `events.verdict` now? (recommend yes — additive).
 4. Workspace model: in-place vs temp-dir-per-run (ties to deferred ADR-0009 claims).
