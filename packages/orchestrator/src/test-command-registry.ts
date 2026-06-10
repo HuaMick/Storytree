@@ -158,6 +158,23 @@ export const NODE_BUILD_REGISTRY: Readonly<Record<string, NodeBuildConfig>> = {
       typecheck: pnpmTypecheck("@storytree/cli"),
     },
   },
+  // The notice-board orientation surface (ADR-0033): `storytree tree` — offline hierarchy with
+  // the presence block woven in when live. Self-contained module; dispatch wired spine-side
+  // after promotion. `install: true`: imports @storytree/core + @storytree/orchestrator.
+  "tree-view": {
+    command: pnpmTest("@storytree/cli"),
+    scope: pkgScope("cli"),
+    real: {
+      testFile: "packages/cli/src/tree.test.ts",
+      sourceFile: "packages/cli/src/tree.ts",
+      scope: {
+        testGlobs: ["packages/cli/src/tree.test.ts"],
+        sourceGlobs: ["packages/cli/src/tree.ts"],
+      },
+      install: true,
+      typecheck: pnpmTypecheck("@storytree/cli"),
+    },
+  },
 };
 
 /** Look up a node's build config; a miss returns null (the caller turns it into guidance). */

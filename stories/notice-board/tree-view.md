@@ -21,25 +21,60 @@ presence block in when the live store is reachable.
 
 ## Guidance
 
-A new `storytree tree` CLI area (`packages/cli`). Two views: **bare** (`storytree tree`) — all
-stories with capability counts and statuses plus one presence summary line; **focused**
-(`storytree tree <story-id>`) — the story's capability table, dependency edges, which nodes are
-registered/REAL-buildable, derived verdict rollup when a live store is reachable, and the
-presence block ("sessions here: …, last seen …") woven in.
+The implementation is `packages/cli/src/tree.ts` — a SELF-CONTAINED command module (every handler
+returns the `Envelope` from `./envelope.js`). Do NOT touch `commands.ts` or `main.ts` (outside
+your write scope) — the spine wires the dispatch afterwards. Two views: **bare**
+(`storytree tree`) — all stories; **focused** (`storytree tree <story-id>`) — one story's nodes,
+edges, build surface and the presence block. (Verdict rollup detail is deliberately OUT of this
+cut — story owner call 3; do not query verdicts.)
 
-- **Offline is the floor:** both views render entirely from `stories/*.md` frontmatter and
-  `NODE_BUILD_REGISTRY` — no DB, no error. Presence and verdict rollup are live-only *additions*;
-  their absence is silent (the story's design floor: degrade, never fail).
-- **Cross-story boundary (ADR-0010 §4):** spec reading goes through the drive machinery's
-  `findNodeSpecFile`/`loadNodeSpec` surface and the registry in `packages/orchestrator` —
-  consumed, not reimplemented.
-- **Presence is advisory:** the block *shows* who is here (staleness derived via
-  `declare-presence`'s core logic, rows read from `presence-store`'s projection); nothing in the
-  tree refuses or warns-as-gate on overlap. Identity rendered is whatever the worktree-derived
-  declarations carry — the tree never invents or types identity.
-- **The envelope steers:** like the library CLI, output carries `next` pointers so the surface is
-  navigable just-in-time — the view itself tells a session what to do from here (declare, build,
-  or zoom).
+- **The exported surface (exactly this):**
+  - `interface TreeDeps { storiesDir: string; lookupConfig: (id: string) => { real?: unknown } | null; presence: PresenceStoreLike | null; now: () => Date }`
+    — import `type PresenceStoreLike` from `./noticeboard.js` (the sibling module, already at
+    HEAD); `lookupConfig` is the registry seam (`NodeBuildConfig`-shaped: non-null = registered,
+    `.real !== undefined` = REAL-buildable). Everything is injected — the test never touches the
+    real `stories/` tree or the real registry, so future stories/registrations cannot break it.
+  - `async function treeCommand(storyId: string | undefined, deps: TreeDeps): Promise<Envelope>`.
+- **Reading specs (ADR-0010 §4 — consumed, not reimplemented):** import `loadNodeSpec` from
+  `@storytree/orchestrator`. A story is a direct child directory of `deps.storiesDir` containing
+  a `story.md`; its spec's frontmatter `capabilities` lists its capability ids, each at
+  `<storyDir>/<capId>.md`. Tolerate a capability file that is missing or fails to load (render
+  the id with a `(spec missing)` note — never throw).
+- **Bare view:** one line per story — id, title, status, capability count — plus, when
+  `deps.presence` is non-null, ONE summary line with the active-session count from
+  `listActive()`. `next` offers `storytree tree <story-id>` for a real listed id.
+- **Focused view:** unknown story id → `ok: false` listing the available story ids in `next`.
+  Otherwise render: the story header (id, title, status, outcome); a capability table — each
+  capability's id, status, `depends_on`, and its build-surface mark from `deps.lookupConfig`:
+  `REAL-buildable` when `.real` exists, `registered` when non-null without `.real`, else
+  `unregistered`; a dependency-edges section (`a → b` per `depends_on` entry). `next` offers
+  `storytree noticeboard declare --working-on <prose> --node <storyId> --pg`,
+  `storytree node build <id> --real` for a REAL-buildable capability when one exists, and
+  `storytree tree` (back out).
+- **The presence block (focused, advisory only):** when `deps.presence` is non-null, take
+  `listActive()` docs whose `nodes` intersect `{storyId} ∪ capability ids` and weave in a
+  `sessions here:` block — per session: `sessionId`, the band from
+  `classifyPresence(doc.lastSeenAt, deps.now())` (import from `@storytree/core` — never recompute
+  thresholds), an age like `4m`/`2h`, and the `workingOn` prose. When `deps.presence` is null,
+  when the list is empty, or when ANY presence call throws (wrap it): the block is silently
+  absent — the view still renders `ok: true`. Degrade, never fail; nothing here refuses or warns
+  on overlap.
+- **The test (`packages/cli/src/tree.test.ts`, the registered REAL proof — offline only):** build
+  a TEMP stories dir with `node:fs` `mkdtempSync` (clean it up in `after`): write a `story.md`
+  with frontmatter (`id`/`tier: story`/`title`/`outcome`/`status: proposed`/`proof_mode: UAT`/
+  `capabilities: [cap-a, cap-b, cap-c]`) and capability files for `cap-a`/`cap-b` ONLY
+  (`tier: capability`, `proof_mode: integration-test`, `cap-b` carrying
+  `depends_on: [cap-a]`) — `cap-c` stays missing on purpose. Fake `lookupConfig`: `cap-a` →
+  `{ real: {} }`, `cap-b` → `{}`, else null. Fake `PresenceStoreLike` with one active doc whose
+  `nodes` names the story id and one whose `nodes` do not. Assert: bare and focused render `ok: true`
+  with `presence: null` and the body carries no `sessions here:`; the focused table marks cap-a
+  `REAL-buildable`, cap-b `registered`, cap-c `unregistered` and notes its missing spec; with the
+  fake presence store the focused body has `sessions here:` with the matching sessionId and NOT
+  the unrelated one; with a presence store whose every method throws, the view still renders
+  `ok: true` with no presence block; the focused `next` includes a `noticeboard declare` pointer
+  with `--node <storyId>` and a `node build` pointer; the bare `next` includes
+  `storytree tree <storyId>`. Assert on fragments, never byte-exact bodies (you cannot run this
+  test yourself; brittle assertions are how this build dies).
 
 ## Integration test (would-be)
 
