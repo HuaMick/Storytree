@@ -21,24 +21,65 @@ depends_on: [declare-presence, presence-store]
 
 ## Guidance
 
-A new command family in `packages/cli` beside `library` and `node`/`story` builds, following the
-ADR-0023 choose-your-own-adventure pattern (envelope with a `next` block of pointer commands —
-e.g. `declare` points onward to `storytree tree <story>` to see the neighbours just joined).
+The implementation is `packages/cli/src/noticeboard.ts` — a SELF-CONTAINED command module beside
+`library` and `node`/`story` (ADR-0023 choose-your-own-adventure: every handler returns the
+`Envelope` from `./envelope.js` — `{ ok, body, next?, doctrine? }`). Do NOT touch `commands.ts`
+or `main.ts` (outside your write scope) — the spine wires the dispatch afterwards; the handlers
+take already-parsed inputs and injected deps, so everything is testable without a terminal.
 
-- **Surface:** bare `storytree noticeboard` = the board — **active** sessions grouped by their
-  declared story node, prose-only sessions under a no-node group, each row carrying the staleness
-  band derived by `declare-presence`'s core logic (never recomputed ad hoc). Stale/done history is
-  not the default view. `declare --working-on <prose> [--node <id>...]` and `done` are the writes.
-- **Identity is derived, never typed (ADR-0033 Decision 1):** `declare` resolves `sessionId` from the
-  enclosing worktree name and `branch` from git. There is deliberately **no flag** to type an
-  identity — the flag's absence is the contract. Outside a recognisable worktree, `declare`
-  refuses with guidance rather than inventing a name. No signer chain: presence is not proof.
-- **Writes need `--pg`, reads degrade:** `declare`/`done` are refused without `--pg`, matching
-  `library artifact edit` — refusal guidance (`pnpm db:up`, add `--pg`) goes in the envelope's
-  `next`. This is the live-DB-only floor surfaced as a polite gate, not a crash.
-- **Thin shell:** validation/merge/staleness live in `declare-presence` (core), persistence in
-  `presence-store`; this capability owns only flag parsing, git/worktree resolution, grouping and
-  rendering — so the board's truths are testable without a terminal.
+- **The exported surface (exactly this — the offline test and the later dispatch drive it):**
+  - `interface PresenceStoreLike { declare(doc: PresenceDeclarationDoc): Promise<PresenceDeclarationDoc>; done(sessionId: string, lastSeenAt: string): Promise<PresenceDeclarationDoc | null>; listActive(): Promise<PresenceDeclarationDoc[]>; history(sessionId: string): Promise<Array<{ type: string; doc: unknown; actor: string; at: string }>> }`
+    — structurally what `PgPresenceStore` (`packages/store/src/presence-store.ts`) exposes, but do
+    NOT import the pg store here; the seam keeps this module offline-testable.
+  - `interface SessionIdentity { sessionId: string; branch: string }`.
+  - `function deriveIdentity(runGit: (args: string[]) => string): SessionIdentity | null` —
+    `sessionId` = the basename of `runGit(["rev-parse", "--show-toplevel"])` **only when** that
+    toplevel sits under a `.claude/worktrees/` directory (match both `/` and `\` separators);
+    `branch` = `runGit(["rev-parse", "--abbrev-ref", "HEAD"])`. Anything else — non-worktree
+    path, a git error (catch throws) — returns null. Export a default runGit built on
+    `node:child_process` `execFileSync("git", args, { encoding: "utf8" })` (trimmed), but the
+    function always takes it as a parameter (tests inject fakes).
+  - `interface NoticeboardDeps { store: PresenceStoreLike | null; identity: SessionIdentity | null; now: () => Date }`
+    (`store` is null when `--pg` was not given; `identity` is null outside a recognisable worktree).
+  - `async function noticeboardCommand(sub: string | undefined, opts: { workingOn?: string; nodes: string[] }, deps: NoticeboardDeps): Promise<Envelope>`
+    — `sub` is `undefined` (the board), `"declare"`, or `"done"`; anything else returns a help
+    envelope listing the three.
+- **The board (bare `storytree noticeboard`):** needs `deps.store`; when null return `ok: false`
+  with body explaining presence needs the live store and `next` containing `pnpm db:up` and
+  `storytree noticeboard --pg`. With a store: `listActive()` docs grouped by declared node id —
+  a session appears under EACH id in its `nodes`; sessions with empty `nodes` group under
+  `(no node)`. Each row renders `sessionId`, the staleness band from
+  `classifyPresence(doc.lastSeenAt, deps.now())` (import from `@storytree/core` — never recompute
+  thresholds here), an age like `3m`/`2h`, `branch`, and the `workingOn` prose. Active-only is the
+  default view (the store already filters); never list `done` sessions on the board.
+- **Identity is derived, never typed (ADR-0033 Decision 1):** there is deliberately NO option to
+  pass an identity — the flag's absence is the contract. `declare`/`done` with `deps.identity`
+  null refuse (`ok: false`) with guidance saying identity is derived from the session worktree.
+  No signer chain: presence is not proof.
+- **`declare`:** needs store + identity + a non-blank `opts.workingOn` (each missing piece is its
+  own polite refusal, never a throw). Build the doc: `sessionId`/`branch` from `deps.identity`,
+  `workingOn`, `nodes: opts.nodes`, `status: "active"`, `startedAt` and `lastSeenAt` =
+  `deps.now().toISOString()` (the store's merge anchors the original `startedAt` on re-declare).
+  Call `store.declare(doc)`; confirm in the body; `next` points onward (e.g.
+  `storytree tree <first declared node> --pg` when nodes were declared, else
+  `storytree noticeboard --pg`).
+- **`done`:** needs store + identity; calls `store.done(identity.sessionId, deps.now().toISOString())`;
+  a null result is `ok: false` ("no active declaration for this session"); success confirms and
+  points back to the board.
+- **The test (`packages/cli/src/noticeboard.test.ts`, the registered REAL proof — offline only):**
+  drive `noticeboardCommand` + `deriveIdentity` directly with a tiny in-memory
+  `PresenceStoreLike` fake (a Map of docs + an event array), fake `runGit` functions, and a fixed
+  `now`. Cover: deriveIdentity recognises `.claude/worktrees/<name>` toplevels (both separator
+  styles) and returns null for a plain checkout and for a throwing git; declare/done with null
+  store → refusal whose `next` mentions `pnpm db:up` (writes need --pg); declare with null
+  identity → refusal; declare with blank `workingOn` → refusal; a successful declare passes the
+  built doc to the store (assert sessionId/branch came from identity, startedAt = the fixed now);
+  the board groups one session under its declared node id and a prose-only session under
+  `(no node)` with bands derived from `lastSeenAt` (make one fresh and one stale by choosing
+  timestamps relative to the fixed now); after `done` the board no longer lists the session while
+  `history(sessionId)` still returns its events. Assert on envelope `ok`/body fragments/`next`
+  entries — never on byte-exact whole bodies (you cannot run this test yourself; brittle
+  assertions are how this build dies).
 
 ## Integration test (would-be)
 

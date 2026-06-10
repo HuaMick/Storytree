@@ -123,6 +123,22 @@ export const NODE_BUILD_REGISTRY: Readonly<Record<string, NodeBuildConfig>> = {
       install: true,
     },
   },
+  // The notice-board CLI node (ADR-0033): the `storytree noticeboard` command module — a
+  // self-contained handler file (the spine wires commands.ts dispatch AFTER promotion; the leaf's
+  // walls deliberately exclude it). `install: true`: imports @storytree/core + ./envelope.js.
+  "noticeboard-cli": {
+    command: pnpmTest("@storytree/cli"),
+    scope: pkgScope("cli"),
+    real: {
+      testFile: "packages/cli/src/noticeboard.test.ts",
+      sourceFile: "packages/cli/src/noticeboard.ts",
+      scope: {
+        testGlobs: ["packages/cli/src/noticeboard.test.ts"],
+        sourceGlobs: ["packages/cli/src/noticeboard.ts"],
+      },
+      install: true,
+    },
+  },
 };
 
 /** Look up a node's build config; a miss returns null (the caller turns it into guidance). */
