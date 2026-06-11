@@ -31,7 +31,6 @@ import type { ChildProcessByStdio } from 'node:child_process';
 import type { Readable } from 'node:stream';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin, ResolvedConfig } from 'vite';
-import { loadNodeSpec } from '@storytree/orchestrator';
 import type {
   AssetCategory,
   Comment,
@@ -424,11 +423,26 @@ async function handleAssets(
 // frontmatter's `capabilities` list, each at <dir>/<capId>.md. Load failures are
 // tolerated per node — the view renders what it can, with the reason attached —
 // because one malformed spec must not blank the whole tree.
+//
+// @storytree/orchestrator (loadNodeSpec) is loaded LAZILY on first /api/tree hit,
+// NOT statically: this module is reached at Vite config-load / `vite build` time,
+// where the loader has no tsx transform and cannot resolve the orchestrator's raw-TS
+// `.js` re-export specifiers (ERR_MODULE_NOT_FOUND) — the same trap, and the same
+// fix, as PgBackend's dynamic import of @storytree/store in libraryBackend.ts.
+
+type OrchestratorModule = typeof import('@storytree/orchestrator');
+type LoadNodeSpec = OrchestratorModule['loadNodeSpec'];
+
+let orchestratorModulePromise: Promise<OrchestratorModule> | null = null;
+
+function loadOrchestrator(): Promise<OrchestratorModule> {
+  return (orchestratorModulePromise ??= import('@storytree/orchestrator'));
+}
 
 const isWorkStatus = (s: string): s is WorkStatus =>
   ['proposed', 'building', 'healthy', 'unhealthy', 'mapped', 'retired'].includes(s);
 
-function loadTreeCapability(storyDir: string, capId: string): TreeCapability {
+function loadTreeCapability(loadNodeSpec: LoadNodeSpec, storyDir: string, capId: string): TreeCapability {
   const node: TreeCapability = {
     id: capId,
     title: capId,
@@ -457,6 +471,7 @@ function loadTreeCapability(storyDir: string, capId: string): TreeCapability {
 async function readTree(storiesDir: string): Promise<TreePayload> {
   const stories: TreeStory[] = [];
   if (!existsSync(storiesDir)) return { stories };
+  const { loadNodeSpec } = await loadOrchestrator();
   for (const ent of await fs.readdir(storiesDir, { withFileTypes: true })) {
     if (!ent.isDirectory()) continue;
     const dir = path.join(storiesDir, ent.name);
@@ -478,7 +493,9 @@ async function readTree(storiesDir: string): Promise<TreePayload> {
       story.status = isWorkStatus(spec.status) ? spec.status : null;
       story.proofMode = spec.proofMode;
       story.dependsOn = spec.dependsOn;
-      story.capabilities = spec.capabilities.map((capId) => loadTreeCapability(dir, capId));
+      story.capabilities = spec.capabilities.map((capId) =>
+        loadTreeCapability(loadNodeSpec, dir, capId),
+      );
     } catch (err) {
       story.error = err instanceof Error ? err.message : String(err);
     }
