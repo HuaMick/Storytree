@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { StoredDoc } from "@storytree/core";
-import { renderBody, upcastAndValidate } from "@storytree/core";
+import { CURRENT_SCHEMA_VERSION, renderBody, upcastAndValidate } from "@storytree/core";
 import { renderStoredDoc, buildLibraryDoc } from "./render-doc.js";
 
 /**
@@ -35,6 +35,7 @@ test("renderStoredDoc derives the body of a structured principle (category = kin
 
   assert.equal(rendered.id, "less-is-more");
   assert.equal(rendered.category, "principle", "category is the stored kind");
+  assert.equal(rendered.degraded, undefined, "a current-shape doc is never flagged");
   assert.equal(rendered.title, "Less is more");
   assert.equal(rendered.description, "prefer the smaller surface");
   assert.deepEqual(rendered.references, ["doc:decisions/0017-...md"]);
@@ -106,6 +107,79 @@ test("renderStoredDoc falls back to the stored kind when a body doc omits catego
   };
   const rendered = renderStoredDoc(stored);
   assert.equal(rendered.category, "pattern");
+});
+
+// ---- fail-soft on data newer than the code (the studio version-skew incident, 2026-06-11) ----
+
+test("renderStoredDoc DEGRADES (never throws) on a kind this code does not know", () => {
+  // What a stale server sees after a newer session adds a kind: no KIND_SPECS entry at all.
+  const stored: StoredDoc = {
+    id: "navigator",
+    kind: "from-the-future",
+    doc: {
+      kind: "from-the-future",
+      id: "navigator",
+      title: "Navigator",
+      description: "a unit from a newer schema",
+      references: ["asset:spine"],
+      schemaVersion: 99,
+      oneLine: "A future-kind unit.",
+      manifest: ["asset:spine", "asset:leaf"],
+      createdAt: "2026-06-11T00:00:00Z",
+      updatedAt: "2026-06-11T00:00:00Z",
+    },
+    createdAt: "2026-06-11T00:00:00Z",
+    updatedAt: "2026-06-11T00:00:00Z",
+  };
+
+  const rendered = renderStoredDoc(stored);
+
+  assert.equal(rendered.category, "from-the-future");
+  assert.equal(rendered.title, "Navigator");
+  assert.match(rendered.degraded ?? "", /kind "from-the-future" is unknown/);
+  // The body carries the diagnosis + remedy, then a raw view of every content field.
+  assert.match(rendered.body, /older than the stored doc/);
+  assert.match(rendered.body, /pnpm studio:down/);
+  assert.match(rendered.body, /## oneLine\n\nA future-kind unit\./);
+  assert.match(rendered.body, /## manifest\n\n- asset:spine\n- asset:leaf/);
+  assert.equal(rendered.fields, undefined, "no structured fields — the editor must not re-shape it");
+});
+
+test("renderStoredDoc DEGRADES on a known kind whose schemaVersion is newer than the code", () => {
+  // A known kind, but the row was migrated by newer code: renderBody would silently drop the
+  // fields this code's KIND_SPECS doesn't know — degrade and show everything instead.
+  const stored: StoredDoc = {
+    id: "less-is-more",
+    kind: "principle",
+    doc: {
+      kind: "principle",
+      id: "less-is-more",
+      title: "Less is more",
+      description: "d",
+      references: [],
+      schemaVersion: CURRENT_SCHEMA_VERSION + 1,
+      statement: "Prefer the smaller surface.",
+      why: "Smaller surfaces are easier to prove.",
+      howToApply: "Ask: can this be removed?",
+      brandNewField: "added by a newer migration",
+      createdAt: "2026-06-11T00:00:00Z",
+      updatedAt: "2026-06-11T00:00:00Z",
+    },
+    createdAt: "2026-06-11T00:00:00Z",
+    updatedAt: "2026-06-11T00:00:00Z",
+  };
+
+  const rendered = renderStoredDoc(stored);
+
+  assert.match(
+    rendered.degraded ?? "",
+    new RegExp(
+      `schemaVersion ${CURRENT_SCHEMA_VERSION + 1} is newer than this server's schema \\(version ${CURRENT_SCHEMA_VERSION}\\)`,
+    ),
+  );
+  assert.match(rendered.body, /## statement\n\nPrefer the smaller surface\./);
+  assert.match(rendered.body, /## brandNewField\n\nadded by a newer migration/, "nothing dropped");
+  assert.equal(rendered.fields, undefined);
 });
 
 // ---- option C (oq-library-doc-shape): structured fields survive an edit round-trip ----

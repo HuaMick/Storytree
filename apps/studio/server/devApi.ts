@@ -559,8 +559,9 @@ export function storytreeDataApi(): Plugin {
           try {
             if (url.pathname === '/api/health') {
               // Health must NEVER throw or 500 — it is what the UI leans on when the DB is
-              // down. backend.health() is contractually non-throwing ('n/a' for json).
-              sendJson(res, 200, { store: selectedStore(), db: await backend.health() });
+              // down. backend.health() is contractually non-throwing ({db:'n/a'} for json);
+              // for pg it also carries the schema-skew pair (code vs DB schemaVersion).
+              sendJson(res, 200, { store: selectedStore(), ...(await backend.health()) });
             } else if (url.pathname.startsWith('/api/db/')) {
               await handleDb(req, res, url);
             } else if (url.pathname.startsWith('/api/docs')) {

@@ -116,6 +116,12 @@ export interface GuidanceAsset {
    * origin ("Imported from v1"), deferral, or "still open" caveats. Markdown.
    */
   provenance?: string;
+  /**
+   * Present (the reason, one line) when the SERVER could not faithfully render the stored doc —
+   * an unknown kind, or a schemaVersion newer than the server's code (a stale long-running
+   * studio server). `body` is then a raw-field fallback view and `fields` is absent.
+   */
+  degraded?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -160,6 +166,12 @@ export interface DocContent {
 export interface StoreHealth {
   store: 'pg' | 'json';
   db: 'ok' | 'unreachable' | 'n/a';
+  /**
+   * pg + reachable only: the library schemaVersion the server's CODE knows vs the highest the
+   * DB holds. db > code means the studio server is running stale code (pull + restart) — the
+   * banner turns this into a distinct message instead of a generic API failure.
+   */
+  schema?: { code: number; db: number };
 }
 
 /** GET /api/db/status — the Cloud SQL instance as gcloud reports it. */
