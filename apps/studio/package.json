@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "storytree studio — foundation forum UI (docs, inline comments, guidance library). No PixiJS / story-tree yet.",
+  "description": "storytree studio — forum UI (docs, inline comments, guidance library) + the story world at #/tree (SVG hex map of the work hierarchy, ADR-0036).",
   "scripts": {
     "dev": "node --import tsx node_modules/vite/bin/vite.js",
     "build": "vite build",

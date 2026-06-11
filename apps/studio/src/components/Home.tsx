@@ -11,8 +11,8 @@ export function Home(): React.JSX.Element {
       <h1>storytree studio</h1>
       <p className="lede">
         The foundation surface — a <strong>forum</strong> over the project’s record. Documents and
-        Library artifacts are <em>topics</em>; comments are <em>posts</em>. (The PixiJS story-tree
-        comes later; this is the static-content foundation.)
+        Library artifacts are <em>topics</em>; comments are <em>posts</em>. The{' '}
+        <a href="#/tree">story world</a> renders the work hierarchy itself (ADR-0036).
       </p>
 
       <div className="stat-row">

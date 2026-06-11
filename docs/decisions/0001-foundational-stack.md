@@ -8,6 +8,11 @@ reversed (storytree owns the agent loop, built on the Anthropic SDK). Everything
 stands — DBOS/Postgres, the thin orchestrator, the event store, PixiJS, and the
 TS/Node/pnpm stack.
 
+**Superseded-in-part by [ADR-0036](0036-story-world-studio-visualisation.md)** (accepted,
+2026-06-12) — the **PixiJS v8 + `@pixi/react`** tree-UI engine pick is overtaken: the shipped
+story world is plain inline SVG in React (top-down hex, not isometric); PixiJS is now
+named-deferred, revisited only if scale outgrows SVG.
+
 ## Reaffirmation (2026-06-06) — TypeScript stands, all-in
 
 With **pi** dropped ([ADR-0011](0011-own-the-agent-loop-and-context-engineering.md)), this
