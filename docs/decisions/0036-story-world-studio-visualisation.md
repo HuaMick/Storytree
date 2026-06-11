@@ -126,8 +126,13 @@ in the repo.
   dependency is an **owner call**, surfaced not encoded.
 - **Art direction beyond SVG primitives** (no asset pipeline; the low-poly look is hand-drawn
   paths) and **live updates** (the world renders on load; polling/streaming is future work).
-- **The ranked-layout algorithm** for decision 6a (longest-path ranking vs dagre at story grain
-  vs radial) — the iterating session picks what reads best.
+- ~~**The ranked-layout algorithm** for decision 6a (longest-path ranking vs dagre at story grain
+  vs radial) — the iterating session picks what reads best.~~ *Picked with the decision-6 build
+  (2026-06-12): longest-path rank over the declared ∪ derived edge set (the same set the roads
+  render, so no road ever points downward), rank rows stacked bottom-up, within-row order by
+  dependency barycenter (foundation row centre-out by transitive dependent count), and a lone
+  island on a rank swings to an alternating side so chain edges read as separated diagonals (the
+  owner's "dbt-style DAG" steer) instead of stacking into one vertical corridor.*
 
 ## References
 

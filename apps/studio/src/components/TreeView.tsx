@@ -1,24 +1,31 @@
 // TreeView — the story world (#/tree).
 //
-// A Dorfromantik-style hex-tile world: every story claims a TERRITORY of
-// extruded hexagonal tiles on a shared island board (pale empty hexes fade out
-// at the coast). The territory grows with the story — one tile quota per
-// capability plus a margin — and every capability is planted as a low-poly
-// TREE whose foliage is its status color (proposed reads as autumn orange,
-// healthy as deep green with a verdict badge); capless tiles grow decorative
-// forest clumps and wheat fields, so a story's land visibly ripens as its
-// capabilities move through the gate. Story-level `depends_on` renders as
-// roads between territories; hovering a territory lights its upstream chain
-// (gold) vs downstream dependents (red) — the focus interaction carried from
-// V1's visualisations/storytree. Clicking opens the side panel with the
-// story's capability sub-DAG (dagre layout, status-strip cards).
+// A Dorfromantik-style hex-tile world that READS AS A TREE (ADR-0036 d.6):
+// islands are dependency-ranked — the most-depended-upon stories sit at the
+// bottom centre and dependents fan upward and outward, so the eye traces the
+// load-bearing foundation up through the canopy. Every story claims a
+// TERRITORY of extruded hexagonal tiles (one tile quota per capability plus a
+// margin) and grows ONE central story tree — the story itself, crown sized by
+// capability count, foliage colored by status, withered to bare branches when
+// unhealthy, a lone sapling when no capabilities are mapped yet. Capabilities
+// garden around it as small flora (flower beds / berry bushes / saplings); a
+// capability whose last signed run failed — or whose status is unhealthy —
+// withers to a dead plant (ADR-0033 d.3 semantics: glyphs and wither only
+// ever report a SIGNED verdict; absence = never built = also what offline
+// looks like; a story's signpost is its OWN UAT verdict, never a roll-up).
+// Story-level `depends_on` (∪ derived cross-story capability deps) renders as
+// roads; hovering a territory lights its upstream chain (gold) vs downstream
+// dependents (red) — the focus interaction carried from V1's
+// visualisations/storytree. Clicking opens the side panel with the story's
+// capability sub-DAG (dagre layout, status-strip cards). A collapsible legend
+// overlay maps the visual vocabulary.
 //
 // Data is /api/tree — offline, straight from stories/ frontmatter; verdict
 // glyphs and presence wisps are advisory layers that appear only when the
-// live store answers. All "randomness" (tile growth, tree jitter, road bows)
-// is hashed from ids so the world renders identically every time.
+// live store answers. All "randomness" (tile growth, crown-blob jitter, road
+// bows) is hashed from ids so the world renders identically every time.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import dagre from '@dagrejs/dagre';
 import { api } from '../api';
 import { navigate, treeFocusHref, treeHref } from '../lib/route';
@@ -116,9 +123,10 @@ function hexPath(cx: number, cy: number, R: number): string {
 
 // ---------- world building ----------
 
-const CELL_W = 360; // seed-spacing in px before snapping to hexes
-const CELL_H = 320;
 const MARGIN = 60;
+const RANK_GAP = 58; // vertical clearance between grown territories of adjacent ranks
+const ISLAND_GAP = 72; // horizontal clearance between territories sharing a rank
+const RANK_SWING = 235; // lateral swing for a lone island, so its roads read as diagonals
 
 interface CapSpot {
   cap: TreeCapability;
@@ -126,10 +134,10 @@ interface CapSpot {
   y: number;
 }
 
+/** A conifer-clump spot (wheat is a tile-top fill, tracked in wheatTiles). */
 interface DecorSpot {
   x: number;
   y: number;
-  kind: 'forest' | 'wheat';
   seed: number;
 }
 
@@ -146,6 +154,8 @@ interface Territory {
   centroid: Pt;
   /** px from centroid to the farthest tile centre, plus the tile radius. */
   radius: number;
+  /** Where the central story tree stands (the tile nearest the centroid). */
+  treeSpot: Pt;
   caps: CapSpot[];
   decor: DecorSpot[];
   wheatTiles: Set<string>;
@@ -172,51 +182,257 @@ interface HexWorld {
   offset: Pt;
 }
 
-/** A curved road from the dependency territory to the dependent one. */
-function roadPath(a: Territory, b: Territory): string {
+/**
+ * The story-level edge set the world renders as roads: declared `depends_on`
+ * UNION derived cross-story capability deps. Ranking uses the SAME set so a
+ * derived-only road can never point downward.
+ */
+function storyEdges(stories: TreeStory[]): { from: string; to: string; via: string[] }[] {
+  const ids = new Set(stories.map((s) => s.id));
+  const capOwner = new Map<string, string>();
+  for (const s of stories) for (const c of s.capabilities) capOwner.set(c.id, s.id);
+  const edgeMap = new Map<string, { from: string; to: string; via: string[] }>();
+  for (const s of stories) {
+    for (const dep of s.dependsOn) {
+      if (dep !== s.id && ids.has(dep)) {
+        edgeMap.set(`${dep}->${s.id}`, { from: dep, to: s.id, via: [] });
+      }
+    }
+    for (const c of s.capabilities) {
+      for (const d of c.dependsOn) {
+        const ownerId = capOwner.get(d);
+        if (!ownerId || ownerId === s.id) continue;
+        const key = `${ownerId}->${s.id}`;
+        const cur = edgeMap.get(key) ?? { from: ownerId, to: s.id, via: [] };
+        cur.via.push(`${c.id} → ${d}`);
+        edgeMap.set(key, cur);
+      }
+    }
+  }
+  return [...edgeMap.values()];
+}
+
+/**
+ * Longest-path rank over the world's edge set (dep → dependent), cycle-safe.
+ * Rank 0 = the most foundational stories; a dependent always ranks strictly
+ * above every dependency, so the world reads bottom-up (ADR-0036 d.6a).
+ */
+function rankStories(
+  stories: TreeStory[],
+  depsOf: Map<string, string[]>,
+): Map<string, number> {
+  const rank = new Map<string, number>();
+  const visiting = new Set<string>();
+  const visit = (id: string): number => {
+    const known = rank.get(id);
+    if (known !== undefined) return known;
+    if (visiting.has(id)) return 0; // cycle in bad frontmatter — break the edge, stay finite
+    visiting.add(id);
+    let r = 0;
+    for (const d of depsOf.get(id) ?? []) r = Math.max(r, visit(d) + 1);
+    visiting.delete(id);
+    rank.set(id, r);
+    return r;
+  };
+  for (const s of stories) visit(s.id);
+  return rank;
+}
+
+/** Transitive dependent count — how load-bearing a story is (centres the foundation row). */
+function descendantCounts(
+  stories: TreeStory[],
+  dependentsOf: Map<string, string[]>,
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const s of stories) {
+    const seen = new Set<string>();
+    const stack = [...(dependentsOf.get(s.id) ?? [])];
+    for (let id = stack.pop(); id !== undefined; id = stack.pop()) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      stack.push(...(dependentsOf.get(id) ?? []));
+    }
+    counts.set(s.id, seen.size);
+  }
+  return counts;
+}
+
+/** Hex rings a territory of `quota` tiles roughly fills (1 / 7 / 19 / 37 centred counts). */
+function ringsOf(quota: number): number {
+  return quota <= 1 ? 0 : quota <= 7 ? 1 : quota <= 19 ? 2 : 3;
+}
+
+/** Rough px radius a territory will grow to from its tile quota. */
+function estRadius(quota: number): number {
+  return Math.sqrt(quota) * HEX_W * 0.62 + HEX_R;
+}
+
+/** Crown radius of the central story tree — grows with capability count. */
+function crownRadius(capCount: number): number {
+  return Math.min(32, 18 + 2.2 * capCount);
+}
+
+/**
+ * How far above its base a story tree reaches, px — the withered bare
+ * branches top out at 2.64·R and the canopy at ~2.7·R (StoryTree geometry);
+ * +18 covers blob jitter and the signpost. buildWorld uses this for bounds.
+ */
+function storyTreeReach(capCount: number): number {
+  return 2.72 * crownRadius(capCount) + 18;
+}
+
+/** ADR-0033 d.3 vocabulary — the one source for every verdict phrase. */
+function verdictPhrase(v: TreeVerdict): string {
+  return v.outcome === 'pass' ? '✓ proven' : '✗ last run failed';
+}
+
+/**
+ * A curved road from the dependency territory to the dependent one. Docks at
+ * the coast (the central story tree owns the centroid now); an edge spanning
+ * ≥2 ranks takes a guaranteed outward bow so it hugs the outside of the fan
+ * instead of piercing the territories between.
+ */
+function roadPath(a: Territory, b: Territory, rankSpan: number): string {
   const dx = b.centroid.x - a.centroid.x;
   const dy = b.centroid.y - a.centroid.y;
   const dist = Math.hypot(dx, dy) || 1;
   const ux = dx / dist;
   const uy = dy / dist;
-  const sx = a.centroid.x + ux * (a.radius * 0.55);
-  const sy = a.centroid.y + uy * (a.radius * 0.55);
-  const ex = b.centroid.x - ux * (b.radius * 0.7);
-  const ey = b.centroid.y - uy * (b.radius * 0.7);
-  const bow = (rand01(hash(`${a.story.id}->${b.story.id}`)) - 0.5) * 0.4 * dist;
+  const sx = a.centroid.x + ux * (a.radius * 0.8);
+  const sy = a.centroid.y + uy * (a.radius * 0.8);
+  const ex = b.centroid.x - ux * (b.radius * 0.85);
+  const ey = b.centroid.y - uy * (b.radius * 0.85);
+  const r = rand01(hash(`${a.story.id}->${b.story.id}`));
+  let bow: number;
+  if (rankSpan >= 2) {
+    // Span-scaled: intermediate islands swing up to ~RANK_SWING off the trunk,
+    // so the apex must clear that far out on the leaning side.
+    const side = Math.sign((a.centroid.x + b.centroid.x) / 2) || (r < 0.5 ? -1 : 1);
+    bow = side * Math.min(0.45, 0.18 + 0.07 * rankSpan + 0.06 * r) * dist;
+  } else {
+    bow = (r - 0.5) * 0.4 * dist;
+  }
   const mx = (sx + ex) / 2 - uy * bow;
   const my = (sy + ey) / 2 + ux * bow;
   return `M ${sx.toFixed(1)} ${sy.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}`;
 }
 
 function buildWorld(stories: TreeStory[]): HexWorld {
-  const n = Math.max(stories.length, 1);
-  const cols = Math.max(1, Math.ceil(Math.sqrt(n * 1.6)));
+  const quotas = stories.map((s) => Math.max(3, s.capabilities.length + 2));
 
-  // Seed hex per story: jittered cell grid in px, snapped to the hex lattice.
-  const seeds: Axial[] = [];
-  const taken = new Set<string>();
-  stories.forEach((story, i) => {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const seedH = hash(story.id);
-    const stagger = row % 2 === 1 ? CELL_W / 2 : 0;
-    const px = {
-      x: (col + 0.5) * CELL_W + stagger + (rand01(seedH) - 0.5) * CELL_W * 0.3,
-      y: (row + 0.5) * CELL_H + (rand01(seedH + 1) - 0.5) * CELL_H * 0.3,
-    };
-    let h = pixelToHex(px);
-    while (taken.has(axialKey(h))) h = { q: h.q + 1, r: h.r };
-    taken.add(axialKey(h));
-    seeds.push(h);
-  });
+  // One edge set drives BOTH the roads and the ranking (declared ∪ derived).
+  const edgeList = storyEdges(stories);
+  const depsOf = new Map<string, string[]>(stories.map((s) => [s.id, []]));
+  const dependentsOf = new Map<string, string[]>(stories.map((s) => [s.id, []]));
+  for (const e of edgeList) {
+    depsOf.get(e.to)?.push(e.from);
+    dependentsOf.get(e.from)?.push(e.to);
+  }
+
+  // Dependency-ranked seeds (ADR-0036 d.6a): the most-depended-upon stories sit
+  // bottom-centre and dependents fan upward and outward. Rank rows stack from
+  // the bottom; within a row, stories order by the barycenter of their already-
+  // placed dependencies (load-bearing count for the foundation row).
+  const ranks = rankStories(stories, depsOf);
+  const loadBearing = descendantCounts(stories, dependentsOf);
+  const maxRank = Math.max(0, ...ranks.values());
+  const byRank: number[][] = Array.from({ length: maxRank + 1 }, () => []);
+  stories.forEach((s, i) => byRank[ranks.get(s.id) ?? 0]?.push(i));
+
+  // Row centre-lines, bottom-up: clearance for the tallest territory on each side.
+  const rowY: number[] = [];
+  let yCursor = 0;
+  for (let r = 0; r <= maxRank; r++) {
+    const tallest = Math.max(...(byRank[r] ?? []).map((i) => estRadius(quotas[i] ?? 3)), HEX_R);
+    if (r === 0) yCursor = -tallest;
+    else {
+      const below = Math.max(
+        ...(byRank[r - 1] ?? []).map((i) => estRadius(quotas[i] ?? 3)),
+        HEX_R,
+      );
+      yCursor -= below + tallest + RANK_GAP;
+    }
+    rowY.push(yCursor);
+  }
+
+  const seedPx = new Map<number, Pt>();
+  const baryOf = (idx: number): number => {
+    const s = stories[idx];
+    if (!s) return 0;
+    const xs = (depsOf.get(s.id) ?? [])
+      .map((d) => stories.findIndex((o) => o.id === d))
+      .filter((j) => j >= 0 && seedPx.has(j))
+      .map((j) => seedPx.get(j)?.x ?? 0);
+    return xs.length ? xs.reduce((p, c) => p + c, 0) / xs.length : 0;
+  };
+  for (let r = 0; r <= maxRank; r++) {
+    const row = byRank[r] ?? [];
+    const ordered = [...row].sort((a, b) => {
+      const sa = stories[a];
+      const sb = stories[b];
+      if (!sa || !sb) return 0;
+      if (r === 0) {
+        // Foundation row: most load-bearing in the middle, others outward.
+        return (loadBearing.get(sb.id) ?? 0) - (loadBearing.get(sa.id) ?? 0);
+      }
+      return baryOf(a) - baryOf(b) || (hash(sa.id) % 997) - (hash(sb.id) % 997);
+    });
+    // Pack the row left-to-right around its dependency barycenter. The
+    // foundation row interleaves centre-out (most load-bearing in the middle).
+    let display = ordered;
+    if (r === 0) {
+      display = [];
+      ordered.forEach((i, k) => {
+        if (k % 2 === 0) display.push(i);
+        else display.unshift(i);
+      });
+    }
+    const sequence = display.map((idx) => ({ idx, w: estRadius(quotas[idx] ?? 3) }));
+    const total =
+      sequence.reduce((sum, s) => sum + 2 * s.w, 0) + ISLAND_GAP * Math.max(0, sequence.length - 1);
+    // A lone island would otherwise sit directly on top of its dependencies,
+    // stacking every road into one vertical corridor — swing it to an
+    // alternating side so roads sweep as separated diagonals (the dbt-DAG read).
+    let rowCenter =
+      r === 0 ? 0 : display.reduce((sum, i) => sum + baryOf(i), 0) / Math.max(display.length, 1);
+    if (r > 0 && sequence.length === 1) rowCenter += (r % 2 === 1 ? 1 : -1) * RANK_SWING;
+    let xCursor = rowCenter - total / 2;
+    for (const s of sequence) {
+      const story = stories[s.idx];
+      const seedH = hash(story?.id ?? String(s.idx));
+      seedPx.set(s.idx, {
+        x: xCursor + s.w + (rand01(seedH) - 0.5) * 44,
+        y: (rowY[r] ?? 0) + (rand01(seedH + 1) - 0.5) * 30,
+      });
+      xCursor += 2 * s.w + ISLAND_GAP;
+    }
+  }
+
+  // Snap seeds to the hex lattice, then enforce a growth floor: two seeds
+  // closer than their combined ring reach would strangle each other's quota.
+  const seeds: Axial[] = stories.map((_, i) => pixelToHex(seedPx.get(i) ?? { x: 0, y: 0 }));
+  for (let pass = 0; pass < 24; pass++) {
+    let moved = false;
+    for (let i = 0; i < seeds.length; i++) {
+      for (let j = i + 1; j < seeds.length; j++) {
+        const a = seeds[i];
+        const b = seeds[j];
+        if (!a || !b) continue;
+        const floor = ringsOf(quotas[i] ?? 3) + ringsOf(quotas[j] ?? 3) + 1;
+        if (hexDist(a, b) < floor) {
+          seeds[j] = { q: b.q + 1, r: b.r }; // deterministic eastward nudge
+          moved = true;
+        }
+      }
+    }
+    if (!moved) break;
+  }
 
   // Grow territories round-robin: each story claims its cheapest frontier hex
   // (closest to seed, hash-jittered for organic coastlines) until its quota —
   // a tile per capability plus breathing room — is met.
   const owner = new Map<string, number>();
   const tilesByStory: Axial[][] = stories.map(() => []);
-  const quotas = stories.map((s) => Math.max(3, s.capabilities.length + 2));
   seeds.forEach((seed, i) => {
     owner.set(axialKey(seed), i);
     tilesByStory[i]?.push(seed);
@@ -265,40 +481,51 @@ function buildWorld(stories: TreeStory[]): HexWorld {
       Math.max(0, ...centers.map((p) => Math.hypot(p.x - centroid.x, p.y - centroid.y))) +
       HEX_R;
 
-    // Capabilities land on tiles nearest the seed first, one per tile while
-    // they last; leftover tiles grow decoration.
-    const ordered = [...tiles].sort(
-      (a, b) =>
-        hexDist(seed, a) - hexDist(seed, b) ||
-        rand01(hash(`${story.id}:${axialKey(a)}`)) - rand01(hash(`${story.id}:${axialKey(b)}`)),
-    );
+    // The story's own tree takes the tile nearest the centroid; capabilities
+    // garden in a squashed ring around it (walked inward until they sit on
+    // owned land); leftover tiles grow sparser decoration so the big tree
+    // dominates the island.
+    const centerTile =
+      [...tiles].sort((a, b) => {
+        const ca = hexCenter(a);
+        const cb = hexCenter(b);
+        return (
+          Math.hypot(ca.x - centroid.x, ca.y - centroid.y) -
+          Math.hypot(cb.x - centroid.x, cb.y - centroid.y)
+        );
+      })[0] ?? seed;
+    const treeSpot = hexCenter(centerTile);
+    const crownR = crownRadius(story.capabilities.length);
+    const ringR = Math.max(crownR * 0.9, Math.min(crownR + 18, radius - HEX_R * 0.55));
+    // Front 240° arc only (centred south) — a plant behind the tree would
+    // vanish under the canopy.
+    const ARC = (Math.PI * 4) / 3;
     const caps: CapSpot[] = story.capabilities.map((cap, j) => {
-      const tile = ordered[j % Math.max(ordered.length, 1)] ?? seed;
-      const c = hexCenter(tile);
-      const k = hash(`${story.id}:${cap.id}`);
-      const spread = j < ordered.length ? 5 : 11; // jitter more when tiles are shared
-      return {
-        cap,
-        x: c.x + (rand01(k) - 0.5) * spread * 2,
-        y: c.y + (rand01(k + 3) - 0.5) * spread + 3,
-      };
+      const n = story.capabilities.length;
+      const jitterA = (rand01(hash(`${story.id}:${cap.id}:a`)) - 0.5) * (ARC / n) * 0.5;
+      const angle = -Math.PI / 6 + ((j + 0.5) / n) * ARC + jitterA;
+      const rr = ringR + (rand01(hash(`${story.id}:${cap.id}:r`)) - 0.5) * 10;
+      let x = treeSpot.x + Math.cos(angle) * rr;
+      let y = treeSpot.y + Math.sin(angle) * rr * 0.66; // top-down squash
+      for (let k = 0; k < 4 && owner.get(axialKey(pixelToHex({ x, y }))) !== i; k++) {
+        x += (treeSpot.x - x) * 0.25;
+        y += (treeSpot.y - y) * 0.25;
+      }
+      return { cap, x, y };
     });
-    const capTileKeys = new Set(
-      story.capabilities.map((_, j) => axialKey(ordered[j % Math.max(ordered.length, 1)] ?? seed)),
-    );
 
     const decor: DecorSpot[] = [];
     const wheatTiles = new Set<string>();
     for (const tile of tiles) {
       const key = axialKey(tile);
-      if (capTileKeys.has(key)) continue;
+      if (key === axialKey(centerTile)) continue; // the story tree's clearing
       const roll = rand01(hash(`${story.id}:decor:${key}`));
       const c = hexCenter(tile);
-      if (roll < 0.5) {
-        decor.push({ x: c.x, y: c.y, kind: 'forest', seed: hash(`${key}:f`) });
-      } else if (roll < 0.78) {
-        wheatTiles.add(key);
-        decor.push({ x: c.x, y: c.y, kind: 'wheat', seed: hash(`${key}:w`) });
+      const nearTree = Math.hypot(c.x - treeSpot.x, c.y - treeSpot.y) < crownR + 20;
+      if (roll < 0.34 && !nearTree) {
+        decor.push({ x: c.x, y: c.y, seed: hash(`${key}:f`) });
+      } else if (roll >= 0.34 && roll < 0.62) {
+        wheatTiles.add(key); // wheat is a tile-top fill, not a flora drawable
       }
     }
 
@@ -317,7 +544,7 @@ function buildWorld(stories: TreeStory[]): HexWorld {
     }
 
     const labelY = Math.max(...centers.map((p) => p.y), centroid.y) + HEX_R + TILE_DEPTH + 8;
-    return { story, tiles, centroid, radius, caps, decor, wheatTiles, boundary, labelY };
+    return { story, tiles, centroid, radius, treeSpot, caps, decor, wheatTiles, boundary, labelY };
   });
 
   // The pale coast: up to two rings of unclaimed hexes around the land.
@@ -352,37 +579,25 @@ function buildWorld(stories: TreeStory[]): HexWorld {
     })
     .sort((a, b) => a.h.r - b.h.r || a.h.q - b.h.q);
 
-  // Story-level edges: declared depends_on plus capability deps that cross a story boundary.
+  // Roads render the SAME edge set the ranking used (declared ∪ derived).
   const byId = new Map(territories.map((t, i) => [t.story.id, i]));
-  const capOwner = new Map<string, string>();
-  for (const s of stories) for (const c of s.capabilities) capOwner.set(c.id, s.id);
-  const edgeMap = new Map<string, { from: string; to: string; via: string[] }>();
-  for (const s of stories) {
-    for (const dep of s.dependsOn) {
-      if (dep !== s.id && byId.has(dep)) edgeMap.set(`${dep}->${s.id}`, { from: dep, to: s.id, via: [] });
-    }
-    for (const c of s.capabilities) {
-      for (const d of c.dependsOn) {
-        const ownerId = capOwner.get(d);
-        if (!ownerId || ownerId === s.id) continue;
-        const key = `${ownerId}->${s.id}`;
-        const cur = edgeMap.get(key) ?? { from: ownerId, to: s.id, via: [] };
-        cur.via.push(`${c.id} → ${d}`);
-        edgeMap.set(key, cur);
-      }
-    }
-  }
-  const edges: WorldEdge[] = [...edgeMap.values()].flatMap((e) => {
+  const edges: WorldEdge[] = edgeList.flatMap((e) => {
     const a = territories[byId.get(e.from) ?? -1];
     const b = territories[byId.get(e.to) ?? -1];
-    return a && b ? [{ ...e, d: roadPath(a, b) }] : [];
+    if (!a || !b) return [];
+    const span = Math.abs((ranks.get(e.to) ?? 0) - (ranks.get(e.from) ?? 0));
+    return [{ ...e, d: roadPath(a, b, span) }];
   });
 
-  // Scene bounds over every tile (claimed + coast), plus label space.
+  // Scene bounds over every tile (claimed + coast), plus label + tree space.
   const allCenters = [...drawTiles.map((t) => hexCenter(t.h)), ...empties.map(hexCenter)];
   const minX = Math.min(...allCenters.map((p) => p.x)) - HEX_W / 2 - MARGIN;
   const maxX = Math.max(...allCenters.map((p) => p.x)) + HEX_W / 2 + MARGIN;
-  const minY = Math.min(...allCenters.map((p) => p.y)) - HEX_R - MARGIN;
+  const minY =
+    Math.min(
+      ...allCenters.map((p) => p.y - HEX_R),
+      ...territories.map((t) => t.treeSpot.y - storyTreeReach(t.story.capabilities.length)),
+    ) - MARGIN;
   const maxY =
     Math.max(...allCenters.map((p) => p.y), ...territories.map((t) => t.labelY + 34)) +
     HEX_R +
@@ -529,8 +744,13 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
   const [sessions, setSessions] = useState<TreeSession[]>([]);
   const [loadError, setLoadError] = useState('');
   // Selection lives in the URL (#/tree/<storyId>) so a focused territory is
-  // deep-linkable; the route's `focus` IS the selected story.
-  const selectedStory = focus;
+  // deep-linkable; the route's `focus` IS the selected story — but only when
+  // it names a real story, so a stale deep link renders the unfocused world
+  // instead of dimming everything.
+  const selectedStory = useMemo(
+    () => (focus && stories?.some((s) => s.id === focus) ? focus : null),
+    [focus, stories],
+  );
   const [hoverStory, setHoverStory] = useState<string | null>(null);
   const [selectedCap, setSelectedCap] = useState<string | null>(null);
   const [hoverCap, setHoverCap] = useState<string | null>(null);
@@ -548,11 +768,49 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
 
   const world = useMemo(() => (stories ? buildWorld(stories) : null), [stories]);
 
+  // The world reads bottom-up (foundation at the bottom), so the frame opens
+  // scrolled to the bottom; selecting / deep-linking a story scrolls its
+  // territory into view. SVG elements have no offsetTop and the scene is
+  // width-capped + centred, so the offset comes from rect deltas.
+  const frameRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const scrollToStory = (storyId: string, smooth: boolean): void => {
+    const frame = frameRef.current;
+    const svg = svgRef.current;
+    const territory = world?.territories.find((t) => t.story.id === storyId);
+    if (!frame || !svg || !territory || !world) return;
+    const scale = svg.clientWidth / world.width;
+    const svgTop =
+      svg.getBoundingClientRect().top - frame.getBoundingClientRect().top + frame.scrollTop;
+    const y = (territory.centroid.y + world.offset.y) * scale + svgTop;
+    frame.scrollTo({ top: y - frame.clientHeight / 2, behavior: smooth ? 'smooth' : 'auto' });
+  };
+  // Mount: a deep link wins; otherwise land on the foundation (the bottom).
+  useLayoutEffect(() => {
+    if (!world) return;
+    if (selectedStory) scrollToStory(selectedStory, false);
+    else frameRef.current?.scrollTo({ top: frameRef.current.scrollHeight });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [world]);
+  useEffect(() => {
+    if (selectedStory && world) scrollToStory(selectedStory, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStory]);
+
   const focusStoryId = hoverStory ?? selectedStory;
+  // Focus walks the SAME declared ∪ derived edge set the roads and ranking
+  // use, so a derived-only road lights up like any declared one.
+  const unionNodes = useMemo(() => {
+    if (!stories) return null;
+    const deps = new Map<string, string[]>(stories.map((s) => [s.id, []]));
+    for (const e of storyEdges(stories)) deps.get(e.to)?.push(e.from);
+    return stories.map((s) => ({ id: s.id, dependsOn: deps.get(s.id) ?? [] }));
+  }, [stories]);
   const storyRelations = useMemo(
-    () => (stories && focusStoryId ? relationsFor(stories, focusStoryId) : null),
-    [stories, focusStoryId],
+    () => (unionNodes && focusStoryId ? relationsFor(unionNodes, focusStoryId) : null),
+    [unionNodes, focusStoryId],
   );
+  const storyIds = useMemo(() => new Set((stories ?? []).map((s) => s.id)), [stories]);
 
   const sessionsByStory = useMemo(() => {
     const capOwner = new Map<string, string>();
@@ -594,6 +852,14 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
     );
   }
   if (!stories || !world) return <p className="muted pad">Growing the world…</p>;
+  if (stories.length === 0) {
+    return (
+      <div className="pad">
+        <h2>Story world</h2>
+        <p className="muted">No stories yet — the world appears once stories/ holds one.</p>
+      </div>
+    );
+  }
 
   const capCount = stories.reduce((n, s) => n + s.capabilities.length, 0);
   const selected = selectedStory ? stories.find((s) => s.id === selectedStory) : undefined;
@@ -652,8 +918,8 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
           {stories.length} stories · {capCount} capabilities
           {sessions.length > 0 &&
             ` · ${sessions.length} active session${sessions.length === 1 ? '' : 's'}`}{' '}
-          — every story holds a territory; its capabilities grow as trees. Click a territory
-          for the capability DAG.
+          — foundations at the bottom, dependents fan upward. Every story grows one tree on
+          its island; its capabilities garden around it. Click an island for the capability DAG.
         </span>
         <span className="tree-toolbar-chips">
           {STATUS_ORDER.filter((st) => (statusCounts.get(st) ?? 0) > 0).map((st) => (
@@ -673,7 +939,17 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
 
       <div className={`tree-layout${selected ? ' has-detail' : ''}`}>
         <div className="world-frame">
+          <div
+            className="world-scroll"
+            ref={frameRef}
+            tabIndex={0}
+            aria-label="story world map (scrollable)"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) clearSelection(); // gutters beside the capped scene
+            }}
+          >
           <svg
+            ref={svgRef}
             className="world-scene"
             viewBox={`0 0 ${world.width} ${world.height}`}
             onClick={(e) => {
@@ -775,11 +1051,14 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
               ))}
             </g>
           </svg>
+          </div>
+          <WorldLegend />
         </div>
 
         {selected && (
           <StoryPanel
             story={selected}
+            storyIds={storyIds}
             sessions={sessionsByStory.get(selected.id) ?? []}
             selectedCap={selectedCap}
             hoverCap={hoverCap}
@@ -810,8 +1089,369 @@ function DecorTree({ x, y, h, seed }: { x: number; y: number; h: number; seed: n
   );
 }
 
-/** A capability tree: low-poly, foliage colored by status, verdict badge on top. */
-function CapTree({
+/** The collapsible legend (ADR-0036 d.6c) — maps the world's visual vocabulary. */
+function WorldLegend(): React.JSX.Element {
+  const [open, setOpen] = useState(
+    () => window.localStorage.getItem('storytree.worldLegend') === 'open',
+  );
+  const toggle = (next: boolean): void => {
+    setOpen(next);
+    window.localStorage.setItem('storytree.worldLegend', next ? 'open' : 'closed');
+  };
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="world-legend-toggle"
+        onClick={() => toggle(true)}
+        title="show legend"
+      >
+        <svg viewBox="-10 -24 20 26" aria-hidden="true">
+          <g className="story-tree st-healthy">
+            <rect className="story-trunk" x={-1.2} y={-8} width={2.4} height={8} rx={1} />
+            <g className="crown-lo">
+              <circle cx={0} cy={-13} r={7} />
+              <circle cx={-5} cy={-10} r={4.4} />
+              <circle cx={5} cy={-10} r={4.4} />
+            </g>
+            <g className="crown-hi">
+              <circle cx={-1.5} cy={-15} r={3.6} />
+            </g>
+          </g>
+        </svg>
+        Legend
+      </button>
+    );
+  }
+  return (
+    <div className="world-legend">
+      <header>
+        <span>Legend</span>
+        <button type="button" onClick={() => toggle(false)} aria-label="collapse legend">
+          ✕
+        </button>
+      </header>
+      <div className="world-legend-row">
+        <svg viewBox="-13 -13 26 26">
+          <path className="hex-top v-0" d={hexPath(0, 0, 11)} />
+        </svg>
+        <span>
+          an island is a <strong>story</strong> — land grows with it
+        </span>
+      </div>
+      <div className="world-legend-row">
+        <svg viewBox="-14 -30 28 34">
+          <g className="story-tree st-healthy">
+            <rect className="story-trunk" x={-1.5} y={-10} width={3} height={10} rx={1} />
+            <g className="crown-lo">
+              <circle cx={0} cy={-16} r={7.6} />
+              <circle cx={-6} cy={-12} r={4.8} />
+              <circle cx={6.4} cy={-12.5} r={5} />
+            </g>
+            <g className="crown-hi">
+              <circle cx={-2} cy={-18} r={4} />
+            </g>
+          </g>
+        </svg>
+        <span>
+          the central tree is the story itself — crown grows with its capabilities, foliage
+          color = status
+        </span>
+      </div>
+      <div className="world-legend-row">
+        <svg viewBox="-12 -19 24 24">
+          <g className="garden-flora st-mapped">
+            <polygon
+              className="flora-dark"
+              points="0,-12.5 5.5,-10.5 8.5,-5.5 7,-1 0,0.8 -7,-1 -8.5,-5.5 -5.5,-10.5"
+            />
+            <polygon
+              className="flora-light"
+              points="-1,-12.5 4.5,-10.8 6,-7 0.5,-5.6 -4.8,-7.4 -4.6,-10.6"
+            />
+            <circle className="flora-core" cx={2} cy={-7.5} r={1.5} />
+          </g>
+        </svg>
+        <span>
+          garden flora are its <strong>capabilities</strong> — click one to inspect
+        </span>
+      </div>
+      <div className="world-legend-row">
+        <svg viewBox="-11 -22 22 26">
+          <g className="story-tree st-proposed">
+            <rect className="story-trunk" x={-1.3} y={-9} width={2.6} height={10} rx={1} />
+            <g className="crown-lo">
+              <circle cx={0} cy={-13} r={6.5} />
+              <circle cx={-3.5} cy={-11} r={3.8} />
+              <circle cx={3.5} cy={-11} r={3.8} />
+            </g>
+            <g className="crown-hi">
+              <circle cx={-1} cy={-14.5} r={3.5} />
+            </g>
+          </g>
+        </svg>
+        <span>a lone sapling = claimed story, no capabilities mapped yet</span>
+      </div>
+      <div className="world-legend-row">
+        <svg viewBox="-12 -18 24 24">
+          <g className="garden-flora st-unhealthy">
+            <ellipse className="flora-bed" cx={0} cy={0.4} rx={8} ry={2.8} opacity={0.7} />
+            <path
+              className="flora-dead-stem"
+              strokeWidth={1.2}
+              d="M 0.5 0 C 0.6 -6 0.4 -10 2.6 -11.4 C 4.4 -12.4 5.8 -10.8 5.6 -9.2"
+            />
+            <circle className="flora-dead-head flora-dead-accent" cx={5.6} cy={-8.2} r={1.7} />
+            <path className="flora-dead-stem" strokeWidth={1.1} d="M -3.5 0 C -4 -5 -4.5 -8.5 -2.5 -10" />
+            <circle className="leaf-litter" cx={-7} cy={-0.5} r={1} />
+          </g>
+        </svg>
+        <span>a withered plant failed its last signed run (✗), or is unhealthy</span>
+      </div>
+      <div className="world-legend-row">
+        <svg viewBox="-13 -13 26 26">
+          <g className="captree-verdict verdict-pass">
+            <circle r={6.5} />
+            <text textAnchor="middle" y={3.2}>
+              ✓
+            </text>
+          </g>
+        </svg>
+        <span>✓ proven · ✗ last run failed · no badge = never built (also what offline looks like)</span>
+      </div>
+      <div className="world-legend-row">
+        <svg viewBox="-9 -26 18 28">
+          <g className="story-sign verdict-pass">
+            <rect x={-1.3} y={-15} width={2.6} height={15} rx={1.1} />
+            <circle cy={-18} r={6.5} />
+            <text textAnchor="middle" y={-15.4}>
+              ✓
+            </text>
+          </g>
+        </svg>
+        <span>signpost = the story's own UAT verdict (never a child roll-up)</span>
+      </div>
+      <div className="world-legend-row">
+        <svg viewBox="0 -8 30 16">
+          <defs>
+            <marker
+              id="legend-arrow"
+              viewBox="0 0 10 10"
+              refX="7.5"
+              refY="5"
+              markerWidth="5"
+              markerHeight="5"
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 1.2 L 8 5 L 0 8.8 z" fill="context-stroke" />
+            </marker>
+          </defs>
+          <path className="world-trail-bed" d="M 2 0 L 28 0" />
+          <path className="world-trail-line" d="M 2 0 L 24 0" markerEnd="url(#legend-arrow)" />
+        </svg>
+        <span>
+          roads are <code>depends_on</code> — foundation below, dependents above
+        </span>
+      </div>
+      <div className="world-legend-row">
+        <span className="world-legend-swatch is-upstream" />
+        <span>on focus: gold = upstream dependencies</span>
+      </div>
+      <div className="world-legend-row">
+        <span className="world-legend-swatch is-downstream" />
+        <span>red = downstream dependents · rest fade</span>
+      </div>
+      <div className="world-legend-row">
+        <svg viewBox="-4 -8 36 16">
+          <g className="world-wisp">
+            <circle className="world-wisp-glow" r={5.5} />
+            <circle className="world-wisp-dot" r={2.4} />
+          </g>
+          <g className="world-wisp band-stale" transform="translate(13 0)">
+            <circle className="world-wisp-glow" r={5.5} />
+            <circle className="world-wisp-dot" r={2.4} />
+          </g>
+          <g className="world-wisp band-possibly-dead" transform="translate(26 0)">
+            <circle className="world-wisp-glow" r={5.5} />
+            <circle className="world-wisp-dot" r={2.4} />
+          </g>
+        </svg>
+        <span>orbiting wisp = a session here — blue fresh · amber stale · gray possibly dead (advisory)</span>
+      </div>
+      <div className="world-legend-row">
+        <svg viewBox="-12 -14 24 18">
+          <g className="hex-conifer">
+            <path className="conifer-body c-0" d="M -5 -10 L -1 0 L -9 0 Z" />
+            <path className="conifer-body c-1" d="M 5 -8 L 8.5 0 L 1.5 0 Z" />
+          </g>
+        </svg>
+        <span>conifer clumps &amp; wheat are decoration only</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The central story tree — the story ITSELF (ADR-0036 d.6b). Crown size grows
+ * with capability count; foliage carries the story status; `unhealthy` withers
+ * it to a sparse drooped crown with bare branches and leaf-fall; `retired` is
+ * the gray ghost skeleton; zero capabilities grows only a sapling (the
+ * claimed-but-empty authoring signal, ADR-0036 d.3). The signpost carries the
+ * story's OWN UAT verdict — never a child roll-up, only when signed.
+ */
+function StoryTree({
+  territory: t,
+  hidden,
+}: {
+  territory: Territory;
+  hidden: ReadonlySet<string>;
+}): React.JSX.Element {
+  const story = t.story;
+  const st = story.status ?? 'unknown';
+  const caps = story.capabilities.length;
+  const R = crownRadius(caps);
+  const cy = -1.65 * R;
+  const ghost = st === 'retired';
+  const withered = st === 'unhealthy';
+  const sapling = caps === 0 && !ghost && !withered;
+  const verdictNote = story.verdict ? ` · UAT ${verdictPhrase(story.verdict)}` : '';
+
+  // Deterministic per-blob jitter so the five islands' trees aren't clones.
+  const jb = (
+    i: number,
+    bcx: number,
+    bcy: number,
+    br: number,
+  ): { cx: number; cy: number; r: number } => {
+    const k = hash(`${story.id}:crown:${i}`);
+    return {
+      cx: bcx + (rand01(k) - 0.5) * 0.12 * R,
+      cy: bcy + (rand01(k + 1) - 0.5) * 0.1 * R,
+      r: br * (0.94 + rand01(k + 2) * 0.12),
+    };
+  };
+  const base = [
+    { cx: 0, cy, r: R }, // the central blob is never jittered
+    jb(1, -0.62 * R, cy + 0.3 * R, 0.62 * R),
+    jb(2, 0.62 * R, cy + 0.3 * R, 0.62 * R),
+    jb(3, -0.4 * R, cy - 0.52 * R, 0.55 * R),
+    jb(4, 0.42 * R, cy - 0.5 * R, 0.57 * R),
+  ];
+  const highlights = [
+    jb(5, -0.15 * R, cy - 0.3 * R, 0.6 * R),
+    jb(6, -0.55 * R, cy - 0.05 * R, 0.38 * R),
+    jb(7, 0.3 * R, cy - 0.55 * R, 0.36 * R),
+  ];
+  const trunkD = `M -3.6 0 C -3.2 ${(0.3 * cy).toFixed(1)}, -2.4 ${(0.65 * cy).toFixed(1)}, -2.2 ${cy.toFixed(1)} L 2.2 ${cy.toFixed(1)} C 2.4 ${(0.65 * cy).toFixed(1)}, 3.2 ${(0.3 * cy).toFixed(1)}, 3.6 0 Q 0 2.4 -3.6 0 Z`;
+  const bareBranches = [
+    `M 0 ${(-1.65 * R).toFixed(1)} C 2 ${(-2.07 * R).toFixed(1)}, 1 ${(-2.36 * R).toFixed(1)}, ${(0.21 * R).toFixed(1)} ${(-2.64 * R).toFixed(1)}`,
+    `M ${(0.12 * R).toFixed(1)} ${(-2.29 * R).toFixed(1)} L ${(0.32 * R).toFixed(1)} ${(-2.43 * R).toFixed(1)}`,
+    `M -4 ${(-1.79 * R).toFixed(1)} C -9 ${(-2.07 * R).toFixed(1)}, -8 ${(-2.25 * R).toFixed(1)}, ${(-0.46 * R).toFixed(1)} ${(-2.43 * R).toFixed(1)}`,
+    `M ${(-0.31 * R).toFixed(1)} ${(-2.14 * R).toFixed(1)} L ${(-0.5 * R).toFixed(1)} ${(-2.18 * R).toFixed(1)}`,
+  ];
+
+  return (
+    <g
+      className={`story-tree st-${st}${hidden.has(st) ? ' is-filtered' : ''}`}
+      transform={`translate(${t.treeSpot.x.toFixed(1)} ${t.treeSpot.y.toFixed(1)})`}
+    >
+      <title>{`${story.id} — ${story.error ? 'story spec error' : st}${verdictNote}`}</title>
+      <ellipse
+        className="flora-shadow"
+        cx={2}
+        cy={2}
+        rx={(sapling ? 9 : R * 0.78).toFixed(1)}
+        ry={(sapling ? 2.8 : R * 0.2).toFixed(1)}
+      />
+      {sapling ? (
+        <>
+          <rect className="story-trunk" x={-1.6} y={-12} width={3.2} height={13} rx={1.4} />
+          <g className="crown-lo">
+            <circle cx={0} cy={-17} r={8.5} />
+            <circle cx={-4.5} cy={-14.5} r={5} />
+            <circle cx={4.5} cy={-14.5} r={5} />
+          </g>
+          <g className="crown-hi">
+            <circle cx={-1.5} cy={-18.5} r={4.6} />
+          </g>
+          <path className="grass-tuft" d="M -10 -1 l -2 -4 M -10 -1 l 0 -5 M -10 -1 l 2 -4" />
+          <path className="grass-tuft" d="M 12 -2 l -2 -4 M 12 -2 l 0 -5 M 12 -2 l 2 -4" />
+        </>
+      ) : ghost ? (
+        <>
+          <path className="story-trunk is-ghost-wood" d={trunkD} />
+          <g className="story-bare is-ghost-wood">
+            {bareBranches.map((d, i) => (
+              <path key={i} d={d} />
+            ))}
+          </g>
+          <circle
+            className="ghost-crown"
+            cx={0}
+            cy={cy - 0.3 * R}
+            r={0.8 * R}
+            strokeDasharray="3 4"
+          />
+        </>
+      ) : withered ? (
+        <>
+          <path className="story-trunk" d={trunkD} />
+          <g className="crown-lo">
+            <circle cx={0} cy={cy + 0.15 * R} r={0.78 * R} />
+            <circle cx={-0.62 * R} cy={cy + 0.36 * R} r={0.49 * R} />
+          </g>
+          <g className="crown-hi" opacity={0.7}>
+            <circle cx={-0.21 * R} cy={cy - 0.14 * R} r={0.32 * R} />
+          </g>
+          <g className="story-bare">
+            {bareBranches.map((d, i) => (
+              <path key={i} d={d} />
+            ))}
+          </g>
+          {[-14, -6, 8, 16].map((lx, i) => (
+            <circle key={i} className="leaf-litter" cx={lx} cy={[-2, 1, -1, -4][i]} r={1.3} />
+          ))}
+        </>
+      ) : (
+        <>
+          <path className="story-trunk" d={trunkD} />
+          <g className="crown-lo">
+            {base.map((b, i) => (
+              <circle key={i} cx={b.cx.toFixed(1)} cy={b.cy.toFixed(1)} r={b.r.toFixed(1)} />
+            ))}
+          </g>
+          <g className="crown-hi">
+            {highlights.map((b, i) => (
+              <circle key={i} cx={b.cx.toFixed(1)} cy={b.cy.toFixed(1)} r={b.r.toFixed(1)} />
+            ))}
+          </g>
+        </>
+      )}
+      {story.verdict && (
+        <g
+          className={`story-sign verdict-${story.verdict.outcome}`}
+          transform={`translate(${(R * 0.7 + 9).toFixed(1)} 0)`}
+        >
+          <ellipse className="flora-shadow" cx={0.6} cy={0.8} rx={4} ry={1.6} />
+          <rect x={-1.3} y={-15} width={2.6} height={15} rx={1.1} />
+          <circle cy={-18} r={6.5} />
+          <text textAnchor="middle" y={-15.4}>
+            {story.verdict.outcome === 'pass' ? '✓' : '✗'}
+          </text>
+        </g>
+      )}
+    </g>
+  );
+}
+
+/**
+ * A capability as garden flora (ADR-0036 d.6b/d): a flower bed, berry bush or
+ * sapling (hash-picked), tinted by status. A failed last run (signed ✗) or
+ * `unhealthy` status withers it to the matching dead silhouette — ADR-0033
+ * semantics: wither/badges only ever from a SIGNED verdict or the status
+ * field; absence stays silent.
+ */
+function GardenPlant({
   spot,
   hidden,
   onSelect,
@@ -822,12 +1462,137 @@ function CapTree({
 }): React.JSX.Element {
   const { cap, x, y } = spot;
   const st = cap.status ?? 'unknown';
-  const verdictNote = cap.verdict
-    ? ` · ${cap.verdict.outcome === 'pass' ? '✓ proven' : '✗ last run failed'}`
-    : '';
+  const variant = hash(`${cap.id}:variant`) % 3;
+  const dead = cap.verdict?.outcome === 'fail' || st === 'unhealthy';
+  const verdictNote = cap.verdict ? ` · ${verdictPhrase(cap.verdict)}` : '';
+  const badge: Pt = dead
+    ? variant === 0
+      ? { x: 2.5, y: -18 }
+      : variant === 1
+        ? { x: 1, y: -18 }
+        : { x: 3, y: -19 }
+    : variant === 0
+      ? { x: 0.2, y: -19 }
+      : variant === 1
+        ? { x: 0, y: -18.5 }
+        : { x: 0, y: -24.5 };
+
+  let body: React.JSX.Element;
+  if (dead && variant === 0) {
+    // dead flower bed — shepherd's-crook stems, hanging dried heads, fallen petals
+    body = (
+      <g>
+        <ellipse className="flora-bed" cx={0} cy={0.4} rx={8.5} ry={3} opacity={0.7} />
+        <path
+          className="flora-dead-stem"
+          strokeWidth={1.2}
+          d="M 0.5 0 C 0.6 -6 0.4 -10 2.6 -11.4 C 4.4 -12.4 5.8 -10.8 5.6 -9.2"
+        />
+        <circle className="flora-dead-head flora-dead-accent" cx={5.6} cy={-8.2} r={1.7} />
+        <path
+          className="flora-dead-stem"
+          strokeWidth={1.1}
+          d="M -3.5 0 C -4 -5 -4.5 -8.5 -2.5 -10 C -1 -11 0.5 -10 0.8 -8.4"
+        />
+        <circle className="flora-dead-head" cx={0.8} cy={-7.6} r={1.4} />
+        <path className="flora-dead-stem" strokeWidth={1.1} d="M 4.2 0 L 4.8 -5.2 L 7.6 -7.4" />
+        <circle className="leaf-litter" cx={-7} cy={-0.5} r={1} />
+        <circle className="leaf-litter" cx={2.5} cy={1.2} r={1} />
+        <circle className="leaf-litter" cx={6.5} cy={0.2} r={1} />
+      </g>
+    );
+  } else if (dead && variant === 1) {
+    // dead bush — bare twig skeleton, clinging dead leaves
+    body = (
+      <g>
+        <path
+          className="flora-dead-twig"
+          strokeWidth={1.1}
+          d="M 0 0 L -1 -4.5 M -1 -4.5 L -5 -8.5 M -1 -4.5 L 1.5 -9.5 M 1.5 -9.5 L 4.5 -11.5 M 1.5 -9.5 L 0.5 -12.5 M 0 -2.5 L 4 -6"
+        />
+        <circle className="leaf-litter flora-dead-accent" cx={-4.5} cy={-8} r={1.1} />
+        <circle className="leaf-litter" cx={4} cy={-11} r={1.1} />
+        <circle className="leaf-litter" cx={-2.5} cy={0.8} r={1} />
+      </g>
+    );
+  } else if (dead) {
+    // dead sapling — leaning bare whip, leaf-fall at the base
+    body = (
+      <g>
+        <path
+          className="flora-dead-twig"
+          strokeWidth={1.4}
+          d="M 0 0 C 0.4 -5 1.5 -9 3.5 -13 M 2 -8.5 L -1.5 -12 M 3 -11 L 6 -13.5"
+        />
+        <circle className="leaf-litter" cx={-3} cy={0.8} r={1} />
+        <circle className="leaf-litter" cx={1.5} cy={1.4} r={1} />
+        <circle className="leaf-litter flora-dead-accent" cx={5} cy={0.4} r={1} />
+      </g>
+    );
+  } else if (variant === 0) {
+    // flower bed — leaf blades, three stems, rosette centre bloom
+    body = (
+      <g>
+        <ellipse className="flora-bed" cx={0} cy={0.4} rx={8.5} ry={3} />
+        <path className="flora-dark" d="M -1 0 Q -7 -3 -9 -7 Q -4.5 -5.5 -1 0 Z" />
+        <path className="flora-dark" d="M 1.5 0 Q 7.5 -2.5 9 -6 Q 5 -5 1.5 0 Z" />
+        <path className="flora-stem" d="M -4 0 C -4.4 -4 -4.8 -7 -5.2 -10" />
+        <path className="flora-stem" d="M 0 0 C 0.2 -5 0.3 -9 0.2 -13" />
+        <path className="flora-stem" d="M 4 0 C 4.5 -4 5 -6.5 5.6 -9" />
+        <circle className="flora-light" cx={-5.2} cy={-10} r={2.6} />
+        <circle className="flora-light" cx={5.6} cy={-9} r={2.3} />
+        {[0, 1, 2, 3, 4].map((k) => {
+          const a = -Math.PI / 2 + (k * 2 * Math.PI) / 5;
+          return (
+            <circle
+              key={k}
+              className="flora-light"
+              cx={(0.2 + Math.cos(a) * 2.3).toFixed(1)}
+              cy={(-13 + Math.sin(a) * 2.3).toFixed(1)}
+              r={1.5}
+            />
+          );
+        })}
+        <circle className="flora-core" cx={0.2} cy={-13} r={1.3} />
+      </g>
+    );
+  } else if (variant === 1) {
+    // berry bush
+    body = (
+      <g>
+        <polygon
+          className="flora-dark"
+          points="0,-12.5 5.5,-10.5 8.5,-5.5 7,-1 0,0.8 -7,-1 -8.5,-5.5 -5.5,-10.5"
+        />
+        <polygon
+          className="flora-light"
+          points="-1,-12.5 4.5,-10.8 6,-7 0.5,-5.6 -4.8,-7.4 -4.6,-10.6"
+        />
+        <circle className="flora-core" cx={-3.5} cy={-4.5} r={1.5} />
+        <circle className="flora-core" cx={2} cy={-7.5} r={1.5} />
+        <circle className="flora-core" cx={4.5} cy={-3.5} r={1.4} />
+      </g>
+    );
+  } else {
+    // sapling — echoes the central tree
+    body = (
+      <g>
+        <path
+          className="sapling-trunk"
+          d="M -1.2 0 C -1 -4 -0.8 -7 -0.6 -9.5 L 0.9 -9.5 C 1 -7 1.2 -4 1.4 0 Z"
+        />
+        <polygon
+          className="flora-dark"
+          points="0,-18.5 5.4,-15.4 6.6,-10.2 3.4,-7.2 -3.4,-7.2 -6.6,-10.2 -5.4,-15.4"
+        />
+        <polygon className="flora-light" points="-0.6,-18.3 3.8,-15.8 3.4,-12 -1.6,-11.4 -4.4,-14.2" />
+      </g>
+    );
+  }
+
   return (
     <g
-      className={`hex-captree st-${st}${hidden.has(st) ? ' is-filtered' : ''}`}
+      className={`garden-flora st-${st}${hidden.has(st) ? ' is-filtered' : ''}${cap.status === 'retired' ? ' is-ghost' : ''}`}
       transform={`translate(${x.toFixed(1)} ${y.toFixed(1)})`}
       onClick={(e) => {
         e.stopPropagation();
@@ -835,14 +1600,17 @@ function CapTree({
       }}
     >
       <title>{`${cap.id} — ${cap.error ? 'spec error' : st}${verdictNote}`}</title>
-      <ellipse className="flora-shadow" cx={1.5} cy={1.5} rx={8} ry={3} />
-      <rect className="captree-trunk" x={-1.6} y={-5} width={3.2} height={7} rx={1.4} />
-      <path className="captree-lower" d="M 0 -23 L 9 -4 L -9 -4 Z" />
-      <path className="captree-upper" d="M 0 -30 L 6.6 -14 L -6.6 -14 Z" />
+      <circle className="flora-hit" r={9.5} fill="transparent" />
+      {dead && <ellipse className="dead-ground" cx={0} cy={0.5} rx={8} ry={3.2} />}
+      <ellipse className="flora-shadow" cx={1} cy={1} rx={dead ? 6 : 8} ry={dead ? 2.2 : 2.6} />
+      {body}
       {cap.verdict && (
-        <g className={`captree-verdict verdict-${cap.verdict.outcome}`} transform="translate(0 -34)">
-          <circle r={5} />
-          <text textAnchor="middle" y={2.6}>
+        <g
+          className={`captree-verdict verdict-${cap.verdict.outcome}`}
+          transform={`translate(${badge.x} ${badge.y})`}
+        >
+          <circle r={4.5} />
+          <text textAnchor="middle" y={2.4}>
             {cap.verdict.outcome === 'pass' ? '✓' : '✗'}
           </text>
         </g>
@@ -870,13 +1638,12 @@ function TerritoryFlora({
   const statusKey = story.status ?? 'unknown';
   const plateW = Math.max(96, story.id.length * 7.2 + 28);
 
-  // Forest clumps: 3–5 small conifers per forest tile, drawn before cap trees.
-  const forests = t.decor.filter((d) => d.kind === 'forest');
-
+  // Forest clumps: 2–3 small conifers per forest tile — deliberately small so
+  // the central story tree is the only thing over ~25px on an island.
   // Draw flora top-down by y so taller southern trees overlap correctly.
   const drawables: { y: number; el: React.JSX.Element }[] = [];
-  forests.forEach((f) => {
-    const count = 3 + (f.seed % 3);
+  t.decor.forEach((f) => {
+    const count = 2 + (f.seed % 2);
     for (let i = 0; i < count; i++) {
       const a = rand01(f.seed + i * 7) * Math.PI * 2;
       const rr = rand01(f.seed + i * 13) * HEX_R * 0.55;
@@ -885,7 +1652,7 @@ function TerritoryFlora({
       drawables.push({
         y,
         el: (
-          <DecorTree key={`f:${f.seed}:${i}`} x={x} y={y} h={9 + rand01(f.seed + i) * 7} seed={f.seed + i} />
+          <DecorTree key={`f:${f.seed}:${i}`} x={x} y={y} h={7 + rand01(f.seed + i) * 4} seed={f.seed + i} />
         ),
       });
     }
@@ -894,7 +1661,7 @@ function TerritoryFlora({
     drawables.push({
       y: spot.y,
       el: (
-        <CapTree
+        <GardenPlant
           key={`c:${spot.cap.id}`}
           spot={spot}
           hidden={hidden}
@@ -902,6 +1669,10 @@ function TerritoryFlora({
         />
       ),
     });
+  });
+  drawables.push({
+    y: t.treeSpot.y,
+    el: <StoryTree key="story-tree" territory={t} hidden={hidden} />,
   });
   drawables.sort((a, b) => a.y - b.y);
 
@@ -963,15 +1734,16 @@ function TerritoryFlora({
 function VerdictLine({ verdict }: { verdict: TreeVerdict | undefined }): React.JSX.Element {
   if (!verdict) return <span className="muted">– never built</span>;
   const when = new Date(verdict.at).toLocaleString();
-  return verdict.outcome === 'pass' ? (
-    <span className="verdict-pass">✓ proven · {when}</span>
-  ) : (
-    <span className="verdict-fail">✗ last run failed · {when}</span>
+  return (
+    <span className={verdict.outcome === 'pass' ? 'verdict-pass' : 'verdict-fail'}>
+      {verdictPhrase(verdict)} · {when}
+    </span>
   );
 }
 
 function StoryPanel({
   story,
+  storyIds,
   sessions,
   selectedCap,
   hoverCap,
@@ -981,6 +1753,7 @@ function StoryPanel({
   onClose,
 }: {
   story: TreeStory;
+  storyIds: ReadonlySet<string>;
   sessions: TreeSession[];
   selectedCap: string | null;
   hoverCap: string | null;
@@ -990,7 +1763,11 @@ function StoryPanel({
   onClose: () => void;
 }): React.JSX.Element {
   const layout = useMemo(() => layoutSubdag(story), [story]);
-  const focusCap = hoverCap ?? selectedCap;
+  // A selectedCap can survive cross-story navigation (depends-on buttons) —
+  // ignore ids that aren't in this story instead of dimming the whole sub-DAG.
+  const rawFocus = hoverCap ?? selectedCap;
+  const focusCap =
+    rawFocus && story.capabilities.some((c) => c.id === rawFocus) ? rawFocus : null;
   const relations = useMemo(
     () => (focusCap ? relationsFor(story.capabilities, focusCap) : null),
     [story, focusCap],
@@ -1047,9 +1824,22 @@ function StoryPanel({
       {story.dependsOn.length > 0 && (
         <p className="small">
           <span className="muted">depends on </span>
-          {story.dependsOn.map((d) => (
-            <code key={d}>{d} </code>
-          ))}
+          {story.dependsOn.map((d) =>
+            storyIds.has(d) ? (
+              <button
+                key={d}
+                type="button"
+                className="tree-link"
+                onClick={() => navigate(treeFocusHref(d))}
+              >
+                {d}
+              </button>
+            ) : (
+              <code key={d} title="declared, but no such story in the world">
+                {d}{' '}
+              </code>
+            ),
+          )}
         </p>
       )}
 
