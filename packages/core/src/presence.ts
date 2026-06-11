@@ -10,14 +10,15 @@ import { z } from "zod";
  */
 
 // ---------------------------------------------------------------------------
-// Staleness threshold constants (pending owner call 1 for final values)
+// Staleness threshold constants (owner call 1, resolved 2026-06-11 — fixed
+// values, tunable later only if needed; ADR-0033 "Owner decisions")
 // ---------------------------------------------------------------------------
 
 /** Elapsed ms after which a declaration is considered stale. */
-export const STALE_THRESHOLD_MS = 5 * 60 * 1_000; // 5 minutes
+export const STALE_THRESHOLD_MS = 60 * 60 * 1_000; // 1 hour
 
 /** Elapsed ms after which a declaration is considered possibly-dead. */
-export const POSSIBLY_DEAD_THRESHOLD_MS = 30 * 60 * 1_000; // 30 minutes
+export const POSSIBLY_DEAD_THRESHOLD_MS = 4 * 60 * 60 * 1_000; // 4 hours
 
 // ---------------------------------------------------------------------------
 // Schema

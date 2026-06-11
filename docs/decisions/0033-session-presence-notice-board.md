@@ -115,10 +115,34 @@ Two things changed since V1:
 
 - The exact presence doc field set beyond the named shape (implementation detail for
   `declare-presence`).
-- Whether the statusline heartbeat ships in the first cut (an `ambient-integration` contract call).
+- ~~Whether the statusline heartbeat ships in the first cut (an `ambient-integration` contract
+  call).~~ Resolved — see "Owner decisions (2026-06-11)" below: it ships.
 - Any messaging semantics (threads, replies, addressed delivery) — posts *for* other sessions stay
   on the existing comment substrate if ever needed; this ADR is presence-only.
 - Claims (Decision 4): deliberately deferred, revisit on observed routine conflicts.
+
+## Owner decisions (2026-06-11)
+
+The four open modeling calls in `stories/notice-board/story.md`, resolved by the owner:
+
+1. **Staleness thresholds (story call 1).** Fixed named constants: **fresh < 1 hour**,
+   **stale ≥ 1 hour**, **possibly-dead ≥ 4 hours** (`STALE_THRESHOLD_MS` /
+   `POSSIBLY_DEAD_THRESHOLD_MS` in `packages/core/src/presence.ts`). Tunable later **only if
+   needed** — no config surface now. Staleness stays **derived** — a pure function of `lastSeenAt`
+   vs a caller-supplied `now` — never stored (no doc field, no column, anywhere).
+2. **Statusline heartbeat (story call 2).** **Ships in the first `ambient-integration` cut**:
+   rendering the statusline also bumps the session's `lastSeenAt`, debounced and fail-silent. The
+   rationale is board credibility — a board that cries stale on live sessions teaches people to
+   ignore it.
+3. **Hook installation (story call 4).** The `SessionStart`/`SessionEnd` wrappers land **shared**
+   in the repo's `.claude/settings.json` — every session gets them. The fail-silent contract
+   (always exit 0, short timeout, silent when the DB is down) is what makes shared safe.
+4. **`storytree tree` verdict detail (story call 3).** Option (b), as a **follow-up capability**
+   (the built tree-view is not retrofitted): one glyph per node — ✓ proven / ✗ last run failed /
+   – never built — read from `events.verdict` when the DB is up, silently absent offline. It
+   applies to **both** story and capability rows, and a story row shows **only its own UAT node's
+   verdict**, never a roll-up inferred from its children: "all capabilities pass" and "the story
+   passed UAT" are different claims, and the glyph only ever reports a signed verdict.
 
 ## References
 

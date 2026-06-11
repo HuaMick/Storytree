@@ -41,8 +41,9 @@ node; this node only refuses docs that arrive without it.
   deliberately does not apply.
 - **Staleness is derived, never stored:** fresh/stale/possibly-dead is a pure function of
   `lastSeenAt` vs a caller-supplied `now` — no doc field, no table column, anywhere (the cite/health
-  "derived, never stored" posture). The band threshold is a named constant pending the story's
-  open owner call 1.
+  "derived, never stored" posture). The band thresholds are fixed named constants (owner call 1,
+  resolved 2026-06-11 — ADR-0033 Owner decisions): fresh < 1 hour, stale ≥ 1 hour, possibly-dead
+  ≥ 4 hours, tunable later only if needed.
 - **Merge is the upsert's brain:** `mergeDeclaration(existing, patch)` follows the exact
   `mergeCommentPatch` pattern (`packages/store/src/pg-comment-store.ts`) — the store applies it
   inside its transaction; the semantics are provable here without one. `sessionId` and `startedAt`
