@@ -110,12 +110,22 @@ nothing breaks.
 
 ## Open modeling calls (for the owner)
 
-1. **Staleness threshold.** The dim/stale age (UAT assumes "minutes-fresh, hours-stale") — fixed
-   constant first, tunable later?
-2. **Statusline heartbeat.** Ship the debounced `lastSeenAt` bump in the first
-   `ambient-integration` cut, or glance-only (heartbeat as follow-up)?
-3. **`storytree tree` scope.** First cut renders stories + capabilities + registry/verdict status
-   from local files; how much verdict detail (events.verdict rollup when live) belongs in v1?
-4. **Hook installation.** `SessionStart`/`SessionEnd` hooks land in the repo's
-   `.claude/settings.json` (shared, every session gets them) vs documented-but-manual — shared is
-   the proposal, given the fail-silent wrapper.
+All four RESOLVED by the owner 2026-06-11 — recorded in ADR-0033 "Owner decisions (2026-06-11)".
+
+1. **RESOLVED (owner, 2026-06-11) — staleness threshold.** Fixed named constants: fresh < 1 hour,
+   stale ≥ 1 hour, possibly-dead ≥ 4 hours (`STALE_THRESHOLD_MS` / `POSSIBLY_DEAD_THRESHOLD_MS` in
+   `packages/core/src/presence.ts`), tunable later only if needed. Staleness stays derived — a
+   pure function of `lastSeenAt` vs a caller-supplied `now` — never stored.
+2. **RESOLVED (owner, 2026-06-11) — statusline heartbeat.** SHIPS in the first
+   `ambient-integration` cut: rendering the statusline also bumps the session's `lastSeenAt`,
+   debounced and fail-silent — a board that cries stale on live sessions teaches people to ignore
+   it.
+3. **RESOLVED (owner, 2026-06-11) — `storytree tree` verdict detail.** Option (b) as a FOLLOW-UP
+   capability (the built tree-view is not retrofitted): one glyph per node (✓ proven / ✗ last run
+   failed / – never built) read from `events.verdict` when the DB is up, silently absent offline.
+   Applies to both story and capability rows; a story row shows ONLY its own UAT node's verdict,
+   never a roll-up inferred from its children — "all capabilities pass" and "the story passed UAT"
+   are different claims, and the glyph only ever reports a signed verdict.
+4. **RESOLVED (owner, 2026-06-11) — hook installation.** The `SessionStart`/`SessionEnd` wrappers
+   land SHARED in the repo's `.claude/settings.json` — every session gets them. The fail-silent
+   contract (always exit 0, short timeout, silent when the DB is down) is what makes shared safe.

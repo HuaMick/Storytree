@@ -67,11 +67,13 @@ to be re-derived from real imports once code exists (the `library` story's stand
 - `signal-synthesis` → `cite-event` — the agent traverses cite links to read the signal-graph.
 - `signal-synthesis` → `archive-with-reason` — the agent ignores archived signal.
 
-**Cross-story boundary (owner call #3):** every capability here consumes the **comment/post
-substrate** owned by the existing organisms (`events.comment*` via the store seam), and
-`signal-synthesis` (when built) emits through the **open-question / proposal authoring path** in the
-`library` story (the ADR-0018 OQ→ADR flow). Under ADR-0010 §4 these are cross-story interfaces and
-should be declared, not absorbed.
+**Cross-story boundary (owner call #3 — resolved, declared 2026-06-11):** every capability here
+consumes the **comment/post substrate** owned by `studio-foundation`
+([declared interface](../studio-foundation/interface-comment-substrate.md) — `events.comment*` via
+the store seam), and `signal-synthesis` (when built) emits through the **open-question / proposal
+authoring path** owned by the `library` story
+([declared interface](../library/interface-oq-proposal-authoring.md) — the ADR-0018 OQ→ADR flow).
+Per ADR-0010 §4 these are declared interfaces, not absorbed behaviour.
 
 ## Story UAT (would-be)
 
@@ -103,5 +105,10 @@ proves the substrate it will read.
 2. **RESOLVED by ADR-0032 — graduation shape.** Not a deterministic threshold scan: a future
    synthesis agent produces open-questions / proposals. No threshold policy to set; no anti-gaming
    machinery to build.
-3. **Declare the cross-story interfaces** (comment substrate; the OQ/proposal authoring path) per
-   ADR-0010 §4 — this story would be the first consumer of a declared interface.
+3. **RESOLVED (2026-06-11) — the cross-story interfaces are declared** per ADR-0010 §4, alongside
+   their owning stories (ADR-0010 names no canonical location; the schema term stays provisional):
+   the **comment substrate** at
+   [`stories/studio-foundation/interface-comment-substrate.md`](../studio-foundation/interface-comment-substrate.md)
+   and the **OQ/proposal authoring path** at
+   [`stories/library/interface-oq-proposal-authoring.md`](../library/interface-oq-proposal-authoring.md).
+   This story is their first declared consumer.

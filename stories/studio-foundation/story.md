@@ -27,10 +27,11 @@ model the proof ladder shifts up one rung: the **story** carries the integrated 
 collaborators (no stubs within the organism), and each **contract** stays the isolated
 unit-test leaf (ADR-0010 §2).
 
-`studio-foundation` is currently the **only** story, so there are no cross-story
-**boundaries** to declare yet (ADR-0010 §4): the entire `apps/studio` organism is
-in-story, every dependency below is a within-story code-derived edge, and nothing here
-runs against a stubbed upstream interface.
+Every dependency below is a within-story code-derived edge, and nothing here runs
+against a stubbed upstream interface. This story now **owns one declared cross-story
+interface** (ADR-0010 §4): the **comment substrate**
+([`interface-comment-substrate.md`](interface-comment-substrate.md), declared 2026-06-11)
+— the store-seam comment surface `stories/feedback-graduation` consumes.
 
 See [`../README.md`](../README.md) for the representation and how every field maps to
 ADR-0002 / `docs/glossary.md`.

@@ -31,12 +31,14 @@ blocks, or even speaks into the enclosing action.
   through the same store path the `noticeboard` CLI uses.
 - **Session hooks fire-and-forget:** `SessionStart`/`SessionEnd` shell wrappers around
   `noticeboard declare`/`done` always `exit 0`, bound their runtime with a short timeout, and stay
-  silent when the DB is down (the live-DB-only / degrade-gracefully floor). Whether they land
-  shared in `.claude/settings.json` or documented-but-manual is story owner call 4.
-- **Statusline is the glance:** the read surface — one line (active count, own node, overlap
-  warning) from the `events.session` projection; any failure renders an empty string, which cannot
-  loop the agent. Whether it also heartbeats `lastSeenAt` (debounced) in this cut is story owner
-  call 2 — glance-only is the floor.
+  silent when the DB is down (the live-DB-only / degrade-gracefully floor). They land SHARED in
+  the repo's `.claude/settings.json` — every session gets them (owner call 4, resolved 2026-06-11
+  — ADR-0033 Owner decisions); the fail-silent contract is what makes shared safe.
+- **Statusline is the glance — and the heartbeat:** the read surface — one line (active count, own
+  node, overlap warning) from the `events.session` projection; any failure renders an empty
+  string, which cannot loop the agent. It ALSO bumps the session's `lastSeenAt` on render,
+  debounced and fail-silent (owner call 2, resolved 2026-06-11 — ADR-0033 Owner decisions: a board
+  that cries stale on live sessions teaches people to ignore it).
 - **The guardrail is a contract, not a convention:** no notice-board automation may register on a
   blocking-capable hook (`Stop`, `PreToolUse`, `UserPromptSubmit`) — asserted by a config audit,
   so a future "helpful" hook fails red.
@@ -67,7 +69,9 @@ time. Audit `.claude/settings.json` for forbidden hook events.
      live-gated)
 3. **`statusline-glance`** — the statusline renders a one-line board summary or nothing
    - **asserts —** with a reachable projection the command prints one line (active count, own
-     node, overlap warning); on any failure it prints the empty string and exits 0.
+     node, overlap warning) and bumps the session's `lastSeenAt` (debounced — repeated renders
+     inside the debounce window write once); on any failure it prints the empty string, writes
+     nothing, and exits 0.
    - **proven by —** would-be `packages/cli/src/ambient-presence.test.ts`
 4. **`never-blocking-hooks`** — no notice-board hook on a blocking-capable event
    - **asserts —** a config audit of `.claude/settings.json` finds no notice-board hook registered

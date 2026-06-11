@@ -25,8 +25,10 @@ The implementation is `packages/cli/src/tree.ts` — a SELF-CONTAINED command mo
 returns the `Envelope` from `./envelope.js`). Do NOT touch `commands.ts` or `main.ts` (outside
 your write scope) — the spine wires the dispatch afterwards. Two views: **bare**
 (`storytree tree`) — all stories; **focused** (`storytree tree <story-id>`) — one story's nodes,
-edges, build surface and the presence block. (Verdict rollup detail is deliberately OUT of this
-cut — story owner call 3; do not query verdicts.)
+edges, build surface and the presence block. (Verdict detail stays OUT of this cut — owner call 3,
+resolved 2026-06-11, ADR-0033 Owner decisions: per-node verdict glyphs (✓/✗/–, from
+`events.verdict`, story rows showing only their own UAT node's verdict — never a child roll-up)
+land as a named FOLLOW-UP capability, not a retrofit of this view; do not query verdicts here.)
 
 **Budget your turns.** Each phase runs under a hard turn ceiling. Do not explore the repo — this
 Guidance plus `./envelope.js` and the type exports of `./noticeboard.ts` are ALL the context you
