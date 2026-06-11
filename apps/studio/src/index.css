@@ -53,6 +53,34 @@
   --conifer-1: #4d8a59;
   --conifer-2: #2f6b45;
 
+  /* story-world flora — per-status crown pairs (one source of truth: flora + legend) */
+  --crown-proposed-lo: #b06a24;
+  --crown-proposed-hi: #e09a4b;
+  --crown-building-lo: #65a30d;
+  --crown-building-hi: #8fcd2d;
+  --crown-mapped-lo: #0f766e;
+  --crown-mapped-hi: #2da393;
+  --crown-healthy-lo: #2f6b3f;
+  --crown-healthy-hi: #55a06a;
+  --crown-unhealthy-lo: #9f2d22;
+  --crown-unhealthy-hi: #c75545;
+  --crown-retired-lo: #9ca3af;
+  --crown-retired-hi: #c5c9cf;
+  --crown-unknown-lo: #6b7280;
+  --crown-unknown-hi: #9ca3af;
+  /* garden + withered flora */
+  --story-trunk: #6e533d; /* central tree bole — older wood than --tree-trunk */
+  --soil: #b08b5e;
+  --stem: #5d8a46;
+  --petal-core: #f7ecd2;
+  --withered-wood: #7c5b40;
+  --withered-stem: #6f5743;
+  --withered-head: #5d4c3b;
+  --withered-leaf: #b6925f;
+  --dead-ground: #d9c29a;
+  --wilt: #9f4a32;
+  --ghost-wood: #b9bdc4;
+
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --mono: 'SF Mono', 'Cascadia Code', Consolas, 'Liberation Mono', Menlo, monospace;
 }
@@ -1427,17 +1455,30 @@ mark.st-hl.flash {
   grid-template-columns: minmax(0, 1fr) 400px;
 }
 
-/* the world (top-down field) */
+/* the world (top-down field; portrait — scrolls from the foundation upward) */
 .world-frame {
+  position: relative;
   border: 1px solid var(--border);
   border-radius: 14px;
   overflow: hidden;
   box-shadow: var(--shadow);
   background: linear-gradient(160deg, var(--board-1), var(--board-2));
 }
+.world-scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 78vh;
+  overscroll-behavior: contain; /* wheel at the world edge must not scroll the page */
+}
+.world-scroll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
 .world-scene {
   display: block;
   width: 100%;
+  max-width: 980px; /* zoom cap — keeps tiles sane in a wide column */
+  margin: 0 auto;
   height: auto;
 }
 
@@ -1551,34 +1592,148 @@ mark.st-hl.flash {
   opacity: 0.16;
 }
 
-/* capability trees — foliage carries the status */
-.hex-captree {
-  cursor: pointer;
+/* the central story tree — the story itself; the crown carries the story status */
+.story-tree {
   transition: opacity 0.18s ease;
 }
-.captree-trunk {
-  fill: var(--tree-trunk);
+.story-tree.is-filtered {
+  opacity: 0.12;
 }
-.hex-captree .captree-lower { fill: #6b7280; }
-.hex-captree .captree-upper { fill: #9ca3af; }
-.hex-captree.st-proposed .captree-lower { fill: #b06a24; }
-.hex-captree.st-proposed .captree-upper { fill: #e09a4b; }
-.hex-captree.st-building .captree-lower { fill: #65a30d; }
-.hex-captree.st-building .captree-upper { fill: #8fcd2d; }
-.hex-captree.st-mapped .captree-lower { fill: #0f766e; }
-.hex-captree.st-mapped .captree-upper { fill: #2da393; }
-.hex-captree.st-healthy .captree-lower { fill: #2f6b3f; }
-.hex-captree.st-healthy .captree-upper { fill: #55a06a; }
-.hex-captree.st-unhealthy .captree-lower { fill: #9f2d22; }
-.hex-captree.st-unhealthy .captree-upper { fill: #c75545; }
-.hex-captree.st-retired .captree-lower { fill: #9ca3af; opacity: 0.7; }
-.hex-captree.st-retired .captree-upper { fill: #c5c9cf; opacity: 0.7; }
-.hex-captree:hover .captree-upper {
+.story-tree .story-trunk {
+  fill: var(--story-trunk);
+}
+.story-tree .crown-lo circle { fill: var(--crown-unknown-lo); }
+.story-tree .crown-hi circle { fill: var(--crown-unknown-hi); }
+.story-tree.st-proposed .crown-lo circle { fill: var(--crown-proposed-lo); }
+.story-tree.st-proposed .crown-hi circle { fill: var(--crown-proposed-hi); }
+.story-tree.st-building .crown-lo circle { fill: var(--crown-building-lo); }
+.story-tree.st-building .crown-hi circle { fill: var(--crown-building-hi); }
+.story-tree.st-mapped .crown-lo circle { fill: var(--crown-mapped-lo); }
+.story-tree.st-mapped .crown-hi circle { fill: var(--crown-mapped-hi); }
+.story-tree.st-healthy .crown-lo circle { fill: var(--crown-healthy-lo); }
+.story-tree.st-healthy .crown-hi circle { fill: var(--crown-healthy-hi); }
+.story-tree.st-unhealthy .crown-lo circle { fill: var(--crown-unhealthy-lo); }
+.story-tree.st-unhealthy .crown-hi circle { fill: var(--crown-unhealthy-hi); }
+.story-tree.st-retired .crown-lo circle { fill: var(--crown-retired-lo); }
+.story-tree.st-retired .crown-hi circle { fill: var(--crown-retired-hi); }
+.story-tree .crown-hi circle {
+  stroke: rgba(255, 255, 255, 0.18);
+  stroke-width: 0.8;
+}
+.story-tree:hover .crown-hi circle {
   stroke: var(--accent);
   stroke-width: 1.2;
 }
-.hex-captree.is-filtered {
+.story-bare path {
+  fill: none;
+  stroke: var(--withered-wood);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.story-tree .is-ghost-wood,
+.story-bare.is-ghost-wood path {
+  fill: none;
+  stroke: var(--ghost-wood);
+}
+.story-tree .story-trunk.is-ghost-wood {
+  fill: var(--ghost-wood);
+  stroke: none;
+}
+.ghost-crown {
+  fill: none;
+  stroke: var(--ghost-wood);
+  stroke-width: 1.2;
+  opacity: 0.5;
+}
+.grass-tuft {
+  fill: none;
+  stroke: var(--hex-top-1);
+  stroke-width: 1.2;
+  stroke-linecap: round;
+}
+.leaf-litter {
+  fill: var(--withered-leaf);
+  opacity: 0.85;
+}
+
+/* the story's UAT verdict signpost (ADR-0033 d.3 — only when signed) */
+.story-sign rect {
+  fill: var(--story-trunk);
+}
+.story-sign circle {
+  fill: #ffffff;
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+.story-sign text {
+  font-size: 9.5px;
+  font-weight: 700;
+}
+.story-sign.verdict-pass text { fill: var(--good); }
+.story-sign.verdict-fail text { fill: var(--danger); }
+
+/* capability garden flora — leaves/petals carry the status */
+.garden-flora {
+  cursor: pointer;
+  transition: opacity 0.18s ease;
+}
+.flora-bed {
+  fill: var(--soil);
+  opacity: 0.55;
+}
+.flora-stem {
+  fill: none;
+  stroke: var(--stem);
+  stroke-width: 1.2;
+}
+.flora-core {
+  fill: var(--petal-core);
+}
+.sapling-trunk {
+  fill: var(--tree-trunk);
+}
+.garden-flora .flora-dark { fill: var(--crown-unknown-lo); }
+.garden-flora .flora-light { fill: var(--crown-unknown-hi); }
+.garden-flora.st-proposed .flora-dark { fill: var(--crown-proposed-lo); }
+.garden-flora.st-proposed .flora-light { fill: var(--crown-proposed-hi); }
+.garden-flora.st-building .flora-dark { fill: var(--crown-building-lo); }
+.garden-flora.st-building .flora-light { fill: var(--crown-building-hi); }
+.garden-flora.st-mapped .flora-dark { fill: var(--crown-mapped-lo); }
+.garden-flora.st-mapped .flora-light { fill: var(--crown-mapped-hi); }
+.garden-flora.st-healthy .flora-dark { fill: var(--crown-healthy-lo); }
+.garden-flora.st-healthy .flora-light { fill: var(--crown-healthy-hi); }
+.garden-flora.st-unhealthy .flora-dark { fill: var(--crown-unhealthy-lo); }
+.garden-flora.st-unhealthy .flora-light { fill: var(--crown-unhealthy-hi); }
+.garden-flora.st-retired .flora-dark { fill: var(--crown-retired-lo); }
+.garden-flora.st-retired .flora-light { fill: var(--crown-retired-hi); }
+.flora-dead-stem,
+.flora-dead-twig {
+  fill: none;
+  stroke: var(--withered-stem);
+  stroke-width: 1.9; /* beats the JSX presentation attribute — dead must be spottable */
+  stroke-linecap: round;
+}
+.dead-ground {
+  fill: var(--dead-ground);
+  opacity: 0.7;
+}
+.flora-dead-head {
+  fill: var(--withered-head);
+}
+.garden-flora.st-unhealthy .flora-dead-accent {
+  fill: var(--wilt);
+}
+.garden-flora:hover .flora-light,
+.garden-flora:hover .flora-dead-twig,
+.garden-flora:hover .flora-dead-stem {
+  stroke: var(--accent);
+  stroke-width: 1.2;
+}
+.garden-flora.is-filtered {
   opacity: 0.12;
+}
+.garden-flora.is-ghost {
+  opacity: 0.5;
 }
 .captree-verdict circle {
   fill: #ffffff;
@@ -1606,6 +1761,97 @@ mark.st-hl.flash {
 .world-wisp.band-stale .world-wisp-dot { fill: var(--warn); }
 .world-wisp.band-possibly-dead .world-wisp-glow { fill: var(--st-retired); opacity: 0.15; }
 .world-wisp.band-possibly-dead .world-wisp-dot { fill: var(--st-retired); }
+
+/* the legend (collapsible overlay pinned to the frame corner) */
+.world-legend {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  width: 232px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 7px 11px 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  opacity: 0.96;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+}
+.world-legend header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.world-legend header button {
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 2px;
+}
+.world-legend header button:hover {
+  color: var(--text);
+}
+.world-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 0;
+}
+.world-legend-row svg {
+  flex: 0 0 26px;
+  width: 26px;
+  height: 24px;
+}
+.world-legend-row code {
+  font-size: 10.5px;
+  padding: 0 0.25em;
+}
+.world-legend-swatch {
+  flex: 0 0 26px;
+  height: 4px;
+  border-radius: 2px;
+  margin: 0 0 0 0;
+}
+.world-legend-swatch.is-upstream {
+  background: var(--warn);
+}
+.world-legend-swatch.is-downstream {
+  background: var(--danger);
+}
+.world-legend-toggle {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  padding: 3px 12px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+.world-legend-toggle svg {
+  width: 15px;
+  height: 18px;
+}
+.world-legend-toggle:hover {
+  border-color: var(--accent);
+}
 
 /* sessions-here block in the panel */
 .tree-sessions {
