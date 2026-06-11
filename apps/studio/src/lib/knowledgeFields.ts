@@ -16,6 +16,8 @@ export interface EditorFieldSpec {
   placeholder: string;
   required: boolean;
   lead: boolean;
+  /** Typed `asset:` ref-list field — edited as one-ref-per-line text, stored as a string[]. */
+  refList?: boolean;
 }
 
 /** The six structured Knowledge kinds (the KIND_SPECS keys). The other categories are body-only. */
@@ -45,7 +47,12 @@ export function renderFieldsPreview(
   const doc: Record<string, unknown> = { kind: category };
   for (const spec of fieldSpecsFor(category)) {
     const value = fields[spec.field];
-    if (typeof value === 'string' && value.trim() !== '') doc[spec.field] = value;
+    if (typeof value === 'string' && value.trim() !== '') {
+      // A ref-list field is edited as one-ref-per-line text but stored (and rendered) as a
+      // string[] — split it so the preview matches the store's read render byte-for-byte.
+      doc[spec.field] =
+        spec.refList === true ? value.split(/[\s,]+/).filter((v) => v !== '') : value;
+    }
   }
   return renderBody(doc as never);
 }

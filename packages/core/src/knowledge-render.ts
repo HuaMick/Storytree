@@ -12,20 +12,25 @@ import { KIND_SPECS, type Knowledge, type KnowledgeKind } from "./knowledge.js";
  * material is the structured `references` field, rendered separately as a grouped "Sources"
  * view (see `groupSources` in knowledge-sources.ts).
  *
+ * A `refList` field (a `string[]` of `asset:` refs, ADR-0029 owner reshape) renders as one
+ * `- asset:<id>` bullet per entry; an empty list emits nothing — never an empty heading.
+ *
  * This is the inverse of the per-kind parse rules and reproduces the stored bodies
  * byte-for-byte for round-trip fidelity.
  */
 export function renderBody(doc: Knowledge): string {
   const specs = KIND_SPECS[doc.kind as KnowledgeKind];
-  const fields = doc as unknown as Record<string, string | undefined>;
+  const fields = doc as unknown as Record<string, string | readonly string[] | undefined>;
   const blocks: string[] = [];
   for (const spec of specs) {
     const value = fields[spec.field];
     if (value == null) continue; // optional + absent -> emit nothing
+    if (Array.isArray(value) && value.length === 0) continue; // empty ref-list -> emit nothing
+    const text = Array.isArray(value) ? value.map((ref) => `- ${ref}`).join("\n") : value;
     if (spec.lead) {
-      blocks.push(`${spec.heading} ${value}`);
+      blocks.push(`${spec.heading} ${text}`);
     } else {
-      blocks.push(`## ${spec.heading}\n\n${value}`);
+      blocks.push(`## ${spec.heading}\n\n${text}`);
     }
   }
   return blocks.join("\n\n");
@@ -38,16 +43,18 @@ export function renderBody(doc: Knowledge): string {
  * hand-authored artifact. Reproduces the canonical `template-<kind>` bodies byte-for-byte.
  *
  * Unlike `renderBody`, the template emits ALL fields (including optional ones) so an author
- * sees every available section.
+ * sees every available section. A `refList` field's placeholder is emitted as a single `- `
+ * bullet, matching how a one-entry list renders.
  */
 export function generateTemplate(kind: KnowledgeKind): string {
   const specs = KIND_SPECS[kind];
   const blocks: string[] = [];
   for (const spec of specs) {
+    const text = spec.refList === true ? `- ${spec.placeholder}` : spec.placeholder;
     if (spec.lead) {
-      blocks.push(`${spec.heading} ${spec.placeholder}`);
+      blocks.push(`${spec.heading} ${text}`);
     } else {
-      blocks.push(`## ${spec.heading}\n\n${spec.placeholder}`);
+      blocks.push(`## ${spec.heading}\n\n${text}`);
     }
   }
   return blocks.join("\n\n");

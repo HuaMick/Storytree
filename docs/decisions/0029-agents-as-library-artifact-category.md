@@ -18,6 +18,13 @@ drafted when `agent` would have been the *seventh* kind; ADR-0034's `process` la
 [ADR-0032](0032-cite-graduation-mechanism.md) retrofit: the cite-threshold curation step is recast as
 the deferred **signal-synthesis** agent (see the roster-mapping note below).
 
+**Reshaped 2026-06-11** (same day, post-ratification owner steer): the field table in Decision §2,
+the template in §3, the §"V1 bucket → v2 field" fold-down, and the "additive — no row upcast"
+migration posture are **superseded by §"Owner reshape (2026-06-11)"** below — the kind now carries
+six prose fields + three typed `asset:` ref-lists (schemaVersion 2, migration
+`agent-context-assembly-reshape`), and the library holds the eight live-role units only (the three
+obsolete-as-agent units were removed; their dispositions are recorded in the reshape section).
+
 ## Date
 
 2026-06-10
@@ -80,8 +87,10 @@ data model.
    buckets into one knowledge unit, with explicit provenance to the V1 source and a pointer to the v2
    surface that carries it.
 
-2. **The structured field table (`KIND_SPECS.agent`), in render order.** One lead field plus eleven
-   `## ` section fields. Mapping from V1's five buckets is given in §"V1 bucket → v2 field" below.
+2. **The structured field table (`KIND_SPECS.agent`), in render order.** *(SUPERSEDED — see
+   §"Owner reshape (2026-06-11)" for the live table; kept for the V1 fold-down record.)* One lead
+   field plus eleven `## ` section fields. Mapping from V1's five buckets is given in
+   §"V1 bucket → v2 field" below.
 
    | # | field | lead | heading | required | maps from (V1) |
    |---|-------|------|---------|----------|----------------|
@@ -360,6 +369,95 @@ the task brief, not re-typed here.
 5. **Required vs optional split.** **DECIDED: keep the draft's split.**
    `rules`/`antiPatterns`/`escalation`/`doesNotTouch` optional, the rest required; `outcome` stays
    **required even for obsolete units**, stated as "n/a — obsolete; superseded by <surface>".
+   *(Superseded by the reshape below: the split is now `rules`/`antiPatterns`/`escalation` optional,
+   `oneLine`/`role`/`outcome`/`context`/`tools`/`workflow` required — and obsolete units no longer
+   exist in the kind at all.)*
+
+## Owner reshape (2026-06-11)
+
+Ratified the same day the kind landed, the owner reshaped the design before any consumer bound to
+it. The driving rationale: **the `agent` unit is the SOURCE of dynamically assembled agent
+context.** A later build makes `storytree agents <name>` (the ADR-0023 §7 namespace) assemble a
+role's system prompt *from* its Library unit — structured fields + a renderer (the
+oq-library-doc-shape option-C lesson: fields are authoritative, render is derived), **never**
+freeform prompt templates with placeholders. The binding build stays deferred until a role actually
+runs through the namespace; this section fixes the shape it will consume. Every field is therefore
+either **per-role prose** the renderer prints, or a **typed ref the renderer injects** — and
+anything that is neither (prose describing an enforcement wall) is deleted from the kind.
+
+The reshaped field table (schemaVersion **2**; supersedes Decision §2/§3):
+
+| # | field | lead | heading | required | type |
+|---|-------|------|---------|----------|------|
+| 1 | `oneLine` | yes | `**The agent.**` | yes | prose |
+| 2 | `role` | no | `Role` | yes | prose |
+| 3 | `outcome` | no | `Outcome` | yes | prose |
+| 4 | `context` | no | `Context` | yes | `asset:` ref-list (non-empty) |
+| 5 | `tools` | no | `Tools` | yes | prose |
+| 6 | `workflow` | no | `Workflow` | yes | prose |
+| 7 | `rules` | no | `Rules` | no | `asset:` ref-list |
+| 8 | `antiPatterns` | no | `Anti-patterns` | no | `asset:` ref-list |
+| 9 | `escalation` | no | `Escalation` | no | prose |
+
+The decisions, in order:
+
+1. **`owns` / `doesNotTouch` / `authority` are DROPPED.** Scope and authority walls are enforced by
+   **code** (the fail-closed `PreToolUse` hook on the SDK leaf, the spine's `WriteScopedToolExecutor`
+   / `PathWriteScope`, the signer chain) and by **guardrail units** — they are never *described* in
+   guidance prose, where a description can drift from the wall it claims to describe and an agent
+   can be talked out of it. Output-contract prose those fields carried (e.g. the investigator's
+   structured-return shape) moved into `outcome`; the rest is recoverable from the event log.
+   Compiling enforcement walls *from* Library artifacts (so a guardrail unit generates the hook
+   config rather than merely citing it) is future work under **oq-artifact-code-backing**.
+
+2. **`requiredReading` → `context`, retyped as the assembly manifest.** A typed, non-empty list of
+   `asset:` refs — exactly the units whose content the `storytree agents <name>` renderer injects
+   into the role's system prompt. **ADR references are BANNED in `context`:** agents are told ADRs
+   exist and get a **search tool** instead — `storytree library search <query> --kind <kind>`,
+   federating over Library artifacts AND `docs/decisions/`, with ADR hits returned as `doc:` refs.
+   That verb is the named **first consumer of ADR-0023 §6's deferred search**; it is recorded here,
+   not built with the reshape. ADR pointers that used to sit in `requiredReading` live in the
+   common `references` field (the Sources view), where they belong as citations rather than
+   preloaded context.
+
+3. **`rules` and `antiPatterns` retyped as `asset:` ref-lists** (the §7 cite-don't-restate rule made
+   structural): each entry names a principle/pattern (`rules`) or guardrail/cautionary
+   (`antiPatterns`) unit whose content the renderer injects. The three ref-lists are kept
+   **disjoint** per unit — a cited unit is injected once, under one prompt section. Role-*specific*
+   shape (output contracts, fixed taxonomies, phase boundaries) stays in the prose fields.
+   Dangling refs to not-yet-ratified guidance units (`docs/research/agent-guidance-candidates.json`)
+   remain acceptable under the Q4 WARN-level referential-integrity posture — the WARN→GATE
+   graduation waits on the candidates' own ratification pass, unchanged.
+
+4. **Live roles only.** The library holds CURRENT state; everything else must be recomputable from
+   ADRs. The three obsolete-as-agent units (`session-orchestrator`, `escalation-screener`,
+   `brief-writer`) were **removed** from the seed and the live store (Q3 is superseded), and their
+   dispositions are recorded here so nothing is lost:
+   - **session-orchestrator** — V1's routing/fan-out/session-composition principal (~3,800 lines of
+     git/worktree/merge ceremony). Routing became deterministic spine code (ADR-0004/0005:
+     `packages/orchestrator` — `runSequence`/`runLoop`, the phase machine; ADR-0020 explicitly
+     leaves the merge ceremony behind), session-steering became the human-held studio outer loop
+     (ADR-0008). What survives is methodology, not an agent: orient-before-acting, fan-out belongs
+     to the caller (`asset:orchestrator-is-sole-fan-out`), route-to-the-owner.
+   - **escalation-screener** — V1's Chief-of-Staff gate on what deserved human attention. With no
+     principal to screen for (no persona cascade, ADR-0004), the human-held outer loop (ADR-0008)
+     plus the spine's deterministic pre-filtering absorb the gate. Its seven checks survive as
+     decision-surfacing guidance (`asset:signal-and-noise`, `asset:human-owns-the-outer-loop`).
+   - **brief-writer** — V1's static-HTML decision-brief renderer. Its job — rendering decision
+     state so the human can adjudicate a tradeoff — IS the live studio (ADR-0008); with no
+     orchestrator-agent to spawn it, the static artifact is structurally redundant. Its
+     analogy-first / name-both-sides / end-with-the-question framing carries as surfacing guidance
+     (`asset:assess-tradeoffs-by-naming-both-sides`).
+
+5. **Migration posture (supersedes §"Migration posture" above for this change).** The reshape is
+   exactly the case that section's "Forward-only still holds" clause foresaw: drops + a rename +
+   retypes = a **data migration**. `CURRENT_SCHEMA_VERSION` bumped 1→2 with the registry entry
+   `agent-context-assembly-reshape` (`packages/core/src/migrations.ts` #2): agent rows drop the
+   walls, extract the `asset:` refs out of the old prose into `context`/`rules`/`antiPatterns`
+   (`context` falls back to the row's `references` asset refs so the required floor stays
+   non-empty), and lagging rows forward-migrate on write via the existing `upcastAndValidate`
+   boundary; the eager batch-migrate (ADR-0026 §7) drains the tail. The dropped field names
+   (`owns`/`doesNotTouch`/`authority`/`requiredReading`) joined the retired-field denylist.
 
 ## References
 

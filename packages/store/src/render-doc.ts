@@ -76,7 +76,12 @@ export function isStructuredKind(category: string): category is KnowledgeKind {
   return Object.hasOwn(KIND_SPECS, category);
 }
 
-/** Extract the present per-kind structured field values from a structured Knowledge doc. */
+/**
+ * Extract the present per-kind structured field values from a structured Knowledge doc. A typed
+ * ref-list field (KIND_SPECS `refList`: a `string[]` of `asset:` refs) rides the wire as a
+ * newline-joined string — the editor edits it as one-ref-per-line text and {@link buildLibraryDoc}
+ * splits it back into the array on write.
+ */
 function extractFields(doc: Knowledge): Record<string, string> {
   const specs = KIND_SPECS[doc.kind as KnowledgeKind] ?? [];
   const fields: Record<string, string> = {};
@@ -84,6 +89,9 @@ function extractFields(doc: Knowledge): Record<string, string> {
   for (const spec of specs) {
     const value = bag[spec.field];
     if (typeof value === "string") fields[spec.field] = value;
+    else if (Array.isArray(value)) {
+      fields[spec.field] = value.filter((v): v is string => typeof v === "string").join("\n");
+    }
   }
   return fields;
 }
@@ -182,8 +190,12 @@ export function buildLibraryDoc(
 
     for (const spec of KIND_SPECS[input.category]) {
       const value = input.fields[spec.field];
-      if (typeof value === "string" && value.trim() !== "") doc[spec.field] = value;
-      else delete doc[spec.field];
+      if (typeof value === "string" && value.trim() !== "") {
+        // A typed ref-list field rides the wire newline-joined (see extractFields) — split it
+        // back into the `asset:` ref array the schema expects.
+        doc[spec.field] =
+          spec.refList === true ? value.split(/[\s,]+/).filter((v) => v !== "") : value;
+      } else delete doc[spec.field];
     }
 
     // The Knowledge schema requires createdAt/updatedAt on the doc (the envelope is the real clock,

@@ -48,10 +48,10 @@ test("upcast: v0 structured unit drops seeAlso, stamps schemaVersion, and valida
   const out = upcast(v0DefinitionWithSeeAlso());
   assert.equal("seeAlso" in out, false, "retired seeAlso dropped");
   assert.equal(out["schemaVersion"], CURRENT_SCHEMA_VERSION, "stamped to current version");
-  assert.equal(CURRENT_SCHEMA_VERSION, 1, "current version is 1 (seeAlso-to-sources)");
+  assert.equal(CURRENT_SCHEMA_VERSION, 2, "current version is 2 (agent-context-assembly-reshape)");
   // The forwarded doc passes the strict validator (it would have been rejected un-upcast).
   const validated = validateLibraryDoc(out);
-  assert.equal((validated as { schemaVersion?: number }).schemaVersion, 1);
+  assert.equal((validated as { schemaVersion?: number }).schemaVersion, 2);
 });
 
 test("upcast: idempotent — upcast(upcast(x)) deep-equals upcast(x)", () => {
@@ -75,6 +75,81 @@ test("upcastAndValidate: forwards a v0 doc instead of rejecting it", () => {
   const out = upcastAndValidate(v0DefinitionWithSeeAlso());
   assert.equal((out as { schemaVersion?: number }).schemaVersion, CURRENT_SCHEMA_VERSION);
   assert.equal("seeAlso" in (out as Record<string, unknown>), false);
+});
+
+// A v1 agent unit in the PRE-RESHAPE shape (PR #48): prose authority walls + requiredReading +
+// prose rules/antiPatterns. Migration #2 must drop the walls, extract the asset: refs into the
+// typed context/rules/antiPatterns lists, and validate against the reshaped schema.
+function v1AgentPreReshape(): Record<string, unknown> {
+  return {
+    kind: "agent",
+    id: "test-agent",
+    title: "Test agent",
+    description: "A test agent for migration coverage.",
+    schemaVersion: 1,
+    oneLine: "A throwaway agent used only by the migration test suite.",
+    role: "Exists to exercise migration #2.",
+    owns: "The migration fixture surface.",
+    doesNotTouch: "Anything real.",
+    authority: "May do nothing.",
+    outcome: "The migration test passes.",
+    requiredReading:
+      "ADR-0020 and the glossary. Doctrine: `asset:reference-dont-restate` (candidate), `asset:edit-first-curation`.",
+    tools: "Read-only fixtures.",
+    workflow: "1. Run. 2. Stop.",
+    rules: "- **Edit first** -> `asset:edit-first-curation`.\n- A role-shape rule with no citation.",
+    antiPatterns: "- Restating doctrine -> `asset:reference-dont-restate`.",
+    escalation: "Surface everything.",
+    references: ["doc:decisions/0029-agents-as-library-artifact-category.md", "asset:edit-first-curation"],
+    createdAt: "2026-06-11T00:00:00.000Z",
+    updatedAt: "2026-06-11T00:00:00.000Z",
+  };
+}
+
+test("upcast: v1 agent unit is reshaped — walls dropped, refs extracted, validates at v2", () => {
+  const out = upcast(v1AgentPreReshape());
+  for (const gone of ["owns", "doesNotTouch", "authority", "requiredReading"]) {
+    assert.equal(gone in out, false, `${gone} dropped by the reshape`);
+  }
+  assert.deepEqual(out["context"], ["asset:reference-dont-restate", "asset:edit-first-curation"]);
+  assert.deepEqual(out["rules"], ["asset:edit-first-curation"]);
+  assert.deepEqual(out["antiPatterns"], ["asset:reference-dont-restate"]);
+  assert.equal(out["escalation"], "Surface everything.", "escalation prose carries");
+  assert.equal(out["schemaVersion"], CURRENT_SCHEMA_VERSION);
+  assert.doesNotThrow(() => validateLibraryDoc(out));
+});
+
+test("upcast: v1 agent with no asset refs in requiredReading falls back to references", () => {
+  const doc = v1AgentPreReshape();
+  doc["requiredReading"] = "ADR-0032 and the glossary only — no asset refs here.";
+  delete doc["rules"];
+  delete doc["antiPatterns"];
+  const out = upcast(doc);
+  assert.deepEqual(out["context"], ["asset:edit-first-curation"], "context from references");
+  assert.equal("rules" in out, false, "absent optional ref-list stays absent");
+  assert.doesNotThrow(() => validateLibraryDoc(out));
+});
+
+test("upcast: agent reshape is idempotent and leaves non-agent kinds untouched by #2", () => {
+  const once = upcast(v1AgentPreReshape());
+  assert.deepEqual(upcast(once), once);
+  // open-question also has a `context` field (markdown prose) — #2 must not touch it.
+  const oq = upcast({
+    kind: "open-question",
+    id: "test-oq",
+    title: "Test OQ",
+    description: "fixture",
+    schemaVersion: 1,
+    stakes: "None.",
+    statement: "Is the fixture fine?",
+    context: "Prose context, not a ref list.",
+    options: "A vs B.",
+    references: [],
+    createdAt: "2026-06-11T00:00:00.000Z",
+    updatedAt: "2026-06-11T00:00:00.000Z",
+  });
+  assert.equal(oq["context"], "Prose context, not a ref list.");
+  assert.doesNotThrow(() => validateLibraryDoc(oq));
 });
 
 test("MIGRATIONS: registry is ordered and reaches CURRENT_SCHEMA_VERSION", () => {

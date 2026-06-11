@@ -46,6 +46,13 @@ export interface KindFieldSpec {
   readonly placeholder: string;
   /** Required fields are non-optional in the schema and always emitted by the template. */
   readonly required: boolean;
+  /**
+   * True for a TYPED REF-LIST field (ADR-0029 owner reshape): the value is a `string[]` of
+   * `asset:<id>` pointers, not markdown prose. The renderer emits one `- asset:<id>` bullet per
+   * entry; the schema enforces the `asset:` prefix (`doc:`/ADR refs are banned — agents *search*
+   * ADRs via the library, they don't preload them). A required ref-list must be non-empty.
+   */
+  readonly refList?: boolean;
 }
 
 export type KnowledgeKind =
@@ -303,6 +310,11 @@ export const KIND_SPECS: Readonly<Record<KnowledgeKind, readonly KindFieldSpec[]
         "_The proposed answer and why — explicitly non-binding until the owner decides._",
     },
   ],
+  // The `agent` unit is the SOURCE of `storytree agents <name>` context assembly (ADR-0029 owner
+  // reshape, 2026-06-11): fields are either per-role PROSE (role/outcome/tools/workflow/escalation)
+  // or typed `asset:` REF-LISTS the renderer injects (context/rules/antiPatterns). Scope/authority
+  // walls (the old owns/doesNotTouch/authority) are enforced by code and guardrails, never
+  // described in guidance — they were dropped in schemaVersion 2 (migrations.ts #2).
   agent: [
     {
       field: "oneLine",
@@ -320,30 +332,6 @@ export const KIND_SPECS: Readonly<Record<KnowledgeKind, readonly KindFieldSpec[]
         "_The full purpose: what this agent is for, what it produces, and the boundary of its job._",
     },
     {
-      field: "owns",
-      lead: false,
-      heading: "Owns",
-      required: true,
-      placeholder:
-        "_The surface it is the authority for — the paths / phases / artifacts it may write, and the outputs it produces._",
-    },
-    {
-      field: "doesNotTouch",
-      lead: false,
-      heading: "Does not touch",
-      required: false,
-      placeholder:
-        "_The surfaces explicitly outside its authority — what another owner holds. Omit if the agent owns everything in its scope._",
-    },
-    {
-      field: "authority",
-      lead: false,
-      heading: "Authority",
-      required: true,
-      placeholder:
-        '_The specific writes and promotions it may and may not make — the floor that makes its work falsifiable (e.g. "may flip status proposed→under_construction; may never sign a verdict")._',
-    },
-    {
       field: "outcome",
       lead: false,
       heading: "Outcome",
@@ -352,12 +340,13 @@ export const KIND_SPECS: Readonly<Record<KnowledgeKind, readonly KindFieldSpec[]
         "_The success criteria: the observable, falsifiable condition that means this agent's work is done and correct._",
     },
     {
-      field: "requiredReading",
+      field: "context",
       lead: false,
-      heading: "Required reading",
+      heading: "Context",
       required: true,
+      refList: true,
       placeholder:
-        "_The context it must load before acting — the ADRs, glossary terms, Library units, and live state it reads just-in-time (ADR-0011/0023)._",
+        "_The assembly manifest — `asset:` refs whose content the `storytree agents <name>` renderer injects into this role's system prompt, one per line. ADR refs are banned: agents are told ADRs exist and search them just-in-time (`storytree library search`)._",
     },
     {
       field: "tools",
@@ -380,16 +369,18 @@ export const KIND_SPECS: Readonly<Record<KnowledgeKind, readonly KindFieldSpec[]
       lead: false,
       heading: "Rules",
       required: false,
+      refList: true,
       placeholder:
-        "_The operating discipline — the judgement rules that carry as this agent's behavioural floor. Cite the Library principle/guardrail each rule graduates into rather than restating it. Omit if none._",
+        "_`asset:` refs to the principle/pattern units that are this role's behavioural floor — the renderer injects the cited units' content; never restate it here. Omit if none._",
     },
     {
       field: "antiPatterns",
       lead: false,
       heading: "Anti-patterns",
       required: false,
+      refList: true,
       placeholder:
-        "_The named failure modes it must refuse, each with the lesson that taught it. Omit if none._",
+        "_`asset:` refs to the guardrail/cautionary units naming the failure modes this role must refuse — injected by the renderer. Omit if none._",
     },
     {
       field: "escalation",
@@ -445,15 +436,31 @@ const commonShape = {
 } as const;
 
 /**
+ * One typed `asset:<id>` pointer — the only ref a {@link KindFieldSpec.refList} field admits.
+ * `doc:` (ADR) refs are deliberately rejected: ADRs are *searched* just-in-time, never preloaded
+ * into an agent's assembled context (ADR-0029 owner reshape; ADR-0023 §6 search).
+ */
+export const AssetRef = z.string().regex(/^asset:[A-Za-z0-9_-]+$/, {
+  message: "a ref-list entry must be an `asset:<id>` pointer (doc:/ADR refs are banned here)",
+});
+
+/**
  * Build a per-kind zod object from its field spec table. Required fields are `Markdown`;
- * optional fields are `Markdown.optional()`. The `kind` literal discriminates the union.
+ * optional fields are `Markdown.optional()`; `refList` fields are `asset:` ref arrays
+ * (required => non-empty). The `kind` literal discriminates the union.
  * The glossary-projection metadata (`glossarySection` / `glossaryTerm`) lives in
  * {@link commonShape}, so every kind may carry it.
  */
 function buildKindSchema(kind: KnowledgeKind) {
   const fieldShape: Record<string, z.ZodTypeAny> = {};
   for (const spec of KIND_SPECS[kind]) {
-    fieldShape[spec.field] = spec.required ? Markdown : Markdown.optional();
+    if (spec.refList === true) {
+      fieldShape[spec.field] = spec.required
+        ? z.array(AssetRef).min(1)
+        : z.array(AssetRef).optional();
+    } else {
+      fieldShape[spec.field] = spec.required ? Markdown : Markdown.optional();
+    }
   }
   return z
     .object({

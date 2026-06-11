@@ -26,8 +26,13 @@ import { deriveIdentity, noticeboardCommand } from "./noticeboard.js";
 import type { PresenceStoreLike, SessionIdentity } from "./noticeboard.js";
 import { storyBuild, storyHelp } from "./story-build.js";
 
-/** Fields removed by a past migration that must not reappear (design §4 check 2; the seeAlso incident). */
-const RETIRED_FIELDS = ["seeAlso"];
+/**
+ * Fields removed by a past migration that must not reappear (design §4 check 2): `seeAlso`
+ * (migration #1, the sources incident) + the agent kind's prose authority walls and
+ * `requiredReading` (migration #2, the ADR-0029 owner reshape — walls are code/guardrails,
+ * context is a typed ref-list).
+ */
+const RETIRED_FIELDS = ["seeAlso", "owns", "doesNotTouch", "authority", "requiredReading"];
 
 /** The edit-first-curation pointer, reused wherever a write surface should nudge search-before-write. */
 const EDIT_FIRST =
@@ -417,12 +422,24 @@ export async function editArtifact(
       typeof existing.doc === "object" && existing.doc !== null
         ? { ...(existing.doc as Record<string, unknown>) }
         : {};
+    // A typed ref-list field (KIND_SPECS refList, e.g. the agent kind's context/rules) is a
+    // string[] on the doc — coerce the --set string by splitting on whitespace/commas so
+    // `--set context=asset:a,asset:b` works without --json.
+    const kindSpecs =
+      typeof base["kind"] === "string" && Object.hasOwn(KIND_SPECS, base["kind"])
+        ? KIND_SPECS[base["kind"] as keyof typeof KIND_SPECS]
+        : [];
+    const refListFields = new Set(kindSpecs.filter((s) => s.refList === true).map((s) => s.field));
     const changed: string[] = [];
     for (const s of opts.sets) {
       const i = s.indexOf("=");
       if (i < 0) return { ok: false, body: `bad --set "${s}" — use field=value.`, next: [] };
-      base[s.slice(0, i)] = s.slice(i + 1);
-      changed.push(s.slice(0, i));
+      const field = s.slice(0, i);
+      const value = s.slice(i + 1);
+      base[field] = refListFields.has(field)
+        ? value.split(/[\s,]+/).filter((v) => v !== "")
+        : value;
+      changed.push(field);
     }
     nextDoc = base;
     summary = `set ${changed.join(", ")}`;
