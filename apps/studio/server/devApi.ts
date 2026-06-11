@@ -663,9 +663,13 @@ export function storytreeDataApi(): Plugin {
             } else if (url.pathname === '/api/tree') {
               if ((req.method ?? 'GET') !== 'GET') throw new HttpError(405, 'method not allowed');
               const payload = await readTree(paths.storiesDir);
-              // Advisory verdict glyphs (ADR-0033 d.3): latestVerdicts() never throws —
-              // null (json store / DB down) just means the tree renders without them.
-              const verdicts = await backend.latestVerdicts();
+              // Advisory enrichments (ADR-0033): neither call ever throws — null (json
+              // store / DB down) just means the tree renders without that layer. Run in
+              // parallel so a down DB costs one 4s budget, not two.
+              const [verdicts, sessions] = await Promise.all([
+                backend.latestVerdicts(),
+                backend.activeSessions(),
+              ]);
               if (verdicts) {
                 for (const story of payload.stories) {
                   const sv = verdicts[story.id];
@@ -676,8 +680,6 @@ export function storytreeDataApi(): Plugin {
                   }
                 }
               }
-              // Notice-board presence (ADR-0033): advisory, silently absent offline.
-              const sessions = await backend.activeSessions();
               if (sessions && sessions.length > 0) payload.sessions = sessions;
               sendJson(res, 200, payload);
             } else if (url.pathname === '/api/comments') {
