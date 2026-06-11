@@ -1,8 +1,9 @@
 # studio (foundation)
 
-The web surface for storytree — **this is the foundation only**: a forum-style
-interface over the project's record. **No PixiJS, no story-tree yet** (those come
-later, per [ADR-0001](../../docs/decisions/0001-foundational-stack.md)).
+The web surface for storytree: a forum-style interface over the project's record,
+plus the **story world** at `#/tree` — an SVG hex-island map of the work hierarchy
+([ADR-0036](../../docs/decisions/0036-story-world-studio-visualisation.md); the
+ADR-0001 PixiJS plan is superseded).
 
 Think of the whole thing as a **forum**: documents and Library artifacts are
 *topics*; comments are *posts*. It does three things:
@@ -191,9 +192,9 @@ cards at runtime (served live by the dev API, not stored in `assets.json`).
 
 ## Out of scope (deliberately)
 
-PixiJS isometric story-tree · real-time / multi-user · orchestrator / agent
-integration · auth · production persistence. This is the static-content forum
-foundation only.
+Real-time / multi-user · orchestrator / agent integration · auth · production
+persistence. (The story tree itself is no longer out of scope — `#/tree` ships it
+as inline SVG, ADR-0036.)
 
 ## Structure
 

@@ -6,6 +6,9 @@ outcome: "An operator reviews the project record through one browsable forum stu
 status: proposed
 proof_mode: UAT
 capabilities: [dev-server-persistence-backbone, seed-library-corpus, read-corpus, resolve-comment, annotate-topic, browse-library, author-library-artifact]
+# Story-level edges: the "Cross-story boundary" section below, encoded (consumed seams,
+# ADR-0010 §4; code-import-evidenced — see that section for file:line). ADR-0036.
+depends_on: [library, drive-machinery, notice-board]
 ---
 
 # The studio foundation
@@ -31,7 +34,9 @@ Every dependency below is a within-story code-derived edge, and nothing here run
 against a stubbed upstream interface. This story now **owns one declared cross-story
 interface** (ADR-0010 §4): the **comment substrate**
 ([`interface-comment-substrate.md`](interface-comment-substrate.md), declared 2026-06-11)
-— the store-seam comment surface `stories/feedback-graduation` consumes.
+— the store-seam comment surface `stories/feedback-graduation` consumes. It also
+**consumes three cross-story seams** (the pg backend and the story-world view arrived
+after this retro-spec was first authored) — see §"Cross-story boundary" below.
 
 See [`../README.md`](../README.md) for the representation and how every field maps to
 ADR-0002 / `docs/glossary.md`.
@@ -56,8 +61,8 @@ These are **within-story** edges, **read off the real source** (static analysis 
 imports / data-flow between capabilities), never hand-drawn from UAT need (ADR-0010 §3):
 A → B means A's code actually couples to B's code inside the one organism. The graph is
 acyclic; `dev-server-persistence-backbone` and `seed-library-corpus` are the roots.
-(There are no cross-story edges: `studio-foundation` is the only story, so no
-**boundary** interfaces apply yet — ADR-0010 §4.)
+(Cross-story edges are NOT in this graph — they are boundary interfaces, declared in
+§"Cross-story boundary" below and encoded as frontmatter `depends_on` — ADR-0010 §4.)
 
 - `read-corpus` → `dev-server-persistence-backbone`
   - read-corpus owns its doc handlers (listDocs, safeDocPath, handleDocs at devApi.ts:96-343) but **rides** the backbone's `/api/*` middleware registration — handleDocs is dispatched only because storytreeDataApi.configureServer mounted the namespace before Vite's SPA fallback (devApi.ts:358-377). The coupling is the shared connect-middleware seam, read straight off the code.
@@ -78,6 +83,25 @@ acyclic; `dev-server-persistence-backbone` and `seed-library-corpus` are the roo
 - `author-library-artifact` → `browse-library`
   - After every save/delete, AssetEditor/AssetView call refreshAssets() then navigate into browse-library's surfaces — create/edit land on AssetView (the detail render browse-library owns), delete routes to the Library list (AssetView.tsx:36-38); author's post-mutation render path is browse-library's components.
 
+## Cross-story boundary (ADR-0010 §4)
+
+Declared 2026-06-12 (ADR-0036) — these arrived with the live-store backend and the story-world
+view, **after** this retro-spec's first authoring; all three are read off real imports, the
+within-story standard applied across the boundary. Encoded as frontmatter `depends_on`.
+
+- **`library`** — the **store connection seam** (`event-sourced-store-seam`): PgBackend builds
+  `createPool()` → `PgLibraryStore` and renders stored docs via `renderStoredDoc`
+  (`server/libraryBackend.ts:318-330`); browser code imports the schema surface
+  (`@storytree/core/knowledge` / `knowledge-render` / `sources` — `src/lib/knowledgeFields.ts`,
+  `src/components/AssetView.tsx`). Consumed, not absorbed. (`PgCommentStore` is NOT an edge —
+  the comment substrate is this story's own declared interface.)
+- **`drive-machinery`** — the **node-spec surface**: `/api/tree` loads `stories/` frontmatter
+  via the orchestrator's `loadNodeSpec` (lazy-imported, `server/devApi.ts`), and the verdict
+  glyphs read the gate's `events.verdict` stream (`server/libraryBackend.ts` latestVerdicts).
+- **`notice-board`** — the **presence surface**: the world's session wisps read
+  `PgPresenceStore.listActive()` and classify bands with `classifyPresence`
+  (`server/libraryBackend.ts` activeSessions; ADR-0033 — advisory, silently absent offline).
+
 ## Story UAT
 
 The integrated **acceptance walkthrough** that proves the whole `studio-foundation`
@@ -85,7 +109,8 @@ organism meets its outcome end-to-end against the **real running studio** — th
 that moved up to the story tier (ADR-0010 §2). It is minimal-first (one coherent
 operator journey that touches read, annotate, resolve, browse, and author once) and
 synthesised from the seven per-capability walkthroughs that were folded up into it; mocks
-are forbidden (no cross-story boundary exists to stub against — §"What this is").
+are forbidden — the consumed cross-story seams (§"Cross-story boundary") are exercised real
+when the live store is up and degrade silently offline, never stubbed.
 
 **Goal —** One operator, in one session against `pnpm --filter studio dev`, reviews the
 project record through the studio: reads a rendered ADR, anchors a comment on it and

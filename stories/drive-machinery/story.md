@@ -6,6 +6,10 @@ outcome: "The spine drives any registered node through a genuine red→green pro
 status: proposed
 proof_mode: UAT
 capabilities: []
+# Story-level edge (ADR-0010 §4, code-import-evidenced; ADR-0036): the drive consumes the
+# library story's store connection seam — createPool/closePool/applySchema + the narrow
+# Store seam type in packages/cli/src/node-build.ts (events.work_event/verdict are its OWN).
+depends_on: [library]
 ---
 
 # The drive machinery
