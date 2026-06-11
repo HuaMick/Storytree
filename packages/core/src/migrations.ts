@@ -15,7 +15,7 @@ import { KIND_SPECS } from "./knowledge.js";
  */
 
 /** The schema version every freshly-written structured Knowledge doc conforms to. */
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 /** One forward, version-numbered transform on a JSONB document. */
 export interface Migration {
@@ -34,6 +34,21 @@ export interface Migration {
  * defensively drops any residual `seeAlso` that slipped through (a concurrently-authored old-shape
  * unit, design §1b pain-point #2).
  */
+/** Collect the unique `asset:<id>` refs from a prose field (or pass an array through filtered). */
+function assetRefsOf(value: unknown): string[] {
+  if (typeof value === "string") {
+    return [...new Set(value.match(/asset:[A-Za-z0-9_-]+/g) ?? [])];
+  }
+  if (Array.isArray(value)) {
+    return [
+      ...new Set(
+        value.filter((v): v is string => typeof v === "string" && /^asset:[A-Za-z0-9_-]+$/.test(v)),
+      ),
+    ];
+  }
+  return [];
+}
+
 export const MIGRATIONS: readonly Migration[] = [
   {
     version: 1,
@@ -43,6 +58,40 @@ export const MIGRATIONS: readonly Migration[] = [
       // defensively drop a residual `seeAlso` if a stray old-shape doc still carries it.
       const { seeAlso: _seeAlso, ...rest } = doc;
       return rest;
+    },
+  },
+  {
+    version: 2,
+    name: "agent-context-assembly-reshape",
+    up(doc) {
+      // ADR-0029 owner reshape (2026-06-11), agent kind only: drop the prose authority walls
+      // (owns/doesNotTouch/authority — walls are enforced by code/guardrails, never described),
+      // rename requiredReading -> context as a typed `asset:` ref-list (the assembly manifest),
+      // and retype rules/antiPatterns as `asset:` ref-lists. The transform is mechanical: refs
+      // are EXTRACTED from the old prose (context falls back to the doc's `references` asset
+      // refs so the required floor stays non-empty); the dropped prose is recoverable from the
+      // append-only event log (the no-down-migrations posture above).
+      if (doc["kind"] !== "agent") return doc;
+      const {
+        owns: _owns,
+        doesNotTouch: _doesNotTouch,
+        authority: _authority,
+        requiredReading,
+        rules,
+        antiPatterns,
+        ...rest
+      } = doc;
+      // Prefer an already-new-shape `context` (a mis-stamped row), else extract from the prose.
+      let context = Array.isArray(rest["context"])
+        ? assetRefsOf(rest["context"])
+        : assetRefsOf(requiredReading);
+      if (context.length === 0) context = assetRefsOf(rest["references"]);
+      const out: Record<string, unknown> = { ...rest, context };
+      const rulesRefs = assetRefsOf(rules);
+      if (rulesRefs.length > 0) out["rules"] = rulesRefs;
+      const antiPatternRefs = assetRefsOf(antiPatterns);
+      if (antiPatternRefs.length > 0) out["antiPatterns"] = antiPatternRefs;
+      return out;
     },
   },
 ];

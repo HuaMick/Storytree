@@ -80,6 +80,24 @@ function refsOf(body: Record<string, unknown>): string[] {
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
 }
 
+/**
+ * The typed ref-list field values (KIND_SPECS `refList`, e.g. the agent kind's
+ * context/rules/antiPatterns) off a structured doc — they carry `asset:` pointers exactly like
+ * `references`, so referential-integrity scans them too (the ADR-0029 Q4 WARN posture covers
+ * their dangling candidate refs the same way).
+ */
+function refListRefsOf(d: StoredDoc, body: Record<string, unknown>): string[] {
+  if (!isStructured(d)) return [];
+  const specs = KIND_SPECS[d.kind as keyof typeof KIND_SPECS] ?? [];
+  const out: string[] = [];
+  for (const spec of specs) {
+    if (spec.refList !== true) continue;
+    const v = body[spec.field];
+    if (Array.isArray(v)) out.push(...v.filter((x): x is string => typeof x === "string"));
+  }
+  return out;
+}
+
 // 1. schema-conformance --------------------------------------------------------------------------
 function schemaConformance(docs: readonly StoredDoc[]): CheckResult {
   const structured = docs.filter(isStructured);
@@ -147,7 +165,8 @@ function referentialIntegrity(
   const danglingAsset: string[] = [];
   const danglingDoc: string[] = [];
   for (const d of docs) {
-    for (const ref of refsOf(bodyOf(d))) {
+    const body = bodyOf(d);
+    for (const ref of [...refsOf(body), ...refListRefsOf(d, body)]) {
       if (ref.startsWith("asset:")) {
         const id = ref.slice("asset:".length);
         if (!liveIds.has(id)) danglingAsset.push(`${d.id} -> ${ref} (no such artifact)`);

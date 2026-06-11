@@ -26,7 +26,9 @@ function minimalDoc(kind: KnowledgeKind): Record<string, unknown> {
     updatedAt: "2026-06-11T00:00:00.000Z",
   };
   for (const spec of KIND_SPECS[kind]) {
-    if (spec.required) doc[spec.field] = `content for ${spec.field}`;
+    if (spec.required) {
+      doc[spec.field] = spec.refList === true ? [`asset:parity-${spec.field}`] : `content for ${spec.field}`;
+    }
   }
   return doc;
 }
@@ -71,28 +73,61 @@ test("every kind: .strict() rejects a field outside its KIND_SPECS table", () =>
 test("renderBody of an all-placeholder doc reproduces generateTemplate byte-for-byte", () => {
   for (const kind of KINDS) {
     const doc = minimalDoc(kind);
-    for (const spec of KIND_SPECS[kind]) doc[spec.field] = spec.placeholder;
-    const parsed = validateLibraryDoc(doc);
+    // A refList placeholder is prose (not a valid asset: ref), so render the raw doc — this test
+    // pins renderer<->template parity; schema acceptance is the minimal-doc test's job.
+    for (const spec of KIND_SPECS[kind]) {
+      doc[spec.field] = spec.refList === true ? [spec.placeholder] : spec.placeholder;
+    }
     assert.equal(
-      renderBody(parsed as never),
+      renderBody(doc as never),
       generateTemplate(kind),
       `${kind}: renderer and template generator must derive from the same table`,
     );
   }
 });
 
-test("agent kind: the ADR-0029 Q5 required/optional split holds", () => {
+test("agent kind: the ADR-0029 required/optional split holds (owner reshape, 2026-06-11)", () => {
   const required = KIND_SPECS.agent.filter((s) => s.required).map((s) => s.field);
   const optional = KIND_SPECS.agent.filter((s) => !s.required).map((s) => s.field);
-  assert.deepEqual(required, [
-    "oneLine",
-    "role",
-    "owns",
-    "authority",
-    "outcome",
-    "requiredReading",
-    "tools",
-    "workflow",
-  ]);
-  assert.deepEqual(optional, ["doesNotTouch", "rules", "antiPatterns", "escalation"]);
+  assert.deepEqual(required, ["oneLine", "role", "outcome", "context", "tools", "workflow"]);
+  assert.deepEqual(optional, ["rules", "antiPatterns", "escalation"]);
+});
+
+test("agent kind: context/rules/antiPatterns are typed asset: ref-lists", () => {
+  const refListFields = KIND_SPECS.agent.filter((s) => s.refList === true).map((s) => s.field);
+  assert.deepEqual(refListFields, ["context", "rules", "antiPatterns"]);
+
+  // A doc:/ADR ref in a ref-list fails closed — ADRs are searched, never preloaded.
+  const banned = {
+    ...minimalDoc("agent"),
+    context: ["doc:decisions/0029-agents-as-library-artifact-category.md"],
+  };
+  assert.throws(() => validateLibraryDoc(banned), "doc: refs must be rejected in context");
+
+  // Prose (non-ref) entries fail closed too — the field is a manifest, not markdown.
+  const prose = { ...minimalDoc("agent"), rules: ["never restate the doctrine"] };
+  assert.throws(() => validateLibraryDoc(prose), "prose entries must be rejected in rules");
+
+  // A required ref-list must be non-empty.
+  const empty = { ...minimalDoc("agent"), context: [] };
+  assert.throws(() => validateLibraryDoc(empty), "empty required context must be rejected");
+
+  // An optional ref-list may be absent, and valid refs validate.
+  const valid = {
+    ...minimalDoc("agent"),
+    context: ["asset:edit-first-curation", "asset:reference-dont-restate"],
+    rules: ["asset:reference-dont-restate"],
+  };
+  assert.doesNotThrow(() => validateLibraryDoc(valid));
+});
+
+test("renderBody: a ref-list renders as one bullet per ref; an empty optional list emits nothing", () => {
+  const doc = validateLibraryDoc({
+    ...minimalDoc("agent"),
+    context: ["asset:a-one", "asset:b-two"],
+    rules: [],
+  });
+  const body = renderBody(doc as never);
+  assert.ok(body.includes("## Context\n\n- asset:a-one\n- asset:b-two"), "bulleted ref-list");
+  assert.ok(!body.includes("## Rules"), "empty ref-list emits no heading");
 });

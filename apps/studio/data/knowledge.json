@@ -16,7 +16,7 @@
     "why": "A module's **interface** is a cost paid by every caller (names to learn, invariants to preserve, parameters to thread); the **functionality** it hides is the benefit. A **shallow module** — wide public surface relative to the work it does — buys nothing: the boundary adds learning cost without hiding meaningful complexity. A **deep module** — small public surface, large hidden implementation — lets callers see one concept and trust it.",
     "howToApply": "Run the **deletion test**: imagine deleting the module. If complexity vanishes, it was a pass-through and the boundary was not earning its keep. If complexity reappears across N callers, it was earning its keep. Pay the interface cost only when the hidden functionality justifies it.",
     "provenance": "Attribution: Ousterhout, via Matt Pocock. Imported from v1.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "pattern",
@@ -31,7 +31,7 @@
     "approach": "Edit the closest existing artifact by default. Writing a new one must be justified: state what search terms were run, what the closest existing artifact was, and why editing it was not the right move. Search-before-write is the cheapest duplication defence there is.",
     "tradeoffs": "You trade the up-front cost of searching and of bending an existing artifact to fit, against the downstream cost of split authority and a broken evidence chain. Reaching for a new artifact is faster in the moment but leaves consumers unsure which source is canonical.",
     "provenance": "Imported from v1.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "pattern",
@@ -48,7 +48,7 @@
     "approach": "For any tradeoff surfaced, state both sides explicitly in concrete user-facing terms: latency, blast radius, contract strength, observability, security posture, reversibility. A framing that names only a vague cost does not satisfy the rule.",
     "tradeoffs": "You trade the effort of articulating both sides precisely against decisions made on vague, unfalsifiable cost language. Naming A vs B in real terms is more work to write but makes the choice auditable.",
     "provenance": "Imported from v1.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "principle",
@@ -69,7 +69,7 @@
     "statement": "A unit reaches `healthy` only through earned, on-disk evidence produced by one of its proof modes — never a hand-edit.",
     "why": "Without an evidence gate, `healthy` becomes a claim rather than a proof — a unit can be marked done by assertion, and the trunk silently accumulates unproven work. The gate **refuses** invalid work rather than warning about it, so an unproven unit cannot pass at all.",
     "howToApply": "Ask: is there earned, on-disk evidence from one of this unit's proof modes at HEAD? If not, it is not `healthy`, and no hand-edit can make it so. Corollary — **cold-rebuild** (an authoring guideline, not a gate): a story should be written self-contained enough that a cold agent — from the story's spec plus its upstream stories' declared interfaces, and nothing else — could rebuild it and pass its UAT (the internals may differ). It is not the definition of `healthy` and is never machine-enforced (ADR-0010 §6).",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -91,7 +91,7 @@
     "glossaryBody": "How a unit earns `healthy`, one rung per tier (ADR-0010):\n**UAT** (an honest scripted story-level walkthrough), **integration-test** (a\ncapability's organs wired against real in-story collaborators), **contract-test**\n(an isolated unit assertion), and **operator-attested** (below). `packages/core`\nencodes these as a discriminated `proof_mode` union; the carrying tier of the UAT\nmode moves from capability to story (ADR-0007, amended by ADR-0010).",
     "oneLine": "The four ways a unit earns `healthy` — one rung per tier — comprising UAT, integration-test, contract-test, and operator-attested.",
     "whatItIs": "The mechanism by which a unit earns `healthy`, one rung per tier (ADR-0010). `packages/core` encodes these as a discriminated `proof_mode` union (ADR-0007). The four modes are:\n\n- **UAT** (story) — an honest scripted acceptance walkthrough against *real* collaborators, proving the whole organism end to end.\n\n- **integration-test** (capability) — the organs wired against *real in-story collaborators* (no stubs within the organism).\n\n- **contract-test** (contract) — one isolated automated assertion (collaborators stubbed; the mock-UAT seam permits it).\n\n- **operator-attested** — a per-unit, operator-granted signed event for surfaces with neither an honest UAT nor an isolatable test. An agent can never self-exempt.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "principle",
@@ -107,7 +107,7 @@
     "statement": "If a state change isn't a typed event the UI can render, it doesn't exist — so the event model is designed before features.",
     "why": "Observability bolted on after the fact leaves state changes invisible: behaviour happens that the studio cannot show, and the system becomes unauditable. The event store is the single source of truth the studio renders; if it is not the foundation, there is no later pass that can reconstruct what was never recorded. No external trace SaaS sits in the loop.",
     "howToApply": "Design the event model **before** features. For every state change — owned-loop events and orchestrator events alike — ensure it is a typed record in the event store. Run the test: if a state change is not an event the UI can render, **it does not exist**.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "principle",
@@ -122,7 +122,7 @@
     "statement": "Own every load-bearing layer — design it up front, go slow, stay model-agnostic and self-hosted — and never vibe the parts the system rests on.",
     "why": "This is v2's bet, learned from v1: v1's internals were vibed and became unobservable — vibed load-bearing layers become unobservable and unfixable. v1 proved the *idea*, but its improvised internals are hard to see and hard to change. The parts the system rests on — the event model, concurrency-safe state, the orchestrator spine — must be designed up front, not improvised. Renting them (a subscription, someone else's runtime) surrenders your data and traces and couples you to a single model.",
     "howToApply": "Before building on a layer, ask: is this load-bearing? If so, own it — design it deliberately, go slow, keep it model-agnostic and self-hosted (API keys, not a subscription; your data and traces stay yours). The orchestrator owns only what the owned loop does not — multi-node scheduling and durable, concurrency-safe shared state.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "guardrail",
@@ -138,7 +138,7 @@
     "rule": "- The model runtime is reached **only** through `packages/agent` — the sole place a model runtime is imported.\n\n- **Only** `packages/orchestrator` drives `packages/agent`; `packages/core` and `apps/studio` have no path to a model runtime.\n\n- **Run ≠ node:** an owned-loop run/attempt is an execution event, never a new tree node.\n\n- The orchestrator is the **sole fan-out point** — owned-loop nodes never schedule child nodes.",
     "enforcedBy": "A package-boundary dependency rule: `packages/agent` is the only module that may import a model runtime, and only `packages/orchestrator` may import `packages/agent` — `packages/core` and `apps/studio` have no build-graph path to either.",
     "failureMode": "If the boundary is crossed, a model runtime leaks into `packages/core` or `apps/studio`, model calls fan out from arbitrary places, and model-unavailability becomes a system-wide outage rather than a single contained failure.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "principle",
@@ -154,7 +154,7 @@
     "why": "Without this discriminator, routing decisions leak into the model that a deterministic for-loop or match could have made — making control-flow non-reproducible, unauditable, and needlessly costly — or, inversely, genuine judgement gets hard-coded into a brittle spine. Keeping closed, deterministic routing in code and open judgement in the leaf keeps each where it can be proven.",
     "howToApply": "For each routing decision, ask: could a for-loop or a match express it? If yes, the **spine** owns it — the code-sequenced orchestrator over plain Postgres (DBOS deferred, ADR-0019), with closed, deterministic routing. If the routing needs the model to decide what comes next, the **leaf** (owned-loop node) owns it; the owned loop is the leaf the spine delegates to.",
     "provenance": "The discriminator is carried verbatim from v1.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "guardrail",
@@ -170,7 +170,7 @@
     "rule": "The studio **drives** agents; the human sits at the **outer loop**.\n\n- **Per-action approval** is first-class (inverts v1’s skip-permissions): approve / reject / steer individual owned-loop actions in-loop.\n\n- **Approval-gated trunk** (inverts auto-merge-on-green): a green result surfaces for human diff-review and lands only on approval, as a signed promotion event.\n\n- Content invariants — contracts green, UAT signed, upstream healthy — are **never bypassable**.",
     "enforcedBy": "The promotion gate: landing on trunk is a signed `promotion` event the orchestrator emits only after an operator approves the diff *and* the content invariants pass — there is no code path that writes the trunk without it.",
     "failureMode": "If the boundary is crossed, knowingly-broken or unreviewed work auto-merges onto the trunk and human judgment is removed from the outer loop. This is exactly v1’s **auto-merge-on-green** scar: v1’s trunk auto-merged the moment tests went green and tolerated broken intermediate states under an eventual-consistency posture, so the mainline was knowingly-broken at times — buying landing throughput at the cost of a trunk you could not trust. v2 inverts it: a green result is a *request for human diff-review*, never an automatic merge, so the trunk never holds a knowingly-broken state. The diff-review step is the price paid to close the window in which the mainline held broken states.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "guardrail",
@@ -188,7 +188,7 @@
     "enforcedBy": "When built, a serializable/unique constraint on the claims table in the shared Postgres store, checked at node-schedule time: a conflicting claim raises a `claim-conflict-refused` event instead of committing, so two nodes can never hold the same write. This is the intended enforcement; it waits on the deferred DBOS path (ADR-0019).",
     "failureMode": "If the boundary is crossed once concurrent multi-node work lands, two nodes hold the same write concurrently and corrupt shared state. This is v1’s **store-lock-races-and-id-collisions** scar: once work ran concurrently, v1 hit store-lock races and in-process story-ID collisions (even duplicate ADR numbers), because concurrency-safety was retrofitted rather than designed in. v2 treats concurrency-safe state as a *foundation, not a retrofit* — the claim checked at node-schedule time and DB-allocated collision-free ids dissolve both the race and the collision classes. The race and collision classes are simply not yet exercised: the intended remedy stands on the deferred DBOS path (ADR-0019), so until concurrent multi-node work lands on the plain typed Postgres store the claim layer is named/intended, not built.",
     "provenance": "The DBOS-backed mechanism is deferred by ADR-0019.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "techstack",
@@ -204,7 +204,7 @@
     "whatItIs": "storytree is a TypeScript / Node 24 / pnpm-workspaces monorepo. TypeScript gives typed boundaries and invalid-state modelling in `packages/core`; pnpm workspaces keep `packages/*` and `apps/*` independent but linked. It is model-agnostic and owns the loop.",
     "whyThis": "Chosen over v1's Rust for model-agnostic, own-the-loop development speed.",
     "constraints": "Node 24 is the pinned runtime. Workspace structure: `packages/*` and `apps/*` are kept independent but linked.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "techstack",
@@ -222,7 +222,7 @@
     "whatItIs": "The owned agent loop runs everything *inside* a node — the model loop, steering, diffs, approvals. It is a minimal tool-use loop on the Anthropic Messages API (`@anthropic-ai/sdk`): `messages.create` with `tools` → dispatch `tool_use` → feed `tool_result` → loop to `end_turn`, emitting a lifecycle event stream plus `edit`-tool diffs. It lives in `packages/agent` (ADR-0011 replaced the third-party `pi` leaf with this owned loop).",
     "whyThis": "Context engineering and the agent loop are the layers storytree most needs to own and see into — renting them means renting exactly what we need to control. ADR-0011 retired the earlier bet on a third-party `pi` leaf in favour of this owned loop, for that reason; `packages/pi-adapter` is a dead placeholder and the `pi-` ids here are residual rename debt, not a live `pi` dependency. The v1 Claude Code SDK opacity (an opaque wrapper around a binary) is the cautionary tale. Anthropic-only for now behind a thin internal seam; the earlier model-agnostic non-negotiable is relaxed to a *revisit-if-it-bites* posture, not re-committed (ADR-0011).",
     "constraints": "The model runtime is reached **only** through `packages/agent`, the sole model-runtime import site; `packages/core` and `apps/studio` have no path to it (ADR-0004, amended by ADR-0011).",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "techstack",
@@ -241,7 +241,7 @@
     "whyThis": "Durable execution as a library rather than a cluster is the reason it is held as the future target. It was deferred because the Phase-2 library migration ran fine on a plain typed Postgres connection and did not need durable workflows yet (ADR-0019). Restate is the reserved alternative if a single self-contained binary is later preferred over a Postgres dependency.",
     "constraints": "Deferred, not adopted: nothing depends on DBOS today, and the store is a plain typed `node-pg` Postgres connection. When taken up it carries a Postgres dependency (the reason Restate is held in reserve) and would back durable, concurrency-safe shared state and multi-node scheduling — the layer the orchestrator owns.",
     "provenance": "Deferred by ADR-0019 (reaffirmed ADR-0020).",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "techstack",
@@ -257,7 +257,7 @@
     "whatItIs": "The studio is a React shell embedding a PixiJS v8 (`@pixi/react`) 2D-isometric tree that renders the event store live. PixiJS is the fastest 2D engine and batches thousands of live sprites at 60fps. Art is deferred; the engine is settled.",
     "whyThis": "Fastest 2D, batches 1000s of live sprites at 60fps — the throughput a live-rendered tree of the event store needs.",
     "constraints": "PixiJS is pinned to **v8** (via `@pixi/react`). **Note:** this foundation build ships the React forum shell only — no PixiJS yet; the engine is chosen but not yet integrated.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "guardrail",
@@ -274,7 +274,7 @@
     "rule": "A **gate** is a structural enforcement point that **refuses** invalid work, not a warning. Promotion onto the trunk requires its content invariants — contracts green, UAT signed, upstream healthy — and these are **never bypassable**. An operator approval admits work that has *already* passed the gate; it cannot waive it.",
     "enforcedBy": "The gate is the sole writer of trunk-promotion events and emits one only when every content invariant holds; the operator-approval check runs *after* the invariants and has no branch that can waive them.",
     "failureMode": "If the boundary is crossed, work that fails its content invariants reaches the trunk — an operator (or any path) waiving the gate rather than merely admitting already-passing work, so the trunk holds unproven or broken units.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "guardrail",
@@ -290,7 +290,7 @@
     "rule": "The `operator-attested` proof mode promotes a unit to `healthy` only via an explicit, per-unit, **operator-granted** signed event. An agent can **never** self-exempt, and the attestation is distinguishable in the audit trail from a UAT walkthrough sign.",
     "enforcedBy": "The event store requires the `operator-attested` event to carry an operator signature distinct from any agent identity; an attestation signed by the agent under test is rejected, so an agent cannot mint its own promotion.",
     "failureMode": "If the boundary is crossed, an agent self-exempts — minting its own `operator-attested` promotion to `healthy` for a surface with no honest UAT or isolatable test, defeating the proof model.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "guardrail",
@@ -306,7 +306,7 @@
     "rule": "An owned-loop **run** (attempt) is recorded as an execution **event**, many-per-node — it is **never** a new node on the DAG. The coordination/scheduling grain (the node) is kept distinct from the execution grain (the run).",
     "enforcedBy": "The `packages/core` schema: a run is a `run`-typed row in the event store keyed to its node id, with no node identity of its own and no slot in the node table for one to occupy.",
     "failureMode": "If the boundary is crossed, execution attempts proliferate as DAG nodes, conflating the execution grain with the coordination/scheduling grain and corrupting the tree the orchestrator schedules over.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "guardrail",
@@ -323,7 +323,7 @@
     "rule": "The orchestrator is the **only** module that drives `packages/agent` and the **sole fan-out point** — it schedules nodes. An owned-loop node never schedules child nodes; there is no agent-spawns-agent path.",
     "enforcedBy": "Only `packages/orchestrator` holds the schedule-node capability; the `packages/agent` surface exposes no scheduling call upward, so an owned-loop node has no API by which to spawn a child node.",
     "failureMode": "If the boundary is crossed, an owned-loop node spawns child nodes (agent-spawns-agent), fan-out escapes the orchestrator’s deterministic spine, and scheduling becomes uncontrolled.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "pattern",
@@ -342,7 +342,7 @@
     "approach": "The owned loop lives in one package, `packages/agent` — the **sole** model-runtime import site. It exposes the typed surface (`prompt` / `steer` / `follow-up` + lifecycle stream + `edit` diffs), normalizes the owned loop's stream into the typed events the store renders, and lets nothing model-shaped leak upward — `core` and `studio` never parse the owned loop's stream directly.",
     "tradeoffs": "You trade the cost of building and maintaining a normalization layer against direct, brittle coupling to the owned loop's stream. The wrapper is extra code, but it confines every model-shaped change to one place.",
     "provenance": "Carries v1's own-a-thin-wrapper-over-the-agent-runtime principle.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "pattern",
@@ -359,7 +359,7 @@
     "approach": "The **event log** is the typed, append-only record — the single source of truth and the only thing **written**. The **node rollup** (current status + latest verdict per unit) is a **projection** over the log, *read off* it, never written beside it.",
     "tradeoffs": "You trade the convenience of reading a stored status directly against the integrity of a single source of truth. Projecting on read costs computation, but rules out the drift that comes from maintaining status separately from the log.",
     "provenance": "v2's answer to v1's per-build `runs`-grain mess.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "pattern",
@@ -378,7 +378,7 @@
     "approach": "A node under construction is driven by one owned-loop session. The intended durable mechanism wraps that session in a DBOS workflow — DBOS workflow isolation (not a branch-per-session) providing crash-safe, auto-resumed execution — but DBOS is deferred (ADR-0019), so today the spine drives the session over a plain typed Postgres connection with best-effort replay rather than guaranteed auto-resume; claims in the shared store (also deferred with DBOS) would handle write-ownership.",
     "tradeoffs": "The durable-workflow path buys crash recovery and auto-resume at the cost of standing on DBOS and the shared store rather than git branches; until DBOS is taken up, the plain-Postgres spine accepts best-effort replay in exchange for not carrying that dependency yet.",
     "provenance": "The DBOS workflow path is deferred by ADR-0019 (reaffirmed ADR-0020).",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "pattern",
@@ -398,7 +398,7 @@
     "approach": "Build each unit as a library with minimal load-bearing dependencies, exercised end-to-end by integration tests, behind a thin CLI/adapter wrapper.",
     "tradeoffs": "You trade the discipline of keeping dependencies minimal and wrapping the library thinly against tighter, more convenient coupling to the surroundings. The library shape keeps the unit provable in isolation and resilient to surrounding churn.",
     "provenance": "Carried from v1.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "pattern",
@@ -414,7 +414,7 @@
     "problem": "Stubs/mocks are correct in a contract test (isolated) but a **structural defect** in a UAT, which must run against real collaborators. Behavioural/guardrail surfaces often have no honest UAT, tempting a faked walkthrough.",
     "approach": "Don't fake a walkthrough for a behavioural/guardrail surface that has no honest UAT — use the `operator-attested` proof mode instead. The mock-UAT seam draws this line: mocks belong in isolated contract tests, not in a UAT.",
     "tradeoffs": "You trade the false comfort of a green-looking but stubbed walkthrough against an honest signal. Operator-attestation is more work and requires a human, but a faked UAT proves nothing about the real organism.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "pattern",
@@ -431,7 +431,7 @@
     "problem": "With multiple layers each speaking the same vocabulary, a contested term can mean different things in different places unless one source is named authoritative.",
     "approach": "Every layer — `packages/core` types, the orchestrator, the studio, the ADRs — uses the glossary's terms as defined. When a term's meaning is in question, `docs/glossary.md` wins; the reasoning behind the definition lives in the cited ADR.",
     "tradeoffs": "You trade local freedom to redefine a term against a single authoritative vocabulary. Deferring to the glossary constrains how a layer may use a word, but guarantees every layer speaks the same language when it matters.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "guardrail",
@@ -451,7 +451,7 @@
     "rule": "**inner loop** = driving one unit red→green (automatable, owned by an owned-loop node). **outer loop** = accepting a result onto the trunk, accepting a decomposition, or amending/retrying/abandoning a unit (held by **human judgment** in the studio). The human-in-the-loop gate sits at the outer loop; the north-star may later dissolve it.",
     "enforcedBy": "The outer-loop transitions (accept-to-trunk, accept-decomposition, amend / retry / abandon) are operator-only actions in the studio, each recorded as an operator-signed event; the orchestrator exposes no automated path that performs them.",
     "failureMode": "If the boundary is crossed, an agent performs an outer-loop transition automatically — accepting its own result onto the trunk or its own decomposition — removing human judgment from the loop the human is meant to own.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -473,7 +473,7 @@
     "oneLine": "The top-level unit of work you watch grow — a bounded context / organism, self-contained and independently deployable, composed of capabilities and proven as a whole by integrated UAT.",
     "whatItIs": "The top-level unit of work you watch grow, and a node on the DAG the studio renders. A **bounded context / organism** — self-contained and **independently deployable** (the microservice grain), *composed of capabilities*. The map grain: the thing a newcomer points at (\"the event store\", \"the tree renderer\"). A story is **proven as a whole by ≥1 integrated UAT** (acceptance walkthrough of the organism against real collaborators), not a pure rollup of its capabilities. Inside it capabilities share machinery (DRY is good); across stories behaviour is duplicated, not shared, except through a declared **boundary** (ADR-0010).",
     "whatItIsNot": "Deliberately bigger than v1's story (the unit v1/Agentic called a \"story\" is now a **capability**). Unlike a pure rollup, a story carries its own integrated UAT rather than deriving its health solely from its capabilities.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -494,7 +494,7 @@
     "oneLine": "An organ within a story (bounded context): independently viable, proven by integration tests against real in-story collaborators, and composed of contracts.",
     "whatItIs": "An **organ within a story** (bounded context): independently viable, proven by ≥1 **integration test** against **real in-story collaborators** (no stubs within the organism), and composed of **contracts**. The within-story dependencies are drawn between capabilities (code-derived; see **dependency**). This is the unit v1 (Agentic) called a \"story\".",
     "whatItIsNot": "It no longer carries the UAT — that moved up to the story. A unit is a capability — not a **contract** — if it is an integration-wired organ rather than a single isolated behaviour (ADR-0010).",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -514,7 +514,7 @@
     "oneLine": "A single test-proven behaviour within a capability — the leaf of the proof ladder, proven by one automated, isolated unit test (collaborators stubbed).",
     "whatItIs": "A single **test-proven behaviour** within a capability: one automated, **isolated** unit test (collaborators stubbed). The leaf — the bottom rung of the proof ladder (unit → integration → UAT).",
     "whatItIsNot": "A unit is a contract — not a **capability** — if the only honest proof is an isolated automated assertion, with no wired-up organ around it.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -536,7 +536,7 @@
     "oneLine": "A unit being worked on the DAG — a story or capability under construction — driven by one owned-loop session (the intended DBOS workflow wrapper is deferred, ADR-0019).",
     "whatItIs": "A unit being worked **on the DAG** — a story or capability under construction — driven by one owned-loop session (the intended DBOS workflow wrapper is deferred, ADR-0019). The coordination/scheduling grain: the thing the orchestrator schedules and the isolation/claim layer is keyed on.",
     "whatItIsNot": "Distinct from a **run**: an owned-loop run/attempt against a node is an execution event (many-per-node), never a new node. The execution environment is not the coordination structure (ADR-0004, ADR-0009).",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -558,7 +558,7 @@
     "whatItIs": "A single per-node **execution** attempt, recorded as an event in the event store — many-per-node, never a new node. Here `run` is strictly the per-node execution attempt (ADR-0004; see `open-questions.md` §3, §8).",
     "whatItIsNot": "Distinct from v1's overloaded `runs`/`test_runs` table (per-build vs per-event vs id-keyed dir). Distinct from a **node**: a run is the execution grain, not the coordination grain.",
     "provenance": "See `open-questions.md` §3, §8.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -580,7 +580,7 @@
     "oneLine": "A prose journey, run end-to-end against real collaborators, that proves a story (the whole organism) meets its goal.",
     "whatItIs": "A prose journey, run end-to-end against *real* collaborators, that proves a **story** (the whole organism) meets its goal. Minimal-first: ship one that proves the goal, grow more as defects surface.",
     "whatItIsNot": "Lives at the **story** level only — capabilities get integration tests, contracts get isolated unit tests, not UATs (ADR-0010).",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -599,7 +599,7 @@
     "glossaryBody": "The automated test that proves a contract: the **isolated\nunit test** at the bottom rung of the proof ladder (unit → integration → UAT).\nCollaborators are stubbed, for fast feedback during the build.",
     "oneLine": "The automated test that proves a contract — the isolated unit test at the bottom rung of the proof ladder (unit → integration → UAT).",
     "whatItIs": "The automated test that proves a contract: the **isolated unit test** at the bottom rung of the proof ladder (unit → integration → UAT). Collaborators are stubbed, for fast feedback during the build.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -620,7 +620,7 @@
     "glossaryBody": "A directed edge, defined at two altitudes (ADR-0010).\n**Within a story**, capability→capability edges are **code-derived** (static\nanalysis of imports/calls): inside the boundary a dependency *is* the code\ncoupling, read off the source, not hand-authored. **Across stories**, one story\nmay depend on another **only** through a declared, documented **boundary** (§4) —\nhidden cross-story coupling is forbidden. You cannot prove a unit that stands on\nan unproven one.",
     "oneLine": "A directed edge between units, defined at two altitudes: code-derived capability→capability edges within a story, and declared boundaries across stories (ADR-0010).",
     "whatItIs": "A directed edge, defined at two altitudes (ADR-0010). **Within a story**, capability→capability edges are **code-derived** (static analysis of imports/calls): inside the boundary a dependency *is* the code coupling, read off the source, not hand-authored. **Across stories**, one story may depend on another **only** through a declared, documented **boundary** (§4) — hidden cross-story coupling is forbidden. You cannot prove a unit that stands on an unproven one.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -643,7 +643,7 @@
     "oneLine": "The declared, documented seam between two stories — the only legal cross-story coupling, the way a frontend depends on a database.",
     "whatItIs": "The declared, documented seam between two stories — the **only** legal cross-story coupling: two organisms dependent to deliver an outcome but each still functioning in isolation against the seam, the way a frontend depends on a database.",
     "whatItIsNot": "Not a generic `interface`: the name is provisional, because bare `interface` collides with TS `interface` (the same collision that sank `component` in ADR-0002). The candidates are **`boundary`** or **`port`**, to be ratified when `packages/core` formalises the schema (ADR-0010 §4).",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -664,7 +664,7 @@
     "glossaryBody": "A typed record of a state change (owned-loop events + orchestrator events) —\nthe unit of observability. If a state change isn't an event the UI can render,\nit doesn't exist (ADR-0001, observability-first). Defined alongside the schema in\n`packages/core`. Includes operator-actor events (see **approval event /\npromotion event**), not just agent activity.",
     "oneLine": "A typed record of a state change (owned-loop events plus orchestrator events) — the unit of observability.",
     "whatItIs": "A typed record of a state change (owned-loop events + orchestrator events) — the unit of observability. If a state change isn't an event the UI can render, it doesn't exist (ADR-0001, observability-first). Defined alongside the schema in `packages/core`. Includes operator-actor events (see **approval event / promotion event**), not just agent activity.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -684,7 +684,7 @@
     "oneLine": "The typed, append-only record in the event store — one row per state change — that is the single source of truth the studio renders and the only thing written.",
     "whatItIs": "The typed, **append-only** record in the event store — one row per state change — that is the single source of truth the studio renders and the only thing **written**. The artifact behind the `event` term.",
     "whatItIsNot": "Distinct from the derived **node rollup**, which is read off the log rather than written (ADR-0006).",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -705,7 +705,7 @@
     "oneLine": "The current status and latest verdict per story / capability / contract, derived as a projection over the event log and never hand-maintained.",
     "whatItIs": "The current status and latest `verdict` **per** story / capability / contract, derived as a **projection** over the event log and never hand-maintained. A capability's lifecycle status (proposed / building / healthy; unhealthy computed) is *read off* the log, not written beside it. v2's answer to v1's per-build `runs`-grain mess (ADR-0006).",
     "whatItIsNot": "Distinct from the **event log**: the log is the only thing written, while the rollup is a derived projection over it — never a separately maintained record.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -728,7 +728,7 @@
     "oneLine": "The owned loop's structured lifecycle event stream (plus edit-tool diffs) emitted as it works inside a node — the agent-activity ingest channel into the event store, normalized by packages/agent.",
     "whatItIs": "The owned loop's structured lifecycle event stream (plus `edit`-tool diffs/patches) emitted as it works inside a node — the **agent-activity ingest channel** into the event store, normalized by `packages/agent`. One of exactly two defined ingest channels.",
     "whatItIsNot": "Not the only ingest channel: the other is orchestrator events (ADR-0001, ADR-0006, ADR-0011).",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -750,7 +750,7 @@
     "oneLine": "Typed operator-actor events in the event store: an approval / steering event (a human in-loop intervention) and a signed promotion event (the human accepting a unit's green result onto the trunk).",
     "whatItIs": "Typed events with `actor = operator` recorded in the event store: an **approval / steering event** (a human in-loop intervention) and a signed **promotion event** (the human accepting a unit's green result onto the trunk, carrying operator identity and, for a story, the UAT verdict). Part of the same observability record as the owned loop's own activity (ADR-0008).",
     "provenance": "Identity backing is open (`open-questions.md` §1).",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -771,7 +771,7 @@
     "glossaryBody": "The directed acyclic graph the studio renders and watches grow.\nStories are its visible nodes; capability dependencies are the fine-grained edges\nbeneath. The exact inter-level grain is open (see ADR-0002 → \"What this does NOT\ndecide\").",
     "oneLine": "The directed acyclic graph the studio renders and watches grow — stories as visible nodes, capability dependencies as the fine-grained edges beneath.",
     "whatItIs": "The directed acyclic graph the studio renders and watches grow. Stories are its visible nodes; capability dependencies are the fine-grained edges beneath. The exact inter-level grain is open (see ADR-0002 → \"What this does NOT decide\").",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -797,7 +797,7 @@
     "whatItIs": "Status lives on every tier (story / capability / contract) and is drawn from six states:\n\n- **proposed** — authored but not yet selected for implementation; the initial state.\n\n- **building** — selected and under active implementation (v1: `under_construction`); written at pickup as the first commit, before any code edits.\n\n- **healthy** — proven: the unit reached `healthy` through its tier's proof mode at HEAD — a story by a UAT pass over fresh green capabilities, a capability by integration tests over fresh green contracts, a contract by its isolated unit test (or, where neither honest test exists, operator-attested) (ADR-0010).\n\n- **unhealthy** — a once-healthy capability that has drifted (a contract test now fails, owned files changed, or the proof no longer matches HEAD); **computed** from evidence, never written to disk.\n\n- **mapped** — brownfield: the capability is *observationally* verified by an existing target-repo test suite, without storytree driving a red→green flow; a distinct, weaker state than `healthy` — observational green never short-circuits to proven; v2 **supports** brownfield, the exact mapping mechanism under the owned loop / DBOS is still to design (see `open-questions.md` §2).\n\n- **retired** — terminal off-tree state: pruned from the active tree; may carry `retired_reason` (prose) and `superseded_by` (an edge to its replacement).",
     "whatItIsNot": "`healthy` is not `mapped` (observational green never short-circuits to proven) and not `unhealthy` (a once-healthy unit that has since drifted). `mapped` and `unhealthy` are computed from evidence, never written to disk.",
     "provenance": "The brownfield `mapped` mechanism is open (`open-questions.md` §2).",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -818,7 +818,7 @@
     "oneLine": "A structural enforcement point that refuses invalid work rather than warning about it.",
     "whatItIs": "A structural enforcement point that **refuses** invalid work rather than warning. storytree keeps the commit-time / promotion gate (ADR-0001 cites it as a proven v1 idea).",
     "whatItIsNot": "Not an `approval` (a human admitting work that has already passed the gate's content invariants) and not a mere warning — a gate structurally blocks, it does not advise.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -839,7 +839,7 @@
     "whatItIs": "A proof mode (alongside UAT, integration-test and contract-test) for behavioural/guardrail surfaces that have neither an honest scripted UAT nor an isolatable automated test — e.g. the orchestrator's own routing / approval / steering discipline. Promotion to `healthy` is an explicit, per-unit, **operator-granted** attestation recorded as a typed **signed event**; an agent can never self-exempt, and the attestation is distinguishable in the audit trail from a UAT walkthrough sign.",
     "whatItIsNot": "Distinct from `mapped` (observational, never `healthy`). Distinct also from a UAT walkthrough sign, from which it is separable in the audit trail.",
     "provenance": "Persistence / identity backing is open (`open-questions.md` §1).",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -860,7 +860,7 @@
     "whatItIs": "Two **distinct** senses v1 conflated and v2 keeps separate; always qualify which is meant. (1) *DAG-stabilisation* — the dependency DAG is iterated to a fixed point before any unit goes red (owned by the decomposition/scheduler loop; see `open-questions.md` §4). (2) *cold-rebuild* — see the separate `cold-rebuild` definition.",
     "whatItIsNot": "Not a single concept — using it unqualified is the v1 conflation v2 exists to prevent. The two senses are independent: DAG-stabilisation concerns scheduling order, while cold-rebuild concerns story self-containment.",
     "provenance": "DAG-stabilisation ownership is open (`open-questions.md` §4).",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "principle",
@@ -881,7 +881,7 @@
     "why": "It is an **authoring guideline** (not a gate), at **story grain**: self-containment is what lets a story be rebuilt and re-proven without spelunking its neighbours' internals. The rebuilt *internals* may legitimately differ — many implementations satisfy one UAT.",
     "howToApply": "When authoring a story, check it could be rebuilt from its own spec + its upstream stories' **declared interfaces** alone. This is the cold-rebuild sense of `convergence`, distinct from DAG-stabilisation. It is **not** the definition of `healthy` (earned via the proof modes / prove-it-gate) and is **not machine-enforced** — v1 carried it as guidance for agents authoring stories and never tested it.",
     "provenance": "Carried from Agentic ADR-0006/0027.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -901,7 +901,7 @@
     "oneLine": "A code-enforced ceiling (iterations / token-cost / wall-cost — exact unit TBD) on a node's spine loop.",
     "whatItIs": "A code-enforced ceiling (iterations / token-cost / wall-cost — exact unit TBD) on a node's spine loop. The loop terminates on green **or** budget-exhausted, the latter a typed terminal event with per-round cost visible in the event store. Resurrected for pay-as-you-go (ADR-0005), inverting v1's \"cascade rounds are not a cost\".",
     "provenance": "The concrete unit and default ceiling stay open (`open-questions.md` §6).",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -925,7 +925,7 @@
     "whatItIs": "A first-class, typed operator act (`actor = operator`) in which the human accepts an agent action, or a capability's green result, **onto the trunk** via the studio. The trunk is **approval-gated**: a green signal is a *request for human diff-review*, not an automatic merge (inverts v1's auto-merge-on-green).",
     "whatItIsNot": "Distinct from a **gate** (which structurally refuses invalid work); an approval is the human admitting work that has already passed the gate's content invariants.",
     "provenance": "The identity backing the signature is open (`open-questions.md` §1).",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -945,7 +945,7 @@
     "oneLine": "The Pass/Fail outcome of a story's UAT.",
     "whatItIs": "The Pass/Fail outcome of a story's UAT. Reserved for UAT outcomes.",
     "whatItIsNot": "v1 also used \"verdict\" for agent conclusions and evidence-row states — those are different concepts and do not claim the word here.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -967,7 +967,7 @@
     "whatItIs": "The forensic record that a unit's tests went red→green and its story's UAT was signed: an audit trail.",
     "whatItIsNot": "Not itself the gate — evidence records what happened; the gate is the enforcement point that consumes it.",
     "provenance": "How v2 persists evidence (events vs files) and the attestation / identity model are open (`open-questions.md` §1).",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -985,7 +985,7 @@
     "glossaryBody": "A hash of a unit's proof-bearing content (outcome, contracts, …)\nthat invalidates a prior verdict when the content changes.",
     "oneLine": "A hash of a unit's proof-bearing content (outcome, contracts, …) that invalidates a prior verdict when the content changes.",
     "whatItIs": "A hash of a unit's proof-bearing content (outcome, contracts, …) that invalidates a prior verdict when the content changes.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "principle",
@@ -1004,7 +1004,7 @@
     "why": "A test that has never been seen to fail is not trusted evidence — writing the implementation first invites tests shaped to pass vacuously. Authoring the test red first proves it actually exercises the behaviour.",
     "howToApply": "Write the contract test, watch it fail (red), then write the implementation that turns it green. This is a discipline — **not** a synonym for the noun `contract`.",
     "provenance": "Per the v1→v2 term map, v1's \"story is a contract\" / red-green reads as this principle, not the noun `contract`.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -1026,7 +1026,7 @@
     "oneLine": "The rule that there are no mocks within an organism — capability integration tests and the story UAT both run against real in-story collaborators — with the sole stubbable boundary being the declared cross-story boundary.",
     "whatItIs": "**No mocks within an organism**: capability integration tests and the story UAT both run against real in-story collaborators. The one stubbable boundary is the declared cross-story **boundary** — a story's UAT may run against a stubbed / contract-tested version of an upstream story's interface (like acceptance-testing a frontend against a stubbed database). Isolated unit (contract) tests still stub freely.",
     "whatItIsNot": "This is isolation, not theatre — stubbing at the declared cross-story seam is legitimate, whereas faking collaborators inside the organism is a structural defect.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "principle",
@@ -1043,7 +1043,7 @@
     "statement": "When a defect violates a capability's contract, amend the owning capability (reverting it to `building`) rather than spawning a new unit.",
     "why": "A defect could be filed as a brand-new unit, fragmenting ownership of a behaviour across the unit that owns it and the unit that records its bug.",
     "howToApply": "Route the defect to the capability whose contract it violates; revert that capability to `building` and fix it under its existing contract. You trade a new unit's clean slate for a single accountable owner per behaviour and an intact contract/evidence chain on the original capability.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "principle",
@@ -1060,7 +1060,7 @@
     "statement": "A command that writes attestable evidence must not run on a dirty working tree — it writes nothing and exits with a distinct code.",
     "why": "Evidence attributed to a clean commit could silently include uncommitted changes, corrupting the proof/evidence chain that promotion depends on.",
     "howToApply": "Have such a command check working-tree cleanliness before doing any evidence-writing work and abort on a dirty tree — no writes, distinct non-zero exit code. Make it a code-path guard, not a warning, so the boundary is non-bypassable in practice.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "principle",
@@ -1078,7 +1078,7 @@
     "why": "A confident-but-stale model recollection can override what the tests and evidence actually show. v2 rejects Dreams-style memory reconciliation in favour of a commit/event-bound evidence chain.",
     "howToApply": "When the model's memory and the evidence chain disagree, the evidence wins — trust the tests + on-disk record over recency.",
     "provenance": "The learning loop's v2 home is open (`open-questions.md` §5).",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -1096,7 +1096,7 @@
     "glossaryBody": "The four core fields a unit carries. **outcome** — a capability's plain-English, single-sentence value statement (no conjunctions — split the unit if it needs them). **guidance** — non-obvious technical context needed to rebuild a unit; only what an agent could not derive from outcome + proof. **title** — short human label for a unit; not load-bearing for proof. **id** — a unit's unique identifier; v2 must allocate these **conflict-free across concurrent sessions** (a stated goal; an earlier DBOS spike showed durable, collision-free workflow IDs as one candidate mechanism, but DBOS is deferred — ADR-0019 — so that mechanism is reference, not in place).",
     "oneLine": "The four core fields a unit carries — outcome, guidance, title, id — covering its value statement, rebuild context, human label, and unique identifier.",
     "whatItIs": "The four core fields a unit carries:\n\n- **outcome** — a capability's plain-English, single-sentence value statement, with no conjunctions (if it needs them, split the unit instead).\n\n- **guidance** — non-obvious technical context needed to rebuild a unit; only what an agent could not derive from outcome + proof.\n\n- **title** — a short human label for a unit; not load-bearing for proof.\n\n- **id** — a unit's unique identifier. v2 must allocate these **conflict-free across concurrent sessions** — a stated goal. An earlier DBOS spike showed durable, collision-free workflow IDs as one candidate mechanism, but DBOS is deferred (ADR-0019), so that mechanism is reference, not the adopted id-allocation path.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -1116,7 +1116,7 @@
     "whatItIs": "A typed **write-ownership** record (a row/event in the one shared event store) naming what a node intends to write, checked under a serializable/unique constraint at **node-schedule time**; a conflict is a **hard refusal** (a `claim-conflict-refused` event), never a warning.\n\nGranularity, the conflict-resolution ceremony, and whether code *edits* still use a git branch/worktree per node are open (`open-questions.md` §3).",
     "whatItIsNot": "Not v1's per-worktree `session_claims` table (Agentic ADR-0022): the v2 successor now lives in the single shared Postgres store (ADR-0009).",
     "provenance": "See `open-questions.md` §3.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -1137,7 +1137,7 @@
     "whatItIs": "The single vocabulary for *what surface/unit* a node claims the right to write, used by the claim / conflict-detection layer. It unifies v1's scattered terms (`declared_scope` vs per-agent `does_not_touch`) into one concept (ADR-0009); the exact shape (node-scoped vs file-glob) is open (`open-questions.md` §3).",
     "whatItIsNot": "Not v1's scattered, split vocabulary (`declared_scope` and per-agent `does_not_touch`), which this single concept replaces.",
     "provenance": "See `open-questions.md` §3.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -1154,7 +1154,7 @@
     "oneLine": "The live PixiJS web IDE that renders the tree and drives the agents — diffs, approvals, steering, per-node chat.",
     "whatItIs": "The live PixiJS web IDE that renders the tree and **drives** the agents (diffs, approvals, steering, per-node chat).",
     "whatItIsNot": "Not v1's read-only `dashboard`, which it supersedes — the studio is a richer, driving surface, not merely a renamed view.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -1179,7 +1179,7 @@
     "whatItIs": "The thin custom TypeScript layer (`packages/orchestrator`) over plain Postgres — DBOS is deferred (ADR-0019), so this is a plain typed Postgres connection (ADR-0001): it owns the story-DAG, the scheduler, and the event store, and is the **only** module that drives `packages/agent` (the owned loop). It is the code-sequenced **spine** and the sole **fan-out** point — it schedules nodes; owned-loop nodes never schedule child nodes.",
     "whatItIsNot": "Distinct from an owned-loop session, which owns work *inside* a node (ADR-0004, ADR-0005, ADR-0011).",
     "provenance": "DBOS deferred by ADR-0019.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -1202,7 +1202,7 @@
     "whatItIs": "The code-sequenced control-flow layer (the orchestrator over plain Postgres — DBOS is deferred, ADR-0019) that owns **closed, deterministic routing**: the order steps run in, when a loop iterates, which branch is taken. The discriminator (carried verbatim from Agentic ADR-0026): *if a for-loop or a match could express the routing, the spine owns it; if the routing needs the model to decide what comes next, the leaf (owned-loop node) owns it.*",
     "whatItIsNot": "Not the **leaf** — the leaf runtime the spine delegates to (live: the Claude Agent SDK; offline/fallback: the owned loop — ADR-0030).",
     "provenance": "Carried verbatim from Agentic ADR-0026; DBOS deferred by ADR-0019; leaf runtime split live/offline by ADR-0030.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -1224,7 +1224,7 @@
     "oneLine": "A single step in a code-sequenced cascade whose work is owned by the leaf runtime (what to write, how to satisfy a contract) rather than by the spine — the control-flow sense of \"leaf\".",
     "whatItIs": "A single step in a code-sequenced cascade whose work is owned by the **leaf runtime** (what to write, how to satisfy a contract) rather than by the spine — the **control-flow** sense of \"leaf\" (ADR-0005, ADR-0011). The leaf runs behind the executor seam: live, the Claude Agent SDK; offline/fallback, the owned loop (ADR-0030).",
     "whatItIsNot": "Distinct from **contract**, the *leaf tier* of the work hierarchy (ADR-0002); the two senses of \"leaf\" must not be conflated.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -1250,7 +1250,7 @@
     "whatItIs": "The project-owned **thin wrapper** (`packages/agent`) and typed-event parser over the leaf surface (`prompt` / `steer` / `follow-up` + lifecycle events + `edit`-tool diffs). The **sole** surface through which a leaf runtime is invoked and the **only** place a model runtime is imported. It hosts both executors behind the `PhaseAuthor` seam: the owned loop on the Messages API (offline/deterministic + pivot-out fallback, ADR-0011) and the Claude Agent SDK leaf (`ClaudeAgentAuthor` — the live runtime, ADR-0030); it normalizes the stream into the typed events the event store renders, and exposes nothing model-shaped upward.",
     "whatItIsNot": "No third-party agent framework other than the single-import-site Agent SDK sits in this role; `packages/core` and `apps/studio` never parse the leaf's stream directly (ADR-0004, ADR-0006, ADR-0011, ADR-0030).",
     "provenance": "Carries v1's own-a-thin-wrapper-over-the-agent-runtime principle (Agentic ADR-0008/0026).",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -1269,7 +1269,7 @@
     "oneLine": "The canonical integrated mainline a capability lands on once approved.",
     "whatItIs": "The canonical **integrated mainline** a capability lands on once **approved**. In v2 the trunk is **approval-gated** (a human admits a green result), never auto-merge-on-green, and never holds knowingly-broken intermediate states (ADR-0008).",
     "whatItIsNot": "Not v1's trunk, which it supersedes — v1's auto-merged on green and tolerated broken intermediate states under an eventual-consistency posture.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -1288,7 +1288,7 @@
     "oneLine": "A first-class, typed operator act of redirecting an in-flight owned-loop run mid-execution (the owned loop's `steer` operation), recorded as an event in the event store.",
     "whatItIs": "A first-class, typed operator act of **redirecting an in-flight owned-loop run mid-execution** (the owned loop's `steer` operation), recorded as an event in the event store.",
     "whatItIsNot": "Distinct from **approval**: steering is the in-loop counterpart — the human shapes an action *while it runs*, rather than only accepting/rejecting its result (ADR-0008).",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -1304,7 +1304,7 @@
     "glossaryBody": "Architecture Decision Record under `docs/decisions/`, capturing a\ncross-cutting decision.",
     "oneLine": "An Architecture Decision Record under `docs/decisions/`, capturing a cross-cutting decision.",
     "whatItIs": "An Architecture Decision Record under `docs/decisions/`, capturing a cross-cutting decision.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -1320,7 +1320,7 @@
     "glossaryBody": "A test-supporting artifact (data file, scaffold, temp crate)\ncreated during a walkthrough and cleaned up before signing.",
     "oneLine": "A test-supporting artifact (data file, scaffold, temp crate) created during a walkthrough and cleaned up before signing.",
     "whatItIs": "A test-supporting artifact (data file, scaffold, temp crate) created during a walkthrough and cleaned up before signing.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -1337,7 +1337,7 @@
     "oneLine": "Newline-delimited JSON — the line-delimited record format (a candidate backing for the event stream).",
     "whatItIs": "Newline-delimited JSON; the line-delimited record format, a candidate backing for the event stream.",
     "whatItIsNot": "Not to be called \"JSONL\": v1 used \"JSONL\" interchangeably — v2 standardizes on **ndjson**.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -1355,7 +1355,7 @@
     "oneLine": "In storytree, a tree/game art asset for the isometric renderer (ADR-0001, deferred).",
     "whatItIs": "In storytree, a **tree/game art asset** for the isometric renderer (ADR-0001, deferred).",
     "whatItIsNot": "Not v1's \"asset\" (shared DRY content under `assets/`), which does not carry — guard against the collision when importing v1 docs.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "open-question",
@@ -1376,7 +1376,7 @@
     "diagram": "```\n  studio EDIT --> stores a RENDERED body in the store\n                  (per-kind structure dropped, one-way)\n                        |\n   store = LIVE SOURCE OF TRUTH (ADR-0023);  knowledge.json = seed only\n                        |\n   re-seed from knowledge.json --> reverts ALL live CLI edits (ADR-0023 warns)\n                        |\n   => no clean path back to structure once an entry is edited in the studio\n```\n`renderBody()` = the function that rebuilds the field view on read; there is no inverse (rendered -> structured) and no DB→seed export yet.",
     "options": "- **A — Accept rendered-on-edit + re-seed**: let studio edits store rendered bodies and re-seed structure from `knowledge.json` on demand. Weakest now that ADR-0023 makes the store authoritative: re-seeding reverts live CLI edits and there is no DB→seed export, so the structured source rots while the store drifts to rendered-only.\n\n- **B — Parse markdown back to structured on write**: the studio write reparses the rendered body into per-kind fields (inverse of `renderBody`) and stores a structured doc. Keeps one structured source of truth; but the parser is fragile and must round-trip every kind exactly.\n\n- **C — Edit structured fields directly**: the studio edits the per-kind fields (not a freeform body), so writes are always structured. Truest to ADR-0013/0017/0023; largest client change (the wire shape the React client sees must carry fields, not just `body`).",
     "recommendation": "Non-binding: with ADR-0023 making the store authoritative and no DB→seed export, option A (re-seed) is now a weak stopgap — it reverts live edits and lets the structured source rot. Lean toward **C** (edit structured fields directly) as the durable fix, or **B** (parse-back) if the client wire shape must stay `body`-only. The owner decides.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "open-question",
@@ -1397,7 +1397,7 @@
     "diagram": "```\n  pnpm dev (fresh start)\n        │\n        ├── default json ──► offline, $0, the DB stays off\n        │                    BUT each session keeps its own copy → they drift apart\n        │\n        └── default pg ────► shared live state (the migration's goal)\n                             BUT needs `pnpm db:up` first, and bills while up\n```\nThe default trades “just works offline, but everyone diverges” against “shared by default, but costs and needs the DB up.”",
     "options": "- **A — Default `json`**: offline-safe, zero cost, no DB prerequisite; a fresh clone just works. But shared live state (the migration's goal) is opt-in, so most sessions keep diverging.\n\n- **B — Default `pg`**: sessions share live state by default — the dogfooding win. But `pnpm dev` now fails unless the instance is up (cost + a `db:up` step), breaking offline work.",
     "recommendation": "Non-binding: default `json` while the pg path is new and human-verified-after-the-fact — it preserves offline dev and the stop-by-default cost posture, and `pg` stays a deliberate opt-in for sessions that want shared state. Revisit once the studio<->store loop is proven and `db:up` is routine. The owner decides.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "open-question",
@@ -1417,7 +1417,7 @@
     "diagram": "```\n  ADR-0013 (amended): work-hierarchy = YAML (story frontmatter)\n                      library tier    = JSON (knowledge.json, ADR-0018)\n  ADR-0023:           live source of truth = the STORE; files are seeds\n\n  => the per-tier split is now DOCUMENTED (option B); no open decision remains\n```\nThe cheap, honest fix was taken: the ADR now describes the per-tier formats rather than forcing a migration.",
     "options": "- **A — Commit to one format**: pick a single structured source format (e.g. JSON everywhere, or YAML everywhere) and migrate, then ADR-0013 is literally true. Cleanest mental model; real migration cost and churn in build tooling.\n\n- **B — Document the split as intended**: amend ADR-0013 to state that the structured source is JSON for the Library and frontmatter-`.md` for stories (markdown still the rendered view), and that 'YAML' was illustrative. No migration; the ADR matches reality. Accepts heterogeneity.\n\n- **C — Defer**: leave it, accept the drift for now. Cheapest, but the stale ADR keeps misleading readers.",
     "recommendation": "RESOLVED (non-binding): option B was effectively taken — ADR-0013's library-tier scope note now documents the JSON encoding for the Library (stories stay frontmatter-YAML), and ADR-0023 reframes the source of truth as the shared store rather than any file format. No open decision remains; this entry is retained for lineage and can be retired or graduated to a closed note at the owner's discretion.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "techstack",
@@ -1435,7 +1435,7 @@
     "whyThis": "No secrets in the repo and no per-session interactive login, so agents can run migrations and queries headlessly; it matches the stop/start cost posture (ADR-0015 §5) and keeps the browser/credential-free boundary (the studio never holds DB creds). A session should ASSUME keyless credentials are present and verify with `gcloud auth application-default print-access-token`, not assume it is unauthenticated.",
     "constraints": "The instance is STOPPED by default and bills only while up — burst with `pnpm db:up` → work → `pnpm db:down`. Auto-stop is **idle-aware** (ADR-0015 §5, `infra/idle-stop.tf`): a Cloud Function stops the instance only after ~60 min with zero DB connections, so it never stops a live session (a connection held by a session / the Auth Proxy resets the idle timer); a once-a-day blunt cron is the cost floor behind it. So a long idle gap will stop the DB — re-`db:up` if a query fails to connect. IAM users are bare roles, so a ONE-TIME privilege bootstrap (`infra/bootstrap-grants.sql`, applied as the throwaway-password `postgres` user via `packages/store/scripts/apply-grants.mjs`) granted the IAM user `CREATE` on the database; this is idempotent and already applied. The connector deps live in `packages/store`; DBOS is deferred (ADR-0019), so this is a plain typed Postgres connection.",
     "provenance": "Validated 2026-06-08: 73 units migrated keyless, then the instance stopped.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "principle",
@@ -1451,7 +1451,7 @@
     "why": "It is easy to author the next move — 'extend the code so the doc holds', 'tighten the invariant' — on top of a doc claim a recent finding has already shown false. That move is built on a phantom premise. The honest first question is whether the doc needs correcting to match the code (most common) or the code needs extending to make the doc's claim hold (rarer, an operator call).",
     "howToApply": "Discriminator: does a recent investigation name a doc-vs-code gap, AND does your pending move cite that same doc as load-bearing? Yes on both → reshape any framing that takes the claim at face value and surface the gap to the operator (the doc, its exact claim, the observed behaviour, one question: correct the doc or extend the code?) without pre-deciding. Three resolutions: correct the doc (most common; the downstream move usually dissolves), route code-extension as its own bounded unit (operator-directed), or defer.",
     "provenance": "Composes with the `assess-tradeoffs-by-naming-both-sides` pattern (that governs how a surfaced tradeoff is framed; this governs whether the surface should exist). Imported from v1 `assets/guidelines/doc-vs-implementation-precedence.yml`.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "principle",
@@ -1467,7 +1467,7 @@
     "why": "storytree is built with the very kind of agent-driven system it builds (orchestrator, spine, owned loop, studio), so a defect in our own tooling is a first-class bug, not an environmental annoyance. A null guard, hardcoded value, swallowed exception, or shell fallback gets you unblocked now but hides a real defect; the problem goes quiet and re-emerges later, harder to diagnose under a layer of masking, and the next session inherits the same wall.",
     "howToApply": "Reproduce and trace to the earliest failing signal; validate that a test genuinely captures the failure before changing production code; fix the root cause where it lives so the bad state cannot occur (not a guard that hides it after the fact); prefer making one behaviour simply correct over adding a flag. Anti-patterns: a catch-all that does not handle the error, hardcoding a value to silence a dynamic failure, a narrow edge-case handler for a problem that should be fixed generically, and falling back to a workaround tool without recording that the primary one failed.",
     "provenance": "Composes with `verify-edit-write-persisted-or-escalate` (a recovery fallback is permitted only after the failure is made visible). Imported from v1 `assets/guidelines/dogfood-fix-the-source.yml`.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "principle",
@@ -1483,7 +1483,7 @@
     "why": "Exploration feeds a decision (a decomposition, a scope call, a plan). The risks are over-reading (burning the attention budget on exhaustive cataloguing), over-reaching (analysing a surface another agent owns), and quietly mutating code meant only to be read. Disciplined exploration keeps findings sharp, cheap, and safe to act on.",
     "howToApply": "Use glob/search to learn structure and sample representative files rather than reading everything; stay inside the assigned scope and only note (not analyse) neighbouring surfaces; identify the high-level patterns that matter and flag risks and unknowns explicitly; produce a self-contained result with concrete file paths and no redundancy with another explorer's scope; use read-only tools only. When the context to explore genuinely exceeds the model window, escalate to recursive decomposition rather than reading everything at once.",
     "provenance": "Composes with the `recursive-decomposition-patterns` pattern. Imported from legacy AgenticEngineering `AgenticGuidance`.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "principle",
@@ -1499,7 +1499,7 @@
     "why": "Agents do not weight visual or emotional emphasis the way a human skimming a page might; capitalising, repeating, or marking something CRITICAL adds noise without raising the chance an instruction is followed. Ignored guidance is almost always a structural failure: the instruction is absent at the decision point, lacks a concrete example, or lacks a constraint that removes the ambiguity. Emphasis treats the symptom; structure treats the cause.",
     "howToApply": "Effective patterns: path (a concrete step placed where it is needed), signpost (a concrete example, ideally a link to one that exists), fence (a constraint that makes the wrong move structurally hard or measurable), offload (move a deterministic error-prone step into code the spine sequences). Anti-patterns: caps emphasis, repetition, strong/urgent language, emphasis escalation on already-ignored guidance, and negative framing with no positive alternative (replace 'do not write outside the scope' with 'writes land only within the declared scope'). Reach for emphasis only after structure has genuinely failed — which is rare.",
     "provenance": "Composes with the `signal-and-noise` principle (the discriminatory-power lens this serves). Imported from legacy AgenticEngineering `AgenticGuidance`.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "principle",
@@ -1516,7 +1516,7 @@
     "why": "A proof-preserving edit leaves two falsehoods, not one: the artifact is still wrong AND the verdict now attests to text deliberately softened to avoid invalidating it, so the verdict is no longer trustworthy. This follows directly from the prove-it-gate and the proof-hash: a unit reaches `healthy` only via earned, on-disk evidence, and a change to proof-bearing content invalidates the prior verdict by design.",
     "howToApply": "Make the correct edit; do not phrase it to dodge a proof-hash change. Expect and accept the regression — a correctly-amended `healthy` story reverts to `building` (or computes `unhealthy`); that is the system asking for a re-proof. Let the tier’s proof mode re-run (contract test, integration test, UAT, or operator attestation). Verdicts are cheap to re-issue; that is the whole point of binding status to evidence rather than a hand-edited flag.",
     "provenance": "The inverse of a hand-edit that fakes `healthy`: there a unit claims proof it never earned; here a unit clings to proof its new content no longer supports. See the `prove-it-gate` principle and the `proof-hash` definition. Imported from v1 `assets/guidelines/no-proof-preservation.yml`.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "principle",
@@ -1536,7 +1536,7 @@
     "why": "When the owned loop works at a leaf it is rewarded for green tests. If the tests pin a gameable signal — a return code, a help-text string, a 'success: true' flag — the loop can earn the reward with a hollow implementation, and the breakage stays hidden until the slowest, most expensive channel (the story UAT against real collaborators) runs. This green-signal/red-reality failure is the root class the whole proof model exists to prevent.",
     "howToApply": "Outcome over process: prove 'the user can complete the journey', not 'the step executed' — exactly what the proof ladder encodes (contract test → integration test against real in-story collaborators → story UAT, no mocks within the organism). Require the concrete observable captured in the event store, not a bare flag. Separate judging from doing: approval onto the trunk is a distinct operator act, never self-granted; an agent can never self-exempt. Audit the tests themselves — a test can pass while failing to verify the requirement. Watch for help-text-only validation, success-flag-without-verification, mocking the real dependency, asserting implementation detail, permissive assertions (length > 0), missing unhappy paths, and swallowed errors.",
     "provenance": "Composes with `implementer-shortcut-patterns` (the specific hollow shapes), `test-fixtures-mirror-production-failure-modes` (the sterile-fixture inverse), and `test-creation-principles`. See the `faked-uat-theatre` and `agent-never-self-exempts` artifacts. Imported from legacy AgenticEngineering `AgenticGuidance`.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "principle",
@@ -1552,7 +1552,7 @@
     "why": "An agent (an owned-loop session, the orchestrator's routing prompt, a doc) operates in a finite attention window. Every sentence that does not help it choose the next move competes with the sentences that do; low-signal guidance does not merely fail to help, it crowds out the content that would.",
     "howToApply": "High signal is actionable, specific (concrete files/patterns/decisions), verifiable (a testable success criterion), and evidence-based (grounded in the codebase as it actually is). Noise causes attentional drift: meta-talk, stale context, generic philosophy, and structural redundancy (the same definition restated in several places). Per sentence ask: can I remove it without lowering the chance the task completes (→ noise)? does it point to a specific action/file/criterion (no → likely noise)? is it duplicated elsewhere (→ link the single source)? will it still be true later (no → stale)? Name concrete surfaces over vague gestures and link a single source of truth rather than restating it.",
     "provenance": "Composes with the `guidance-quality` principle (the authoring moves that add signal). Imported from legacy AgenticEngineering `AgenticGuidance`.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "principle",
@@ -1571,7 +1571,7 @@
     "why": "Across stories, a story depends on another only through a declared `boundary`, and that edge makes a downstream proof meaningful in context. But edges go stale — most often when an ADR or an upstream interface is amended and a downstream story still carries an edge reflecting the old intent. The entanglement no longer exists: a phantom, still drawn on the map, pointing at nothing. Removing it is map correction; the dependency mechanism stays load-bearing, the removed edge never was.",
     "howToApply": "Compare what the two stories’ proofs actually verify, observable-anchored not authorship-anchored: read the downstream interface and the observables its UAT/integration tests pin, and the candidate-upstream `boundary` and the observables its tests pin. No shared observable → phantom, removable (surface to the operator; DAG-shape changes are operator territory). Shared observable → load-bearing; keep it and heal the chain. Partial overlap keeps the edge; if the downstream’s own proofs are stale, amend the downstream first; never re-target an edge (map correction removes edges that point at nothing, it does not point them elsewhere). When in doubt, heal the chain.",
     "provenance": "Composes with the `defects-amend-the-owning-story` principle (that expands the DAG; this contracts it); both reach the operator before the DAG shape changes. See the `dependency` and `boundary` definitions (ADR-0010). Imported from v1 `assets/guidelines/stale-prerequisite-links-are-phantoms.yml`.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "principle",
@@ -1591,7 +1591,7 @@
     "why": "A test is only as good as the observable it pins. A test that checks a file exists (not its contents), that a function was called (not what it produced), or that a flag is true (not the result it claims) gives a green signal with no proof behind it. The proof ladder (contract → integration → UAT) is trustworthy only if each rung’s assertions bind to external truth rather than a gameable signal.",
     "howToApply": "Verify actual outcomes, not success flags — check file contents, assert user-facing behaviour, include concrete assertions about what was produced. Avoid the hollow shapes in `reward-hacking` and `implementer-shortcut-patterns`. One behaviour per test, clear names, order-independent, granularity matched to the tier; pin the behaviour that matters and do not over-test; use real collaborators where the tier allows (no mocks within an organism) and cover the unhappy path and edge cases. The sharpest single check — the deletion check: if the feature were removed, would this test fail? If not, it pins nothing and is a false green.",
     "provenance": "Same falsifiability discipline as `verify-edit-write-persisted-or-escalate`, applied to assertions. See the `contract-test` and `mock-uat-seam` definitions. Imported from legacy AgenticEngineering `AgenticGuidance`.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "principle",
@@ -1609,7 +1609,7 @@
     "why": "The `mock-uat-seam` says where a mock may live (the contract tier yes; within an organism no) but is silent on whether a permitted mock is sterile or adversarial. A mock that satisfies the no-mocks-in-the-organism rule can still be defective if it stages a world more forgiving than what the code will actually meet — priming a stub with one platform's error wording, pre-creating state production does not create, granting access production's runtime lacks.",
     "howToApply": "Per pre-install, ask in order: (1) Inversion — if I remove it, does the test still cover its observable? Yes → convenience/isolation, fine; No → load-bearing, continue. (2) Production guarantee — does production guarantee the property by build config, a documented invariant, or the boundary contract it stands on? Yes → it mirrors a real guarantee, fine; No → it masks a production failure mode, defective. Remediate by dropping the pre-install and asserting the typed error production should return, adding a sibling test for the property-absent case, or escalating so production actually guarantees the property. Fires hardest when scaffolding fixtures for filesystem/runtime/permission/external-process state, and when re-authoring tests after a UAT-caught defect.",
     "provenance": "Composes with `implementer-shortcut-patterns` (sterile fixture here, hollow implementation there) and `tightening-a-shared-contract-needs-a-full-sweep`. See the `mock-uat-seam` definition. Imported from v1 `assets/guidelines/test-fixtures-mirror-production-failure-modes.yml`.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "principle",
@@ -1625,7 +1625,7 @@
     "why": "Tightening a shared validator (a loader, deserializer, schema constraint, newly-required field) can invalidate fixtures or seed data anywhere that leaned on the old looser behaviour, and those regressions surface at runtime — a fixture fails to parse when its test runs — not at type-check or build time. So the change looks safe: it compiles, the owning capability is green, the UAT passes. The node rollup and approval gate read the event store plus on-disk evidence; neither re-runs the whole suite, so a story can reach `healthy` and be approved with cross-capability fixture regressions undetected.",
     "howToApply": "Discriminator: (1) did the change make a shared parsing/validation surface reject an input shape it formerly accepted (a stricter loader/parser, a new rejection, rejecting unknown fields, a tightened or added schema constraint, a newly-required field)? No → the rule does not arm. Yes → continue. (2) Is the full suite green across every capability, not just the owner? Yes → proceed with the sign and the approval. No → block; a red sibling suite forfeits the sign and approval even with a clean tree and a passing walkthrough; route the broken fixtures back to their owning capability (defects amend the owning story) before re-attempting. A loosening (accept more) cannot invalidate an existing fixture, so it does not trigger. Always sweep the whole workspace — catching other capabilities’ fixtures is the point.",
     "provenance": "Composes with `test-fixtures-mirror-production-failure-modes` (that prevents a sterile fixture passing; this catches a previously-valid fixture a contract change just broke). Imported from v1 `assets/guidelines/tightening-a-shared-contract-needs-a-full-sweep.yml`.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "principle",
@@ -1642,7 +1642,7 @@
     "why": "An edit/write tool can return success without the content landing on disk (filesystem interception, sandbox quirks, path-normalisation edge cases). The in-the-wild reaction — silently falling back to a shell heredoc — hides the failure: the orchestrator never learns the tool misbehaved, the escalation pathway is forfeit, and the symptom recurs unnamed next session. One extra read per contract-bearing write turns a silent symptom into a structured signal the orchestrator already knows how to consume.",
     "howToApply": "Contract-bearing = any write whose persistence your return summary implicitly claims (the discriminator: would my summary lie if this file were not on disk?) — source files, test scaffolds, evidence rows, schema changes, spec amendments; throwaway scratch is out of scope. Issue the write, immediately read the path, verify the read reflects the intent. On failure (unchanged/absent/truncated/pre-call content): do NOT silently fall back; record an assumption-violation in your return (`{ briefed, observed, severity }`) the orchestrator parses programmatically; only after that record exists is a heredoc fallback permitted as recovery. The contract pinned is the visibility of the failure, not the success of the recovery.",
     "provenance": "Composes with `implementer-shortcut-patterns` and `test-fixtures-mirror-production-failure-modes` — the same falsifiability discipline applied to a write’s persistence. Imported from v1 `assets/guidelines/verify-edit-write-persisted-or-escalate.yml`.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "pattern",
@@ -1662,7 +1662,7 @@
     "approach": "Know the five sub-patterns: (1) help-text narrowing — assert a `--help` mentions a feature instead of running the canonical invocation through real dispatch → logic → output; (2) TODO-and-exit stub on the production arm — wire a test-only seam but leave the real-user branch a TODO + error-exit; (3) discarded typed parameter — accept a typed collaborator, suppress the unused-warning, never invoke it; (4) mock shipped in the production path — a mock reachable from the shipped artifact, gated only by a runtime flag; (5) silent fallback to fake data — a resource-acquisition path that substitutes a placeholder and returns success. Per seam, in order: shape vs depth (do the assertions observe the chain’s terminal effect, or an intermediate shape?), production-path coverage (does any test exercise the real production branch under a stub seam?), then name the shortcut and apply its discipline — wire the production arm, consume the parameter, exclude the mock, fail loud with a typed error.",
     "tradeoffs": "Wiring the production arm now costs upfront effort paid once; deferring it pays the UAT-only catch of every future regression forever on the slowest channel. Default to wiring it.",
     "provenance": "Composes with `test-fixtures-mirror-production-failure-modes` (the sterile-fixture inverse) and `reward-hacking`. See the `faked-uat-theatre` and `mock-uat-seam` artifacts. Imported from v1 `assets/guidelines/implementer-shortcut-patterns.yml`.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "pattern",
@@ -1681,7 +1681,7 @@
     "approach": "Thin bootstrap — the starting brief carries the agent’s role, current objective, and how to fetch more; pointers, not payloads. Pull on demand — the agent fetches operational context when it needs it, and what it fetches is paths to read, not embedded blobs, always reading current state. Progressive disclosure — each step’s result points at the next thing to fetch. Keep briefs lean: name the surface and link its authoritative source instead of inlining it (self-contained means complete pointers, not complete payloads). When a single context to pull would still exceed the window, escalate to recursive decomposition.",
     "tradeoffs": "You trade a guaranteed-complete upfront snapshot for freshness and a small initial load; the agent makes extra fetches, but each reads live state instead of a stale cache. In storytree the event store is the single source of truth and the orchestrator briefs each node — this argues for those briefs to be pointers into live state, not fat snapshots.",
     "provenance": "A context-engineering principle for how agents are briefed, not a code spec for any subsystem. Composes with `signal-and-noise` (at the briefing layer) and `recursive-decomposition-patterns`. See ADR-0011 (pull-based just-in-time context). Imported from legacy AgenticEngineering `AgenticGuidance`.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "pattern",
@@ -1699,7 +1699,7 @@
     "approach": "Context as environment — store the large input as named, queryable state and issue queries (filter for a pattern, navigate a section, find usages) pulling only what each step needs. Filter over chunk — prefer extracting the semantically relevant slice over blind size-based splitting. Recursive decomposition — break into sub-tasks, process each over its own slice, accumulate, aggregate (filter-then-process, hierarchical extraction, map-reduce). Search/execution firewall — separate context curation from task execution; a curation pass prepares the minimal slice, an execution pass works with only that slice and does no further searching. Discipline: measure before activating; bound and decrement a max depth; name the accumulators; hold the firewall; aggregate before signalling completion.",
     "tradeoffs": "You trade setup overhead and orchestration complexity for the ability to reason over an oversized corpus without lossy compression; not worth it when the context fits comfortably. Natural homes in storytree: oversized exploration, large owned-loop-event-stream or evidence analysis, and reasoning over big spec inputs during decomposition.",
     "provenance": "Source: Recursive Language Models (Zhang/Kraska/Khattab, MIT CSAIL); a context-engineering principle, not a code spec. Composes with `exploration-principles` and `pull-based-context-architecture`. Imported from legacy AgenticEngineering `AgenticGuidance`.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "guardrail",
@@ -1722,7 +1722,7 @@
     "enforcedBy": "scripts/check-manifest.mjs (`pnpm check:manifest`), run inside `pnpm gate` and the CI `verify` job before typecheck (ADR-0022). It reads `git ls-files` and exits non-zero on any unlisted root entry or unlisted/unjustified doc, so an offending change cannot pass the green gate that guards merge to `main`.",
     "failureMode": "Without it, agents accrete temp/ad-hoc files at the root and one-off prose docs under docs/ that duplicate or bypass the Library — splitting authority over durable knowledge, rotting the tree, and re-creating the doc-sprawl the Library was meant to replace.",
     "provenance": "Authoritatively defined by ADR-0025; enforces on the ADR-0022 dev-repo green gate. The repo-hygiene complement to `edit-first-curation` (search/edit before authoring) and `signal-and-noise` (cut low-signal docs). Distinct from the PRODUCT proof gate (`gate` / `never-bypass-the-gate` / `prove-it-gate`): same \"a gate refuses, it does not warn\" family, but this guards the dev repo’s git surface, not promotion onto the story DAG. Mechanism: `repo-manifest.json` + `scripts/check-manifest.mjs`.",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "process",
@@ -1745,7 +1745,7 @@
     ],
     "createdAt": "2026-06-11T00:00:00.000Z",
     "updatedAt": "2026-06-11T00:00:00.000Z",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -1773,7 +1773,7 @@
     ],
     "createdAt": "2026-06-11T00:00:00.000Z",
     "updatedAt": "2026-06-11T00:00:00.000Z",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "process",
@@ -1798,7 +1798,7 @@
     ],
     "createdAt": "2026-06-11T00:00:00.000Z",
     "updatedAt": "2026-06-11T00:00:00.000Z",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -1826,7 +1826,7 @@
     ],
     "createdAt": "2026-06-11T00:00:00.000Z",
     "updatedAt": "2026-06-11T00:00:00.000Z",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "open-question",
@@ -1848,7 +1848,7 @@
     "provenance": "Owner idea, 2026-06-11 (raised with ADR-0034). Still open.",
     "createdAt": "2026-06-11T00:00:00.000Z",
     "updatedAt": "2026-06-11T00:00:00.000Z",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "process",
@@ -1874,7 +1874,7 @@
     ],
     "createdAt": "2026-06-11T00:00:00.000Z",
     "updatedAt": "2026-06-11T00:00:00.000Z",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "definition",
@@ -1905,27 +1905,32 @@
     ],
     "createdAt": "2026-06-11T00:00:00.000Z",
     "updatedAt": "2026-06-11T00:00:00.000Z",
-    "schemaVersion": 1
+    "schemaVersion": 2
   },
   {
     "kind": "agent",
     "id": "library-investigator",
     "title": "library-investigator",
     "description": "A read-only, single-claim verification subagent that checks one question about current storytree corpus state against the authoritative live sources and returns a structured verdict — never a guess and never a write.",
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "oneLine": "A read-only, single-claim verification subagent that checks one question about current storytree corpus state against the authoritative live sources and returns a structured verdict — never a guess and never a write.",
     "role": "Given ONE coherent question (which may pack several independent claims), `library-investigator` verifies each claim against the source the system actually enforces and returns a parseable findings/assumption_violations/summary object as its final message. It is single-shot and parallel-fannable: the caller (the deterministic spine, ADR-0004/0005, or a parent session) spawns one investigator per question. Its verify-the-brief-before-acting role is MORE load-bearing in v2 than in V1: artifact state lives in one shared Cloud SQL DB that many sessions mutate concurrently (ADR-0009/0023), so a brief is stale by default, and catching that before the spine or a writer acts on it is the whole point.",
-    "owns": "Its structured return value only — the `findings` / `assumption_violations` / `summary` object, surfaced as the final assistant message. No files, no events. The exact shape:\n\n```\nfindings:\n  - claim: \"<verbatim from the question>\"\n    actual: \"<what the authoritative source shows>\"\n    agrees: <true|false>\n    evidence_path: \"<path:line | `storytree library ...` + id/field | event-store query | 'no authoritative source found'>\"\nassumption_violations:\n  - briefed: \"<what the brief assumed>\"\n    observed: \"<what the corpus shows>\"\n    severity: \"<low|medium|high>\"\nsummary: \"<<= 5 lines>\"\n```",
-    "doesNotTouch": "Any Library artifact (no `--pg` writes); knowledge.json / assets.json / docs/glossary.md / the live DB rows; the event log (read, never append); source under packages/* and apps/* (read to verify, never edit); routing/fix/spawn decisions (the spine's or the human outer loop's, ADR-0004/0005/0008).",
-    "authority": "Read-only floor, enforced by tool grant and discipline. MAY: Read/Glob/Grep any path; the `storytree library` CLI in READ mode (offline for seed reads, `--pg` for the live projection); the store read API (`readEvents`/`queryDocs`/`getDoc`); read-only Bash. MUST NOT: any Library write, event append, mutating git, file redirection, write-producing execution; no subagents (one question per invocation — `asset:orchestrator-is-sole-fan-out`); no file edit/create/delete/move under any condition.",
-    "outcome": "The structured return validates against the shape above, and every `evidence_path` names a real source that proves the observed `actual` — or the literal `\"no authoritative source found\"`. When the corpus cannot answer: `agrees: false`, `actual: \"could not determine — no authoritative source found\"` (`asset:no-claim-without-evidence`).",
-    "requiredReading": "Just-in-time at session start (ADR-0011/0023): **CLAUDE.md** (the reversal ledger), **ADR-0023** (the CLI read surface), **ADR-0009** (why briefs are stale), **ADR-0017/0019** (the Library tier; the live projection is truth), **ADR-0006** (event log + rollup), **ADR-0029** (this kind), **docs/glossary.md**, **packages/core/src/knowledge.ts** (the schema beats prose). Doctrine: `asset:authoritative-source-beats-derived` (candidate), `asset:no-claim-without-evidence` (candidate), `asset:pull-based-context-architecture`, `asset:exploration-principles`.",
+    "outcome": "The structured return — surfaced as the final assistant message, beginning with `findings:` — validates against the shape below, and every `evidence_path` names a real source that proves the observed `actual`, or the literal `\"no authoritative source found\"`. When the corpus cannot answer: `agrees: false`, `actual: \"could not determine — no authoritative source found\"` (`asset:no-claim-without-evidence`). The exact shape (no files, no events — this object is its only output):\n\n```\nfindings:\n  - claim: \"<verbatim from the question>\"\n    actual: \"<what the authoritative source shows>\"\n    agrees: <true|false>\n    evidence_path: \"<path:line | `storytree library ...` + id/field | event-store query | 'no authoritative source found'>\"\nassumption_violations:\n  - briefed: \"<what the brief assumed>\"\n    observed: \"<what the corpus shows>\"\n    severity: \"<low|medium|high>\"\nsummary: \"<<= 5 lines>\"\n```",
+    "context": [
+      "asset:doc-vs-implementation-precedence",
+      "asset:verification-wins",
+      "asset:pull-based-context-architecture"
+    ],
     "tools": "Read / Glob / Grep; read-only Bash (the `storytree library` READ commands — `--pg` only to read live state — plus `git log` / `git status --porcelain` / `git rev-parse` / `git show` / `ls` / `wc`). No Task/spawn by design. Event-store reads have no CLI verb yet — read at the package level or surface the limit.",
     "workflow": "**session_start:** read the required-reading set (reversal ledger first); read the `question` verbatim.\n\n1. **Parse** the question into individual claims — never invented, never collapsed; a judgment claim escalates.\n2. **Identify the authoritative source** per claim (pointers are hints) — disagreements resolve per `asset:authoritative-source-beats-derived`.\n3. **Staleness check** — state claims read the LIVE source (`--pg` / event log), because a brief is a snapshot (`asset:pull-based-context-architecture`).\n4. **Read** the proving sources with line numbers; every `evidence_path` points at the proving line or command-and-field.\n5. **Produce** the structured return (findings, assumption_violations, summary ≤ 5 lines).\n6. **Stop.** No fixes, no authoring, no spawning.",
-    "rules": "- **Structured return is non-negotiable** (role contract): the final message begins with `findings:`.\n- **One question per invocation** (role shape); fan-out belongs to the caller — `asset:orchestrator-is-sole-fan-out`.\n- **Authoritative beats derived** → `asset:authoritative-source-beats-derived` (candidate); name disagreements, resolve to the enforced source.\n- **Live source for state claims** → `asset:pull-based-context-architecture` (ADR-0009/0023).\n- **Read-only, always** → `asset:exploration-principles`.\n- **Evidence or 'could not determine'** → `asset:no-claim-without-evidence` (candidate).",
-    "antiPatterns": "- A prose preamble before `findings:` (role contract).\n- Speculation when evidence is silent → `asset:no-claim-without-evidence`.\n- Reading the derived source where the enforced one decides → `asset:authoritative-source-beats-derived`.\n- Trusting the brief without a staleness check → `asset:pull-based-context-architecture`.\n- Work beyond the one question.\n- Mutating anything → `asset:exploration-principles`.\n- Spawning a subagent → `asset:orchestrator-is-sole-fan-out`.",
+    "rules": [
+      "asset:authoritative-source-beats-derived",
+      "asset:no-claim-without-evidence",
+      "asset:exploration-principles",
+      "asset:orchestrator-is-sole-fan-out"
+    ],
     "escalation": "- **Judgment, not a state-claim:** STOP — one finding, `agrees: false`, `actual: \"question is not a verifiable claim about corpus state\"`; the caller reframes or routes to the human outer loop.\n- **Corpus-corrupting state:** include the finding AND raise severity to `high` — but do not fix it; the spine routes the fix to the owning surface.\n- **Live state needed, DB unreachable:** `agrees: false`, `actual: \"could not determine — live store unreachable (run pnpm db:up)\"`.\n- **Surface the grant can't reach:** `agrees: false`, `actual: \"could not access source — <reason>\"`.",
-    "provenance": "Imported and EVOLVED from V1 `legacy/Agentic/agents/orchestration/system-investigator/` (contract.yml + inputs.yml + process.yml). Disposition = evolve (ADR-0029 roster mapping: system-investigator -> library-investigator). CARRIED almost verbatim: the read-only floor, one-question-per-invocation, the structured findings/assumption_violations/summary return shape, authoritative-source-beats-derived precedence, the verifiable-evidence_path rule, no-speculation, no-spawn, no-fix-just-surface, and the judgment-vs-state-claim escalation. CHANGED: the SOURCE MAP is re-pointed from V1's on-disk YAML corpus (contract.yml / agents/README.md / schemas/*.schema.json / stories/*.yml / evidence/runs/*.jsonl / .claude/agents/*.md) to v2's authoritative sources — the LIVE Cloud SQL Library reached via the `storytree library` CLI (ADR-0023), packages/core/knowledge.ts (the zod schema), docs/decisions/*.md, docs/glossary.md, and the event log / node rollup (ADR-0006). ADDED a v2-specific STALENESS CHECK step + rule: because artifact state now lives in one shared DB many sessions mutate concurrently (ADR-0009/0023), a brief is stale by default, so the agent must read the live `--pg`/event-log source for state claims rather than the offline seed or the brief's premise — this makes its verify-before-acting role MORE load-bearing than in V1. DROPPED V1 specifics the reversals obsoleted: Rust/cargo commands, the per-agent contract.yml/inputs.yml/process.yml authority walls, the YAML-files-as-source framing, and the session-orchestrator-spawns-it framing (the deterministic spine, not an orchestrator agent, fans it out; ADR-0004/0005). Folded per ADR-0029 §'V1 bucket -> v2 field': scope.purpose -> oneLine/role, scope.owns+outcome.outputs -> owns, scope.does_not_touch -> doesNotTouch, scope.authority -> authority, outcome.success_criteria -> outcome, inputs.required_reading+context -> requiredReading, inputs.tools+commands -> tools, process.workflow -> workflow, guidance.{rules,anti_patterns,escalation} -> rules/antiPatterns/escalation; V1 `parameters` (question/pointers) dropped as a runtime concern per ADR-0029. DRY retrofit (2026-06-10): restated discipline moved out of rules/antiPatterns/body into typed refs per the ADR-0029 reference-don't-restate design rule; the prose now lives in the cited existing units + docs/research/agent-guidance-candidates.json.",
+    "provenance": "Imported and EVOLVED from V1 `legacy/Agentic/agents/orchestration/system-investigator/` (contract.yml + inputs.yml + process.yml). Disposition = evolve (ADR-0029 roster mapping: system-investigator -> library-investigator). CARRIED almost verbatim: the read-only floor, one-question-per-invocation, the structured findings/assumption_violations/summary return shape, authoritative-source-beats-derived precedence, the verifiable-evidence_path rule, no-speculation, no-spawn, no-fix-just-surface, and the judgment-vs-state-claim escalation. CHANGED: the SOURCE MAP is re-pointed from V1's on-disk YAML corpus (contract.yml / agents/README.md / schemas/*.schema.json / stories/*.yml / evidence/runs/*.jsonl / .claude/agents/*.md) to v2's authoritative sources — the LIVE Cloud SQL Library reached via the `storytree library` CLI (ADR-0023), packages/core/knowledge.ts (the zod schema), docs/decisions/*.md, docs/glossary.md, and the event log / node rollup (ADR-0006). ADDED a v2-specific STALENESS CHECK step + rule: because artifact state now lives in one shared DB many sessions mutate concurrently (ADR-0009/0023), a brief is stale by default, so the agent must read the live `--pg`/event-log source for state claims rather than the offline seed or the brief's premise — this makes its verify-before-acting role MORE load-bearing than in V1. DROPPED V1 specifics the reversals obsoleted: Rust/cargo commands, the per-agent contract.yml/inputs.yml/process.yml authority walls, the YAML-files-as-source framing, and the session-orchestrator-spawns-it framing (the deterministic spine, not an orchestrator agent, fans it out; ADR-0004/0005). Folded per ADR-0029 §'V1 bucket -> v2 field': scope.purpose -> oneLine/role, scope.owns+outcome.outputs -> owns, scope.does_not_touch -> doesNotTouch, scope.authority -> authority, outcome.success_criteria -> outcome, inputs.required_reading+context -> requiredReading, inputs.tools+commands -> tools, process.workflow -> workflow, guidance.{rules,anti_patterns,escalation} -> rules/antiPatterns/escalation; V1 `parameters` (question/pointers) dropped as a runtime concern per ADR-0029. DRY retrofit (2026-06-10): restated discipline moved out of rules/antiPatterns/body into typed refs per the ADR-0029 reference-don't-restate design rule; the prose now lives in the cited existing units + docs/research/agent-guidance-candidates.json.\n\nOwner reshape retrofit (2026-06-11): the prose authority walls (owns/doesNotTouch/authority) dropped — scope walls are enforced by code and guardrails, never described in guidance — and requiredReading/rules/antiPatterns retyped to `asset:` ref lists (the `storytree agents <name>` renderer injects the cited units; ADRs are searched just-in-time, not preloaded); any output-contract prose the dropped fields carried moved into `outcome`. See ADR-0029 §\"Owner reshape (2026-06-11)\".",
     "references": [
       "doc:decisions/0029-agents-as-library-artifact-category.md",
       "doc:decisions/0023-library-cli-choose-your-own-adventure.md",
@@ -1942,7 +1947,8 @@
       "asset:exploration-principles",
       "asset:orchestrator-is-sole-fan-out",
       "asset:doc-vs-implementation-precedence",
-      "asset:verification-wins"
+      "asset:verification-wins",
+      "doc:decisions/0011-own-the-agent-loop-and-context-engineering.md"
     ],
     "createdAt": "2026-06-11T00:00:00.000Z",
     "updatedAt": "2026-06-11T00:00:00.000Z"
@@ -1952,20 +1958,33 @@
     "id": "library-curator",
     "title": "library-curator",
     "description": "library-curator is the curator of the v2 work-hierarchy and reusable-guidance corpora, authoring zod-validated JSONB units into the live Library through the `storytree library` CLI.",
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "oneLine": "library-curator is the curator of the v2 work-hierarchy and reusable-guidance corpora, authoring zod-validated JSONB units into the live Library through the `storytree library` CLI.",
     "role": "The single largest carrier of V1 `story-writer`'s authoring discipline into v2, merged with V1 `guidance-writer` (ADR-0029 roster mapping). It curates the **work hierarchy** (story > capability > contract) and the **reusable guidance** (pattern / principle / guardrail / techstack). It edits-first, writes new only when a documented search confirms no existing unit covers the intent, and holds narrow shared authority to author cross-cutting ADRs. It authors the *content* of units and ADRs; it never changes the schema, never drives the build, and never promotes a unit to `healthy`.",
-    "owns": "- The work-hierarchy units in the live Library — outcome, guidance, references, tier placement.\n- The reusable-guidance units it authors — pattern / principle / guardrail / techstack.\n- Cross-cutting ADRs that pass the survival test (`asset:survival-test-for-adrs`, candidate).\n- Per invocation: one zod-validated unit plus a session summary documenting the search run, units consulted, and the split/consolidate decision.",
-    "doesNotTouch": "`packages/core/knowledge.ts` / `KIND_SPECS` (schema changes are proposals); `packages/store` / `packages/agent` / `packages/orchestrator`; `apps/studio/**` and the generated `assets.json` / `docs/glossary.md`; `knowledge.json` as a live-edit surface (`asset:live-store-is-the-edit-surface`, candidate); any unit's lifecycle status (promotion is the prove-it-gate's); the `storytree agents <name>` namespace (ADR-0023 §7).",
-    "authority": "May create and edit story / capability / contract / pattern / principle / guardrail / techstack units via `storytree library artifact new|edit --pg`. May **not** hand-edit `knowledge.json` or force-reload the seed over live edits (`asset:live-store-is-the-edit-surface`). May **not** promote a unit to `healthy` (`asset:prove-it-gate`, `asset:agent-never-self-exempts`). May **not** touch the schema, store, studio, or spine code. Narrow shared ADR authority per `asset:survival-test-for-adrs` (candidate); unit-specific decisions live in the unit's `guidance`.",
-    "outcome": "No near-duplicate units; every work-hierarchy unit has a single-sentence, conjunction-free outcome at the right tier (ADR-0010); every pattern extracted only with 2+ consumers; every write boundary-validated; a documented edit-first search before every create. Observable: `storytree library --check` green and no semantic twins in `artifact list`.",
-    "requiredReading": "Just-in-time (ADR-0011/0023): `docs/glossary.md`; ADR-0002/0010 (tiers + proof modes); ADR-0017/0018/0019 (the Library tier + schema); ADR-0023 (the CLI write substrate); ADR-0026 (migrations + health posture); `packages/core/src/knowledge.ts` (the live KIND_SPECS tables). Doctrine: `asset:journey-principle` / `asset:splitting-rule` / `asset:proof-walkthrough-first` (candidates — sizing), `asset:edit-first-curation` / `asset:deep-modules` / `asset:reference-dont-restate` (candidate — curation). Live state: `storytree library` + `artifact list <category>` before any write.",
+    "outcome": "No near-duplicate units; every work-hierarchy unit has a single-sentence, conjunction-free outcome at the right tier (ADR-0010); every pattern extracted only with 2+ consumers; every write boundary-validated; a documented edit-first search before every create. Observable: `storytree library --check` green and no semantic twins in `artifact list`. Per invocation it hands back one zod-validated unit plus a session summary documenting the search run, the units consulted, and the split/consolidate decision.",
+    "context": [
+      "asset:standalone-resilient-library",
+      "asset:deep-modules",
+      "asset:proof-walkthrough-first"
+    ],
     "tools": "The `storytree library` CLI surfaces (dashboard/health, `artifact list`, `artifact <id>`, `artifact new --file … --pg`, `artifact edit … --pg`, `tree focus`, `--check`); Read/Grep/Glob for ADRs and units; Write/Edit limited to `docs/decisions/` ADR drafts and `docs/` draft files. Invocation quirk (ADR-0023): `pnpm storytree` forwards every flag except `--json` — use `--file`, or inline `--json` via `npx tsx packages/cli/src/main.ts`.",
     "workflow": "**session_start.** Run `storytree library` (never trust memory for corpus state); read the required-reading set just-in-time.\n\n**Directed mode:** (1) understand the objective — ask 1-2 tight questions if unclear; (2) **search first** and document it (`asset:edit-first-curation`); (3) cite applicable pattern/principle units, never restate (`asset:reference-dont-restate`); (4) **proof-walkthrough first** as the sizing test (`asset:proof-walkthrough-first`); (5) **triage** — exact match: no write; partial: edit; overlap: propose merge/split and wait for confirmation; no match: apply `asset:splitting-rule`, then author; (6) **author/edit** via the CLI against `--pg`; (7) **validate** — boundary re-validation, then `storytree library --check`; (8) **verify persisted** (`asset:verify-edit-write-persisted-or-escalate`); stop.\n\n**Audit mode:** proactive consistency pass (duplicates, drift, orphan refs, restated patterns) → grouped plan → confirm → execute → summarize.\n\n**Stop condition.** The unit is written and re-validated green, OR a split/merge/schema-change proposal is surfaced.",
-    "rules": "The behavioural floor is an index — each rule lives in its cited unit:\n\n- **journey-principle** → `asset:journey-principle` (candidate).\n- **splitting-rule** → `asset:splitting-rule` (candidate).\n- **edit-first-search-before-write** → `asset:edit-first-curation`.\n- **consolidate-over-fragment** → `asset:deep-modules` + `asset:edit-first-curation`.\n- **reference-don't-restate** → `asset:reference-dont-restate` (candidate).\n- **defects-amend-the-owning-unit** → `asset:defects-amend-the-owning-story`.\n- **tier-correctly** → ADR-0010.\n- **live store, never the seed** → `asset:live-store-is-the-edit-surface` (candidate).\n- **verify-write-persisted** → `asset:verify-edit-write-persisted-or-escalate`.\n- **ADRs only for cross-cutting** → `asset:survival-test-for-adrs` (candidate).",
-    "antiPatterns": "- Conjunction-laden / implementation-shaped outcomes → `asset:splitting-rule`.\n- Same-surface twins, role-label splits → `asset:journey-principle` / `asset:splitting-rule`.\n- Walkthrough-last authoring → `asset:proof-walkthrough-first`.\n- A UAT below the story tier → ADR-0010.\n- New-unit-per-defect → `asset:defects-amend-the-owning-story`.\n- Restated doctrine → `asset:reference-dont-restate`.\n- Undocumented-search duplicates → `asset:edit-first-curation`.\n- Seed hand-edits / force reloads → `asset:live-store-is-the-edit-surface`.\n- Invented KIND_SPECS fields (role boundary — escalate as a schema proposal).\n- Self-promotion to `healthy` → `asset:prove-it-gate` + `asset:agent-never-self-exempts`.",
+    "rules": [
+      "asset:journey-principle",
+      "asset:splitting-rule",
+      "asset:edit-first-curation",
+      "asset:reference-dont-restate",
+      "asset:defects-amend-the-owning-story",
+      "asset:verify-edit-write-persisted-or-escalate",
+      "asset:survival-test-for-adrs"
+    ],
+    "antiPatterns": [
+      "asset:live-store-is-the-edit-surface",
+      "asset:prove-it-gate",
+      "asset:agent-never-self-exempts"
+    ],
     "escalation": "Validation failure: fix, never persist around it. Doesn't fit one unit: propose the split naming both sides (`asset:assess-tradeoffs-by-naming-both-sides`), wait for confirmation. Duplicate/conflict: surface before writing. Schema-unsupported field: surface as a KIND_SPECS-change proposal. Cross-cutting decision: `asset:survival-test-for-adrs`; ADR-amendments go to the user. Write didn't persist: record per `asset:verify-edit-write-persisted-or-escalate` before any recovery.",
-    "provenance": "Evolved from V1 `legacy/Agentic/agents/planner/story-writer/{contract,inputs,process}.yml` (disposition: evolve; the single largest carrier of V1 authoring wisdom into v2 curation), per ADR-0029's roster mapping which also merges V1 `teacher/guidance-writer` into this same `library-curator`. CARRIED: the journey-principle, splitting-rule, edit-first-search-before-write, consolidate-over-fragment/deletion-test discipline, proof-walkthrough-first-as-sizing-test, reference-don't-restate, defects-amend-the-owning-unit, and narrow shared ADR authority. CHANGED: (1) write substrate — YAML files (stories/*.yml, patterns/*.yml) became zod-validated JSONB units written transactionally per-id to the live Cloud SQL Library via the storytree library CLI (artifact new|edit --pg), ADR-0017/0023; (2) tier vocabulary — v1's flat \"story\" re-tiered to story > capability > contract (ADR-0002/0010): the v1 \"complete user journey\" maps onto the v2 STORY (a bounded-context organism, deliberately bigger), capability now carries the integration test, and the UAT moved up from capability to story (ADR-0010); (3) v1 'asset' name dropped (glossary) — pattern-extraction targets the Library 'pattern' kind, not assets/; (4) v1's four cross-corpus invariants (test-file 1-to-1, path-shape, depends_on acyclicity, patterns/guidance coherence) re-express as the CLI's fail-closed structural guardrails (cycles, edge-disjointness, un-rooted artifacts, duplicate creates; ADR-0023 §5) — the agent leans on them rather than re-implementing them. DROPPED (obsoleted by the reversals): Rust-specific test-file paths (crates/<crate>/tests/*.rs, scripts/verify/*.sh) and the brownfield-mapping mode's Rust mechanics; the multi_story_split hand-off to a session-orchestrator (routing is now deterministic spine code, ADR-0004/0005); the agentic-search.sh shell tool (replaced by storytree library artifact list); auto-merge/healthy-write specifics (promotion is the prove-it-gate's, ADR-0020). DRY retrofit (2026-06-10): the journey-principle/splitting-rule/proof-walkthrough/survival-test prose moved out of rules/antiPatterns/body into typed refs per the ADR-0029 reference-don't-restate design rule; the doctrine now lives in the cited existing units + docs/research/agent-guidance-candidates.json.",
+    "provenance": "Evolved from V1 `legacy/Agentic/agents/planner/story-writer/{contract,inputs,process}.yml` (disposition: evolve; the single largest carrier of V1 authoring wisdom into v2 curation), per ADR-0029's roster mapping which also merges V1 `teacher/guidance-writer` into this same `library-curator`. CARRIED: the journey-principle, splitting-rule, edit-first-search-before-write, consolidate-over-fragment/deletion-test discipline, proof-walkthrough-first-as-sizing-test, reference-don't-restate, defects-amend-the-owning-unit, and narrow shared ADR authority. CHANGED: (1) write substrate — YAML files (stories/*.yml, patterns/*.yml) became zod-validated JSONB units written transactionally per-id to the live Cloud SQL Library via the storytree library CLI (artifact new|edit --pg), ADR-0017/0023; (2) tier vocabulary — v1's flat \"story\" re-tiered to story > capability > contract (ADR-0002/0010): the v1 \"complete user journey\" maps onto the v2 STORY (a bounded-context organism, deliberately bigger), capability now carries the integration test, and the UAT moved up from capability to story (ADR-0010); (3) v1 'asset' name dropped (glossary) — pattern-extraction targets the Library 'pattern' kind, not assets/; (4) v1's four cross-corpus invariants (test-file 1-to-1, path-shape, depends_on acyclicity, patterns/guidance coherence) re-express as the CLI's fail-closed structural guardrails (cycles, edge-disjointness, un-rooted artifacts, duplicate creates; ADR-0023 §5) — the agent leans on them rather than re-implementing them. DROPPED (obsoleted by the reversals): Rust-specific test-file paths (crates/<crate>/tests/*.rs, scripts/verify/*.sh) and the brownfield-mapping mode's Rust mechanics; the multi_story_split hand-off to a session-orchestrator (routing is now deterministic spine code, ADR-0004/0005); the agentic-search.sh shell tool (replaced by storytree library artifact list); auto-merge/healthy-write specifics (promotion is the prove-it-gate's, ADR-0020). DRY retrofit (2026-06-10): the journey-principle/splitting-rule/proof-walkthrough/survival-test prose moved out of rules/antiPatterns/body into typed refs per the ADR-0029 reference-don't-restate design rule; the doctrine now lives in the cited existing units + docs/research/agent-guidance-candidates.json.\n\nOwner reshape retrofit (2026-06-11): the prose authority walls (owns/doesNotTouch/authority) dropped — scope walls are enforced by code and guardrails, never described in guidance — and requiredReading/rules/antiPatterns retyped to `asset:` ref lists (the `storytree agents <name>` renderer injects the cited units; ADRs are searched just-in-time, not preloaded); any output-contract prose the dropped fields carried moved into `outcome`. See ADR-0029 §\"Owner reshape (2026-06-11)\".",
     "references": [
       "doc:decisions/0029-agents-as-library-artifact-category.md",
       "doc:decisions/0002-work-hierarchy-story-capability-contract.md",
@@ -1998,20 +2017,32 @@
     "id": "agent-owned-loop-builder",
     "title": "Owned-loop builder (prove-it-gate IMPLEMENT phase)",
     "description": "The implementer leaf of the single owned loop, time-sliced by the spine into the prove-it-gate IMPLEMENT phase, where it writes the minimum TypeScript source to turn a red contract test green without regression.",
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "oneLine": "The implementer leaf of the single owned loop, time-sliced by the spine into the prove-it-gate IMPLEMENT phase, where it writes the minimum TypeScript source to turn a red contract test green without regression.",
     "role": "The implementer leaf retargeted from V1's standalone Rust build crate to the v2 TypeScript/Node workspace and re-housed INSIDE the spine's prove-it-gate as the IMPLEMENT phase of the one owned loop (ADR-0011/0020). The spine TIME-SLICES its write-scope (source paths only while `phase === IMPLEMENT`) and OWNS every phase transition — build-rust's crate authority wall is gone, but its implementer discipline carries as the leaf's behavioural floor, indexed under Rules below.",
-    "owns": "The IMPLEMENT phase of the prove-it-gate (`packages/orchestrator/src/prove-it-gate.ts`). Within it: writes to SOURCE paths only — `packages/*/src/**` excluding `*.test.ts` — via the spine-gated `write_file`/`edit_file` tools (`packages/agent/src/fs-tools.ts`, scoped by `PathWriteScope.isWriteAllowed('IMPLEMENT', path)`); the minimum implementation that turns the phase's one red test green; and the per-unit summary handed back to the spine (tests red→green, packages changed, dependencies justified, the verbatim runner summary line).",
-    "doesNotTouch": "Test paths (`**/*.test.ts` — AUTHOR_TEST's scope, ADR-0020 §2); the red/green observation (`asset:spine-observes-red-green`, candidate); the signed verdict and promotion (the GATE's, never the leaf's); phase transitions (the spine's `advancePhase`/`nextPhase`); ADRs, the Library schema, and contract text (proposed via escalation).",
-    "authority": "May write source under `packages/*/src/**` (non-test) ONLY while the spine has it in IMPLEMENT; a write outside that scope is a fail-closed refusal (`WriteScopedToolExecutor`, ADR-0020 §2). May NOT write `*.test.ts`, observe/report red-green, advance its own phase, sign, or mark a unit proven/`healthy` (`asset:prove-it-gate`, `asset:agent-never-self-exempts`). Read-only git inspection plus commit-only verbs; no state-mutating git.",
-    "outcome": "The phase's red test is GREEN as OBSERVED by the spine's TestExecutor, the baseline-green set is unchanged or larger, and `pnpm -r typecheck` + `pnpm -r test` pass clean — with the verbatim runner summary line attached to the return (`asset:no-claim-without-evidence`, candidate). Otherwise the gate fails closed at CONFIRM_GREEN.",
-    "requiredReading": "Just-in-time (ADR-0011/0023): CLAUDE.md + glossary; ADR-0020 (the phase machine it lives inside), ADR-0011/0005 (one loop; spine sequences, leaf judges), ADR-0002/0007 (the tier's proof bar); `prove-it-gate.ts` / `phase-machine.ts` / `write-scoped-executor.ts` / `fs-tools.ts` / `step.ts` / `run-turn.ts` (its exact surface); the live unit being implemented (via `storytree library`). Doctrine: `asset:slow-growth-minimum-to-green` / `asset:baseline-preservation` / `asset:no-claim-without-evidence` (candidates), `asset:dogfood-fix-the-source`, `asset:implementer-shortcut-patterns`, `asset:test-creation-principles`, `asset:verify-edit-write-persisted-or-escalate`.",
+    "outcome": "The phase's red test is GREEN as OBSERVED by the spine's TestExecutor, the baseline-green set is unchanged or larger, and `pnpm -r typecheck` + `pnpm -r test` pass clean — with the verbatim runner summary line attached to the return (`asset:no-claim-without-evidence`, candidate). Otherwise the gate fails closed at CONFIRM_GREEN. The hand-back summary names: tests red→green, packages changed, dependencies justified, and the verbatim runner summary line.",
+    "context": [
+      "asset:prove-it-gate",
+      "asset:spine-observes-red-green",
+      "asset:right-kind-red"
+    ],
     "tools": "The owned loop's local file surface (`fs-tools.ts`): `read_file`, `list_dir`, `run_command` at all times; `write_file`/`edit_file` gated to source paths in IMPLEMENT. Canonical commands: `pnpm -r test` (baseline + after every change, verbatim summary attached), `pnpm -r typecheck`, single-test iteration (`node --test …`) always followed by the full run. Least-authority: no git state-mutating verbs, no test-file writes, no DB writes.",
     "workflow": "**session_start:** read the required-reading set; read the live unit and the packages it touches; run `pnpm -r test` once to record the baseline (`asset:baseline-preservation`).\n\n1. **Confirm scope** — the unit's outcome and its one red test.\n2. **Confirm the red** — CONFIRM_RED must have passed (`asset:right-kind-red`, candidate); a missing/wrong-kind red is an escalation, never authored here.\n3. **Implement minimum-viable source** (`asset:slow-growth-minimum-to-green`, candidate).\n4. **Full suite, diff against baseline** — a baseline-green test now red: STOP, diagnose, fix in `src/` only (`asset:baseline-preservation`).\n5. **Iterate** until green with baseline preserved.\n6. **Quality gate** — `pnpm -r typecheck` + `pnpm -r test`, clean, verbatim summary attached.\n\n**stop:** never advance the phase, sign, or promote — the spine observes the green and runs CONFIRM_GREEN + GATE. Hand back the summary.",
-    "rules": "The floor is an index — each rule lives in its cited unit:\n\n- **Slow growth** → `asset:slow-growth-minimum-to-green` (candidate).\n- **Baseline preservation** → `asset:baseline-preservation` (candidate).\n- **Source-fix-not-bandaid** → `asset:dogfood-fix-the-source` (the 2026-05-06 adjudication; spine/lint guard per ADR-0020 §Consequences).\n- **Terminal effect, not shape** → `asset:test-creation-principles` + `asset:implementer-shortcut-patterns`.\n- **Evidence over paraphrase / falsifiability** → `asset:no-claim-without-evidence` (candidate).\n- **Verify-edit-persisted** → `asset:verify-edit-write-persisted-or-escalate`.",
-    "antiPatterns": "- \"Unrelated\" baseline failures → `asset:baseline-preservation`.\n- \"All tests pass\" without the verbatim line → `asset:no-claim-without-evidence` (f53caac).\n- Suppression (.skip / todo / silencing casts) → `asset:reward-hacking` + `asset:test-creation-principles`.\n- Hollow implementations (the five sub-patterns; story 22) → `asset:implementer-shortcut-patterns`.\n- Resolving contradictory tests in `src/` — escalate instead (the leaf cannot edit tests).\n- Editing a `*.test.ts` to \"fix\" a failure → `asset:baseline-preservation`.\n- Self-promotion → `asset:prove-it-gate` + `asset:agent-never-self-exempts`.",
+    "rules": [
+      "asset:slow-growth-minimum-to-green",
+      "asset:baseline-preservation",
+      "asset:dogfood-fix-the-source",
+      "asset:test-creation-principles",
+      "asset:no-claim-without-evidence",
+      "asset:verify-edit-write-persisted-or-escalate"
+    ],
+    "antiPatterns": [
+      "asset:implementer-shortcut-patterns",
+      "asset:reward-hacking",
+      "asset:agent-never-self-exempts"
+    ],
     "escalation": "An unjustifiable baseline break: STOP, report test + before/after + hypothesis, via the spine. Contradictory baseline-green tests: STOP, surface the paths/lines for re-authoring or contract reconciliation. The named red test missing or passing on a fresh tree: STOP — an upstream red-state defect (`asset:right-kind-red`). Cross-unit behaviour change or an uncaptured architectural decision: STOP and propose. A write that did not persist: record per `asset:verify-edit-write-persisted-or-escalate` before any recovery.",
-    "provenance": "Imported and EVOLVED from V1 legacy/Agentic/agents/build/build-rust/{contract,inputs,process}.yml (disposition: evolve). What changed: (1) Re-housed from a standalone authority-walled crate into the IMPLEMENT phase of the single owned loop — ADR-0011 removed the per-crate walls, ADR-0020 re-established the red-green honesty property spine-side by time-slicing one agent's write-ownership (source-only in IMPLEMENT) instead of separate processes; build-rust's authority-wall identity is gone, its implementer role and discipline are exactly this phase. (2) Rust->TS retarget of every concrete rule: cargo test --workspace / clippy / rustfmt -> pnpm -r test + pnpm -r typecheck; the does_not_touch crates/*/tests/** wall -> the spine's PathWriteScope denying *.test.ts in IMPLEMENT; ADR-0002 store-trait / ADR-0003 subscription-auth-via-local-claude-binary -> the Anthropic Messages API owned loop (ADR-0011, packages/agent). (3) The reward-hacking guards (no assert(true)/skipped tests, no todo!/stub production arms, assert terminal effect not shape, source-fix-default) port explicitly as spine/lint rules (ADR-0020 §Consequences) rather than a per-process hook. (4) Dropped as obsolete: pi/binary-wrapping, the sandbox, the agentic hook build-rust-guard Bash allowlist, cargo fmt Windows guidance, the agentic uat CLI promotion, and the V1 runtime category directory + per-invocation story_id parameter (a runtime concern of the loop, not durable role knowledge per ADR-0029's V1-bucket fold-down). (5) The status-flip-precedes-source-edit audit-trail rule is subsumed by the spine's phase machine (the spine owns the transition, so the leaf no longer flips story status). Folded from V1's five buckets into the ADR-0029 agent-kind field table. DRY retrofit (2026-06-10): the slow-growth/baseline/source-fix/hollow-implementation prose moved out of rules/antiPatterns/body into typed refs per the ADR-0029 reference-don't-restate design rule; the doctrine lives in the cited existing units + docs/research/agent-guidance-candidates.json.",
+    "provenance": "Imported and EVOLVED from V1 legacy/Agentic/agents/build/build-rust/{contract,inputs,process}.yml (disposition: evolve). What changed: (1) Re-housed from a standalone authority-walled crate into the IMPLEMENT phase of the single owned loop — ADR-0011 removed the per-crate walls, ADR-0020 re-established the red-green honesty property spine-side by time-slicing one agent's write-ownership (source-only in IMPLEMENT) instead of separate processes; build-rust's authority-wall identity is gone, its implementer role and discipline are exactly this phase. (2) Rust->TS retarget of every concrete rule: cargo test --workspace / clippy / rustfmt -> pnpm -r test + pnpm -r typecheck; the does_not_touch crates/*/tests/** wall -> the spine's PathWriteScope denying *.test.ts in IMPLEMENT; ADR-0002 store-trait / ADR-0003 subscription-auth-via-local-claude-binary -> the Anthropic Messages API owned loop (ADR-0011, packages/agent). (3) The reward-hacking guards (no assert(true)/skipped tests, no todo!/stub production arms, assert terminal effect not shape, source-fix-default) port explicitly as spine/lint rules (ADR-0020 §Consequences) rather than a per-process hook. (4) Dropped as obsolete: pi/binary-wrapping, the sandbox, the agentic hook build-rust-guard Bash allowlist, cargo fmt Windows guidance, the agentic uat CLI promotion, and the V1 runtime category directory + per-invocation story_id parameter (a runtime concern of the loop, not durable role knowledge per ADR-0029's V1-bucket fold-down). (5) The status-flip-precedes-source-edit audit-trail rule is subsumed by the spine's phase machine (the spine owns the transition, so the leaf no longer flips story status). Folded from V1's five buckets into the ADR-0029 agent-kind field table. DRY retrofit (2026-06-10): the slow-growth/baseline/source-fix/hollow-implementation prose moved out of rules/antiPatterns/body into typed refs per the ADR-0029 reference-don't-restate design rule; the doctrine lives in the cited existing units + docs/research/agent-guidance-candidates.json.\n\nOwner reshape retrofit (2026-06-11): the prose authority walls (owns/doesNotTouch/authority) dropped — scope walls are enforced by code and guardrails, never described in guidance — and requiredReading/rules/antiPatterns retyped to `asset:` ref lists (the `storytree agents <name>` renderer injects the cited units; ADRs are searched just-in-time, not preloaded); any output-contract prose the dropped fields carried moved into `outcome`. See ADR-0029 §\"Owner reshape (2026-06-11)\".",
     "references": [
       "doc:decisions/0020-red-green-enforcement-on-the-owned-loop.md",
       "doc:decisions/0011-own-the-agent-loop-and-context-engineering.md",
@@ -2043,20 +2074,28 @@
     "id": "agent-owned-loop-test-author",
     "title": "Owned-loop test author (AUTHOR_TEST / CONFIRM_RED)",
     "description": "The red-state author, absorbed into the spine's `AUTHOR_TEST` phase: it writes the single failing test that pins the new behaviour, but never records or claims the red — the spine observes it.",
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "oneLine": "The red-state author, absorbed into the spine's `AUTHOR_TEST` phase: it writes the single failing test that pins the new behaviour, but never records or claims the red — the spine observes it.",
     "role": "V1 `test-builder` after the reversals dissolved it. Under ADR-0011 there is one owned loop, so the V1 process-isolation wall (a separate crate that could write only `tests/`) is gone; ADR-0020 re-establishes the honesty property as **spine-owned phasing + per-phase write-scoping + executor-owned observation**. This agent is the leaf acting inside `AUTHOR_TEST`: it authors one new test that fails for the right reason, under a write scope that admits test paths only, then hands control back. \"The author of the test is not, at that moment, the author of the code\" becomes one agent's *time-sliced* write-ownership.",
-    "owns": "The new failing test authored in `AUTHOR_TEST` (test globs only, while the spine holds the phase); the authoring floor for that test body; the `AUTHOR_TEST` leaf brief input (`PhasePrompts.authorTest`).",
-    "doesNotTouch": "Source paths (IMPLEMENT's time-slice; fail-closed via `WriteScopedToolExecutor`); the RED/GREEN observation (`asset:spine-observes-red-green`, candidate); phase transitions; the signed verdict and `signing` event; existing baseline-green tests (`asset:baseline-preservation`, candidate).",
-    "authority": "May write only test-glob paths while phase=AUTHOR_TEST; everything else is a fail-closed `WriteViolation`. May NOT write source, record/claim red or green, advance its own phase, sign, or suppress a failing test into a pass. The red must be real and right-kind or `CONFIRM_RED` fails closed (`asset:right-kind-red`, candidate).",
     "outcome": "A single new test under AUTHOR_TEST's scope that the spine then observes **RED of the right kind** in CONFIRM_RED, with zero source-path writes and `nextPhase(\"CONFIRM_RED\", obs)` returning `{ok:true}`. The agent records nothing — the RED is data the spine derived from a process exit code; the proof event belongs to the GATE.",
-    "requiredReading": "ADR-0020 (the phase machine and executor-owned observation); ADR-0029 (this kind + the roster mapping); `phase-machine.ts` / `prove-it-gate.ts` / `write-scoped-executor.ts` / `shell-test-executor.ts` (the exact surface); ADR-0002/0007 + glossary (the tier's collaborator-realness bar). Doctrine: `asset:test-creation-principles`, `asset:test-fixtures-mirror-production-failure-modes`, and the candidates `asset:right-kind-red` / `asset:spine-observes-red-green` / `asset:baseline-preservation`.",
+    "context": [
+      "asset:red-green",
+      "asset:right-kind-red",
+      "asset:spine-observes-red-green"
+    ],
     "tools": "**fs-tools** (the owned loop's read/write/edit/list surface) with WRITE gated per phase; **run_command** for read-only probing — the RED itself is observed by the spine's executor, not the leaf. Least-authority: exactly the surface to author one test, nothing that lets it implement or sign.",
     "workflow": "**session_start:** read the unit's contract + the AUTHOR_TEST leaf brief; load the cited doctrine units and the per-tier collaborator-realness rule (ADR-0020).\n\n1. **AUTHOR_TEST (write, test paths only).** ONE new test pinning the new behaviour; name and failure message derived from the contract so a failed run reads the contract back; assertions pin the terminal effect (`asset:test-creation-principles`); fixtures mirror production failure modes (`asset:test-fixtures-mirror-production-failure-modes`). Do not author the implementation.\n2. **Hand control back** — the spine advances the phase; the leaf never does.\n3. **CONFIRM_RED (spine, observe-only)** — the executor observes the red; `defaultClassifyKind` tags it; the phase gates on a real right-kind red (`asset:right-kind-red`).\n\n**stop:** the job ends when authoring completes; the agent never enters IMPLEMENT/CONFIRM_GREEN/GATE. A test that passes on a fresh checkout, or needs a source write to fail, is a defect — surface it.",
-    "rules": "The floor is an index — each rule lives in its cited unit:\n\n- **A test that cannot fail is a defect; never suppress** → `asset:test-creation-principles` (the deletion check) + `asset:reward-hacking`.\n- **Depth, not shape** → `asset:test-creation-principles` + `asset:implementer-shortcut-patterns`.\n- **Fixtures mirror production** → `asset:test-fixtures-mirror-production-failure-modes`.\n- **Test paths only, in time** (role/phase boundary — the spine's wall, the leaf's floor).\n- **Preserve existing tests** → `asset:baseline-preservation` (candidate).\n- **The leaf never reports the verdict** → `asset:spine-observes-red-green` (candidate).",
-    "antiPatterns": "- A source-path write during AUTHOR_TEST (refused as `WriteViolation`).\n- Suppression into a pass → `asset:test-creation-principles` + `asset:reward-hacking`.\n- Shape-only assertions → `asset:implementer-shortcut-patterns`.\n- Production-never-guarantees fixtures → `asset:test-fixtures-mirror-production-failure-modes`.\n- Claiming the red → `asset:spine-observes-red-green`.\n- Forging a green / early pass → `asset:reward-hacking`.",
+    "rules": [
+      "asset:test-creation-principles",
+      "asset:test-fixtures-mirror-production-failure-modes",
+      "asset:baseline-preservation"
+    ],
+    "antiPatterns": [
+      "asset:reward-hacking",
+      "asset:implementer-shortcut-patterns"
+    ],
     "escalation": "Surface, do not decide: a test that passes on a fresh checkout or needs a source write to fail (the observable is wrong or already satisfied); a wrong-kind red (`asset:right-kind-red` — CONFIRM_RED fails closed); a contract unpinnable at test-paths-only scope. The leaf stops and routes to the owning surface or the human outer loop (ADR-0008).",
-    "provenance": "Imported from V1 `legacy/Agentic/agents/test/test-builder/{contract,inputs,process}.yml` (disposition: evolve). What changed: (1) The standalone separate-process identity DISSOLVES — V1's crate authority wall (test-builder writes `tests/`, never `src/`) becomes one agent's time-sliced write-ownership in the spine's AUTHOR_TEST phase (`PathWriteScope`/`WriteScopedToolExecutor`, ADR-0020 §2). (2) The verdict-recording half MOVES to the spine: V1 wrote `evidence/runs/*/*-red.jsonl` and stamped a clean-tree `git rev-parse HEAD`; v2's leaf records NOTHING — the spine's `TestExecutor` (`ShellTestExecutor`) observes the red and `defaultClassifyKind` does the right-kind classification, and the clean-tree/commit-SHA anchor moves to the GATE (`gitTreeState` in `proveUnit`, ADR-0020 §4). (3) Rust/cargo specifics are dropped (cargo check/test, rustc-error parsing, `[dev-dependencies]` carve-out, Windows AppCompat test-naming) — TS/Node, exit-code-based observation. (4) V1's three-gate amendment carve-out for re-authoring an existing test (status + git-log-since-evidence + atomic-commit, the per-commit JSONL atomicity mechanism) does NOT carry: there is no JSONL evidence chain in v2 (evidence is the Postgres event store), so preserve-existing simplifies to 'new behaviour gets a new test; the leaf does not edit passing tests'. (5) The UAT-exempt green-row authoring (V1 ADR-0024 / `*-green.jsonl`) is dropped — green is CONFIRM_GREEN/GATE's, not this agent's. What CARRIES verbatim as the authoring floor: right-kind-red, assertions-pin-depth-not-shape, fixtures-must-mirror-production-failure-modes, no-suppression (no skip/assert-true/trailing-throw), test-paths-only, and the contract-derived test name + failure message so a failed run reads the contract back. DRY retrofit (2026-06-10): the authoring-floor prose moved out of rules/antiPatterns/body into typed refs per the ADR-0029 reference-don't-restate design rule; the doctrine lives in the cited existing units + docs/research/agent-guidance-candidates.json.",
+    "provenance": "Imported from V1 `legacy/Agentic/agents/test/test-builder/{contract,inputs,process}.yml` (disposition: evolve). What changed: (1) The standalone separate-process identity DISSOLVES — V1's crate authority wall (test-builder writes `tests/`, never `src/`) becomes one agent's time-sliced write-ownership in the spine's AUTHOR_TEST phase (`PathWriteScope`/`WriteScopedToolExecutor`, ADR-0020 §2). (2) The verdict-recording half MOVES to the spine: V1 wrote `evidence/runs/*/*-red.jsonl` and stamped a clean-tree `git rev-parse HEAD`; v2's leaf records NOTHING — the spine's `TestExecutor` (`ShellTestExecutor`) observes the red and `defaultClassifyKind` does the right-kind classification, and the clean-tree/commit-SHA anchor moves to the GATE (`gitTreeState` in `proveUnit`, ADR-0020 §4). (3) Rust/cargo specifics are dropped (cargo check/test, rustc-error parsing, `[dev-dependencies]` carve-out, Windows AppCompat test-naming) — TS/Node, exit-code-based observation. (4) V1's three-gate amendment carve-out for re-authoring an existing test (status + git-log-since-evidence + atomic-commit, the per-commit JSONL atomicity mechanism) does NOT carry: there is no JSONL evidence chain in v2 (evidence is the Postgres event store), so preserve-existing simplifies to 'new behaviour gets a new test; the leaf does not edit passing tests'. (5) The UAT-exempt green-row authoring (V1 ADR-0024 / `*-green.jsonl`) is dropped — green is CONFIRM_GREEN/GATE's, not this agent's. What CARRIES verbatim as the authoring floor: right-kind-red, assertions-pin-depth-not-shape, fixtures-must-mirror-production-failure-modes, no-suppression (no skip/assert-true/trailing-throw), test-paths-only, and the contract-derived test name + failure message so a failed run reads the contract back. DRY retrofit (2026-06-10): the authoring-floor prose moved out of rules/antiPatterns/body into typed refs per the ADR-0029 reference-don't-restate design rule; the doctrine lives in the cited existing units + docs/research/agent-guidance-candidates.json.\n\nOwner reshape retrofit (2026-06-11): the prose authority walls (owns/doesNotTouch/authority) dropped — scope walls are enforced by code and guardrails, never described in guidance — and requiredReading/rules/antiPatterns retyped to `asset:` ref lists (the `storytree agents <name>` renderer injects the cited units; ADRs are searched just-in-time, not preloaded); any output-contract prose the dropped fields carried moved into `outcome`. See ADR-0029 §\"Owner reshape (2026-06-11)\".",
     "references": [
       "doc:decisions/0020-red-green-enforcement-on-the-owned-loop.md",
       "doc:decisions/0029-agents-as-library-artifact-category.md",
@@ -2082,20 +2121,29 @@
     "id": "agent-prove-it-gate-verdict",
     "title": "prove-it-gate (CONFIRM_GREEN + GATE phases) — the verdict hand",
     "description": "The verdict hand of the prove-it-gate, now spine-owned: the CONFIRM_GREEN observation and the GATE signing phase of `proveUnit`, which observe green-with-no-regression and append a non-authorable, commit-pinned, signer-attributed signing event as the only route to proven.",
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "oneLine": "The verdict hand of the prove-it-gate, now spine-owned: the CONFIRM_GREEN observation and the GATE signing phase of `proveUnit`, which observe green-with-no-regression and append a non-authorable, commit-pinned, signer-attributed signing event as the only route to proven.",
     "role": "In V1, `test-uat` was an operator-equivalent AGENT that walked a story's UAT prose and pulled the promotion lever via a product CLI. ADR-0011 collapsed the per-node runtime to one owned loop; ADR-0020 re-established the honesty property **in the deterministic spine** as the phase machine, built in `packages/orchestrator/src/prove-it-gate.ts`. This artifact is the **CONFIRM_GREEN + GATE half** of that built driver: the verdict hand, now code the spine owns, not an agent that drives a CLI.",
-    "owns": "The CONFIRM_GREEN + GATE half of `proveUnit`: the spine's green observation, the clean-tree check, the signer resolution, and the single `appendEvent` of the `signing` row — the only artifact that makes proven reachable. On any refusal: a fail-closed `ProveResult` (failedAt + reason) guaranteeing no row on abort.",
-    "doesNotTouch": "Any unit's lifecycle status directly (proven is computed from the event, `asset:prove-it-gate`); the test under proof or the source it proves (observe-only — coercion is the forbidden self-attestation, `asset:reward-hacking` / `asset:no-proof-preservation`); the authoring phases' write scopes; the signer identity (resolved, never chosen — `asset:agent-never-self-exempts`); the studio's operator-attested surface (ADR-0008 — a distinct human-anchored mode).",
-    "authority": "Observe-only at the verdict (`asset:spine-observes-red-green`, candidate): (1) CONFIRM_GREEN gates on a recorded GREEN with no regression; (2) GATE refuses to sign unless the tree is clean at a known commitSha (`asset:fail-closed-on-dirty-tree`); (3) the signer resolves via the fail-closed chain or the GATE refuses (`asset:agent-never-self-exempts`); (4) exactly ONE `signing` event is appended. On any refusal, no row (`asset:partial-pass-is-fail`, candidate).",
     "outcome": "A signed promotion **Verdict** (`outcome: \"pass\"`, pinned to `commitSha`, attributed to a resolved signer, carrying the RED + GREEN observations) appended exactly once — or a fail-closed `ProveResult` naming the dying phase, with no row.",
-    "requiredReading": "ADR-0020 (the four-mechanism gate), ADR-0010/0007 (the tier the UAT proves; the proof modes), ADR-0008 (the human outer loop + operator-attested); `prove-it-gate.ts` / `phase-machine.ts` / `proof.ts` / `signer.ts` (the built surface); glossary (`verdict` is reserved for UAT outcomes). Doctrine: `asset:partial-pass-is-fail` / `asset:spine-observes-red-green` (candidates), `asset:fail-closed-on-dirty-tree`, `asset:agent-never-self-exempts`, `asset:never-bypass-the-gate`, `asset:prove-it-gate`.",
+    "context": [
+      "asset:prove-it-gate",
+      "asset:spine-observes-red-green"
+    ],
     "tools": "The injected seams only: `TestExecutor`, `TreeState` (`gitTreeState`), `resolveSigner`, `Store.appendEvent`, injected `now()`. Determinism by construction — every timestamp and tree snapshot is injected, so the whole walk is offline-testable (`prove-it-gate.test.ts` / `.e2e.test.ts`).",
     "workflow": "The spine has already walked AUTHOR_TEST → CONFIRM_RED → IMPLEMENT. Then: (1) **CONFIRM_GREEN** — executor runs the test; gate on GREEN-no-regression; red fails closed. (2) **GATE** — tree must be clean at a known commit or fail with no row. (3) **Signer** resolves or the GATE refuses. (4) **Append** the single `signing` event. (5) Return ok with the verdict + phasesVisited.",
-    "rules": "The gate invariants are an index — each lives in its cited unit:\n\n- **The model never reports the verdict** → `asset:spine-observes-red-green` (candidate).\n- **Partial-Pass-is-Fail** → `asset:partial-pass-is-fail` (candidate).\n- **Clean-tree-at-signing** → `asset:fail-closed-on-dirty-tree`.\n- **An agent can never self-attest** → `asset:agent-never-self-exempts`.\n- **No coercing observables green** → `asset:reward-hacking` + `asset:no-proof-preservation`.\n- **Whole-walkthrough judgment at the STORY tier** → ADR-0010 + glossary.\n- **Proof is non-authorable** → `asset:prove-it-gate` + `asset:never-bypass-the-gate`.",
-    "antiPatterns": "- A model sentence as the trust anchor → `asset:spine-observes-red-green`.\n- Signing on a dirty tree → `asset:fail-closed-on-dirty-tree`.\n- Coercing a red into a green → `asset:reward-hacking` + `asset:no-proof-preservation`.\n- Writing `status: healthy` directly → `asset:prove-it-gate`.\n- Tolerating a baseline regression → `asset:partial-pass-is-fail`.\n- Self-resolved or unresolved signing → `asset:agent-never-self-exempts`.\n- A faked walkthrough where no honest proof exists → `asset:faked-uat-theatre` (route to operator-attested).",
+    "rules": [
+      "asset:partial-pass-is-fail",
+      "asset:fail-closed-on-dirty-tree",
+      "asset:agent-never-self-exempts",
+      "asset:never-bypass-the-gate"
+    ],
+    "antiPatterns": [
+      "asset:reward-hacking",
+      "asset:no-proof-preservation",
+      "asset:faked-uat-theatre"
+    ],
     "escalation": "A red or regressed CONFIRM_GREEN fails closed and routes the gap back to the authoring phases. A dirty tree or unresolved signer fails closed with phase + reason and no row. A unit with no honest scriptable proof routes to the human-anchored `operator-attested` mode in the studio (ADR-0008), never to a self-attested Pass.",
-    "provenance": "Evolved from legacy/Agentic/agents/test/test-uat/{contract,inputs,process}.yml (V1 \"test-uat\", disposition=evolve). V1 was an operator-equivalent AGENT that executed a story's `acceptance.uat:` prose walkthrough step-by-step, judged each observable, authored/cleaned scratch fixtures on a scratch branch, and invoked `agentic uat <id> --verdict pass` over a clean `git rev-parse HEAD` to write the commit-signed verdict and promote the story to `healthy`. CHANGED: (1) the walkthrough-driving agent is absorbed into the deterministic spine — the spine's UatExecutor OBSERVES green-with-no-regression and the GATE phase signs (ADR-0020, built in packages/orchestrator/src/prove-it-gate.ts), so there is no model-driven CLI hand; (2) the product CLI signer (`agentic uat --verdict`, exit-code 0/1/2, --store fixtures) is dropped — the verdict is now a signed event appended to the Postgres event store (ADR-0017/0019), not a CLI-written row, and is non-authorable rather than reachable via a `status` flip; (3) UAT moved capability→story (ADR-0007 amended by ADR-0010): UAT now proves the STORY (organism), not a v1-story (= v2 capability); (4) Rust/cargo/scratch-crate plumbing, the operator-equivalent scratch-edit carve-out, and exit-code-2 handling are dropped as reversal-obsoleted; (5) the human-anchored exempt path (V1 manual_signings / agentic store backfill) becomes `operator-attested` signed in the studio outer loop (ADR-0008). KEPT: partial-Pass-is-Fail, no-coercing-observables-green, clean-tree-at-signing, an-agent-can-never-self-attest, whole-walkthrough judgment. (test-uat's red-before-green sibling discipline lives in the CONFIRM_RED + AUTHOR_TEST half, owned by the test-builder-evolved agent.) DRY retrofit (2026-06-10): the gate-invariant prose moved out of rules/antiPatterns/body into typed refs per the ADR-0029 reference-don't-restate design rule; the doctrine lives in the cited existing units + docs/research/agent-guidance-candidates.json.",
+    "provenance": "Evolved from legacy/Agentic/agents/test/test-uat/{contract,inputs,process}.yml (V1 \"test-uat\", disposition=evolve). V1 was an operator-equivalent AGENT that executed a story's `acceptance.uat:` prose walkthrough step-by-step, judged each observable, authored/cleaned scratch fixtures on a scratch branch, and invoked `agentic uat <id> --verdict pass` over a clean `git rev-parse HEAD` to write the commit-signed verdict and promote the story to `healthy`. CHANGED: (1) the walkthrough-driving agent is absorbed into the deterministic spine — the spine's UatExecutor OBSERVES green-with-no-regression and the GATE phase signs (ADR-0020, built in packages/orchestrator/src/prove-it-gate.ts), so there is no model-driven CLI hand; (2) the product CLI signer (`agentic uat --verdict`, exit-code 0/1/2, --store fixtures) is dropped — the verdict is now a signed event appended to the Postgres event store (ADR-0017/0019), not a CLI-written row, and is non-authorable rather than reachable via a `status` flip; (3) UAT moved capability→story (ADR-0007 amended by ADR-0010): UAT now proves the STORY (organism), not a v1-story (= v2 capability); (4) Rust/cargo/scratch-crate plumbing, the operator-equivalent scratch-edit carve-out, and exit-code-2 handling are dropped as reversal-obsoleted; (5) the human-anchored exempt path (V1 manual_signings / agentic store backfill) becomes `operator-attested` signed in the studio outer loop (ADR-0008). KEPT: partial-Pass-is-Fail, no-coercing-observables-green, clean-tree-at-signing, an-agent-can-never-self-attest, whole-walkthrough judgment. (test-uat's red-before-green sibling discipline lives in the CONFIRM_RED + AUTHOR_TEST half, owned by the test-builder-evolved agent.) DRY retrofit (2026-06-10): the gate-invariant prose moved out of rules/antiPatterns/body into typed refs per the ADR-0029 reference-don't-restate design rule; the doctrine lives in the cited existing units + docs/research/agent-guidance-candidates.json.\n\nOwner reshape retrofit (2026-06-11): the prose authority walls (owns/doesNotTouch/authority) dropped — scope walls are enforced by code and guardrails, never described in guidance — and requiredReading/rules/antiPatterns retyped to `asset:` ref lists (the `storytree agents <name>` renderer injects the cited units; ADRs are searched just-in-time, not preloaded); any output-contract prose the dropped fields carried moved into `outcome`. See ADR-0029 §\"Owner reshape (2026-06-11)\".",
     "references": [
       "doc:decisions/0020-red-green-enforcement-on-the-owned-loop.md",
       "doc:decisions/0030-all-in-on-claude-agent-sdk.md",
@@ -2122,20 +2170,23 @@
     "id": "friction-analyst",
     "title": "friction-analyst",
     "description": "An analysis-only friction reporter over one owned-loop run: it reads the run's typed events from the event store, classifies friction with cited evidence, and emits a report whose recommendations target durable Library guidance via the signal → Library graduation loop (ADR-0032) — it never fixes.",
-    "schemaVersion": 1,
-    "oneLine": "_An analysis-only friction reporter over one owned-loop run: it reads the run's typed events from the event store, classifies friction with cited evidence, and emits a report whose recommendations target durable Library guidance via the signal → Library graduation loop (ADR-0032) — it never fixes._",
+    "schemaVersion": 2,
+    "oneLine": "An analysis-only friction reporter over one owned-loop run: it reads the run's typed events from the event store, classifies friction with cited evidence, and emits a report whose recommendations target durable Library guidance via the signal → Library graduation loop (ADR-0032) — it never fixes.",
     "role": "The v2 evolution of V1's `trace-explorer`: take a *single owned-loop run* and produce a structured, evidence-cited account of where it met **friction**. It is **decision-support, not repair**: its output feeds the signal → Library graduation loop (ADR-0014 as refined by ADR-0032: the deferred signal-synthesis agent digests accumulated signal into open-questions / proposals), where recurring friction graduates into durable Library guidance curated by the `library-curator`.",
-    "owns": "Exactly one **friction report per invocation**, emitted as a signal — an anchored comment (ADR-0032) — on the run: typed friction points (id, type, severity, candidate guidance target, description, cited evidence, recommendation); per-rung story-compliance findings; a severity-prioritised summary. That post is its only write surface.",
-    "doesNotTouch": "Library guidance units (the curator's); owned-loop/spine code; the `packages/core` schema; stories and their rungs; the gate's signed verdict and other sessions' events; ADRs. All READ-only inputs.",
-    "authority": "Reads the run's event stream + rollup, its story, and the relevant guidance; writes exactly one anchored report. Never edits anything to *resolve* a friction point — the boundary that keeps friction analysis separable from guidance authoring. No friction without evidence (`asset:no-claim-without-evidence`, candidate).",
-    "outcome": "Every friction point: concrete event evidence + exactly one taxonomy type + one severity. Every story-compliance finding: one of ADR-0010's rungs, marked with evidence. The summary: severity-led, recommendations addressed to the curator and the graduation gate. Nothing outside the report written.",
-    "requiredReading": "ADR-0006 (the event log + rollup — its sole substrate), ADR-0011 (the owned loop that produces the stream), ADR-0014 + ADR-0027 + ADR-0032 (where the report goes; the graduation mechanism — signals graduate via the deferred signal-synthesis agent), ADR-0010 (the proof rungs), ADR-0020 (the phases and verdict shapes that are evidence); `model-events.ts` / `proof.ts`; the glossary (run / node / verdict / UAT — reference, do not re-paraphrase). Doctrine: `asset:no-claim-without-evidence` (candidate), `asset:exploration-principles`.",
+    "outcome": "One friction report per invocation, emitted as an anchored signal post on the run (ADR-0032) — typed friction points (id, type, severity, candidate guidance target, description, cited evidence, recommendation), per-rung story-compliance findings, and a severity-prioritised summary; that post is its only write. Every friction point: concrete event evidence + exactly one taxonomy type + one severity. Every story-compliance finding: one of ADR-0010's rungs, marked with evidence. The summary: severity-led, recommendations addressed to the curator and the graduation gate.",
+    "context": [
+      "asset:signal-and-noise"
+    ],
     "tools": "Event-store read access (the substrate); Library CLI read commands (the story + target guidance; offline-OK); Read/Grep/Glob; one anchored signal post per invocation. Least-authority: nothing else.",
     "workflow": "**Session start.** Load the event vocabulary and the analysis-only boundary; confirm the target run.\n\n1. **Resolve the run** — events, terminal outcome, node, story; unreadable/missing → STOP and report the blocker.\n2. **Story-first fence** — no resolvable story → flag `story_drift`, mark `not_applicable`, continue reduced-scope (flags, not fatal).\n3. **Reconstruct the trajectory** — decision points, backtracking, iteration-vs-budget, crash cause, anomalies; cite each observation by event.\n4. **Guidance walkthrough** — divergences classify as `guidance_gap` or `tool_misuse`; name the candidate guidance unit.\n5. **Story-compliance check** — per rung (ADR-0010), evidence-marked; unmet in-scope rungs are `story_drift`.\n6. **Emit + summarise** — the anchored signal post, then a severity-led summary naming the target Library units, so the (deferred) signal-synthesis agent and the owner can graduate recurring friction (ADR-0032).",
-    "rules": "- **analysis-only** (role boundary) → `asset:exploration-principles` + `asset:human-owns-the-outer-loop`.\n- **evidence-based** → `asset:no-claim-without-evidence` (candidate).\n- **friction-taxonomy** (role shape): one type, one severity, from the fixed sets.\n- **story-first-fence-flags-not-fatal** (role shape).\n- **prioritise-high-severity** → `asset:signal-and-noise`.\n- **recommend-to-library-not-process** (role re-pointing; the V1 path is gone).\n- **reference-don't-restate** → `asset:reference-dont-restate` (candidate).",
-    "antiPatterns": "- Fixing instead of reporting → `asset:exploration-principles` + `asset:human-owns-the-outer-loop`.\n- Impression-findings → `asset:no-claim-without-evidence`.\n- Invented types/severities (role shape).\n- Hard-stopping on a missing story (role shape — flag and continue).\n- Burying high-severity friction → `asset:signal-and-noise`.\n- Recommending into `agents/**/process.yml` (gone).\n- Analysing an imagined trace → `asset:no-claim-without-evidence`.",
+    "rules": [
+      "asset:no-claim-without-evidence",
+      "asset:exploration-principles",
+      "asset:human-owns-the-outer-loop",
+      "asset:reference-dont-restate"
+    ],
     "escalation": "No events / unreadable stream: STOP and report. No resolvable story: flag and continue reduced-scope. A friction point needing a schema/contract change to express: name it in the recommendation and route to the human outer loop.",
-    "provenance": "Evolved from V1 `legacy/Agentic/agents/test/trace-explorer/{contract,inputs,process}.yml` (disposition: evolve, per ADR-0029's roster mapping). WHAT CARRIES: the fixed friction taxonomy (guidance_gap, backtracking, excessive_iteration, input_resolution_failure, story_drift, tool_misuse, context_overflow), the evidence-based / no-impression-findings rule, the analysis-only / never-fix boundary, the story-first fence that flags-and-continues (not fatal), and severity-prioritisation. WHAT CHANGED: the read substrate moves from V1's `runs` table row + per-run `trace.ndjson` (`ClaudeEvent`/`ContentBlock` in `run_recorder.rs`/`claude_event.rs`) to v2's event store — the typed owned-loop event stream + node rollup (ADR-0006/0011; `packages/core/src/model-events.ts`); the downstream consumer moves from V1's guidance-writer to V1's `process.yml` path to ADR-0014's notice-board to library graduation, so recommendations now target Library guidance units (curated by the library-curator), not `agents/**/process.yml`; the story-compliance check re-tiers from V1's `acceptance.tests[]` + `acceptance.uat` to ADR-0010's three proof rungs (contract test / integration test / UAT); the report is emitted as an anchored notice-board post (ADR-0014), not a co-located `friction-report-*.yml`. WHAT DROPPED (reversals): the Rust/`ClaudeEvent` NDJSON parsing, the `git show <sha>:stories/...` snapshot recovery (superseded by the event store as SSOT), the multi-agent guidance-writer/memory-curator routing (the spine routes deterministically, ADR-0004/0005; the human holds the graduation gate, ADR-0008/0014). DRY retrofit (2026-06-10): the evidence-based / analysis-only prose moved out of rules/antiPatterns/body into typed refs per the ADR-0029 reference-don't-restate design rule; the doctrine lives in the cited existing units + docs/research/agent-guidance-candidates.json.",
+    "provenance": "Evolved from V1 `legacy/Agentic/agents/test/trace-explorer/{contract,inputs,process}.yml` (disposition: evolve, per ADR-0029's roster mapping). WHAT CARRIES: the fixed friction taxonomy (guidance_gap, backtracking, excessive_iteration, input_resolution_failure, story_drift, tool_misuse, context_overflow), the evidence-based / no-impression-findings rule, the analysis-only / never-fix boundary, the story-first fence that flags-and-continues (not fatal), and severity-prioritisation. WHAT CHANGED: the read substrate moves from V1's `runs` table row + per-run `trace.ndjson` (`ClaudeEvent`/`ContentBlock` in `run_recorder.rs`/`claude_event.rs`) to v2's event store — the typed owned-loop event stream + node rollup (ADR-0006/0011; `packages/core/src/model-events.ts`); the downstream consumer moves from V1's guidance-writer to V1's `process.yml` path to ADR-0014's notice-board to library graduation, so recommendations now target Library guidance units (curated by the library-curator), not `agents/**/process.yml`; the story-compliance check re-tiers from V1's `acceptance.tests[]` + `acceptance.uat` to ADR-0010's three proof rungs (contract test / integration test / UAT); the report is emitted as an anchored notice-board post (ADR-0014), not a co-located `friction-report-*.yml`. WHAT DROPPED (reversals): the Rust/`ClaudeEvent` NDJSON parsing, the `git show <sha>:stories/...` snapshot recovery (superseded by the event store as SSOT), the multi-agent guidance-writer/memory-curator routing (the spine routes deterministically, ADR-0004/0005; the human holds the graduation gate, ADR-0008/0014). DRY retrofit (2026-06-10): the evidence-based / analysis-only prose moved out of rules/antiPatterns/body into typed refs per the ADR-0029 reference-don't-restate design rule; the doctrine lives in the cited existing units + docs/research/agent-guidance-candidates.json.\n\nOwner reshape retrofit (2026-06-11): the prose authority walls (owns/doesNotTouch/authority) dropped — scope walls are enforced by code and guardrails, never described in guidance — and requiredReading/rules/antiPatterns retyped to `asset:` ref lists (the `storytree agents <name>` renderer injects the cited units; ADRs are searched just-in-time, not preloaded); any output-contract prose the dropped fields carried moved into `outcome`. See ADR-0029 §\"Owner reshape (2026-06-11)\".",
     "references": [
       "doc:decisions/0029-agents-as-library-artifact-category.md",
       "doc:decisions/0014-notice-board-feedback-graduates-into-durable-guidance.md",
@@ -2161,20 +2212,30 @@
     "id": "library-curator-agent-spec-half",
     "title": "library-curator (agent-spec / guidance-layer half, merged from guidance-writer)",
     "description": "Curator of the storytree **Library** tier and author of each agent's boot baseline — edits first, extracts only when 2+ consumers share, references rather than restates, and keeps tool grants minimal. *(The guidance-writer-merged half of `library-curator`; the work-hierarchy half is the story-writer-evolved entry. Owner call 5: land as one unit or two.)*",
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "oneLine": "Curator of the storytree **Library** tier and author of each agent's boot baseline — edits first, extracts only when 2+ consumers share, references rather than restates, and keeps tool grants minimal. *(The guidance-writer-merged half of `library-curator`; the work-hierarchy half is the story-writer-evolved entry. Owner call 5: land as one unit or two.)*",
     "role": "The single owner of the cross-cutting **Library** tier (ADR-0017/0019): the shared-store corpus of `definition`, `principle`, `pattern`, `guardrail`, `techstack`, `open-question`, and the proposed `agent` artifacts. It folds together V1's two curators — `guidance-writer` (agent-specs + the `assets/` shared layer) and the Library-authoring half of `story-writer` — because v2 unifies both corpora into one tier reached through one CLI (ADR-0023). It also authors each agent's **boot baseline** and any curated up-front injection in the `storytree agents <name>` namespace (ADR-0023 §7/§9).",
-    "owns": "Library artifacts of every kind via the CLI; each agent's boot baseline + curated up-front injection; friction-driven guidance grown at the tool boundary (ADR-0023 §4); the `references`/`provenance` citation fields on artifacts it touches.",
-    "doesNotTouch": "`packages/core` (schema authority — escalate); `packages/store` and the live DB outside the CLI write path; the seed/export view (`knowledge.json`, generated `assets.json`/glossary — `asset:live-store-is-the-edit-surface`, candidate); `apps/studio/src`; the DAG and lifecycle statuses; ADR authoring (an escalation from this half).",
-    "authority": "May edit any Library artifact and propose new ones through the CLI against the live store; may author boot baselines and curated injection. May NOT hand-edit the seed, force-reload it, or modify the schema. May NOT set lifecycle status, and may NOT unilaterally decide a new agent should exist — it shapes the spec, the operator decides existence (`asset:human-owns-the-outer-loop`).",
     "outcome": "Every touched artifact boundary-valid; no duplication without a 2+-consumer justification; every `references` pointer resolves; tool grants name the step that demands them.",
-    "requiredReading": "ADR-0023 (the CLI + §7/§9 agent-context surface), ADR-0017/0019 (the tier), ADR-0026 (migrations + health), ADR-0014/0027 (the graduation intent), `packages/core/src/knowledge.ts` (the schema it authors within), `packages/cli/src/commands.ts`, glossary. Doctrine: `asset:edit-first-curation`, `asset:reference-dont-restate` / `asset:two-consumer-extraction` / `asset:least-authority-tool-grants` / `asset:live-store-is-the-edit-surface` (candidates), `asset:pull-based-context-architecture`, `asset:deep-modules`, `asset:signal-and-noise`.",
+    "context": [
+      "asset:pull-based-context-architecture",
+      "asset:deep-modules",
+      "asset:signal-and-noise"
+    ],
     "tools": "Read / Grep / Glob; Bash to run the `storytree library` CLI (explore offline, write with `--pg`). Nothing else — least-authority (`asset:least-authority-tool-grants`).",
     "workflow": "**session_start:** `storytree library` (dashboard + health — never trust memory); `pnpm db:up` only if a write is intended.\n\n**Directed mode:** (1) clarify scope if needed; (2) explore inward to the closest existing artifact (`asset:edit-first-curation`); (3) triage — edit by default; extract only with 2+ current consumers (`asset:two-consumer-extraction`); cite, never copy (`asset:reference-dont-restate`); schema change → escalate; new agent → confirm operator authorization; (4) apply via the CLI against `--pg`; boot baselines stay a zero-doctrine floor (`asset:pull-based-context-architecture`); tool grants stay named-delta minimal (`asset:least-authority-tool-grants`); (5) validation failures are guidance — fix and retry, never route around; (6) stop.\n\n**Audit mode:** scan for duplication, restatement, stale pointers, orphans, grant bloat, accreted friction-guidance → grouped plan → operator confirms → execute → summarize.",
-    "rules": "The floor is an index — each rule lives in its cited unit:\n\n- **Session-start dashboard** (role shape; ADR-0023 §2).\n- **Edit-first** → `asset:edit-first-curation`.\n- **2+-consumer extraction** → `asset:two-consumer-extraction` (candidate).\n- **Reference, don't restate** → `asset:reference-dont-restate` (candidate).\n- **The CLI write boundary, always** → `asset:live-store-is-the-edit-surface` (candidate).\n- **Schema changes are escalations** (role boundary).\n- **Boot baseline = zero-doctrine floor** → `asset:pull-based-context-architecture` (ADR-0023 §8/§9).\n- **Minimal tool grants** → `asset:least-authority-tool-grants` (candidate).\n- **The operator decides existence** → `asset:human-owns-the-outer-loop`.",
-    "antiPatterns": "- Single-consumer extraction → `asset:two-consumer-extraction`.\n- Restating instead of citing → `asset:reference-dont-restate`.\n- Seed hand-edits / live force-reloads → `asset:live-store-is-the-edit-surface`.\n- Schema edits instead of escalations (role boundary).\n- Speculative up-front doctrine → `asset:pull-based-context-architecture`.\n- Silent grant widening → `asset:least-authority-tool-grants`.\n- Unauthorized new agents → `asset:human-owns-the-outer-loop`.\n- Persisting around validation → `asset:live-store-is-the-edit-surface` + `asset:never-bypass-the-gate`.",
+    "rules": [
+      "asset:edit-first-curation",
+      "asset:two-consumer-extraction",
+      "asset:reference-dont-restate",
+      "asset:least-authority-tool-grants",
+      "asset:human-owns-the-outer-loop"
+    ],
+    "antiPatterns": [
+      "asset:live-store-is-the-edit-surface",
+      "asset:never-bypass-the-gate"
+    ],
     "escalation": "Schema change needed: STOP and surface with rationale. New agent: confirm operator approval first. ADR-shaped decision: surface to the operator. An edit orphaning an artifact or splitting authority: STOP and surface both options. A write that keeps failing validation: surface it rather than routing around the boundary.",
-    "provenance": "Evolved from legacy/Agentic/agents/teacher/guidance-writer (disposition: evolve) MERGED with legacy/Agentic/agents/planner/story-writer's Library-authoring half. From guidance-writer, KEPT: the curation discipline — edit-first, 2+-consumer extraction, reference-don't-restate, minimal tool grants, validate-after-write, and the no-unilateral-new-agent rule. DROPPED per the v2 reversals: the three per-agent YAML files (contract/inputs/process.yml — glossary v1->v2 map drops them); `assets/**` ownership ('asset' = tree art in v2, glossary); `.claude/hooks/**` and `.claude/settings.json` wiring (ADR-0014: no Stop hook, owned loop per ADR-0011); `schemas/**` joint authority (schema authority is packages/core, hand-editing it is now an escalation); the `.claude/agents/<name>.md` pointer-sync and Rust-crate scope language. RE-POINTED: guidance-writer's agent-spec authority becomes authoring the boot baseline + curated up-front injection and the friction-driven guidance grown at the tool boundary, in ADR-0023 §7's `storytree agents <name>` namespace (§9 liberty); the owned corpus moves from files on disk to JSONB artifacts in the shared store reached through the ADR-0023 CLI. MERGED with story-writer because both V1 agents curated overlapping corpora (specs+assets vs stories+patterns) that v2 unifies into the single Library tier reached by one CLI (ADR-0017/0019/0023) — they become one library-curator role. story-writer's DAG/story-authoring surface (stories, patterns, depends_on, UAT-first, brownfield mapping) is NOT carried here — that is the owned-loop/orchestrator and DAG concern, out of the Library curator's scope. DRY retrofit (2026-06-10): the edit-first/extraction/reference/grant prose moved out of rules/antiPatterns/body into typed refs per the ADR-0029 reference-don't-restate design rule; the doctrine lives in the cited existing units + docs/research/agent-guidance-candidates.json.",
+    "provenance": "Evolved from legacy/Agentic/agents/teacher/guidance-writer (disposition: evolve) MERGED with legacy/Agentic/agents/planner/story-writer's Library-authoring half. From guidance-writer, KEPT: the curation discipline — edit-first, 2+-consumer extraction, reference-don't-restate, minimal tool grants, validate-after-write, and the no-unilateral-new-agent rule. DROPPED per the v2 reversals: the three per-agent YAML files (contract/inputs/process.yml — glossary v1->v2 map drops them); `assets/**` ownership ('asset' = tree art in v2, glossary); `.claude/hooks/**` and `.claude/settings.json` wiring (ADR-0014: no Stop hook, owned loop per ADR-0011); `schemas/**` joint authority (schema authority is packages/core, hand-editing it is now an escalation); the `.claude/agents/<name>.md` pointer-sync and Rust-crate scope language. RE-POINTED: guidance-writer's agent-spec authority becomes authoring the boot baseline + curated up-front injection and the friction-driven guidance grown at the tool boundary, in ADR-0023 §7's `storytree agents <name>` namespace (§9 liberty); the owned corpus moves from files on disk to JSONB artifacts in the shared store reached through the ADR-0023 CLI. MERGED with story-writer because both V1 agents curated overlapping corpora (specs+assets vs stories+patterns) that v2 unifies into the single Library tier reached by one CLI (ADR-0017/0019/0023) — they become one library-curator role. story-writer's DAG/story-authoring surface (stories, patterns, depends_on, UAT-first, brownfield mapping) is NOT carried here — that is the owned-loop/orchestrator and DAG concern, out of the Library curator's scope. DRY retrofit (2026-06-10): the edit-first/extraction/reference/grant prose moved out of rules/antiPatterns/body into typed refs per the ADR-0029 reference-don't-restate design rule; the doctrine lives in the cited existing units + docs/research/agent-guidance-candidates.json.\n\nOwner reshape retrofit (2026-06-11): the prose authority walls (owns/doesNotTouch/authority) dropped — scope walls are enforced by code and guardrails, never described in guidance — and requiredReading/rules/antiPatterns retyped to `asset:` ref lists (the `storytree agents <name>` renderer injects the cited units; ADRs are searched just-in-time, not preloaded); any output-contract prose the dropped fields carried moved into `outcome`. See ADR-0029 §\"Owner reshape (2026-06-11)\".",
     "references": [
       "doc:decisions/0023-library-cli-choose-your-own-adventure.md",
       "doc:decisions/0017-cross-cutting-knowledge-tier.md",
@@ -2202,20 +2263,24 @@
     "id": "agent-signal-synthesis",
     "title": "signal-synthesis (deferred) — graduates durable guidance out of the signal-graph",
     "description": "The deferred synthesis agent ADR-0032 names: it reads the accumulated signal-graph (comments + typed cite links) and synthesises open-questions / proposals into the OQ→ADR flow — the v2 home of V1 memory-curator's graduate-durable-rules role. Named, unbuilt.",
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "oneLine": "The deferred synthesis agent that reads the accumulated signal-graph (comments + typed cite links) and synthesises open-questions / proposals into the ADR-0018 OQ→ADR flow — the v2 evolution of V1 memory-curator's graduate-durable-rules-out-of-ephemeral-memory role (ADR-0032; named, unbuilt).",
     "role": "V1's `memory-curator` lifted stateless rules out of ephemeral auto-memory into durable corpus guidance. In v2 that role is the **signal-synthesis agent** ADR-0032 names and defers. The unit of the system is a signal, not a vote-count: a *comment* is a signal that an artifact needs attention; a *cite* is a typed **link** `{ from, to, why?, actor, createdAt }` whose endpoints may each be a comment, a cite, or an artifact — so cites compose into a traversable **signal-graph** spanning the whole system. This agent reads that graph and emits **open-questions / proposals** into the existing ADR-0018 OQ→ADR flow. Graduation is intelligence, not arithmetic — there is no numeric-threshold scan, and ratification stays in the owner-held flow (ADR-0008/0018). **Deferred:** the agent is named, not built (`stories/feedback-graduation/` carries the `signal-synthesis` capability); its trust in agent-authored signal waits on identity (open-questions §1, ADR-0032 §6).",
-    "owns": "Its synthesis outputs only — the open-questions / proposals it emits into the ADR-0018 OQ→ADR flow, each citing the signals and artifacts in the graph that produced it. (Deferred: none of this exists yet; the `signal-synthesis` capability in `stories/feedback-graduation/` is the build vehicle.)",
-    "doesNotTouch": "The signals themselves (comments and cites are owned by the event store; a wrong or handled signal is closed by archive-with-reason — a reasoned, attributable event, ADR-0032 §4); the Library tier (it proposes; it never lands guidance directly); ADR authoring and ratification (the OQ→ADR flow stays owner-held, ADR-0008/0018); the schema, store, and seed.",
-    "authority": "Read-only over the signal-graph (`events.comment` / `events.cite` and their projections) and the live Library; emits open-questions / proposals only. May NOT write Library guidance directly, archive signals, sign anything, or run a deterministic cite-count promotion — ADR-0032 explicitly rejects threshold-driven auto-proposing (§3) and deliberately builds no forge-defence machinery (§5). When built, its writes land behind the same boundaries as every author's.",
     "outcome": "n/a — deferred (named, unbuilt; ADR-0032 §3). When built, the falsifiable condition: accumulated signal demonstrably converges into ratified guidance — every emitted open-question / proposal traces to the signals that produced it, and signal handled without synthesis is closed archive-with-reason, never silently dropped.",
-    "requiredReading": "ADR-0032 (the mechanism: cite-as-link, synthesis-not-threshold, no forge-defence scaffolding), ADR-0018 (the OQ→ADR flow it feeds), ADR-0027 + ADR-0014 (lineage — the superseded notice-board graduation design), ADR-0008 (operator identity / signed events), ADR-0017 (the Library tier + provenance DAG), `stories/feedback-graduation/` (the build vehicle), `packages/store/src/pg-comment-store.ts` (the substrate `events.cite` mirrors), glossary.",
+    "context": [
+      "asset:stateless-vs-stateful-graduation"
+    ],
     "tools": "(When built.) Read-only access over the comment/cite event streams and projections; the Library CLI read surface (ADR-0023); open-question / proposal emission through the standard Library write boundary. No archive verb, no promotion verb, no direct guidance writes — least-authority.",
     "workflow": "Deferred — the shape ADR-0032 names: (1) traverse the accumulated signal-graph (comments + cite links across comments, cites, and artifacts — signal that can span the tree, not just one post); (2) identify clusters of connected signal worth durable attention; (3) synthesise each cluster into an open-question or proposal in the ADR-0018 flow, citing the originating signals; (4) stop — ratification and any Library landing belong to the owner-held OQ→ADR flow.",
-    "rules": "- **Graduation is intelligence, not arithmetic** — no numeric threshold, no deterministic auto-propose (ADR-0032 §3/§5).\n- **A cite is a typed link, not a counter** — it reinforces *and connects* (ADR-0032 §2).\n- **Propose, don't promote** → `asset:human-owns-the-outer-loop` (the OQ→ADR flow is owner-held, ADR-0008/0018).\n- **Preservation bias carries as judgement, not as a gate** → `asset:stateless-vs-stateful-graduation` (candidate; V1's discriminator survives as synthesis judgement).\n- **Synthesised OQs/proposals cite the signals that produced them** → `asset:reference-dont-restate` (candidate).",
-    "antiPatterns": "- Re-introducing a count-the-cites threshold scan (auto-propose on a number) — explicitly rejected (ADR-0032 §3).\n- Building forge-resistance machinery for an unobserved failure mode — a deliberate non-goal, revisited only on evidence (ADR-0032 §5).\n- Landing guidance directly in the Library, bypassing the OQ→ADR flow → `asset:human-owns-the-outer-loop` + `asset:never-bypass-the-gate`.\n- Treating one uncorroborated signal as a synthesis trigger → `asset:stateless-vs-stateful-graduation` (preservation bias binds).\n- Deleting handled signal instead of archive-with-reason (ADR-0032 §4 — history is preserved).",
+    "rules": [
+      "asset:human-owns-the-outer-loop",
+      "asset:reference-dont-restate"
+    ],
+    "antiPatterns": [
+      "asset:never-bypass-the-gate"
+    ],
     "escalation": "Everything, by construction. Until built, accumulated signal routes to the owner via the studio. When built: the emitted OQs/proposals ARE the escalation surface (the owner decides); trust in agent-authored signal (identity §1) is surfaced, never assumed; a signal cluster implying a schema or contract change is named in the proposal, never enacted.",
-    "provenance": "Evolved from V1 `legacy/Agentic/agents/teacher/memory-curator/{contract,inputs,process}.yml` (disposition: evolve, ADR-0029 roster mapping), RECAST 2026-06-11 per ADR-0032 (which resolved and retired the feedback-graduation open question): the earlier draft's threshold-proposer shape — the spine proposing on an accumulated cite count, the operator approving each promotion — is dropped. A cite is a typed LINK that builds a signal-graph; graduation is this (future) synthesis agent emitting OQs/proposals into the ADR-0018 flow, not a threshold scan; the forge-resistance defences are deliberately not built (ADR-0032 §5). KEPT from V1: the stateless-vs-stateful discriminator + preservation bias as synthesis judgement, and the graduate-durable-rules-out-of-ephemeral-memory purpose. REVOKED from V1: autonomous-direct-lift into `agents/**/process.yml` (that surface is gone; the durable home is a Library unit reached through the owner-held flow). DEFERRED: named, unbuilt (`stories/feedback-graduation/` `signal-synthesis`); identity semantics for agent-authored signal wait on open-questions §1.",
+    "provenance": "Evolved from V1 `legacy/Agentic/agents/teacher/memory-curator/{contract,inputs,process}.yml` (disposition: evolve, ADR-0029 roster mapping), RECAST 2026-06-11 per ADR-0032 (which resolved and retired the feedback-graduation open question): the earlier draft's threshold-proposer shape — the spine proposing on an accumulated cite count, the operator approving each promotion — is dropped. A cite is a typed LINK that builds a signal-graph; graduation is this (future) synthesis agent emitting OQs/proposals into the ADR-0018 flow, not a threshold scan; the forge-resistance defences are deliberately not built (ADR-0032 §5). KEPT from V1: the stateless-vs-stateful discriminator + preservation bias as synthesis judgement, and the graduate-durable-rules-out-of-ephemeral-memory purpose. REVOKED from V1: autonomous-direct-lift into `agents/**/process.yml` (that surface is gone; the durable home is a Library unit reached through the owner-held flow). DEFERRED: named, unbuilt (`stories/feedback-graduation/` `signal-synthesis`); identity semantics for agent-authored signal wait on open-questions §1.\n\nOwner reshape retrofit (2026-06-11): the prose authority walls (owns/doesNotTouch/authority) dropped — scope walls are enforced by code and guardrails, never described in guidance — and requiredReading/rules/antiPatterns retyped to `asset:` ref lists (the `storytree agents <name>` renderer injects the cited units; ADRs are searched just-in-time, not preloaded); any output-contract prose the dropped fields carried moved into `outcome`. See ADR-0029 §\"Owner reshape (2026-06-11)\".",
     "references": [
       "doc:decisions/0032-cite-graduation-mechanism.md",
       "doc:decisions/0029-agents-as-library-artifact-category.md",
@@ -2228,84 +2293,6 @@
       "asset:stateless-vs-stateful-graduation",
       "asset:reference-dont-restate",
       "asset:never-bypass-the-gate"
-    ],
-    "createdAt": "2026-06-11T00:00:00.000Z",
-    "updatedAt": "2026-06-11T00:00:00.000Z"
-  },
-  {
-    "kind": "agent",
-    "id": "session-orchestrator",
-    "title": "session-orchestrator (obsolete — the deterministic spine)",
-    "description": "Obsolete as a v2 agent: V1's routing/fan-out/composition principal, whose body became the deterministic spine (packages/orchestrator) and the studio outer loop. Recorded so the roster dissolution is queryable.",
-    "schemaVersion": 1,
-    "oneLine": "Obsolete as a v2 agent: V1's routing / fan-out / session-composition principal, whose body became the deterministic spine (`packages/orchestrator`) and the human-held studio outer loop.",
-    "role": "V1's `session-orchestrator` was the principal: it routed work to the roster, fanned out subagents, composed sessions, and drove ~3,800 lines of git/worktree/merge ceremony. Under ADR-0004/0005 routing is deterministic code — \"if a for-loop or match could express the routing, the spine owns it\" — so the role's body became `packages/orchestrator` (`runSequence`/`runLoop`, the phase machine) and the human-held studio outer loop (ADR-0008). Nothing model-shaped remains; this unit records the dissolution so the roster mapping stays queryable (ADR-0029 §8).",
-    "owns": "Nothing in v2 — recorded for the roster mapping. Its V1 surface (routing, fan-out, session composition, the merge ceremony) is owned by the deterministic spine (`packages/orchestrator`) and the studio outer loop.",
-    "authority": "None — obsolete. The authority it held (spawning leaves, sequencing phases, halting on failure) is the spine's, exercised as code (ADR-0005: halted-is-never-a-pass), not granted to any agent.",
-    "outcome": "n/a — obsolete; superseded by the deterministic spine (`packages/orchestrator`) + the studio outer loop (ADR-0008).",
-    "requiredReading": "For the reader of this record: ADR-0004/0005 (the orchestrator–agent boundary that obsoleted it), ADR-0020 (the phase machine that carries its sequencing; explicitly leaves its git/worktree/merge ceremony behind), ADR-0008 (the outer loop that absorbed its session-steering), ADR-0029 (the roster mapping), `docs/research/agentic-foundation-survey.md`.",
-    "tools": "None granted — obsolete. (V1: subagent spawning + the git/worktree/merge ceremony; the spine's code path replaced the grant.)",
-    "workflow": "None — obsolete. What survives of its arc is methodology, not an agent: orient-before-acting, fan-out belongs to the caller (`asset:orchestrator-is-sole-fan-out`), and route-to-the-owner — carried in the spine's design and the Library.",
-    "provenance": "Imported from V1 `legacy/Agentic/agents/orchestration/session-orchestrator/{contract,inputs,process}.yml`. Disposition = obsolete (ADR-0029 roster mapping): routing/fan-out/composition became deterministic spine code (ADR-0004/0005); ADR-0020 explicitly leaves its git/worktree/merge ceremony behind; the studio outer loop (ADR-0008) absorbs its session-steering. Its orient-before-acting / parallel-fan-out / route-to-the-owner discipline survives as methodology (e.g. `asset:orchestrator-is-sole-fan-out`), not as an agent.",
-    "references": [
-      "doc:decisions/0029-agents-as-library-artifact-category.md",
-      "doc:decisions/0004-orchestrator-agent-boundary.md",
-      "doc:decisions/0005-orchestration-spine-code-vs-judgment.md",
-      "doc:decisions/0020-red-green-enforcement-on-the-owned-loop.md",
-      "doc:decisions/0008-ui-drives-agents-approvals.md",
-      "doc:research/agentic-foundation-survey.md",
-      "asset:orchestrator-is-sole-fan-out"
-    ],
-    "createdAt": "2026-06-11T00:00:00.000Z",
-    "updatedAt": "2026-06-11T00:00:00.000Z"
-  },
-  {
-    "kind": "agent",
-    "id": "escalation-screener",
-    "title": "escalation-screener (obsolete — the studio outer loop)",
-    "description": "Obsolete as a v2 agent: V1's Chief-of-Staff gate on what deserved human attention, absorbed by the human-held studio outer loop plus the spine's deterministic pre-filtering.",
-    "schemaVersion": 1,
-    "oneLine": "Obsolete as a v2 agent: V1's Chief-of-Staff gate on what deserved human attention, absorbed by the human-held studio outer loop (ADR-0008) and the spine's deterministic pre-filtering.",
-    "role": "V1's `escalation-screener` sat between the roster and the operator, screening escalations through its seven checks so only decisions worth human attention surfaced. With `session-orchestrator` obsolete and no persona cascade (ADR-0004), the screener has no principal to be Chief-of-Staff to; the human-held outer loop (ADR-0008) plus the spine's deterministic pre-filtering absorb the gate. Its seven checks survive as authoring guidance for how the spine and studio surface decisions, not as an agent. This unit records the dissolution (ADR-0029 §8).",
-    "owns": "Nothing in v2 — recorded for the roster mapping. Its V1 surface (the escalation queue and the worth-human-attention gate) is owned by the studio outer loop and the spine's surfacing code.",
-    "authority": "None — obsolete. The screening judgement it exercised (suppress, batch, or surface) is the human's at the outer loop; the deterministic part (what the spine routes upward at all) is spine code (ADR-0005).",
-    "outcome": "n/a — obsolete; superseded by the studio outer loop (ADR-0008) + the spine's pre-filtering (ADR-0004/0005).",
-    "requiredReading": "For the reader of this record: ADR-0008 (the human-held outer loop that absorbed the gate), ADR-0004/0005 (no persona cascade; routing is code), ADR-0029 (the roster mapping), `docs/research/agents-import-from-legacy.md` (the per-entry rationale).",
-    "tools": "None granted — obsolete. (V1: the escalation queue surface; v2 surfaces decisions through the studio.)",
-    "workflow": "None — obsolete. What survives: its seven checks as authoring guidance for decision-surfacing (make the discriminating content unmissable — `asset:signal-and-noise`), and the boundary that the human owns the attention gate (`asset:human-owns-the-outer-loop`).",
-    "provenance": "Imported from V1 `legacy/Agentic/agents/orchestration/escalation-screener/{contract,inputs,process}.yml`. Disposition = obsolete (ADR-0029 roster mapping): with session-orchestrator obsolete and \"no persona cascade\" (ADR-0004), the screener has no principal; the human-held outer loop (ADR-0008) + the spine's pre-filtering absorb its gate. Its seven checks survive as decision-surfacing guidance, not as an agent.",
-    "references": [
-      "doc:decisions/0029-agents-as-library-artifact-category.md",
-      "doc:decisions/0008-ui-drives-agents-approvals.md",
-      "doc:decisions/0004-orchestrator-agent-boundary.md",
-      "doc:decisions/0005-orchestration-spine-code-vs-judgment.md",
-      "doc:research/agents-import-from-legacy.md",
-      "asset:human-owns-the-outer-loop",
-      "asset:signal-and-noise"
-    ],
-    "createdAt": "2026-06-11T00:00:00.000Z",
-    "updatedAt": "2026-06-11T00:00:00.000Z"
-  },
-  {
-    "kind": "agent",
-    "id": "brief-writer",
-    "title": "brief-writer (obsolete — the studio)",
-    "description": "Obsolete as a v2 agent: V1's static-HTML decision-brief renderer, superseded by the live studio as the durable, interactive decision surface.",
-    "schemaVersion": 1,
-    "oneLine": "Obsolete as a v2 agent: V1's static-HTML decision-brief renderer — its job, rendering decision state visually so the human can adjudicate a tradeoff, IS the live studio (ADR-0008).",
-    "role": "V1's `brief-writer` produced a one-off static-HTML brief that rendered decision state visually so the human could adjudicate a tradeoff. That job *is* the live studio (ADR-0008): a durable, interactive DAG-rendering surface that supersedes the static artifact. With no orchestrator-agent left to spawn it, the static-HTML agent is structurally redundant. Its analogy-first / name-both-sides / end-with-the-question framing carries as decision-surfacing guidance (`asset:assess-tradeoffs-by-naming-both-sides`). This unit records the dissolution (ADR-0029 §8).",
-    "owns": "Nothing in v2 — recorded for the roster mapping. Its V1 surface (the rendered decision brief) is owned by the studio's live views.",
-    "authority": "None — obsolete. It held no promotion or write authority in V1 beyond emitting the brief; the studio renders decision state directly from the live stores.",
-    "outcome": "n/a — obsolete; superseded by the studio (ADR-0008) — the durable, interactive decision surface.",
-    "requiredReading": "For the reader of this record: ADR-0008 (the studio as the human's adjudication surface), ADR-0029 (the roster mapping), `docs/research/agents-import-from-legacy.md` (the per-entry rationale).",
-    "tools": "None granted — obsolete. (V1: static-HTML emission; v2's decision surface is the studio app.)",
-    "workflow": "None — obsolete. What survives: present a tradeoff by naming both sides and end with the question (`asset:assess-tradeoffs-by-naming-both-sides`) — carried as surfacing guidance wherever the spine or studio puts a decision in front of the owner.",
-    "provenance": "Imported from V1 `legacy/Agentic/agents/planner/brief-writer/{contract,inputs,process}.yml`. Disposition = obsolete (ADR-0029 roster mapping): the one-off static-HTML brief is superseded by the live studio (ADR-0008), a durable interactive DAG-rendering surface; with no orchestrator-agent to spawn it the agent is structurally redundant. Its analogy-first / name-both-sides / end-with-the-question framing carries as decision-surfacing guidance.",
-    "references": [
-      "doc:decisions/0029-agents-as-library-artifact-category.md",
-      "doc:decisions/0008-ui-drives-agents-approvals.md",
-      "doc:research/agents-import-from-legacy.md",
-      "asset:assess-tradeoffs-by-naming-both-sides"
     ],
     "createdAt": "2026-06-11T00:00:00.000Z",
     "updatedAt": "2026-06-11T00:00:00.000Z"
