@@ -1,5 +1,11 @@
 import type { StoredDoc } from "@storytree/core";
-import { KIND_SPECS, renderBody, type Knowledge, type KnowledgeKind } from "@storytree/core";
+import {
+  CURRENT_SCHEMA_VERSION,
+  KIND_SPECS,
+  renderBody,
+  type Knowledge,
+  type KnowledgeKind,
+} from "@storytree/core";
 
 /**
  * The READ + WRITE adapter pair between the runtime store's {@link StoredDoc} and the GuidanceAsset
@@ -14,6 +20,10 @@ import { KIND_SPECS, renderBody, type Knowledge, type KnowledgeKind } from "@sto
  *    is DERIVED via {@link renderBody}, its `category` is the stored `kind`, AND its per-kind
  *    structured `fields` (oneLine / whatItIs / options / …) ride along on the wire so the studio
  *    editor can edit them directly.
+ *  - EXCEPT when this code cannot faithfully parse the structured doc (a kind with no KIND_SPECS
+ *    entry, or a `schemaVersion` newer than the code's CURRENT_SCHEMA_VERSION — a long-running
+ *    server older than the data): the doc DEGRADES to a raw-field fallback body flagged via
+ *    `degraded`, never a throw — one unrenderable doc must not 500 the whole listing.
  *
  * WRITE ({@link buildLibraryDoc}): the inverse — option C of oq-library-doc-shape. A structured-kind
  * write that carries `fields` persists a STRUCTURED Knowledge doc (no rendered `body`), so editing a
@@ -39,6 +49,13 @@ export interface RenderedAsset {
    * studio editor edits these directly (option C); `body` is the DERIVED render of them.
    */
   fields?: Record<string, string>;
+  /**
+   * Present when the stored doc could NOT be faithfully rendered — its kind is unknown to this
+   * code, or its `schemaVersion` is newer than {@link CURRENT_SCHEMA_VERSION} (a long-running
+   * server older than the data). `body` is then a raw-field fallback view carrying the reason
+   * and the remedy, and `fields` is omitted so the editor never re-shapes a doc it can't parse.
+   */
+  degraded?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -74,6 +91,66 @@ function hasStringBody(doc: unknown): doc is AssetDocLike & { body: string } {
 /** True when `category` is one of the structured Knowledge kinds (a KIND_SPECS key). */
 export function isStructuredKind(category: string): category is KnowledgeKind {
   return Object.hasOwn(KIND_SPECS, category);
+}
+
+/** Common envelope/metadata keys — everything else on a doc is a per-kind content field. */
+const ENVELOPE_FIELDS = new Set([
+  "id",
+  "kind",
+  "category",
+  "title",
+  "description",
+  "references",
+  "provenance",
+  "schemaVersion",
+  "glossarySection",
+  "glossaryTerm",
+  "glossaryBody",
+  "createdAt",
+  "updatedAt",
+]);
+
+/**
+ * The fallback body for a doc this code cannot faithfully render (unknown kind, or a
+ * `schemaVersion` newer than {@link CURRENT_SCHEMA_VERSION}): a leading diagnosis-plus-remedy
+ * note, then every non-envelope field rendered raw (`## field` + the value; a string array as
+ * bullets; anything else as fenced JSON). No KIND_SPECS involved, so it can never throw on
+ * shapes the schema doesn't know yet — the listing degrades instead of 500ing (the
+ * studio-version-skew incident, 2026-06-11).
+ */
+function renderDegradedBody(doc: Record<string, unknown>, reason: string): string {
+  const blocks: string[] = [
+    `> ⚠️ ${reason}. This server's code is older than the stored doc — showing the raw stored ` +
+      `fields. Update the checkout and restart the studio (\`git pull\`, then ` +
+      `\`pnpm studio:down\` / \`pnpm studio:up\`).`,
+  ];
+  for (const [key, value] of Object.entries(doc)) {
+    if (ENVELOPE_FIELDS.has(key) || value == null) continue;
+    if (typeof value === "string") {
+      blocks.push(`## ${key}\n\n${value}`);
+    } else if (Array.isArray(value) && value.every((v) => typeof v === "string")) {
+      if (value.length > 0) blocks.push(`## ${key}\n\n${value.map((v) => `- ${v}`).join("\n")}`);
+    } else {
+      blocks.push(`## ${key}\n\n\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\``);
+    }
+  }
+  return blocks.join("\n\n");
+}
+
+/**
+ * The reason a structured doc cannot be faithfully rendered by THIS code, or `null` when it can:
+ * its kind has no KIND_SPECS entry, or its per-row `schemaVersion` pin is newer than the code's
+ * {@link CURRENT_SCHEMA_VERSION} (renderBody would silently drop fields it doesn't know).
+ */
+function degradeReason(doc: Record<string, unknown>, kind: string): string | null {
+  if (!isStructuredKind(kind)) {
+    return `This unit's kind "${kind}" is unknown to this server's schema`;
+  }
+  const version = typeof doc["schemaVersion"] === "number" ? doc["schemaVersion"] : 0;
+  if (version > CURRENT_SCHEMA_VERSION) {
+    return `This unit's schemaVersion ${version} is newer than this server's schema (version ${CURRENT_SCHEMA_VERSION})`;
+  }
+  return null;
 }
 
 /**
@@ -112,6 +189,29 @@ export function renderStoredDoc(stored: StoredDoc): RenderedAsset {
       ...(typeof doc.provenance === "string" && doc.provenance
         ? { provenance: doc.provenance }
         : {}),
+      createdAt: stored.createdAt,
+      updatedAt: stored.updatedAt,
+    };
+  }
+
+  // A doc this code can't faithfully parse (unknown kind / newer schemaVersion) degrades to a
+  // raw-field view + a `degraded` flag instead of throwing the WHOLE listing (the stale-server
+  // failure mode). No `fields` either — the editor must not re-shape a doc it can't parse.
+  const bag = doc as Record<string, unknown>;
+  const docKind = typeof bag["kind"] === "string" ? bag["kind"] : stored.kind;
+  const reason = degradeReason(bag, docKind);
+  if (reason !== null) {
+    return {
+      id: asString(bag["id"]) || stored.id,
+      category: stored.kind,
+      title: asString(bag["title"]),
+      description: asString(bag["description"]),
+      body: renderDegradedBody(bag, reason),
+      references: asStringArray(bag["references"]),
+      ...(typeof bag["provenance"] === "string" && bag["provenance"]
+        ? { provenance: bag["provenance"] }
+        : {}),
+      degraded: reason,
       createdAt: stored.createdAt,
       updatedAt: stored.updatedAt,
     };

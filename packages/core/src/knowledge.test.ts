@@ -121,6 +121,15 @@ test("agent kind: context/rules/antiPatterns are typed asset: ref-lists", () => 
   assert.doesNotThrow(() => validateLibraryDoc(valid));
 });
 
+test("renderBody: an unknown kind throws a DIAGNOSTIC error, not `specs is not iterable`", () => {
+  // The stale-server incident (2026-06-11): code older than the data met a kind it had no
+  // KIND_SPECS entry for and threw a bare iteration error deep in /api/assets.
+  assert.throws(
+    () => renderBody({ kind: "from-the-future" } as never),
+    /unknown knowledge kind "from-the-future".*older than the stored doc/,
+  );
+});
+
 test("renderBody: a ref-list renders as one bullet per ref; an empty optional list emits nothing", () => {
   const doc = validateLibraryDoc({
     ...minimalDoc("agent"),

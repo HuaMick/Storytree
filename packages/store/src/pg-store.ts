@@ -149,6 +149,19 @@ export class PgLibraryStore implements Store {
     return res.rows.map(toStoredDoc);
   }
 
+  /**
+   * The highest per-row `schemaVersion` pin across the library projection (0 when no row carries
+   * one — body-bearing assets never do). The studio /api/health skew probe compares this against
+   * the code's CURRENT_SCHEMA_VERSION: db > code means the running server is OLDER than the data
+   * (a stale detached studio server) and renders degrade rather than parse.
+   */
+  async maxSchemaVersion(): Promise<number> {
+    const res = await this.#pool.query<{ max: number | string | null }>(
+      `SELECT MAX((doc->>'schemaVersion')::int) AS max FROM events.library_artifact`,
+    );
+    return Number(res.rows[0]?.max ?? 0);
+  }
+
   async deleteDoc(id: string): Promise<boolean> {
     const client: PoolClient = await this.#pool.connect();
     try {

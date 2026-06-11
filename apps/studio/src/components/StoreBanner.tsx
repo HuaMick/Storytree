@@ -6,6 +6,10 @@
 // into stopped-vs-still-booting via one /api/db/status check per outage, and
 // offers a Start DB button (idempotent, ~1 minute). When the probe flips back
 // to ok it calls onRecovered so the app can reload whatever the outage cost.
+// It ALSO watches the health probe's schema-skew pair: a DB holding a newer
+// library schemaVersion than this server's code means a stale long-running
+// server (the "specs is not iterable" incident) — a distinct banner says to
+// git pull and pnpm studio:down/up instead of blaming the DB.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
@@ -19,7 +23,8 @@ type Phase =
   | 'json' // offline json store — the DB is not in play
   | 'stopped' // unreachable and Cloud SQL reports STOPPED — offer Start DB
   | 'unreachable' // unreachable but RUNNABLE (or status unknown) — likely coming up
-  | 'starting'; // we fired /api/db/start and are waiting for the probe to flip
+  | 'starting' // we fired /api/db/start and are waiting for the probe to flip
+  | 'stale-code'; // DB reachable but holds a NEWER library schemaVersion than this server's code
 
 export function StoreBanner({
   onRecovered,
@@ -28,6 +33,8 @@ export function StoreBanner({
 }): React.JSX.Element | null {
   const [phase, setPhase] = useState<Phase>('unknown');
   const [startError, setStartError] = useState('');
+  // The skew pair when phase === 'stale-code' (DB schemaVersion ahead of this server's code).
+  const [skew, setSkew] = useState<{ code: number; db: number } | null>(null);
 
   // Refs so the interval-driven probe sees current state without re-binding,
   // and so two probes never overlap.
@@ -48,7 +55,13 @@ export function StoreBanner({
       if (health.db === 'ok') {
         const prev = phaseRef.current;
         statusChecked.current = false;
-        setPhase('healthy');
+        // DB ahead of the code = this long-running server is running stale code: the data
+        // still loads (renders degrade), but tell the operator to pull + restart rather
+        // than letting them chase a DB/API failure (the "specs is not iterable" incident).
+        const staleSkew =
+          health.schema && health.schema.db > health.schema.code ? health.schema : null;
+        setSkew(staleSkew);
+        setPhase(staleSkew ? 'stale-code' : 'healthy');
         if (prev === 'stopped' || prev === 'unreachable' || prev === 'starting') {
           onRecovered();
         }
@@ -111,6 +124,12 @@ export function StoreBanner({
             Starting…
           </button>
         </>
+      ) : phase === 'stale-code' ? (
+        <span>
+          This studio server is running stale code — the live library holds schemaVersion{' '}
+          {skew?.db} but this build knows {skew?.code}. Pull the latest (<code>git pull</code>),
+          then restart it: <code>pnpm studio:down</code> · <code>pnpm studio:up</code>.
+        </span>
       ) : phase === 'stopped' ? (
         <>
           <span>The live store (Cloud SQL) is stopped.</span>

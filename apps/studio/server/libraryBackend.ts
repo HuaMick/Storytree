@@ -54,6 +54,17 @@ export interface CommentPatch {
   resolvedAt?: string | null;
 }
 
+/**
+ * What /api/health reports beyond the store name. `schema` is the version-skew probe (pg +
+ * reachable only): the library schemaVersion this CODE knows vs the highest the DB holds —
+ * db > code means this long-running server is running stale code (the "specs is not iterable"
+ * incident) and the UI tells the operator to pull + restart instead of blaming the DB.
+ */
+export interface HealthProbe {
+  db: 'ok' | 'unreachable' | 'n/a';
+  schema?: { code: number; db: number };
+}
+
 /** Thrown by createAsset when an asset with the requested id already exists (→ HTTP 409). */
 export class AssetConflictError extends Error {
   constructor(public readonly assetId: string) {
@@ -75,8 +86,8 @@ export interface LibraryBackend {
   /** Returns `true` if a row was removed, `false` if `id` did not exist. */
   deleteAsset(id: string): Promise<boolean>;
 
-  /** Cheap connectivity probe for /api/health. Never throws. */
-  health(): Promise<'ok' | 'unreachable' | 'n/a'>;
+  /** Cheap connectivity + schema-skew probe for /api/health. Never throws. */
+  health(): Promise<HealthProbe>;
 
   listComments(filter: CommentFilter): Promise<Comment[]>;
   createComment(comment: Comment): Promise<Comment>;
@@ -151,8 +162,8 @@ export class JsonBackend implements LibraryBackend {
     return true;
   }
 
-  async health(): Promise<'ok' | 'unreachable' | 'n/a'> {
-    return 'n/a'; // no DB behind the JSON files — nothing to probe
+  async health(): Promise<HealthProbe> {
+    return { db: 'n/a' }; // no DB behind the JSON files — nothing to probe
   }
 
   async listComments(filter: CommentFilter): Promise<Comment[]> {
@@ -235,6 +246,7 @@ function toGuidanceAsset(rendered: {
   references: string[];
   provenance?: string;
   fields?: Record<string, string>;
+  degraded?: string;
   createdAt: string;
   updatedAt: string;
 }): GuidanceAsset {
@@ -247,6 +259,7 @@ function toGuidanceAsset(rendered: {
     references: rendered.references,
     ...(rendered.provenance ? { provenance: rendered.provenance } : {}),
     ...(rendered.fields ? { fields: rendered.fields } : {}),
+    ...(rendered.degraded ? { degraded: rendered.degraded } : {}),
     createdAt: rendered.createdAt,
     updatedAt: rendered.updatedAt,
   };
@@ -323,20 +336,30 @@ export class PgBackend implements LibraryBackend {
    * instead of hanging the health endpoint. Never throws — a #ready() failure (pool build)
    * also reports 'unreachable', and because #ready() only caches AFTER every step succeeds,
    * a failed probe leaves the backend retryable once the DB comes back up.
+   *
+   * When reachable it ALSO reports the schema-skew pair: the library schemaVersion this code
+   * knows vs the highest the DB holds. A DB ahead of the code means this long-running server
+   * is stale (pull + restart) — the UI turns that into a distinct banner instead of letting
+   * render fallbacks pass silently.
    */
-  async health(): Promise<'ok' | 'unreachable' | 'n/a'> {
+  async health(): Promise<HealthProbe> {
     let timer: NodeJS.Timeout | undefined;
     try {
-      await this.#ready();
+      const { store, library } = await this.#ready();
       const handle = this.#handle;
-      if (!handle) return 'unreachable';
+      if (!handle) return { db: 'unreachable' };
       const timeout = new Promise<never>((_, reject) => {
         timer = setTimeout(() => reject(new Error('health probe timed out')), 4000);
       });
       await Promise.race([handle.pool.query('SELECT 1'), timeout]);
-      return 'ok';
+      try {
+        const dbVersion = await library.maxSchemaVersion();
+        return { db: 'ok', schema: { code: store.CURRENT_SCHEMA_VERSION, db: dbVersion } };
+      } catch {
+        return { db: 'ok' }; // reachable but the skew query failed — don't fail health over it
+      }
     } catch {
-      return 'unreachable';
+      return { db: 'unreachable' };
     } finally {
       if (timer !== undefined) clearTimeout(timer);
     }

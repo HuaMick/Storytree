@@ -20,6 +20,16 @@ import { KIND_SPECS, type Knowledge, type KnowledgeKind } from "./knowledge.js";
  */
 export function renderBody(doc: Knowledge): string {
   const specs = KIND_SPECS[doc.kind as KnowledgeKind];
+  if (specs === undefined) {
+    // Named loudly: the bare `specs is not iterable` this used to throw sent operators chasing
+    // DB/API failures when the real cause was a stale long-running server (code older than the
+    // data). Soft-rendering callers (renderStoredDoc) guard BEFORE calling; anyone else gets
+    // the diagnosis in the message.
+    throw new Error(
+      `renderBody: unknown knowledge kind "${doc.kind}" — this code has no KIND_SPECS entry for it. ` +
+        `The running code is likely older than the stored doc; pull the latest and restart.`,
+    );
+  }
   const fields = doc as unknown as Record<string, string | readonly string[] | undefined>;
   const blocks: string[] = [];
   for (const spec of specs) {
