@@ -381,13 +381,21 @@ export class PgBackend implements LibraryBackend {
   async health(): Promise<HealthProbe> {
     let timer: NodeJS.Timeout | undefined;
     try {
-      const { store, library } = await this.#ready();
-      const handle = this.#handle;
-      if (!handle) return { db: 'unreachable' };
       const timeout = new Promise<never>((_, reject) => {
         timer = setTimeout(() => reject(new Error('health probe timed out')), 4000);
       });
-      await Promise.race([handle.pool.query('SELECT 1'), timeout]);
+      // #ready() is part of the raced work: against a stopped instance the POOL BUILD is
+      // what hangs (well past 4s), and health must answer fast precisely then. The build
+      // continues in the background and caches once it succeeds.
+      const { store, library } = await Promise.race([
+        (async () => {
+          const ready = await this.#ready();
+          if (!this.#handle) throw new Error('no pool');
+          await this.#handle.pool.query('SELECT 1');
+          return ready;
+        })(),
+        timeout,
+      ]);
       try {
         const dbVersion = await library.maxSchemaVersion();
         return { db: 'ok', schema: { code: store.CURRENT_SCHEMA_VERSION, db: dbVersion } };
@@ -409,18 +417,23 @@ export class PgBackend implements LibraryBackend {
   async latestVerdicts(): Promise<Record<string, TreeVerdict> | null> {
     let timer: NodeJS.Timeout | undefined;
     try {
-      await this.#ready();
-      const handle = this.#handle;
-      if (!handle) return null;
       const timeout = new Promise<never>((_, reject) => {
         timer = setTimeout(() => reject(new Error('verdict probe timed out')), 4000);
       });
+      // #ready() is INSIDE the race: against a stopped instance the pool build itself
+      // is what hangs (30s+), and an advisory read must answer within the budget. The
+      // build keeps going in the background and caches once the DB is back.
       const res = await Promise.race([
-        handle.pool.query(
-          `SELECT DISTINCT ON (unit_id) unit_id, outcome, at
-             FROM events.verdict
-            ORDER BY unit_id, seq DESC`,
-        ),
+        (async () => {
+          await this.#ready();
+          const handle = this.#handle;
+          if (!handle) throw new Error('no pool');
+          return handle.pool.query(
+            `SELECT DISTINCT ON (unit_id) unit_id, outcome, at
+               FROM events.verdict
+              ORDER BY unit_id, seq DESC`,
+          );
+        })(),
         timeout,
       ]);
       const out: Record<string, TreeVerdict> = {};
@@ -448,15 +461,20 @@ export class PgBackend implements LibraryBackend {
   async activeSessions(): Promise<TreeSession[] | null> {
     let timer: NodeJS.Timeout | undefined;
     try {
-      const { store } = await this.#ready();
-      const handle = this.#handle;
-      if (!handle) return null;
-      const core = await loadCoreModule();
-      const presence = new store.PgPresenceStore(handle.pool);
       const timeout = new Promise<never>((_, reject) => {
         timer = setTimeout(() => reject(new Error('presence probe timed out')), 4000);
       });
-      const docs = await Promise.race([presence.listActive(), timeout]);
+      // Same shape as latestVerdicts(): the pool build is part of the raced work.
+      const docs = await Promise.race([
+        (async () => {
+          const { store } = await this.#ready();
+          const handle = this.#handle;
+          if (!handle) throw new Error('no pool');
+          return new store.PgPresenceStore(handle.pool).listActive();
+        })(),
+        timeout,
+      ]);
+      const core = await loadCoreModule();
       const now = new Date();
       return docs.map((d) => ({
         sessionId: d.sessionId,
