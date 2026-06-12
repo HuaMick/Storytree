@@ -26,9 +26,6 @@
 import { promises as fs, existsSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { spawn } from 'node:child_process';
-import type { ChildProcessByStdio } from 'node:child_process';
-import type { Readable } from 'node:stream';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin, ResolvedConfig } from 'vite';
 import type {
@@ -49,6 +46,8 @@ import {
   type AssetInput,
   type CommentPatch,
 } from './libraryBackend';
+import { HttpError, sendJson } from './httpUtil';
+import { handleDb } from './dbControl';
 
 const ASSET_CATEGORIES: AssetCategory[] = [
   'definition',
@@ -87,12 +86,6 @@ function resolvePaths(config: ResolvedConfig): Paths {
 }
 
 // ---------- small http helpers ----------
-
-function sendJson(res: ServerResponse, status: number, data: unknown): void {
-  res.statusCode = status;
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.end(JSON.stringify(data, null, 2));
-}
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -231,12 +224,6 @@ function readAnchor(raw: Record<string, unknown>): CommentAnchor {
     startOffset: asNumberOrNull(raw.startOffset),
     color: asString(raw.color).trim() || null,
   };
-}
-
-class HttpError extends Error {
-  constructor(public status: number, message: string) {
-    super(message);
-  }
 }
 
 // ---------- route handlers ----------
@@ -531,103 +518,8 @@ async function handleDocs(
   throw new HttpError(404, 'not found');
 }
 
-// ---------- db control (gcloud on the OPERATOR's machine) ----------
-//
-// /api/db/* shells out to gcloud locally. That is deliberate, not a remote-exec hole: the Vite
-// dev server binds localhost-only and is the operator's own session, so these endpoints are
-// just UI buttons over the same `pnpm db:up` / `gcloud sql ...` commands the operator would
-// type — using the operator's ambient ADC credentials (ADR-0021).
-
-const DB_INSTANCE = 'storytree-pg';
-const DB_PROJECT = 'storytree-498613';
-// On Windows gcloud is a .cmd shim, and Node refuses to spawn .cmd/.bat without a shell
-// (CVE-2024-27980 hardening) — so route through the shell there; shell:false everywhere else.
-// When the shell IS used, the command goes as ONE pre-joined string (args-with-shell is
-// deprecated, DEP0190); every argument here is a static literal, so joining is safe.
-const GCLOUD_SHELL = process.platform === 'win32';
-
-function spawnGcloud(args: string[]): ChildProcessByStdio<null, Readable, Readable> {
-  const stdio: ['ignore', 'pipe', 'pipe'] = ['ignore', 'pipe', 'pipe'];
-  // windowsHide: the detached studio server has no console, so without it every
-  // gcloud spawn pops a visible terminal window for the command's duration — and
-  // an operator closing that window kills the gcloud run out from under the UI.
-  return GCLOUD_SHELL
-    ? spawn(['gcloud', ...args].join(' '), { shell: true, stdio, windowsHide: true })
-    : spawn('gcloud', args, { stdio, windowsHide: true });
-}
-
-/** Run gcloud to completion, resolving stdout; reject on spawn failure or non-zero exit. */
-function runGcloud(args: string[]): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const child = spawnGcloud(args);
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (c: Buffer) => (stdout += c.toString('utf8')));
-    child.stderr.on('data', (c: Buffer) => (stderr += c.toString('utf8')));
-    child.on('error', reject);
-    child.on('close', (code) => {
-      if (code === 0) resolve(stdout);
-      else reject(new Error(`gcloud exited ${code ?? 'null'}: ${stderr.trim() || stdout.trim()}`));
-    });
-  });
-}
-
-async function handleDb(req: IncomingMessage, res: ServerResponse, url: URL): Promise<void> {
-  const method = req.method ?? 'GET';
-
-  if (url.pathname === '/api/db/status') {
-    if (method !== 'GET') throw new HttpError(405, `method ${method} not allowed`);
-    let out: string;
-    try {
-      out = await runGcloud([
-        'sql',
-        'instances',
-        'describe',
-        DB_INSTANCE,
-        '--project',
-        DB_PROJECT,
-        '--format=value(state,settings.activationPolicy)',
-      ]);
-    } catch (err) {
-      throw new HttpError(502, err instanceof Error ? err.message : String(err));
-    }
-    // `value(...)` prints the two fields on one line, tab-separated.
-    const [state = 'UNKNOWN', activationPolicy = 'UNKNOWN'] = out.trim().split(/\s+/);
-    return sendJson(res, 200, { state, activationPolicy });
-  }
-
-  if (url.pathname === '/api/db/start') {
-    if (method !== 'POST') throw new HttpError(405, `method ${method} not allowed`);
-    // Fire-and-forget: the patch takes ~a minute; the UI polls /api/health / /api/db/status
-    // for the outcome. Idempotent — patching an already-ALWAYS instance is harmless.
-    const child = spawnGcloud([
-      'sql',
-      'instances',
-      'patch',
-      DB_INSTANCE,
-      '--project',
-      DB_PROJECT,
-      '--activation-policy',
-      'ALWAYS',
-      '--quiet',
-    ]);
-    try {
-      // Confirm the process actually launched (gcloud missing → 'error', not an exception).
-      await new Promise<void>((resolve, reject) => {
-        child.once('spawn', resolve);
-        child.once('error', reject);
-      });
-    } catch (err) {
-      throw new HttpError(502, `failed to start gcloud: ${err instanceof Error ? err.message : String(err)}`);
-    }
-    child.stdout.on('data', (c: Buffer) => console.log(`[db:start] ${c.toString('utf8').trimEnd()}`));
-    child.stderr.on('data', (c: Buffer) => console.log(`[db:start] ${c.toString('utf8').trimEnd()}`));
-    child.on('close', (code) => console.log(`[db:start] gcloud exited with code ${code ?? 'null'}`));
-    return sendJson(res, 202, { ok: true });
-  }
-
-  throw new HttpError(404, 'not found');
-}
+// db control (/api/db/*, gcloud on the OPERATOR's machine) lives in ./dbControl — split
+// out so the spawn contract and the endpoints are unit-testable (server/dbControl.test.ts).
 
 export function storytreeDataApi(): Plugin {
   let paths: Paths;
