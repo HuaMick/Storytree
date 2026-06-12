@@ -8,6 +8,7 @@ import type {
   DocMeta,
   GuidanceAsset,
   NewComment,
+  PresencePayload,
   StoreHealth,
   TreePayload,
 } from './types';
@@ -63,6 +64,11 @@ export const api = {
   // backstop so a wedged request can't pin the banner's in-flight guard.
   health: (): Promise<StoreHealth> =>
     http('/api/health', { signal: AbortSignal.timeout(10_000) }),
+  // Presence poll (see lib/presence.ts). Same abort backstop as health: the
+  // server-side probe already times out at ~4s and answers {sessions: null},
+  // so a wedged request must not pin the poll's in-flight guard.
+  presence: (): Promise<PresencePayload> =>
+    http('/api/presence', { signal: AbortSignal.timeout(10_000) }),
   dbStatus: (): Promise<DbStatus> => http('/api/db/status'),
   dbStart: (): Promise<{ ok: true }> => http('/api/db/start', { method: 'POST' }),
 };

@@ -302,6 +302,16 @@ export interface TreePayload {
   sessions?: TreeSession[];
 }
 
+/**
+ * GET /api/presence — the active-session layer alone, polled by the tree view
+ * (the world geometry stays a one-shot /api/tree). Always a 200: `null` means
+ * the live store didn't answer (down DB / json store) — advisory absence, not
+ * an error (ADR-0033); the StoreBanner owns the explanatory UX.
+ */
+export interface PresencePayload {
+  sessions: TreeSession[] | null;
+}
+
 /** Highlight colour palette for text-anchored comments. */
 export interface HighlightColor {
   id: string;

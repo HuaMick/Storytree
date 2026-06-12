@@ -33,6 +33,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import dagre from '@dagrejs/dagre';
 import { api } from '../api';
+import { formatAge, usePresence } from '../lib/presence';
 import { navigate, treeFocusHref, treeHref } from '../lib/route';
 import { presentStories } from '../lib/worldStatus.js';
 import { WorldLegend } from './WorldLegend.js';
@@ -730,15 +731,19 @@ function layoutSubdag(story: TreeStory): SubLayout {
 
 type Band = TreeSession['band'];
 
-/** Age since lastSeenAt, compact ("12m" / "3h"). */
-function formatAge(lastSeenAt: string): string {
-  const minutes = Math.max(0, Math.floor((Date.now() - new Date(lastSeenAt).getTime()) / 60_000));
-  return minutes < 60 ? `${minutes}m` : `${Math.floor(minutes / 60)}h`;
-}
+/** What the session dock shows: the board-level list, or one session's detail. */
+type SessionDockState = { kind: 'list' } | { kind: 'detail'; id: string };
 
 export function TreeView({ focus }: { focus: string | null }): React.JSX.Element {
   const [stories, setStories] = useState<TreeStory[] | null>(null);
-  const [sessions, setSessions] = useState<TreeSession[]>([]);
+  // Sessions: seeded by the one-shot tree payload, then kept near-real-time by
+  // the /api/presence poll; `now` ticks so wisps age between polls (lib/presence.ts).
+  const [seedSessions, setSeedSessions] = useState<TreeSession[] | undefined>(undefined);
+  const { sessions, now } = usePresence(seedSessions);
+  // The session dock: the board-level list (toolbar count click) or one session's
+  // detail (wisp / row click). Sessions whose nodes anchor to no loaded story —
+  // including nodes:[] hook declarations — are reachable ONLY through the list.
+  const [sessionDock, setSessionDock] = useState<SessionDockState | null>(null);
   const [loadError, setLoadError] = useState('');
   // Selection lives in the URL (#/tree/<storyId>) so a focused territory is
   // deep-linkable; the route's `focus` IS the selected story — but only when
@@ -758,7 +763,7 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
       .tree()
       .then((p) => {
         setStories(presentStories(p.stories));
-        setSessions(p.sessions ?? []);
+        setSeedSessions(p.sessions ?? []);
       })
       .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : String(e)));
   }, []);
@@ -809,25 +814,47 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
   );
   const storyIds = useMemo(() => new Set((stories ?? []).map((s) => s.id)), [stories]);
 
+  /** capability id → owning story id (resolves session node anchors). */
+  const capOwner = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of stories ?? []) for (const c of s.capabilities) m.set(c.id, s.id);
+    return m;
+  }, [stories]);
+
+  /** A declared node's territory: the story itself, or its capability's owner. */
+  const storyForNode = (node: string): string | null =>
+    storyIds.has(node) ? node : (capOwner.get(node) ?? null);
+
+  /**
+   * session → the story territories its nodes resolve to. A session that
+   * resolves to NONE (nodes:[] hook declarations, or ids no loaded story
+   * owns) anchors nowhere — no wisp, only the board-level list shows it.
+   */
+  const sessionAnchors = useMemo(() => {
+    const anchors = new Map<string, string[]>();
+    for (const session of sessions) {
+      const ids = new Set<string>();
+      for (const node of session.nodes) {
+        if (storyIds.has(node)) ids.add(node);
+        const ownerId = capOwner.get(node);
+        if (ownerId) ids.add(ownerId);
+      }
+      anchors.set(session.sessionId, [...ids]);
+    }
+    return anchors;
+  }, [storyIds, capOwner, sessions]);
+
   const sessionsByStory = useMemo(() => {
-    const capOwner = new Map<string, string>();
-    for (const s of stories ?? []) for (const c of s.capabilities) capOwner.set(c.id, s.id);
     const byStory = new Map<string, TreeSession[]>();
     for (const session of sessions) {
-      const storyIds = new Set<string>();
-      for (const node of session.nodes) {
-        if (stories?.some((s) => s.id === node)) storyIds.add(node);
-        const ownerId = capOwner.get(node);
-        if (ownerId) storyIds.add(ownerId);
-      }
-      for (const id of storyIds) {
+      for (const id of sessionAnchors.get(session.sessionId) ?? []) {
         const list = byStory.get(id);
         if (list) list.push(session);
         else byStory.set(id, [session]);
       }
     }
     return byStory;
-  }, [stories, sessions]);
+  }, [sessions, sessionAnchors]);
 
   if (loadError) {
     return (
@@ -901,8 +928,18 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
         <h2>Story world</h2>
         <span className="muted small">
           {stories.length} stories · {capCount} capabilities
-          {sessions.length > 0 &&
-            ` · ${sessions.length} active session${sessions.length === 1 ? '' : 's'}`}{' '}
+          {sessions.length > 0 && (
+            <>
+              {' · '}
+              <button
+                type="button"
+                className="tree-link"
+                onClick={() => setSessionDock({ kind: 'list' })}
+              >
+                {sessions.length} active session{sessions.length === 1 ? '' : 's'}
+              </button>
+            </>
+          )}{' '}
           — foundations at the bottom, dependents fan upward. Every story grows one tree on
           its island; its capabilities garden around it. Click an island for the capability DAG.
         </span>
@@ -1016,8 +1053,11 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
                   className={territoryClass(t.story)}
                   hidden={hidden}
                   sessions={sessionsByStory.get(t.story.id) ?? []}
+                  now={now}
+                  selectedSessionId={sessionDock?.kind === 'detail' ? sessionDock.id : null}
                   onHover={(on) => setHoverStory(on ? t.story.id : null)}
                   onSelect={(capId) => selectStory(t.story.id, capId)}
+                  onSelectSession={(id) => setSessionDock({ kind: 'detail', id })}
                 />
               ))}
             </g>
@@ -1030,6 +1070,19 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
             onToggleStatus={toggleStatus}
             onResetHidden={() => setHidden(new Set())}
           />
+          {sessionDock && (
+            <SessionDock
+              dock={sessionDock}
+              sessions={sessions}
+              anchors={sessionAnchors}
+              now={now}
+              storyForNode={storyForNode}
+              onShowList={() => setSessionDock({ kind: 'list' })}
+              onShowDetail={(id) => setSessionDock({ kind: 'detail', id })}
+              onFocusStory={(id) => navigate(treeFocusHref(id))}
+              onClose={() => setSessionDock(null)}
+            />
+          )}
         </div>
 
         {selected && (
@@ -1037,11 +1090,13 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
             story={selected}
             storyIds={storyIds}
             sessions={sessionsByStory.get(selected.id) ?? []}
+            now={now}
             selectedCap={selectedCap}
             hoverCap={hoverCap}
             hidden={hidden}
             onSelectCap={setSelectedCap}
             onHoverCap={setHoverCap}
+            onSelectSession={(id) => setSessionDock({ kind: 'detail', id })}
             onClose={clearSelection}
           />
         )}
@@ -1389,15 +1444,21 @@ function TerritoryFlora({
   className,
   hidden,
   sessions,
+  now,
+  selectedSessionId,
   onHover,
   onSelect,
+  onSelectSession,
 }: {
   territory: Territory;
   className: string;
   hidden: ReadonlySet<string>;
   sessions: TreeSession[];
+  now: Date;
+  selectedSessionId: string | null;
   onHover: (on: boolean) => void;
   onSelect: (capId: string | null) => void;
+  onSelectSession: (sessionId: string) => void;
 }): React.JSX.Element {
   const story = t.story;
   const statusKey = story.status ?? 'unknown';
@@ -1466,11 +1527,22 @@ function TerritoryFlora({
       </g>
 
       <g transform={`translate(${t.centroid.x} ${t.centroid.y})`}>
-        {sessions.map((s, i) => {
-          const phase = (i * 360) / sessions.length + rand01(hash(s.sessionId)) * 90;
+        {sessions.map((s) => {
+          // Orbit phase is a pure function of the session's identity — NEVER of
+          // the array index or length, or every poll-driven set change would
+          // make the surviving wisps jump orbit mid-flight.
+          const phase = rand01(hash(s.sessionId)) * 360;
+          const isSelected = s.sessionId === selectedSessionId;
           return (
-            <g key={s.sessionId} className={`world-wisp band-${s.band satisfies Band}`}>
-              <title>{`${s.sessionId} [${s.band}] ${formatAge(s.lastSeenAt)} — ${s.workingOn}`}</title>
+            <g
+              key={s.sessionId}
+              className={`world-wisp band-${s.band satisfies Band}${isSelected ? ' is-selected' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation(); // the territory click would select the story instead
+                onSelectSession(s.sessionId);
+              }}
+            >
+              <title>{`${s.sessionId} [${s.band}] ${formatAge(s.lastSeenAt, now)} — ${s.workingOn}`}</title>
               <animateTransform
                 attributeName="transform"
                 type="rotate"
@@ -1480,6 +1552,7 @@ function TerritoryFlora({
                 repeatCount="indefinite"
               />
               <g transform={`translate(${t.radius * 0.72 + 10} 0)`}>
+                <circle className="world-wisp-hit" r={12} fill="transparent" />
                 <circle className="world-wisp-glow" r={6.5} />
                 <circle className="world-wisp-dot" r={2.8} />
               </g>
@@ -1488,6 +1561,132 @@ function TerritoryFlora({
         })}
       </g>
     </g>
+  );
+}
+
+/**
+ * The session dock — a small overlay in the world frame (the wisps' detail
+ * surface). List mode shows EVERY active session, including the ones whose
+ * declared nodes resolve to no loaded story (nodes:[] hook declarations) and so
+ * orbit nowhere; detail mode shows one session's identity, work, anchors, and a
+ * live-updating age/band (the `now` ticker re-renders it between polls).
+ * Advisory like the wisps: a session that vanishes from the poll renders an
+ * honest "no longer active" note rather than a stale card.
+ */
+function SessionDock({
+  dock,
+  sessions,
+  anchors,
+  now,
+  storyForNode,
+  onShowList,
+  onShowDetail,
+  onFocusStory,
+  onClose,
+}: {
+  dock: SessionDockState;
+  sessions: TreeSession[];
+  anchors: ReadonlyMap<string, string[]>;
+  now: Date;
+  storyForNode: (node: string) => string | null;
+  onShowList: () => void;
+  onShowDetail: (sessionId: string) => void;
+  onFocusStory: (storyId: string) => void;
+  onClose: () => void;
+}): React.JSX.Element {
+  const detail =
+    dock.kind === 'detail' ? sessions.find((s) => s.sessionId === dock.id) : undefined;
+  return (
+    <div className="session-dock" role="dialog" aria-label="active sessions">
+      <header>
+        <h4>{dock.kind === 'list' ? `active sessions (${sessions.length})` : 'session'}</h4>
+        <button type="button" className="btn" onClick={onClose} aria-label="close sessions">
+          ✕
+        </button>
+      </header>
+      {dock.kind === 'list' ? (
+        sessions.length === 0 ? (
+          <p className="muted small">No active sessions right now.</p>
+        ) : (
+          sessions.map((s) => {
+            const anchored = anchors.get(s.sessionId) ?? [];
+            return (
+              <button
+                key={s.sessionId}
+                type="button"
+                className="session-row"
+                onClick={() => {
+                  onShowDetail(s.sessionId);
+                  // A row that maps to a territory also focuses it on the map.
+                  const first = anchored[0];
+                  if (first) onFocusStory(first);
+                }}
+              >
+                <span className={`tree-session-band band-${s.band}`} title={s.band} />
+                <code>{s.sessionId}</code>
+                <span className="muted small">
+                  {formatAge(s.lastSeenAt, now)}
+                  {anchored.length === 0 ? ' · no territory' : ''}
+                </span>
+              </button>
+            );
+          })
+        )
+      ) : detail ? (
+        <div className="session-detail">
+          <p className="session-detail-id">
+            <span className={`tree-session-band band-${detail.band}`} title={detail.band} />
+            <code>{detail.sessionId}</code>
+          </p>
+          <dl>
+            <dt>state</dt>
+            <dd>
+              {detail.band} · last seen {formatAge(detail.lastSeenAt, now)} ago
+            </dd>
+            <dt>branch</dt>
+            <dd>
+              <code>{detail.branch}</code>
+            </dd>
+            <dt>working on</dt>
+            <dd>{detail.workingOn}</dd>
+            <dt>nodes</dt>
+            <dd>
+              {detail.nodes.length === 0 ? (
+                <span className="muted">none declared — anchored to no territory</span>
+              ) : (
+                detail.nodes.map((n) => {
+                  const owner = storyForNode(n);
+                  return owner ? (
+                    <button
+                      key={n}
+                      type="button"
+                      className="tree-link"
+                      onClick={() => onFocusStory(owner)}
+                    >
+                      {n}
+                    </button>
+                  ) : (
+                    <code key={n} title="resolves to no loaded story">
+                      {n}{' '}
+                    </code>
+                  );
+                })
+              )}
+            </dd>
+          </dl>
+          <button type="button" className="tree-link" onClick={onShowList}>
+            all sessions
+          </button>
+        </div>
+      ) : (
+        <div className="session-detail">
+          <p className="muted small">This session is no longer active.</p>
+          <button type="button" className="tree-link" onClick={onShowList}>
+            all sessions
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1523,21 +1722,25 @@ function StoryPanel({
   story,
   storyIds,
   sessions,
+  now,
   selectedCap,
   hoverCap,
   hidden,
   onSelectCap,
   onHoverCap,
+  onSelectSession,
   onClose,
 }: {
   story: TreeStory;
   storyIds: ReadonlySet<string>;
   sessions: TreeSession[];
+  now: Date;
   selectedCap: string | null;
   hoverCap: string | null;
   hidden: ReadonlySet<string>;
   onSelectCap: (id: string | null) => void;
   onHoverCap: (id: string | null) => void;
+  onSelectSession: (sessionId: string) => void;
   onClose: () => void;
 }): React.JSX.Element {
   const layout = useMemo(() => layoutSubdag(story), [story]);
@@ -1666,8 +1869,14 @@ function StoryPanel({
           {sessions.map((s) => (
             <p key={s.sessionId} className="tree-session small">
               <span className={`tree-session-band band-${s.band}`} title={s.band} />
-              <code>{s.sessionId}</code>
-              <span className="muted"> {formatAge(s.lastSeenAt)} · </span>
+              <button
+                type="button"
+                className="tree-link"
+                onClick={() => onSelectSession(s.sessionId)}
+              >
+                <code>{s.sessionId}</code>
+              </button>
+              <span className="muted"> {formatAge(s.lastSeenAt, now)} · </span>
               {s.workingOn}
             </p>
           ))}
