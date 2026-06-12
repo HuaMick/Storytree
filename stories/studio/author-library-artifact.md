@@ -1,7 +1,7 @@
 ---
 id: "author-library-artifact"
 tier: capability
-story: studio-foundation
+story: studio
 title: "Author, edit, and delete Library artifacts"
 outcome: "An operator durably changes the Library's contents through the editor form."
 status: "proposed"

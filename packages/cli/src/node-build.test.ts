@@ -90,7 +90,7 @@ test("node build with an unknown id is guidance listing the buildable nodes", as
 });
 
 test("node build on a spec that exists but is NOT registered fails closed", async () => {
-  // studio-foundation/browse-library.md is a real spec with no test-command registry entry.
+  // studio/browse-library.md is a real spec with no test-command registry entry.
   const env = await run(
     ["node", "build", "browse-library", "--dry-run", "--actor", "t@e.c"],
     deps,

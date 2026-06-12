@@ -1,7 +1,7 @@
 ---
 id: "resolve-comment"
 tier: capability
-story: studio-foundation
+story: studio
 title: "Resolve and reopen a comment"
 outcome: "An operator resolves a comment with the resolved state persisted across every surface."
 status: "proposed"

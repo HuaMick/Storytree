@@ -54,7 +54,7 @@ const session = (id: string, band: TreeSession['band']): TreeSession => ({
 const offlineWorld = (): TreeStory[] => [
   story('library', 'mapped', [cap('library-cli', 'mapped'), cap('seed-corpus', 'proposed')]),
   story('drive-machinery', 'proposed', []),
-  story('studio-foundation', 'proposed', [cap('read-corpus', 'proposed')], {
+  story('studio', 'proposed', [cap('read-corpus', 'proposed')], {
     dependsOn: ['library'],
   }),
 ];
@@ -69,7 +69,6 @@ const renderLegend = (
     <WorldLegend
       stories={stories}
       sessions={sessions}
-      roadCount={1}
       hidden={new Set()}
       onToggleStatus={noop}
       onResetHidden={noop}
@@ -115,26 +114,23 @@ describe('legendFacts', () => {
     expect(facts.capPass || facts.capFail).toBe(false);
   });
 
-  it('a retired/unhealthy zero-cap story is NOT a sapling', () => {
-    expect(legendFacts([story('s', 'retired', [])], []).saplingPresent).toBe(false);
+  it('an unhealthy zero-cap story is NOT a sapling (it withers instead)', () => {
+    // retired never reaches the legend — presentStories prunes it (ADR-0038)
     expect(legendFacts([story('s', 'unhealthy', [])], []).saplingPresent).toBe(false);
+    expect(legendFacts([story('s', 'proposed', [])], []).saplingPresent).toBe(true);
   });
 });
 
 describe('WorldLegend (adaptive bar)', () => {
   it('offline world: no sessions entry; proof stays (the no-mark state IS the offline state)', () => {
     renderLegend(offlineWorld());
-    for (const label of [
-      'story trees',
-      'garden plants',
-      'proof marks',
-      'roads',
-      'focus',
-      'decoration',
-    ]) {
+    for (const label of ['story trees', 'garden plants', 'proof marks', 'decoration']) {
       expect(screen.getByRole('button', { name: label })).toBeTruthy();
     }
     expect(screen.queryByRole('button', { name: 'sessions' })).toBeNull();
+    // roads and focus carry no legend entry — self-explanatory in place (ADR-0038)
+    expect(screen.queryByRole('button', { name: 'roads' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'focus' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'proof marks' }));
     expect(screen.getByText(/also what offline looks like/)).toBeTruthy();
     // no signed verdicts anywhere — both badge tiles and the signpost are dimmed examples
@@ -143,11 +139,6 @@ describe('WorldLegend (adaptive bar)', () => {
     expect(screen.getByText('never built').closest('.legend-tile')?.className).not.toContain(
       'is-absent',
     );
-  });
-
-  it('roads entry drops out of an edgeless world', () => {
-    renderLegend(offlineWorld(), [], { roadCount: 0 });
-    expect(screen.queryByRole('button', { name: 'roads' })).toBeNull();
   });
 
   it('verdicts and sessions light their states', () => {
@@ -191,12 +182,14 @@ describe('WorldLegend (adaptive bar)', () => {
     const onToggleStatus = vi.fn();
     renderLegend(offlineWorld(), [], { onToggleStatus });
     fireEvent.click(screen.getByRole('button', { name: 'story trees' }));
-    // building / healthy / unhealthy / retired don't occur in this world
-    expect(screen.getAllByText('not in world yet')).toHaveLength(4);
+    // healthy / unhealthy don't occur in this world
+    expect(screen.getAllByText('not in world yet')).toHaveLength(2);
     fireEvent.click(screen.getByRole('button', { name: /^proposed/ }));
     expect(onToggleStatus).toHaveBeenCalledWith('proposed');
-    // absent states aren't toggleable (nothing to fade)
-    expect(screen.queryByRole('button', { name: /^building/ })).toBeNull();
+    // building and retired are not legend states at all — the world folds
+    // building into proposed and prunes retired (ADR-0038)
+    expect(screen.queryByText('building')).toBeNull();
+    expect(screen.queryByText('retired')).toBeNull();
   });
 
   it('hidden statuses surface the reset chip', () => {

@@ -30,15 +30,16 @@
   /* work-hierarchy status colors (#/tree; Status in @storytree/core) */
   /* ONE status palette for the whole studio: the world's crown HUES, so card
      strips / badges / wisp bands can never drift from the foliage colours
-     (pre-2026-06-12 these were a second, diverging palette). proposed/building
-     are darker text-grade stops of the same hue — these surfaces carry white
-     text and the raw crown-lo tones fall below 4.5:1 contrast. */
+     (pre-2026-06-12 these were a second, diverging palette). proposed is a
+     darker text-grade stop of the same hue — these surfaces carry white text
+     and the raw crown-lo tone falls below 4.5:1 contrast. The world never
+     wears `building` (folds into proposed) or `retired` (pruned) — ADR-0038;
+     --st-retired stays only as the possibly-dead session tint. */
   --st-proposed: #9a5a1c; /* text-grade --crown-proposed-lo */
-  --st-building: #4d7c0f; /* text-grade --crown-building-lo */
   --st-healthy: var(--crown-healthy-lo);
   --st-unhealthy: var(--crown-unhealthy-lo);
   --st-mapped: var(--crown-mapped-lo);
-  --st-retired: #6b7280; /* darker than the ghost flora tint — badge text needs contrast */
+  --st-retired: #6b7280;
   --st-unknown: #6b7280;
 
   /* world scenery (#/tree) — Dorfromantik-style hex board */
@@ -58,19 +59,18 @@
   --conifer-1: #4d8a59;
   --conifer-2: #2f6b45;
 
-  /* story-world flora — per-status crown pairs (one source of truth: flora + legend) */
+  /* story-world flora — per-status crown pairs (one source of truth: flora +
+     legend). The growth/colour ladder (ADR-0038): proposed = young amber tree,
+     mapped = full BROWNFIELD canopy (the glossary's own word for mapped),
+     healthy = full deep green, unhealthy = withered red. */
   --crown-proposed-lo: #b06a24;
   --crown-proposed-hi: #e09a4b;
-  --crown-building-lo: #65a30d;
-  --crown-building-hi: #8fcd2d;
-  --crown-mapped-lo: #0f766e;
-  --crown-mapped-hi: #2da393;
+  --crown-mapped-lo: #7d5f3b;
+  --crown-mapped-hi: #a8854f;
   --crown-healthy-lo: #2f6b3f;
   --crown-healthy-hi: #55a06a;
   --crown-unhealthy-lo: #9f2d22;
   --crown-unhealthy-hi: #c75545;
-  --crown-retired-lo: #9ca3af;
-  --crown-retired-hi: #c5c9cf;
   --crown-unknown-lo: #6b7280;
   --crown-unknown-hi: #9ca3af;
   /* garden + withered flora */
@@ -84,7 +84,6 @@
   --withered-leaf: #b6925f;
   --dead-ground: #d9c29a;
   --wilt: #9f4a32;
-  --ghost-wood: #b9bdc4;
 
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --mono: 'SF Mono', 'Cascadia Code', Consolas, 'Liberation Mono', Menlo, monospace;
@@ -1412,14 +1411,10 @@ mark.st-hl.flash {
   margin: 0;
   font-size: 19px;
 }
+/* The detail panel OVERLAYS the world from the right edge (absolute inside
+   this wrapper) — opening or resizing it never reflows or rescales the world. */
 .tree-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
-}
-.tree-layout.has-detail {
-  grid-template-columns: minmax(0, 1fr) 400px;
+  position: relative;
 }
 
 /* the world (top-down field; portrait — scrolls from the foundation upward) */
@@ -1472,9 +1467,6 @@ mark.st-hl.flash {
 .hex-top.is-wheat { fill: var(--hex-wheat); }
 .hex-tile.is-dim {
   opacity: 0.35;
-}
-.hex-tile.is-ghost {
-  opacity: 0.45;
 }
 
 /* territory borders — the focus surface (V1's ring, reshaped to the land) */
@@ -1542,9 +1534,6 @@ mark.st-hl.flash {
 .hex-flora.is-dim {
   opacity: 0.32;
 }
-.hex-flora.is-ghost {
-  opacity: 0.45;
-}
 .flora-shadow {
   fill: #243d2a;
   opacity: 0.18;
@@ -1573,8 +1562,6 @@ mark.st-hl.flash {
 .story-tree .crown-hi circle { fill: var(--crown-unknown-hi); }
 .story-tree.st-proposed .crown-lo circle { fill: var(--crown-proposed-lo); }
 .story-tree.st-proposed .crown-hi circle { fill: var(--crown-proposed-hi); }
-.story-tree.st-building .crown-lo circle { fill: var(--crown-building-lo); }
-.story-tree.st-building .crown-hi circle { fill: var(--crown-building-hi); }
 .story-tree.st-mapped .crown-lo circle { fill: var(--crown-mapped-lo); }
 .story-tree.st-mapped .crown-hi circle { fill: var(--crown-mapped-hi); }
 .story-tree.st-healthy .crown-lo circle { fill: var(--crown-healthy-lo); }
@@ -1594,21 +1581,6 @@ mark.st-hl.flash {
   stroke: var(--withered-wood);
   stroke-width: 2;
   stroke-linecap: round;
-}
-.story-tree .is-ghost-wood,
-.story-bare.is-ghost-wood path {
-  fill: none;
-  stroke: var(--ghost-wood);
-}
-.story-tree .story-trunk.is-ghost-wood {
-  fill: var(--ghost-wood);
-  stroke: none;
-}
-.ghost-crown {
-  fill: none;
-  stroke: var(--ghost-wood);
-  stroke-width: 1.2;
-  opacity: 0.5;
 }
 .grass-tuft {
   fill: none;
@@ -1661,14 +1633,10 @@ mark.st-hl.flash {
 .garden-flora .flora-light { fill: var(--crown-unknown-hi); }
 .garden-flora.st-proposed .flora-dark { fill: var(--crown-proposed-lo); }
 .garden-flora.st-proposed .flora-light { fill: var(--crown-proposed-hi); }
-.garden-flora.st-building .flora-dark { fill: var(--crown-building-lo); }
-.garden-flora.st-building .flora-light { fill: var(--crown-building-hi); }
 .garden-flora.st-mapped .flora-dark { fill: var(--crown-mapped-lo); }
 .garden-flora.st-mapped .flora-light { fill: var(--crown-mapped-hi); }
 .garden-flora.st-healthy .flora-dark { fill: var(--crown-healthy-lo); }
 .garden-flora.st-healthy .flora-light { fill: var(--crown-healthy-hi); }
-.garden-flora.st-retired .flora-dark { fill: var(--crown-retired-lo); }
-.garden-flora.st-retired .flora-light { fill: var(--crown-retired-hi); }
 .flora-dead-stem,
 .flora-dead-twig {
   fill: none;
@@ -1694,9 +1662,6 @@ mark.st-hl.flash {
 }
 .garden-flora.is-filtered {
   opacity: 0.12;
-}
-.garden-flora.is-ghost {
-  opacity: 0.5;
 }
 .captree-verdict circle {
   fill: #ffffff;
@@ -1774,14 +1739,6 @@ mark.st-hl.flash {
 .legend-reset {
   color: var(--muted);
 }
-.legend-band-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--st-unknown);
-}
-.legend-band-dot.is-upstream { background: var(--warn); }
-.legend-band-dot.is-downstream { background: var(--danger); }
 .legend-drawer {
   pointer-events: auto;
   background: var(--surface);
@@ -1864,13 +1821,6 @@ button.legend-tile:hover {
   stroke-width: 1;
   stroke-dasharray: 2.5 2.5;
 }
-.legend-hex path {
-  fill: var(--hex-top-0);
-}
-.legend-hex.is-focus path { stroke: var(--accent); stroke-width: 2.4; }
-.legend-hex.is-upstream path { stroke: var(--warn); stroke-width: 2.2; }
-.legend-hex.is-downstream path { stroke: var(--danger); stroke-width: 2.2; }
-.legend-hex.is-dim path { opacity: 0.3; }
 
 /* sessions-here block in the panel */
 .tree-sessions {
@@ -1946,11 +1896,9 @@ button.legend-tile:hover {
   fill: var(--st-unknown);
 }
 .tree-card.st-proposed .tree-card-strip { fill: var(--st-proposed); }
-.tree-card.st-building .tree-card-strip { fill: var(--st-building); }
 .tree-card.st-healthy .tree-card-strip { fill: var(--st-healthy); }
 .tree-card.st-unhealthy .tree-card-strip { fill: var(--st-unhealthy); }
 .tree-card.st-mapped .tree-card-strip { fill: var(--st-mapped); }
-.tree-card.st-retired .tree-card-strip { fill: var(--st-retired); }
 .tree-card-status {
   fill: #ffffff;
   font-size: 10px;
@@ -1981,9 +1929,6 @@ button.legend-tile:hover {
 }
 .tree-card.is-dim {
   opacity: 0.22;
-}
-.tree-card.is-ghost {
-  opacity: 0.38;
 }
 .tree-card.is-filtered {
   opacity: 0.1;
@@ -2035,16 +1980,40 @@ button.legend-tile:hover {
   padding-top: 10px;
 }
 
-/* detail panel */
+/* detail panel — floats over the world's right edge, drag-resizable from its
+   left edge (width is inline, set by StoryPanel; persisted per operator) */
 .tree-detail {
-  position: sticky;
-  top: 12px;
+  position: absolute;
+  top: 0;
+  right: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  z-index: 3; /* above the legend dock (2) */
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: 12px;
-  box-shadow: var(--shadow);
-  padding: 14px 16px;
+  box-shadow: 0 8px 28px rgba(16, 24, 40, 0.18);
+  padding: 14px 16px 14px 20px;
   font-size: 13.5px;
+}
+.tree-detail.is-resizing {
+  user-select: none;
+  cursor: ew-resize;
+}
+.tree-detail-grip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 10px;
+  cursor: ew-resize;
+  border-radius: 12px 0 0 12px;
+  touch-action: none; /* pointer-drag resize, not scroll */
+}
+.tree-detail-grip:hover,
+.tree-detail.is-resizing .tree-detail-grip {
+  background: linear-gradient(90deg, var(--accent-weak), transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 .tree-detail header {
   display: flex;
@@ -2093,11 +2062,9 @@ button.legend-tile:hover {
   background: var(--st-unknown);
 }
 .tree-badge.st-proposed { background: var(--st-proposed); }
-.tree-badge.st-building { background: var(--st-building); }
 .tree-badge.st-healthy { background: var(--st-healthy); }
 .tree-badge.st-unhealthy { background: var(--st-unhealthy); }
 .tree-badge.st-mapped { background: var(--st-mapped); }
-.tree-badge.st-retired { background: var(--st-retired); }
 .tree-link {
   display: inline-block;
   margin: 0 6px 4px 0;
@@ -2116,10 +2083,14 @@ button.legend-tile:hover {
 }
 
 @media (max-width: 1080px) {
-  .tree-layout.has-detail {
-    grid-template-columns: 1fr;
-  }
+  /* small screens: the panel stacks below the world instead of overlaying it */
   .tree-detail {
     position: static;
+    width: auto !important; /* beats the inline drag width */
+    max-height: none;
+    margin-top: 12px;
+  }
+  .tree-detail-grip {
+    display: none;
   }
 }

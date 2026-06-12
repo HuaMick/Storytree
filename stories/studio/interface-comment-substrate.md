@@ -12,7 +12,7 @@ live projection, anchored to corpus documents.
 
 ## Owner
 
-The **`studio-foundation`** organism ([story](story.md)). The substrate was built for the studio's
+The **`studio`** organism ([story](story.md)). The substrate was built for the studio's
 annotate/resolve surfaces and the studio remains its reference consumer; its persistence now lives
 behind the shared store seam.
 

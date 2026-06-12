@@ -1,7 +1,7 @@
 ---
 id: "annotate-topic"
 tier: capability
-story: studio-foundation
+story: studio
 title: "Annotate a topic with anchored comments"
 outcome: "An operator anchors a comment onto a precise place in a rendered topic."
 status: "proposed"

@@ -8,7 +8,7 @@ proof_mode: UAT
 capabilities: [cite-event, archive-with-reason, signal-synthesis]
 # Story-level edges: the "Cross-story boundary" section below, encoded (declared
 # interfaces, ADR-0010 §4; owner call #3 resolved 2026-06-11). ADR-0036.
-depends_on: [studio-foundation, library]
+depends_on: [studio, library]
 decisions: [32] # deciding ADR (ADR-0037 §2)
 ---
 
@@ -72,8 +72,8 @@ to be re-derived from real imports once code exists (the `library` story's stand
 - `signal-synthesis` → `archive-with-reason` — the agent ignores archived signal.
 
 **Cross-story boundary (owner call #3 — resolved, declared 2026-06-11):** every capability here
-consumes the **comment/post substrate** owned by `studio-foundation`
-([declared interface](../studio-foundation/interface-comment-substrate.md) — `events.comment*` via
+consumes the **comment/post substrate** owned by `studio`
+([declared interface](../studio/interface-comment-substrate.md) — `events.comment*` via
 the store seam), and `signal-synthesis` (when built) emits through the **open-question / proposal
 authoring path** owned by the `library` story
 ([declared interface](../library/interface-oq-proposal-authoring.md) — the ADR-0018 OQ→ADR flow).
@@ -112,7 +112,7 @@ proves the substrate it will read.
 3. **RESOLVED (2026-06-11) — the cross-story interfaces are declared** per ADR-0010 §4, alongside
    their owning stories (ADR-0010 names no canonical location; the schema term stays provisional):
    the **comment substrate** at
-   [`stories/studio-foundation/interface-comment-substrate.md`](../studio-foundation/interface-comment-substrate.md)
+   [`stories/studio/interface-comment-substrate.md`](../studio/interface-comment-substrate.md)
    and the **OQ/proposal authoring path** at
    [`stories/library/interface-oq-proposal-authoring.md`](../library/interface-oq-proposal-authoring.md).
    This story is their first declared consumer.

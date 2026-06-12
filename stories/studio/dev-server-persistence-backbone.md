@@ -1,7 +1,7 @@
 ---
 id: "dev-server-persistence-backbone"
 tier: capability
-story: studio-foundation
+story: studio
 title: "Dev-server persistence backbone"
 outcome: "Data written through the studio's API survives a dev-server restart."
 status: "proposed"
