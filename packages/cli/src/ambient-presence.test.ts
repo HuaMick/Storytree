@@ -486,6 +486,70 @@ test("statuslineGlance: within debounce window (non-null lastBump recent enough)
 });
 
 // ---------------------------------------------------------------------------
+// statuslineGlance — declare-if-absent self-heal (lost SessionStart)
+// ---------------------------------------------------------------------------
+
+test("statuslineGlance: no own row + expired debounce — declares a minimal nodes:[] doc", async () => {
+  const store = makeRecordingStore([]); // board empty — SessionStart was lost
+  const deps: AmbientDeps = { store, identity: IDENTITY, now: nowFn };
+  const state = makeHeartbeatState(null);
+
+  await statuslineGlance(deps, state, 60_000);
+
+  assert.equal(store.declareCalls.length, 1, "self-heal should declare exactly once");
+  const doc = store.declareCalls[0];
+  assert.ok(doc !== undefined);
+  assert.equal(doc.sessionId, IDENTITY.sessionId, "sessionId from identity");
+  assert.equal(doc.branch, IDENTITY.branch, "branch from identity");
+  assert.equal(doc.status, "active");
+  assert.deepEqual(doc.nodes, [], "automation can only honestly declare nodes: []");
+  assert.ok(doc.workingOn.trim().length > 0, "workingOn is non-blank");
+  assert.equal(state.bumps.length, 1, "bump recorded so the next render is debounced");
+});
+
+test("statuslineGlance: no own row + within debounce window — no declare (rides the same debounce)", async () => {
+  const store = makeRecordingStore([]);
+  const deps: AmbientDeps = { store, identity: IDENTITY, now: nowFn };
+  const state = makeHeartbeatState(NOW.toISOString()); // elapsed 0ms < window
+
+  await statuslineGlance(deps, state, 60_000);
+
+  assert.equal(store.declareCalls.length, 0, "no self-heal declare within the window");
+  assert.equal(state.bumps.length, 0);
+});
+
+test("statuslineGlance: self-heal declare throws — fail-silent, line still renders, no bump", async () => {
+  const base = makeRecordingStore([]);
+  const store: PresenceStoreLike = {
+    ...base,
+    async declare(): Promise<PresenceDeclarationDoc> {
+      throw new Error("store error: declare");
+    },
+  };
+  const deps: AmbientDeps = { store, identity: IDENTITY, now: nowFn };
+  const state = makeHeartbeatState(null);
+
+  const line = await statuslineGlance(deps, state, 60_000);
+
+  assert.ok(line.length > 0, "glance still renders when the self-heal declare fails");
+  assert.equal(state.bumps.length, 0, "failed declare must not consume the debounce");
+});
+
+test("statuslineGlance: self-heal persists — the next expired beat finds the row and heartbeats it", async () => {
+  const store = makeRecordingStore([]);
+  const deps: AmbientDeps = { store, identity: IDENTITY, now: nowFn };
+  const pastBump = new Date(NOW.getTime() - 200).toISOString();
+
+  await statuslineGlance(deps, makeHeartbeatState(null), 100); // self-heal declares
+  await statuslineGlance(deps, makeHeartbeatState(pastBump), 100); // expired again
+
+  assert.equal(store.declareCalls.length, 2, "second beat re-declares the existing row");
+  const second = store.declareCalls[1];
+  assert.ok(second !== undefined);
+  assert.equal(second.lastSeenAt, NOW.toISOString(), "second beat is a lastSeenAt heartbeat");
+});
+
+// ---------------------------------------------------------------------------
 // auditHookConfig
 // ---------------------------------------------------------------------------
 

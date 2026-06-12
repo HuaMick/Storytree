@@ -160,6 +160,10 @@ The current-state set:
 - `verbatimModuleSyntax` (use `import type`), `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`,
   `strict`. No build step — packages export raw TS consumed via `tsx`.
 - Tests: `node:test` + `node:assert/strict`, `*.test.ts` under `src/`.
+- **Anchor your session on the notice board** once you know what you're working on:
+  `pnpm storytree noticeboard declare --working-on "<what>" --node <story-id> --pg` (repeat
+  `--node` per story; re-declares upsert, so refining is cheap). Hooks only auto-declare
+  `nodes: []`, which renders in the studio session dock but never as a story wisp.
 - **Merge to main quickly and frequently.** When a unit of work is green (`pnpm gate`), commit and
   open a **non-draft PR** without waiting to be asked — CI auto-merges it on green (ADR-0022).
   **Never merge manually** (`gh pr merge` in any flavor lands pre-CI — no required checks). To hold
