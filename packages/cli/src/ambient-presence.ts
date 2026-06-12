@@ -143,6 +143,13 @@ export async function sessionHook(
  * warning) on success; `""` on any failure. The heartbeat re-declares this
  * session's current doc with `lastSeenAt = now()` when the debounce window
  * has expired, and writes the bump timestamp via `state.writeLastBump`.
+ *
+ * Self-heal: when the beat fires and NO active row exists for this identity
+ * (a lost SessionStart — e.g. a fresh worktree had no node_modules yet, so the
+ * hook's pnpm exec failed before tsx ever ran), it declares a minimal
+ * `nodes: []` doc instead of silently staying off the board forever. The
+ * check rides the same debounce; `nodes: []` is all automation can honestly
+ * claim — sessions anchor their own story nodes via `noticeboard declare`.
  */
 export async function statuslineGlance(
   deps: AmbientDeps,
@@ -173,14 +180,23 @@ export async function statuslineGlance(
     lastBump === null ||
     now.getTime() - new Date(lastBump).getTime() >= debounceMs;
 
-  if (shouldBump && ownDoc !== undefined) {
+  if (shouldBump) {
     try {
-      const updated: PresenceDeclarationDoc = {
-        ...ownDoc,
-        lastSeenAt: now.toISOString(),
-      };
-      await store.declare(updated);
-      state.writeLastBump(now.toISOString());
+      const nowIso = now.toISOString();
+      const doc: PresenceDeclarationDoc =
+        ownDoc !== undefined
+          ? { ...ownDoc, lastSeenAt: nowIso }
+          : {
+              sessionId: identity.sessionId,
+              branch: identity.branch,
+              workingOn: "session active (auto-declared)",
+              nodes: [],
+              status: "active",
+              startedAt: nowIso,
+              lastSeenAt: nowIso,
+            };
+      await store.declare(doc);
+      state.writeLastBump(nowIso);
     } catch {
       // fail-silent
     }
