@@ -194,6 +194,25 @@ export const NODE_BUILD_REGISTRY: Readonly<Record<string, NodeBuildConfig>> = {
       typecheck: pnpmTypecheck("@storytree/cli"),
     },
   },
+  // The notice-board verdict-glyph follow-up (ADR-0033 owner decision 4): the pure glyph module —
+  // ✓/✗/– per unit id from signed verdicts, plus the offline-silent reader wrapper. NET-NEW file
+  // pair ON PURPOSE: tree.ts/tree.test.ts are tree-view's registered REAL surface above, so this
+  // capability's proof lives in its own files and the spine wires tree.ts to call them after
+  // promotion. `install: true`: imports @storytree/core (Verdict, SIGNING_EVENT_KIND).
+  "verdict-glyphs": {
+    command: pnpmTest("@storytree/cli"),
+    scope: pkgScope("cli"),
+    real: {
+      testFile: "packages/cli/src/tree-verdicts.test.ts",
+      sourceFile: "packages/cli/src/tree-verdicts.ts",
+      scope: {
+        testGlobs: ["packages/cli/src/tree-verdicts.test.ts"],
+        sourceGlobs: ["packages/cli/src/tree-verdicts.ts"],
+      },
+      install: true,
+      typecheck: pnpmTypecheck("@storytree/cli"),
+    },
+  },
 };
 
 /** Look up a node's build config; a miss returns null (the caller turns it into guidance). */

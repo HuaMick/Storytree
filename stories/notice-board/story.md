@@ -5,7 +5,7 @@ title: "The notice board — parallel sessions declare presence anchored to stor
 outcome: "Every session (interactive or spine-driven) is visible on a shared board — who exists, what worktree, what it is working on — woven into the CLI orientation surfaces so a session zoning into a story node sees its neighbours."
 status: proposed
 proof_mode: UAT
-capabilities: [declare-presence, presence-store, noticeboard-cli, tree-view, ambient-integration]
+capabilities: [declare-presence, presence-store, noticeboard-cli, tree-view, ambient-integration, verdict-glyphs]
 # Story-level edges: the "Cross-story boundary" section below, encoded (consumed seams, ADR-0010 §4).
 depends_on: [library, drive-machinery]
 decisions: [33] # deciding ADR (ADR-0037 §2)
@@ -26,7 +26,7 @@ already carries cross-session state; what is missing is purely the presence surf
 board always meant to the owner: "a simple declaration of *I exist and I'm working on xyz*".
 
 **Greenfield, through the drive.** Authored first, built through the prove-it-gate
-(`node build`/`story build`, ADR-0030/0031) — four of the five capabilities have now been driven
+(`node build`/`story build`, ADR-0030/0031) — four of the six capabilities have now been driven
 through it (signed passes, promoted to `main`). Registry entries are NOT
 pre-created — registration is the deliberate act done per node when its build is actually next.
 The capability split deliberately follows REAL-build mechanics (ADR-0031): each node's registered
@@ -54,14 +54,14 @@ attested by a worktree PASS.
 - **Live-DB only, degrade gracefully.** Presence needs `pnpm db:up`; offline surfaces render
   without presence lines rather than failing.
 
-## Capabilities (5)
+## Capabilities (6)
 
 Listed roots-first. Capabilities 1–4 are **PROVEN and PROMOTED** (gated-leaf builds, signed
 passes in `events.verdict`, merged to `main` — see each file's Proof note for run ids and
-commits); 5 is registered and next to build. The authored status stays `proposed` forever
-(ADR-0031: health is a projection of signed verdicts — promotion lands *code*, never *status*;
-the studio tree and the verdict-glyph follow-up read proof from `events.verdict` when the DB is
-up).
+commits); 5 and 6 are registered — 6 ([`verdict-glyphs`](verdict-glyphs.md), owner call 3's
+follow-up) is next to build. The authored status stays `proposed` forever (ADR-0031: health is a
+projection of signed verdicts — promotion lands *code*, never *status*; the studio tree and the
+`verdict-glyphs` capability read proof from `events.verdict` when the DB is up).
 
 | # | capability | outcome | status | depends on |
 |---|---|---|---|---|
@@ -70,6 +70,7 @@ up).
 | 3 | [`noticeboard-cli`](noticeboard-cli.md) | `storytree noticeboard` lists active sessions grouped by story node with staleness; `declare`/`done` write with worktree-derived identity. | proposed | `declare-presence`, `presence-store` |
 | 4 | [`tree-view`](tree-view.md) | `storytree tree [<story>]` renders the work hierarchy offline and weaves the presence block in when the live store is reachable. | proposed | `declare-presence`, `presence-store` |
 | 5 | [`ambient-integration`](ambient-integration.md) | Presence declares itself: spine-side around SDK builds, fail-silent session hooks, a statusline glance — never via a blocking-capable hook. | proposed | `noticeboard-cli`, `tree-view` |
+| 6 | [`verdict-glyphs`](verdict-glyphs.md) | `storytree tree` shows one signed-verdict glyph per node — ✓ proven / ✗ last run failed / – never built — read from `events.verdict` when the DB is up, silently absent offline. | proposed | `tree-view` |
 
 ## Dependency graph (designed; code at HEAD for 1–4)
 
@@ -85,11 +86,16 @@ re-derivation from real imports (the `library` story's standard) is pending work
   core and reads the projection.
 - `ambient-integration` → `noticeboard-cli`, `tree-view` — automation invokes the CLI surfaces
   (hooks, statusline) and the spine declares through the same store path the CLI uses.
+- `verdict-glyphs` → `tree-view` — the glyph column annotates the rows the tree view renders;
+  after promotion the spine wires `treeCommand` to pass each row's unit id through `glyphFor`.
 
 **Cross-story boundary (ADR-0010 §4):** `presence-store` consumes the **store connection seam**
 owned by the `library` story (`event-sourced-store-seam` — `createPool`/keyless IAM); `tree-view`
 reads the **node-spec/registry surface** owned by the drive machinery (`findNodeSpecFile`/
-`NODE_BUILD_REGISTRY` in `packages/orchestrator`). Declared, not absorbed.
+`NODE_BUILD_REGISTRY` in `packages/orchestrator`); `verdict-glyphs` reads the **verdict event
+log** owned by the drive machinery (`work-verdict-event-log` — the `PgWorkStore.readEvents`
+merged stream over `events.verdict`, with `Verdict`/`SIGNING_EVENT_KIND` from
+`@storytree/core`). Declared, not absorbed.
 
 ## Story UAT (would-be)
 
@@ -134,7 +140,8 @@ All four RESOLVED by the owner 2026-06-11 — recorded in ADR-0033 "Owner decisi
    failed / – never built) read from `events.verdict` when the DB is up, silently absent offline.
    Applies to both story and capability rows; a story row shows ONLY its own UAT node's verdict,
    never a roll-up inferred from its children — "all capabilities pass" and "the story passed UAT"
-   are different claims, and the glyph only ever reports a signed verdict.
+   are different claims, and the glyph only ever reports a signed verdict. Now authored as
+   [`verdict-glyphs`](verdict-glyphs.md).
 4. **RESOLVED (owner, 2026-06-11) — hook installation.** The `SessionStart`/`SessionEnd` wrappers
    land SHARED in the repo's `.claude/settings.json` — every session gets them. The fail-silent
    contract (always exit 0, short timeout, silent when the DB is down) is what makes shared safe.
