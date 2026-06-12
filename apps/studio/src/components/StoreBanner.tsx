@@ -9,13 +9,20 @@
 // It ALSO watches the health probe's schema-skew pair: a DB holding a newer
 // library schemaVersion than this server's code means a stale long-running
 // server (the "specs is not iterable" incident) — a distinct banner says to
-// git pull and pnpm studio:down/up instead of blaming the DB.
+// git pull and pnpm studio:down/up instead of blaming the DB. And when
+// /api/health ITSELF stops answering repeatedly, the banner says the studio
+// server is unreachable rather than spinning on a DB phase forever.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 
 const SLOW_POLL_MS = 30_000;
 const FAST_POLL_MS = 5_000;
+// Consecutive /api/health failures before the banner stops blaming the DB and says the
+// studio server itself is unreachable. One failure is a blip; three in a row (~15s on the
+// fast poll) is the dev server gone — without this, a banner stuck on 'starting' would
+// spin forever while polling a dead server (the 2026-06-12 incident's second half).
+export const SERVER_LOST_AFTER = 3;
 
 type Phase =
   | 'unknown' // no health response yet — render nothing rather than flash a warning
@@ -24,7 +31,8 @@ type Phase =
   | 'stopped' // unreachable and Cloud SQL reports STOPPED — offer Start DB
   | 'unreachable' // unreachable but RUNNABLE (or status unknown) — likely coming up
   | 'starting' // we fired /api/db/start and are waiting for the probe to flip
-  | 'stale-code'; // DB reachable but holds a NEWER library schemaVersion than this server's code
+  | 'stale-code' // DB reachable but holds a NEWER library schemaVersion than this server's code
+  | 'server-lost'; // /api/health itself has stopped answering — the dev server, not the DB
 
 export function StoreBanner({
   onRecovered,
@@ -42,12 +50,14 @@ export function StoreBanner({
   phaseRef.current = phase;
   const inFlight = useRef(false);
   const statusChecked = useRef(false); // one /api/db/status refinement per outage
+  const healthFailures = useRef(0); // consecutive /api/health failures (→ 'server-lost')
 
   const probe = useCallback(async (): Promise<void> => {
     if (inFlight.current) return;
     inFlight.current = true;
     try {
       const health = await api.health();
+      healthFailures.current = 0; // the studio server answered — whatever the DB says
       if (health.store === 'json') {
         setPhase('json');
         return;
@@ -62,7 +72,7 @@ export function StoreBanner({
           health.schema && health.schema.db > health.schema.code ? health.schema : null;
         setSkew(staleSkew);
         setPhase(staleSkew ? 'stale-code' : 'healthy');
-        if (prev === 'stopped' || prev === 'unreachable' || prev === 'starting') {
+        if (prev === 'stopped' || prev === 'unreachable' || prev === 'starting' || prev === 'server-lost') {
           onRecovered();
         }
         return;
@@ -82,15 +92,19 @@ export function StoreBanner({
         setPhase('unreachable');
       }
     } catch {
-      // /api/health itself failed (dev server gone?) — nothing actionable to
-      // show beyond the app's own error state; keep the current phase.
+      // /api/health itself failed — likely the dev server, not the DB. One failure is a
+      // blip (keep the current phase, e.g. a pending 'starting'); SERVER_LOST_AFTER in a
+      // row means the studio server is gone, and honest copy beats an eternal spinner.
+      healthFailures.current += 1;
+      if (healthFailures.current >= SERVER_LOST_AFTER) setPhase('server-lost');
     } finally {
       inFlight.current = false;
     }
   }, [onRecovered]);
 
   // Poll: once immediately, then slow while healthy, fast while down/starting.
-  const fast = phase === 'stopped' || phase === 'unreachable' || phase === 'starting';
+  const fast =
+    phase === 'stopped' || phase === 'unreachable' || phase === 'starting' || phase === 'server-lost';
   useEffect(() => {
     void probe();
     const id = window.setInterval(() => void probe(), fast ? FAST_POLL_MS : SLOW_POLL_MS);
@@ -129,6 +143,13 @@ export function StoreBanner({
           This studio server is running stale code — the live library holds schemaVersion{' '}
           {skew?.db} but this build knows {skew?.code}. Pull the latest (<code>git pull</code>),
           then restart it: <code>pnpm studio:down</code> · <code>pnpm studio:up</code>.
+        </span>
+      ) : phase === 'server-lost' ? (
+        <span>
+          The studio server itself is unreachable — <code>/api/health</code> has stopped
+          answering, so this page can no longer see the store at all. Check the dev server
+          (<code>pnpm studio:status</code>), restart it (<code>pnpm studio:up</code>), then
+          reload this page.
         </span>
       ) : phase === 'stopped' ? (
         <>
