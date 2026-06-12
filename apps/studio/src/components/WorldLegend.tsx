@@ -1,0 +1,727 @@
+// WorldLegend — the story world's legend bar (ADR-0036 d.6c, model-per-row rework).
+//
+// Games-style: ONE entry per world model (story trees, garden plants, proof
+// marks, roads, focus, sessions, decoration), representative state icons side
+// by side, a single caption. Clicking an entry expands a drawer fanning out
+// that model's FULL state vocabulary — states that don't occur in the current
+// world render dimmed ("not in world yet"), and entries whose model has no
+// instance at all (no verdicts, no sessions, no roads) drop out of the bar
+// entirely, so the legend only ever describes what's on screen.
+//
+// The status fan doubles as the status filter (it absorbed the old toolbar
+// chips): tiles toggle the same `hidden` set, and the world fades matching
+// trees/flora. Icons reuse the world's OWN css classes (story-tree st-*,
+// garden-flora, captree-verdict, story-sign, world-wisp band-*), so the legend
+// can never drift from the world's palette — it IS the world's palette.
+//
+// The captions carry the observability contract's caveats in operator-facing
+// text: signed-verdicts-only, signpost-is-never-a-roll-up, absent-equals-
+// offline, presence-is-advisory (ADR-0033 d.3 / ADR-0036).
+
+import { useEffect, useRef, useState } from 'react';
+import type { TreeSession, TreeStory } from '../types';
+
+type Band = TreeSession['band'];
+type RowKey = 'tree' | 'flora' | 'proof' | 'roads' | 'focus' | 'wisps' | 'decor';
+
+/** Status fan order: the authoring lifecycle, then the failure/exit states. */
+const STATUS_ORDER = ['proposed', 'mapped', 'building', 'healthy', 'unhealthy', 'retired'] as const;
+
+/** Statuses an ALIVE plant can wear in the world — unhealthy flora always renders dead. */
+const ALIVE_STATUSES = STATUS_ORDER.filter((st) => st !== 'unhealthy');
+
+const BAND_ORDER: Band[] = ['fresh', 'stale', 'possibly-dead'];
+
+export interface LegendFacts {
+  /** status → instance counts across both tiers ('unknown' = spec error / no status). */
+  statusTotals: Map<string, { stories: number; caps: number }>;
+  /** A claimed-but-empty story renders the lone sapling (caps 0, not retired/unhealthy). */
+  saplingPresent: boolean;
+  /** Capability badge states (✓/✗ discs) — distinct from story signposts. */
+  capPass: boolean;
+  capFail: boolean;
+  /** Story signpost states (a story's OWN UAT verdict). */
+  signPass: boolean;
+  signFail: boolean;
+  /** Any unit with NO signed verdict — the no-mark state (= never built = offline). */
+  anyUnproven: boolean;
+  /** Any capability renders the dead silhouette (signed ✗ OR status unhealthy). */
+  anyDeadFlora: boolean;
+  anyRetiredFlora: boolean;
+  bands: Set<Band>;
+}
+
+/** Ground the legend in the loaded world: which states actually occur right now. */
+export function legendFacts(stories: TreeStory[], sessions: TreeSession[]): LegendFacts {
+  const statusTotals = new Map<string, { stories: number; caps: number }>();
+  const bump = (key: string, tier: 'stories' | 'caps'): void => {
+    const cur = statusTotals.get(key) ?? { stories: 0, caps: 0 };
+    cur[tier] += 1;
+    statusTotals.set(key, cur);
+  };
+  let saplingPresent = false;
+  let capPass = false;
+  let capFail = false;
+  let signPass = false;
+  let signFail = false;
+  let anyUnproven = false;
+  let anyDeadFlora = false;
+  let anyRetiredFlora = false;
+  for (const s of stories) {
+    const st = s.status ?? 'unknown';
+    bump(st, 'stories');
+    if (s.capabilities.length === 0 && st !== 'retired' && st !== 'unhealthy') saplingPresent = true;
+    if (s.verdict) {
+      if (s.verdict.outcome === 'pass') signPass = true;
+      else signFail = true;
+    } else anyUnproven = true;
+    for (const c of s.capabilities) {
+      const cst = c.status ?? 'unknown';
+      bump(cst, 'caps');
+      if (c.verdict) {
+        if (c.verdict.outcome === 'pass') capPass = true;
+        else capFail = true;
+      } else anyUnproven = true;
+      if (c.verdict?.outcome === 'fail' || cst === 'unhealthy') anyDeadFlora = true;
+      if (cst === 'retired') anyRetiredFlora = true;
+    }
+  }
+  return {
+    statusTotals,
+    saplingPresent,
+    capPass,
+    capFail,
+    signPass,
+    signFail,
+    anyUnproven,
+    anyDeadFlora,
+    anyRetiredFlora,
+    bands: new Set(sessions.map((s) => s.band)),
+  };
+}
+
+// ---------- mini icons (world css classes — the world's palette, never a copy) ----------
+
+const HEX = 'M 0 -11 L 9.5 -5.5 L 9.5 5.5 L 0 11 L -9.5 5.5 L -9.5 -5.5 Z';
+
+const BARE_BRANCHES = ['M 0 -15 C 2 -20, 1 -22, 2 -25', 'M -3 -15.5 C -8 -19, -7 -20, -4.5 -22'];
+
+function TreeIcon({
+  status,
+  form,
+}: {
+  status: string;
+  form: 'full' | 'sapling' | 'withered' | 'ghost';
+}): React.JSX.Element {
+  if (form === 'sapling') {
+    return (
+      <svg viewBox="-11 -22 22 26" aria-hidden="true">
+        <g className={`story-tree st-${status}`}>
+          <rect className="story-trunk" x={-1.3} y={-9} width={2.6} height={10} rx={1} />
+          <g className="crown-lo">
+            <circle cx={0} cy={-13} r={6.5} />
+            <circle cx={-3.5} cy={-11} r={3.8} />
+            <circle cx={3.5} cy={-11} r={3.8} />
+          </g>
+          <g className="crown-hi">
+            <circle cx={-1} cy={-14.5} r={3.5} />
+          </g>
+        </g>
+      </svg>
+    );
+  }
+  if (form === 'ghost') {
+    return (
+      <svg viewBox="-14 -32 28 36" aria-hidden="true">
+        <g className="story-tree st-retired">
+          <rect className="story-trunk is-ghost-wood" x={-1.5} y={-10} width={3} height={10} rx={1} />
+          <g className="story-bare is-ghost-wood">
+            {BARE_BRANCHES.map((d, i) => (
+              <path key={i} d={d} />
+            ))}
+          </g>
+          <circle className="ghost-crown" cx={0} cy={-20} r={8} strokeDasharray="3 4" />
+        </g>
+      </svg>
+    );
+  }
+  if (form === 'withered') {
+    return (
+      <svg viewBox="-14 -32 28 36" aria-hidden="true">
+        <g className="story-tree st-unhealthy">
+          <rect className="story-trunk" x={-1.5} y={-10} width={3} height={10} rx={1} />
+          <g className="story-bare">
+            {BARE_BRANCHES.map((d, i) => (
+              <path key={i} d={d} />
+            ))}
+          </g>
+          <g className="crown-lo">
+            <circle cx={0} cy={-14} r={6.5} />
+            <circle cx={-4.5} cy={-12} r={4} />
+          </g>
+          <g className="crown-hi" opacity={0.7}>
+            <circle cx={-1.5} cy={-16} r={2.8} />
+          </g>
+          <circle className="leaf-litter" cx={-7} cy={-1} r={1.2} />
+          <circle className="leaf-litter" cx={5} cy={-2} r={1.2} />
+        </g>
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="-14 -30 28 34" aria-hidden="true">
+      <g className={`story-tree st-${status}`}>
+        <rect className="story-trunk" x={-1.5} y={-10} width={3} height={10} rx={1} />
+        <g className="crown-lo">
+          <circle cx={0} cy={-16} r={7.6} />
+          <circle cx={-6} cy={-12} r={4.8} />
+          <circle cx={6.4} cy={-12.5} r={5} />
+        </g>
+        <g className="crown-hi">
+          <circle cx={-2} cy={-18} r={4} />
+        </g>
+      </g>
+    </svg>
+  );
+}
+
+function PlantIcon({
+  status,
+  dead,
+  ghost,
+}: {
+  status: string;
+  dead?: boolean;
+  ghost?: boolean;
+}): React.JSX.Element {
+  if (dead) {
+    return (
+      <svg viewBox="-12 -18 24 24" aria-hidden="true">
+        <g className={`garden-flora st-${status}`}>
+          <ellipse className="flora-bed" cx={0} cy={0.4} rx={8} ry={2.8} opacity={0.7} />
+          <path
+            className="flora-dead-stem"
+            strokeWidth={1.2}
+            d="M 0.5 0 C 0.6 -6 0.4 -10 2.6 -11.4 C 4.4 -12.4 5.8 -10.8 5.6 -9.2"
+          />
+          <circle className="flora-dead-head flora-dead-accent" cx={5.6} cy={-8.2} r={1.7} />
+          <path className="flora-dead-stem" strokeWidth={1.1} d="M -3.5 0 C -4 -5 -4.5 -8.5 -2.5 -10" />
+          <circle className="leaf-litter" cx={-7} cy={-0.5} r={1} />
+        </g>
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="-12 -19 24 24" aria-hidden="true">
+      <g className={`garden-flora st-${status}${ghost ? ' is-ghost' : ''}`}>
+        <polygon
+          className="flora-dark"
+          points="0,-12.5 5.5,-10.5 8.5,-5.5 7,-1 0,0.8 -7,-1 -8.5,-5.5 -5.5,-10.5"
+        />
+        <polygon
+          className="flora-light"
+          points="-1,-12.5 4.5,-10.8 6,-7 0.5,-5.6 -4.8,-7.4 -4.6,-10.6"
+        />
+        <circle className="flora-core" cx={2} cy={-7.5} r={1.5} />
+      </g>
+    </svg>
+  );
+}
+
+function BadgeIcon({ outcome }: { outcome: 'pass' | 'fail' | 'none' }): React.JSX.Element {
+  if (outcome === 'none') {
+    return (
+      <svg viewBox="-9 -9 18 18" aria-hidden="true">
+        <circle className="legend-nobadge" r={6.5} />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="-9 -9 18 18" aria-hidden="true">
+      <g className={`captree-verdict verdict-${outcome}`}>
+        <circle r={6.5} />
+        <text textAnchor="middle" y={3.2}>
+          {outcome === 'pass' ? '✓' : '✗'}
+        </text>
+      </g>
+    </svg>
+  );
+}
+
+function SignIcon({ outcome }: { outcome: 'pass' | 'fail' }): React.JSX.Element {
+  return (
+    <svg viewBox="-9 -26 18 28" aria-hidden="true">
+      <g className={`story-sign verdict-${outcome}`}>
+        <rect x={-1.3} y={-15} width={2.6} height={15} rx={1.1} />
+        <circle cy={-18} r={6.5} />
+        <text textAnchor="middle" y={-15.4}>
+          {outcome === 'pass' ? '✓' : '✗'}
+        </text>
+      </g>
+    </svg>
+  );
+}
+
+/** `arrowId` keeps marker ids unique when the chip and the drawer both render a road. */
+function RoadIcon({ arrowId, long }: { arrowId: string; long?: boolean }): React.JSX.Element {
+  const end = long ? 42 : 24;
+  return (
+    <svg viewBox={`0 -8 ${end + 6} 16`} aria-hidden="true">
+      <defs>
+        <marker
+          id={arrowId}
+          viewBox="0 0 10 10"
+          refX="7.5"
+          refY="5"
+          markerWidth="5"
+          markerHeight="5"
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 1.2 L 8 5 L 0 8.8 z" fill="context-stroke" />
+        </marker>
+      </defs>
+      <path className="world-trail-bed" d={`M 2 0 L ${end + 4} 0`} />
+      <path className="world-trail-line" d={`M 2 0 L ${end} 0`} markerEnd={`url(#${arrowId})`} />
+    </svg>
+  );
+}
+
+function WispIcon({ band }: { band: Band }): React.JSX.Element {
+  return (
+    <svg viewBox="-8 -8 16 16" aria-hidden="true">
+      <g className={`world-wisp band-${band}`}>
+        <circle className="world-wisp-glow" r={5.5} />
+        <circle className="world-wisp-dot" r={2.4} />
+      </g>
+    </svg>
+  );
+}
+
+function HexIcon({ cls }: { cls: string }): React.JSX.Element {
+  return (
+    <svg viewBox="-13 -13 26 26" aria-hidden="true">
+      <g className={`legend-hex ${cls}`}>
+        <path d={HEX} />
+      </g>
+    </svg>
+  );
+}
+
+function ConiferIcon(): React.JSX.Element {
+  return (
+    <svg viewBox="-12 -14 24 18" aria-hidden="true">
+      <g className="hex-conifer">
+        <path className="conifer-body c-0" d="M -5 -10 L -1 0 L -9 0 Z" />
+        <path className="conifer-body c-1" d="M 5 -8 L 8.5 0 L 1.5 0 Z" />
+      </g>
+    </svg>
+  );
+}
+
+function WheatIcon(): React.JSX.Element {
+  return (
+    <svg viewBox="-13 -13 26 26" aria-hidden="true">
+      <path className="hex-top is-wheat" d={HEX} />
+    </svg>
+  );
+}
+
+// ---------- tiles & fans ----------
+
+function Tile({
+  icon,
+  label,
+  note,
+  absent,
+  off,
+  wide,
+  title,
+  onClick,
+  pressed,
+}: {
+  icon: React.JSX.Element;
+  label: string;
+  note?: string;
+  absent?: boolean;
+  off?: boolean;
+  wide?: boolean;
+  title?: string;
+  onClick?: () => void;
+  pressed?: boolean | undefined;
+}): React.JSX.Element {
+  const cls = `legend-tile${absent ? ' is-absent' : ''}${off ? ' is-off' : ''}${wide ? ' is-wide' : ''}`;
+  const body = (
+    <>
+      <span className="legend-tile-icon">{icon}</span>
+      <span className="legend-tile-label">{label}</span>
+      {note && <span className="legend-tile-note">{note}</span>}
+    </>
+  );
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        className={cls}
+        onClick={onClick}
+        title={title ?? ''}
+        {...(pressed !== undefined ? { 'aria-pressed': pressed } : {})}
+      >
+        {body}
+      </button>
+    );
+  }
+  return (
+    <div className={cls} title={title ?? ''}>
+      {body}
+    </div>
+  );
+}
+
+const treeForm = (st: string): 'full' | 'withered' | 'ghost' =>
+  st === 'unhealthy' ? 'withered' : st === 'retired' ? 'ghost' : 'full';
+
+function countNote(tot: { stories: number; caps: number }): string {
+  const parts: string[] = [];
+  if (tot.stories > 0) parts.push(`${tot.stories} ${tot.stories === 1 ? 'story' : 'stories'}`);
+  if (tot.caps > 0) parts.push(`${tot.caps} ${tot.caps === 1 ? 'cap' : 'caps'}`);
+  return parts.join(' · ');
+}
+
+// ---------- the legend ----------
+
+export function WorldLegend({
+  stories,
+  sessions,
+  roadCount,
+  hidden,
+  onToggleStatus,
+  onResetHidden,
+}: {
+  stories: TreeStory[];
+  sessions: TreeSession[];
+  roadCount: number;
+  hidden: ReadonlySet<string>;
+  onToggleStatus: (st: string) => void;
+  onResetHidden: () => void;
+}): React.JSX.Element {
+  const [open, setOpen] = useState<RowKey | null>(null);
+  const dockRef = useRef<HTMLDivElement>(null);
+  // An open drawer covers a lot of map — Escape and any click outside dismiss it.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setOpen(null);
+    };
+    const onDown = (e: PointerEvent): void => {
+      if (e.target instanceof Node && !dockRef.current?.contains(e.target)) setOpen(null);
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('pointerdown', onDown);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('pointerdown', onDown);
+    };
+  }, [open]);
+  const facts = legendFacts(stories, sessions);
+  const totals = (st: string): { stories: number; caps: number } =>
+    facts.statusTotals.get(st) ?? { stories: 0, caps: 0 };
+  const present = (st: string): boolean => {
+    const t = totals(st);
+    return t.stories > 0 || t.caps > 0;
+  };
+  const signOutcome: 'pass' | 'fail' = facts.signPass ? 'pass' : 'fail';
+  const unknownPresent = present('unknown');
+  const toggle = (key: RowKey): void => setOpen((cur) => (cur === key ? null : key));
+
+  const rows: { key: RowKey; label: string; visible: boolean; icons: React.JSX.Element }[] = [
+    {
+      key: 'tree',
+      label: 'story trees',
+      visible: true,
+      icons: (
+        <>
+          {STATUS_ORDER.filter((st) => totals(st).stories > 0).map((st) => (
+            <TreeIcon key={st} status={st} form={treeForm(st)} />
+          ))}
+          {totals('unknown').stories > 0 && <TreeIcon status="unknown" form="full" />}
+          {facts.saplingPresent && <TreeIcon status="proposed" form="sapling" />}
+        </>
+      ),
+    },
+    {
+      key: 'flora',
+      label: 'garden plants',
+      visible: stories.some((s) => s.capabilities.length > 0),
+      icons: (
+        <>
+          <PlantIcon status={ALIVE_STATUSES.find((st) => totals(st).caps > 0) ?? 'unknown'} />
+          {facts.anyDeadFlora && <PlantIcon status="unhealthy" dead />}
+        </>
+      ),
+    },
+    {
+      // Always visible: the no-mark state (= never built = offline) is itself a
+      // state of the world, and it's exactly the one an offline operator needs
+      // the legend to explain (ADR-0033 d.3 / ADR-0036).
+      key: 'proof',
+      label: 'proof marks',
+      visible: true,
+      icons: (
+        <>
+          {facts.capPass && <BadgeIcon outcome="pass" />}
+          {facts.capFail && <BadgeIcon outcome="fail" />}
+          {facts.anyUnproven && !facts.capPass && !facts.capFail && <BadgeIcon outcome="none" />}
+          {(facts.signPass || facts.signFail) && <SignIcon outcome={signOutcome} />}
+        </>
+      ),
+    },
+    {
+      key: 'roads',
+      label: 'roads',
+      visible: roadCount > 0,
+      icons: <RoadIcon arrowId="legend-arrow-bar" />,
+    },
+    {
+      key: 'focus',
+      label: 'focus',
+      visible: true,
+      icons: (
+        <>
+          <span className="legend-band-dot is-upstream" />
+          <span className="legend-band-dot is-downstream" />
+        </>
+      ),
+    },
+    {
+      key: 'wisps',
+      label: 'sessions',
+      visible: sessions.length > 0,
+      icons: (
+        <>
+          {BAND_ORDER.filter((b) => facts.bands.has(b)).map((b) => (
+            <WispIcon key={b} band={b} />
+          ))}
+        </>
+      ),
+    },
+    { key: 'decor', label: 'decoration', visible: true, icons: <ConiferIcon /> },
+  ];
+  const openRow = open ? rows.find((r) => r.key === open && r.visible) : undefined;
+
+  return (
+    <div className="world-legend-dock" ref={dockRef}>
+      <div className="legend-bar" role="group" aria-label="legend">
+        {rows
+          .filter((r) => r.visible)
+          .map((r) => (
+            <button
+              key={r.key}
+              type="button"
+              className={`legend-chip${open === r.key ? ' on' : ''}`}
+              aria-expanded={open === r.key}
+              onClick={() => toggle(r.key)}
+            >
+              {r.icons}
+              {r.label}
+            </button>
+          ))}
+        {hidden.size > 0 && (
+          <button type="button" className="legend-chip legend-reset" onClick={onResetHidden}>
+            show all statuses ({hidden.size} hidden)
+          </button>
+        )}
+      </div>
+
+      {openRow?.key === 'tree' && (
+        <div className="legend-drawer" role="region" aria-label="legend — story trees">
+          <div className="legend-fan">
+            <Tile
+              icon={<TreeIcon status="proposed" form="sapling" />}
+              label="sapling"
+              note="claimed, nothing mapped yet"
+              absent={!facts.saplingPresent}
+              title="a story with no capabilities (takes its status colour)"
+            />
+            {STATUS_ORDER.map((st) => {
+              const tot = totals(st);
+              const here = tot.stories > 0 || tot.caps > 0;
+              const off = hidden.has(st);
+              return (
+                <Tile
+                  key={st}
+                  icon={<TreeIcon status={st} form={treeForm(st)} />}
+                  label={st}
+                  note={here ? `${countNote(tot)}${off ? ' — hidden' : ''}` : 'not in world yet'}
+                  absent={!here}
+                  off={off}
+                  {...(here
+                    ? {
+                        onClick: () => onToggleStatus(st),
+                        pressed: off,
+                        title: off ? `show ${st}` : `fade ${st}`,
+                      }
+                    : {})}
+                />
+              );
+            })}
+            {unknownPresent && (
+              <Tile
+                icon={<TreeIcon status="unknown" form="full" />}
+                label="unknown"
+                note={`${countNote(totals('unknown'))}${hidden.has('unknown') ? ' — hidden' : ''}`}
+                off={hidden.has('unknown')}
+                onClick={() => onToggleStatus('unknown')}
+                pressed={hidden.has('unknown')}
+                title="spec missing or failed to parse"
+              />
+            )}
+          </div>
+          <p className="legend-cap">
+            An island is a <strong>story</strong>; the big tree is the story itself — foliage colour
+            is its authored status, and a lone sapling means claimed but nothing mapped yet. Click a
+            tile to fade that status across the world.
+          </p>
+        </div>
+      )}
+
+      {openRow?.key === 'flora' && (
+        <div className="legend-drawer" role="region" aria-label="legend — garden plants">
+          <div className="legend-fan">
+            <Tile
+              icon={<PlantIcon status={ALIVE_STATUSES.find((st) => totals(st).caps > 0) ?? 'unknown'} />}
+              label="alive"
+              note="colour = status, same key as the trees"
+            />
+            <Tile
+              icon={<PlantIcon status="unhealthy" dead />}
+              label="withered"
+              note="failed its last signed run, or unhealthy"
+              absent={!facts.anyDeadFlora}
+            />
+            <Tile
+              icon={<PlantIcon status="retired" ghost />}
+              label="retired"
+              note="fades out"
+              absent={!facts.anyRetiredFlora}
+            />
+          </div>
+          <p className="legend-cap">
+            Garden flora are the story's <strong>capabilities</strong> — click one in the world to
+            inspect it. Species is decorative; colour and withering carry the data. A withered plant
+            under a green ✓ means the authored status disagrees with the last proven run.
+          </p>
+        </div>
+      )}
+
+      {openRow?.key === 'proof' && (
+        <div className="legend-drawer" role="region" aria-label="legend — proof marks">
+          <div className="legend-fan">
+            <Tile icon={<BadgeIcon outcome="pass" />} label="✓ proven" absent={!facts.capPass} />
+            <Tile
+              icon={<BadgeIcon outcome="fail" />}
+              label="✗ last run failed"
+              absent={!facts.capFail}
+            />
+            <Tile
+              icon={<BadgeIcon outcome="none" />}
+              label="never built"
+              note="also what offline looks like"
+              absent={!facts.anyUnproven}
+            />
+            <Tile
+              icon={<SignIcon outcome={signOutcome} />}
+              label="signpost"
+              note="the story's own UAT — never a roll-up"
+              absent={!facts.signPass && !facts.signFail}
+            />
+          </div>
+          <p className="legend-cap">
+            Marks only ever report a <strong>signed</strong> prove-it-gate verdict — never inferred.
+            “All capabilities pass” and “the story passed UAT” are different claims.
+          </p>
+        </div>
+      )}
+
+      {openRow?.key === 'roads' && (
+        <div className="legend-drawer" role="region" aria-label="legend — roads">
+          <div className="legend-fan">
+            <Tile
+              icon={<RoadIcon arrowId="legend-arrow-fan" long />}
+              label="a dependency"
+              note="the arrow points at the dependent"
+              wide
+            />
+          </div>
+          <p className="legend-cap">
+            Roads are dependencies — declared <code>depends_on</code> and links derived from
+            capability deps draw the same road (hover one for its evidence). Foundations sit at the
+            bottom; dependents fan upward.
+          </p>
+        </div>
+      )}
+
+      {openRow?.key === 'focus' && (
+        <div className="legend-drawer" role="region" aria-label="legend — focus">
+          <div className="legend-fan">
+            <Tile icon={<HexIcon cls="is-focus" />} label="focused story" />
+            <Tile icon={<HexIcon cls="is-upstream" />} label="upstream" note="what it stands on" />
+            <Tile
+              icon={<HexIcon cls="is-downstream" />}
+              label="downstream"
+              note="what stands on it"
+            />
+            <Tile icon={<HexIcon cls="is-dim" />} label="unrelated" note="fades" />
+          </div>
+          <p className="legend-cap">
+            Hover or click an island to light its whole dependency chain, transitively — on-chain
+            roads turn solid. A click also selects it into the URL, so{' '}
+            <code>#/tree/&lt;story-id&gt;</code> deep-links straight back here.
+          </p>
+        </div>
+      )}
+
+      {openRow?.key === 'wisps' && (
+        <div className="legend-drawer" role="region" aria-label="legend — sessions">
+          <div className="legend-fan">
+            <Tile
+              icon={<WispIcon band="fresh" />}
+              label="fresh"
+              note="seen < 1 h"
+              absent={!facts.bands.has('fresh')}
+            />
+            <Tile
+              icon={<WispIcon band="stale" />}
+              label="stale"
+              note="quiet ≥ 1 h"
+              absent={!facts.bands.has('stale')}
+            />
+            <Tile
+              icon={<WispIcon band="possibly-dead" />}
+              label="possibly dead"
+              note="quiet ≥ 4 h"
+              absent={!facts.bands.has('possibly-dead')}
+            />
+          </div>
+          <p className="legend-cap">
+            An orbiting wisp is a session that declared work on this story — advisory only, it never
+            blocks anything. Hover a wisp for who it is and what they're doing.
+          </p>
+        </div>
+      )}
+
+      {openRow?.key === 'decor' && (
+        <div className="legend-drawer" role="region" aria-label="legend — decoration">
+          <div className="legend-fan">
+            <Tile icon={<ConiferIcon />} label="conifers" />
+            <Tile icon={<WheatIcon />} label="wheat fields" />
+            <Tile icon={<PlantIcon status="healthy" />} label="plant species & grass shades" wide />
+          </div>
+          <p className="legend-cap">
+            Scenery — hash-grown so the world looks alive yet renders identically every visit. Only
+            colour, withering and glyphs carry data.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -17,8 +17,10 @@
 // roads; hovering a territory lights its upstream chain (gold) vs downstream
 // dependents (red) — the focus interaction carried from V1's
 // visualisations/storytree. Clicking opens the side panel with the story's
-// capability sub-DAG (dagre layout, status-strip cards). A collapsible legend
-// overlay maps the visual vocabulary.
+// capability sub-DAG (dagre layout, status-strip cards). A legend bar docked
+// at the top of the frame maps the visual vocabulary, one entry per model
+// with expandable state fans (WorldLegend.tsx); its status fan doubles as the
+// status filter.
 //
 // Data is /api/tree — offline, straight from stories/ frontmatter; verdict
 // glyphs and presence wisps are advisory layers that appear only when the
@@ -29,7 +31,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import dagre from '@dagrejs/dagre';
 import { api } from '../api';
 import { navigate, treeFocusHref, treeHref } from '../lib/route';
-import type { TreeCapability, TreeSession, TreeStory, TreeVerdict, WorkStatus } from '../types';
+import { WorldLegend } from './WorldLegend.js';
+import type { TreeCapability, TreeSession, TreeStory, TreeVerdict } from '../types';
 
 // ---------- deterministic pseudo-random ----------
 
@@ -723,16 +726,6 @@ function layoutSubdag(story: TreeStory): SubLayout {
 
 type Band = TreeSession['band'];
 
-const STATUS_ORDER: (WorkStatus | 'unknown')[] = [
-  'healthy',
-  'building',
-  'mapped',
-  'proposed',
-  'unhealthy',
-  'retired',
-  'unknown',
-];
-
 /** Age since lastSeenAt, compact ("12m" / "3h"). */
 function formatAge(lastSeenAt: string): string {
   const minutes = Math.max(0, Math.floor((Date.now() - new Date(lastSeenAt).getTime()) / 60_000));
@@ -832,17 +825,6 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
     return byStory;
   }, [stories, sessions]);
 
-  const statusCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const s of stories ?? []) {
-      for (const c of s.capabilities) {
-        const key = c.status ?? 'unknown';
-        counts.set(key, (counts.get(key) ?? 0) + 1);
-      }
-    }
-    return counts;
-  }, [stories]);
-
   if (loadError) {
     return (
       <div className="pad">
@@ -920,20 +902,6 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
             ` · ${sessions.length} active session${sessions.length === 1 ? '' : 's'}`}{' '}
           — foundations at the bottom, dependents fan upward. Every story grows one tree on
           its island; its capabilities garden around it. Click an island for the capability DAG.
-        </span>
-        <span className="tree-toolbar-chips">
-          {STATUS_ORDER.filter((st) => (statusCounts.get(st) ?? 0) > 0).map((st) => (
-            <button
-              key={st}
-              type="button"
-              className={`tree-chip${hidden.has(st) ? ' off' : ''}`}
-              onClick={() => toggleStatus(st)}
-              title={hidden.has(st) ? `show ${st}` : `fade ${st}`}
-            >
-              <span className={`tree-dot st-${st}`} />
-              {st} {statusCounts.get(st)}
-            </button>
-          ))}
         </span>
       </div>
 
@@ -1052,7 +1020,14 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
             </g>
           </svg>
           </div>
-          <WorldLegend />
+          <WorldLegend
+            stories={stories}
+            sessions={sessions}
+            roadCount={world.edges.length}
+            hidden={hidden}
+            onToggleStatus={toggleStatus}
+            onResetHidden={() => setHidden(new Set())}
+          />
         </div>
 
         {selected && (
@@ -1086,208 +1061,6 @@ function DecorTree({ x, y, h, seed }: { x: number; y: number; h: number; seed: n
       />
       <path className="conifer-snow" d={`M ${lean} ${-h} L ${lean + w * 0.45} ${-h * 0.45} L ${lean - w * 0.45} ${-h * 0.45} Z`} />
     </g>
-  );
-}
-
-/** The collapsible legend (ADR-0036 d.6c) — maps the world's visual vocabulary. */
-function WorldLegend(): React.JSX.Element {
-  const [open, setOpen] = useState(
-    () => window.localStorage.getItem('storytree.worldLegend') === 'open',
-  );
-  const toggle = (next: boolean): void => {
-    setOpen(next);
-    window.localStorage.setItem('storytree.worldLegend', next ? 'open' : 'closed');
-  };
-  if (!open) {
-    return (
-      <button
-        type="button"
-        className="world-legend-toggle"
-        onClick={() => toggle(true)}
-        title="show legend"
-      >
-        <svg viewBox="-10 -24 20 26" aria-hidden="true">
-          <g className="story-tree st-healthy">
-            <rect className="story-trunk" x={-1.2} y={-8} width={2.4} height={8} rx={1} />
-            <g className="crown-lo">
-              <circle cx={0} cy={-13} r={7} />
-              <circle cx={-5} cy={-10} r={4.4} />
-              <circle cx={5} cy={-10} r={4.4} />
-            </g>
-            <g className="crown-hi">
-              <circle cx={-1.5} cy={-15} r={3.6} />
-            </g>
-          </g>
-        </svg>
-        Legend
-      </button>
-    );
-  }
-  return (
-    <div className="world-legend">
-      <header>
-        <span>Legend</span>
-        <button type="button" onClick={() => toggle(false)} aria-label="collapse legend">
-          ✕
-        </button>
-      </header>
-      <div className="world-legend-row">
-        <svg viewBox="-13 -13 26 26">
-          <path className="hex-top v-0" d={hexPath(0, 0, 11)} />
-        </svg>
-        <span>
-          an island is a <strong>story</strong> — land grows with it
-        </span>
-      </div>
-      <div className="world-legend-row">
-        <svg viewBox="-14 -30 28 34">
-          <g className="story-tree st-healthy">
-            <rect className="story-trunk" x={-1.5} y={-10} width={3} height={10} rx={1} />
-            <g className="crown-lo">
-              <circle cx={0} cy={-16} r={7.6} />
-              <circle cx={-6} cy={-12} r={4.8} />
-              <circle cx={6.4} cy={-12.5} r={5} />
-            </g>
-            <g className="crown-hi">
-              <circle cx={-2} cy={-18} r={4} />
-            </g>
-          </g>
-        </svg>
-        <span>
-          the central tree is the story itself — crown grows with its capabilities, foliage
-          color = status
-        </span>
-      </div>
-      <div className="world-legend-row">
-        <svg viewBox="-12 -19 24 24">
-          <g className="garden-flora st-mapped">
-            <polygon
-              className="flora-dark"
-              points="0,-12.5 5.5,-10.5 8.5,-5.5 7,-1 0,0.8 -7,-1 -8.5,-5.5 -5.5,-10.5"
-            />
-            <polygon
-              className="flora-light"
-              points="-1,-12.5 4.5,-10.8 6,-7 0.5,-5.6 -4.8,-7.4 -4.6,-10.6"
-            />
-            <circle className="flora-core" cx={2} cy={-7.5} r={1.5} />
-          </g>
-        </svg>
-        <span>
-          garden flora are its <strong>capabilities</strong> — click one to inspect
-        </span>
-      </div>
-      <div className="world-legend-row">
-        <svg viewBox="-11 -22 22 26">
-          <g className="story-tree st-proposed">
-            <rect className="story-trunk" x={-1.3} y={-9} width={2.6} height={10} rx={1} />
-            <g className="crown-lo">
-              <circle cx={0} cy={-13} r={6.5} />
-              <circle cx={-3.5} cy={-11} r={3.8} />
-              <circle cx={3.5} cy={-11} r={3.8} />
-            </g>
-            <g className="crown-hi">
-              <circle cx={-1} cy={-14.5} r={3.5} />
-            </g>
-          </g>
-        </svg>
-        <span>a lone sapling = claimed story, no capabilities mapped yet</span>
-      </div>
-      <div className="world-legend-row">
-        <svg viewBox="-12 -18 24 24">
-          <g className="garden-flora st-unhealthy">
-            <ellipse className="flora-bed" cx={0} cy={0.4} rx={8} ry={2.8} opacity={0.7} />
-            <path
-              className="flora-dead-stem"
-              strokeWidth={1.2}
-              d="M 0.5 0 C 0.6 -6 0.4 -10 2.6 -11.4 C 4.4 -12.4 5.8 -10.8 5.6 -9.2"
-            />
-            <circle className="flora-dead-head flora-dead-accent" cx={5.6} cy={-8.2} r={1.7} />
-            <path className="flora-dead-stem" strokeWidth={1.1} d="M -3.5 0 C -4 -5 -4.5 -8.5 -2.5 -10" />
-            <circle className="leaf-litter" cx={-7} cy={-0.5} r={1} />
-          </g>
-        </svg>
-        <span>a withered plant failed its last signed run (✗), or is unhealthy</span>
-      </div>
-      <div className="world-legend-row">
-        <svg viewBox="-13 -13 26 26">
-          <g className="captree-verdict verdict-pass">
-            <circle r={6.5} />
-            <text textAnchor="middle" y={3.2}>
-              ✓
-            </text>
-          </g>
-        </svg>
-        <span>✓ proven · ✗ last run failed · no badge = never built (also what offline looks like)</span>
-      </div>
-      <div className="world-legend-row">
-        <svg viewBox="-9 -26 18 28">
-          <g className="story-sign verdict-pass">
-            <rect x={-1.3} y={-15} width={2.6} height={15} rx={1.1} />
-            <circle cy={-18} r={6.5} />
-            <text textAnchor="middle" y={-15.4}>
-              ✓
-            </text>
-          </g>
-        </svg>
-        <span>signpost = the story's own UAT verdict (never a child roll-up)</span>
-      </div>
-      <div className="world-legend-row">
-        <svg viewBox="0 -8 30 16">
-          <defs>
-            <marker
-              id="legend-arrow"
-              viewBox="0 0 10 10"
-              refX="7.5"
-              refY="5"
-              markerWidth="5"
-              markerHeight="5"
-              orient="auto-start-reverse"
-            >
-              <path d="M 0 1.2 L 8 5 L 0 8.8 z" fill="context-stroke" />
-            </marker>
-          </defs>
-          <path className="world-trail-bed" d="M 2 0 L 28 0" />
-          <path className="world-trail-line" d="M 2 0 L 24 0" markerEnd="url(#legend-arrow)" />
-        </svg>
-        <span>
-          roads are <code>depends_on</code> — foundation below, dependents above
-        </span>
-      </div>
-      <div className="world-legend-row">
-        <span className="world-legend-swatch is-upstream" />
-        <span>on focus: gold = upstream dependencies</span>
-      </div>
-      <div className="world-legend-row">
-        <span className="world-legend-swatch is-downstream" />
-        <span>red = downstream dependents · rest fade</span>
-      </div>
-      <div className="world-legend-row">
-        <svg viewBox="-4 -8 36 16">
-          <g className="world-wisp">
-            <circle className="world-wisp-glow" r={5.5} />
-            <circle className="world-wisp-dot" r={2.4} />
-          </g>
-          <g className="world-wisp band-stale" transform="translate(13 0)">
-            <circle className="world-wisp-glow" r={5.5} />
-            <circle className="world-wisp-dot" r={2.4} />
-          </g>
-          <g className="world-wisp band-possibly-dead" transform="translate(26 0)">
-            <circle className="world-wisp-glow" r={5.5} />
-            <circle className="world-wisp-dot" r={2.4} />
-          </g>
-        </svg>
-        <span>orbiting wisp = a session here — blue fresh · amber stale · gray possibly dead (advisory)</span>
-      </div>
-      <div className="world-legend-row">
-        <svg viewBox="-12 -14 24 18">
-          <g className="hex-conifer">
-            <path className="conifer-body c-0" d="M -5 -10 L -1 0 L -9 0 Z" />
-            <path className="conifer-body c-1" d="M 5 -8 L 8.5 0 L 1.5 0 Z" />
-          </g>
-        </svg>
-        <span>conifer clumps &amp; wheat are decoration only</span>
-      </div>
-    </div>
   );
 }
 

@@ -1407,44 +1407,6 @@ mark.st-hl.flash {
   margin: 0;
   font-size: 19px;
 }
-.tree-toolbar-chips {
-  display: inline-flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-left: auto;
-}
-.tree-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 11px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
-  font: inherit;
-  font-size: 12.5px;
-  color: var(--text);
-  cursor: pointer;
-}
-.tree-chip:hover {
-  border-color: var(--border-strong);
-}
-.tree-chip.off {
-  opacity: 0.45;
-}
-.tree-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--st-unknown);
-}
-.tree-dot.st-proposed { background: var(--st-proposed); }
-.tree-dot.st-building { background: var(--st-building); }
-.tree-dot.st-healthy { background: var(--st-healthy); }
-.tree-dot.st-unhealthy { background: var(--st-unhealthy); }
-.tree-dot.st-mapped { background: var(--st-mapped); }
-.tree-dot.st-retired { background: var(--st-retired); }
-
 .tree-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1614,8 +1576,6 @@ mark.st-hl.flash {
 .story-tree.st-healthy .crown-hi circle { fill: var(--crown-healthy-hi); }
 .story-tree.st-unhealthy .crown-lo circle { fill: var(--crown-unhealthy-lo); }
 .story-tree.st-unhealthy .crown-hi circle { fill: var(--crown-unhealthy-hi); }
-.story-tree.st-retired .crown-lo circle { fill: var(--crown-retired-lo); }
-.story-tree.st-retired .crown-hi circle { fill: var(--crown-retired-hi); }
 .story-tree .crown-hi circle {
   stroke: rgba(255, 255, 255, 0.18);
   stroke-width: 0.8;
@@ -1702,8 +1662,6 @@ mark.st-hl.flash {
 .garden-flora.st-mapped .flora-light { fill: var(--crown-mapped-hi); }
 .garden-flora.st-healthy .flora-dark { fill: var(--crown-healthy-lo); }
 .garden-flora.st-healthy .flora-light { fill: var(--crown-healthy-hi); }
-.garden-flora.st-unhealthy .flora-dark { fill: var(--crown-unhealthy-lo); }
-.garden-flora.st-unhealthy .flora-light { fill: var(--crown-unhealthy-hi); }
 .garden-flora.st-retired .flora-dark { fill: var(--crown-retired-lo); }
 .garden-flora.st-retired .flora-light { fill: var(--crown-retired-hi); }
 .flora-dead-stem,
@@ -1762,96 +1720,152 @@ mark.st-hl.flash {
 .world-wisp.band-possibly-dead .world-wisp-glow { fill: var(--st-retired); opacity: 0.15; }
 .world-wisp.band-possibly-dead .world-wisp-dot { fill: var(--st-retired); }
 
-/* the legend (collapsible overlay pinned to the frame corner) */
-.world-legend {
+/* the legend bar (ADR-0036 d.6c — one entry per world model, expandable state
+   fans; adaptive: entries/states only appear once they exist in the world) */
+.world-legend-dock {
   position: absolute;
-  left: 12px;
-  bottom: 12px;
-  width: 232px;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  box-shadow: var(--shadow);
-  padding: 7px 11px 8px;
-  font-size: 11px;
-  line-height: 1.4;
-  opacity: 0.96;
-  max-height: calc(100% - 24px);
-  overflow-y: auto;
-}
-.world-legend header {
+  top: 10px;
+  left: 10px;
+  right: 10px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  color: var(--muted);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  pointer-events: none; /* gaps stay clickable map — chips/drawer opt back in */
+  z-index: 2;
 }
-.world-legend header button {
-  border: none;
-  background: none;
-  font: inherit;
-  color: var(--muted);
-  cursor: pointer;
-  padding: 0 2px;
-}
-.world-legend header button:hover {
-  color: var(--text);
-}
-.world-legend-row {
+.legend-bar {
   display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   align-items: center;
-  gap: 8px;
-  margin: 5px 0;
 }
-.world-legend-row svg {
-  flex: 0 0 26px;
-  width: 26px;
-  height: 24px;
-}
-.world-legend-row code {
-  font-size: 10.5px;
-  padding: 0 0.25em;
-}
-.world-legend-swatch {
-  flex: 0 0 26px;
-  height: 4px;
-  border-radius: 2px;
-  margin: 0 0 0 0;
-}
-.world-legend-swatch.is-upstream {
-  background: var(--warn);
-}
-.world-legend-swatch.is-downstream {
-  background: var(--danger);
-}
-.world-legend-toggle {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
+.legend-chip {
+  pointer-events: auto;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  padding: 2px 11px;
   border: 1px solid var(--border-strong);
   border-radius: 999px;
   background: var(--surface);
-  padding: 3px 12px;
   font: inherit;
   font-size: 12px;
   color: var(--text);
   cursor: pointer;
   box-shadow: var(--shadow);
+  opacity: 0.96;
 }
-.world-legend-toggle svg {
-  width: 15px;
-  height: 18px;
-}
-.world-legend-toggle:hover {
+.legend-chip:hover,
+.legend-chip.on {
   border-color: var(--accent);
 }
+.legend-chip svg {
+  height: 18px;
+  width: auto;
+  display: block;
+  pointer-events: none; /* the world's :hover/cursor affordances don't apply in the legend */
+}
+.legend-reset {
+  color: var(--muted);
+}
+.legend-band-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--st-unknown);
+}
+.legend-band-dot.is-upstream { background: var(--warn); }
+.legend-band-dot.is-downstream { background: var(--danger); }
+.legend-drawer {
+  pointer-events: auto;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 10px 12px;
+  max-width: 680px;
+  max-height: min(330px, 55vh); /* short frames: scroll inside, never clip away */
+  overflow-y: auto;
+  opacity: 0.97;
+}
+.legend-fan {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: stretch;
+}
+.legend-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  width: 102px;
+  padding: 8px 6px 6px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: none;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--text);
+  text-align: center;
+  line-height: 1.25;
+}
+button.legend-tile {
+  cursor: pointer;
+}
+button.legend-tile:hover {
+  border-color: var(--accent);
+}
+.legend-tile-icon {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 38px;
+}
+.legend-tile-icon svg {
+  height: 36px;
+  width: auto;
+  pointer-events: none; /* the world's :hover/cursor affordances don't apply in the legend */
+}
+.legend-tile.is-wide {
+  width: 168px;
+}
+.legend-tile.is-absent {
+  opacity: 0.4;
+}
+.legend-tile.is-off .legend-tile-icon {
+  opacity: 0.22;
+}
+.legend-tile-note {
+  font-size: 10px;
+  color: var(--muted);
+}
+.legend-cap {
+  margin: 9px 0 0;
+  max-width: 640px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.legend-cap code {
+  font-size: 10.5px;
+  padding: 0 0.25em;
+}
+.legend-nobadge {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  stroke-dasharray: 2.5 2.5;
+}
+.legend-hex path {
+  fill: var(--hex-top-0);
+}
+.legend-hex.is-focus path { stroke: var(--accent); stroke-width: 2.4; }
+.legend-hex.is-upstream path { stroke: var(--warn); stroke-width: 2.2; }
+.legend-hex.is-downstream path { stroke: var(--danger); stroke-width: 2.2; }
+.legend-hex.is-dim path { opacity: 0.3; }
 
 /* sessions-here block in the panel */
 .tree-sessions {
