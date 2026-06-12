@@ -1,7 +1,7 @@
 ---
 id: "seed-library-corpus"
 tier: capability
-story: studio-foundation
+story: studio
 title: "Seed the Library corpus from the ADRs and glossary"
 outcome: "Running the seeder produces the categorised, ADR-cited starter corpus the Library serves."
 status: "proposed"

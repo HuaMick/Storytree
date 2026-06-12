@@ -1,12 +1,16 @@
-// WorldLegend — the story world's legend bar (ADR-0036 d.6c, model-per-row rework).
+// WorldLegend — the story world's legend bar (ADR-0036 d.6c, model-per-row
+// rework; vocabulary recalibrated by ADR-0038).
 //
 // Games-style: ONE entry per world model (story trees, garden plants, proof
-// marks, roads, focus, sessions, decoration), representative state icons side
-// by side, a single caption. Clicking an entry expands a drawer fanning out
-// that model's FULL state vocabulary — states that don't occur in the current
-// world render dimmed ("not in world yet"), and entries whose model has no
-// instance at all (no verdicts, no sessions, no roads) drop out of the bar
-// entirely, so the legend only ever describes what's on screen.
+// marks, sessions, decoration), representative state icons side by side, a
+// single caption. Clicking an entry expands a drawer fanning out that model's
+// FULL state vocabulary — states that don't occur in the current world render
+// dimmed ("not in world yet"), and entries whose model has no instance at all
+// (no verdicts, no sessions) drop out of the bar entirely, so the legend only
+// ever describes what's on screen. Roads and the focus tints carry no legend
+// entry — they're self-explanatory in place (ADR-0038). The legend receives
+// the PRESENTED world (worldStatus.ts): retired is pruned and building wears
+// proposed before anything reaches here.
 //
 // The status fan doubles as the status filter (it absorbed the old toolbar
 // chips): tiles toggle the same `hidden` set, and the world fades matching
@@ -22,10 +26,14 @@ import { useEffect, useRef, useState } from 'react';
 import type { TreeSession, TreeStory } from '../types';
 
 type Band = TreeSession['band'];
-type RowKey = 'tree' | 'flora' | 'proof' | 'roads' | 'focus' | 'wisps' | 'decor';
+type RowKey = 'tree' | 'flora' | 'proof' | 'wisps' | 'decor';
 
-/** Status fan order: the authoring lifecycle, then the failure/exit states. */
-const STATUS_ORDER = ['proposed', 'mapped', 'building', 'healthy', 'unhealthy', 'retired'] as const;
+/**
+ * Status fan order: the growth ladder, then the failure state. `building` and
+ * `retired` never reach the legend — the world folds building into proposed
+ * and prunes retired entirely (worldStatus.ts, ADR-0038).
+ */
+const STATUS_ORDER = ['proposed', 'mapped', 'healthy', 'unhealthy'] as const;
 
 /** Statuses an ALIVE plant can wear in the world — unhealthy flora always renders dead. */
 const ALIVE_STATUSES = STATUS_ORDER.filter((st) => st !== 'unhealthy');
@@ -35,7 +43,7 @@ const BAND_ORDER: Band[] = ['fresh', 'stale', 'possibly-dead'];
 export interface LegendFacts {
   /** status → instance counts across both tiers ('unknown' = spec error / no status). */
   statusTotals: Map<string, { stories: number; caps: number }>;
-  /** A claimed-but-empty story renders the lone sapling (caps 0, not retired/unhealthy). */
+  /** A claimed-but-empty story renders the lone sapling (caps 0, not unhealthy). */
   saplingPresent: boolean;
   /** Capability badge states (✓/✗ discs) — distinct from story signposts. */
   capPass: boolean;
@@ -47,7 +55,6 @@ export interface LegendFacts {
   anyUnproven: boolean;
   /** Any capability renders the dead silhouette (signed ✗ OR status unhealthy). */
   anyDeadFlora: boolean;
-  anyRetiredFlora: boolean;
   bands: Set<Band>;
 }
 
@@ -66,11 +73,10 @@ export function legendFacts(stories: TreeStory[], sessions: TreeSession[]): Lege
   let signFail = false;
   let anyUnproven = false;
   let anyDeadFlora = false;
-  let anyRetiredFlora = false;
   for (const s of stories) {
     const st = s.status ?? 'unknown';
     bump(st, 'stories');
-    if (s.capabilities.length === 0 && st !== 'retired' && st !== 'unhealthy') saplingPresent = true;
+    if (s.capabilities.length === 0 && st !== 'unhealthy') saplingPresent = true;
     if (s.verdict) {
       if (s.verdict.outcome === 'pass') signPass = true;
       else signFail = true;
@@ -83,7 +89,6 @@ export function legendFacts(stories: TreeStory[], sessions: TreeSession[]): Lege
         else capFail = true;
       } else anyUnproven = true;
       if (c.verdict?.outcome === 'fail' || cst === 'unhealthy') anyDeadFlora = true;
-      if (cst === 'retired') anyRetiredFlora = true;
     }
   }
   return {
@@ -95,7 +100,6 @@ export function legendFacts(stories: TreeStory[], sessions: TreeSession[]): Lege
     signFail,
     anyUnproven,
     anyDeadFlora,
-    anyRetiredFlora,
     bands: new Set(sessions.map((s) => s.band)),
   };
 }
@@ -111,7 +115,7 @@ function TreeIcon({
   form,
 }: {
   status: string;
-  form: 'full' | 'sapling' | 'withered' | 'ghost';
+  form: 'full' | 'sapling' | 'withered' | 'young';
 }): React.JSX.Element {
   if (form === 'sapling') {
     return (
@@ -130,17 +134,21 @@ function TreeIcon({
       </svg>
     );
   }
-  if (form === 'ghost') {
+  if (form === 'young') {
+    // The not-yet-full proposed tree: same viewBox as the full form so the
+    // smaller growth stage reads at a glance.
     return (
-      <svg viewBox="-14 -32 28 36" aria-hidden="true">
-        <g className="story-tree st-retired">
-          <rect className="story-trunk is-ghost-wood" x={-1.5} y={-10} width={3} height={10} rx={1} />
-          <g className="story-bare is-ghost-wood">
-            {BARE_BRANCHES.map((d, i) => (
-              <path key={i} d={d} />
-            ))}
+      <svg viewBox="-14 -30 28 34" aria-hidden="true">
+        <g className={`story-tree st-${status}`}>
+          <rect className="story-trunk" x={-1.3} y={-8} width={2.6} height={8} rx={1} />
+          <g className="crown-lo">
+            <circle cx={0} cy={-12.5} r={5.4} />
+            <circle cx={-4.2} cy={-9.6} r={3.4} />
+            <circle cx={4.4} cy={-10} r={3.5} />
           </g>
-          <circle className="ghost-crown" cx={0} cy={-20} r={8} strokeDasharray="3 4" />
+          <g className="crown-hi">
+            <circle cx={-1.4} cy={-14} r={2.8} />
+          </g>
         </g>
       </svg>
     );
@@ -188,11 +196,9 @@ function TreeIcon({
 function PlantIcon({
   status,
   dead,
-  ghost,
 }: {
   status: string;
   dead?: boolean;
-  ghost?: boolean;
 }): React.JSX.Element {
   if (dead) {
     return (
@@ -213,7 +219,7 @@ function PlantIcon({
   }
   return (
     <svg viewBox="-12 -19 24 24" aria-hidden="true">
-      <g className={`garden-flora st-${status}${ghost ? ' is-ghost' : ''}`}>
+      <g className={`garden-flora st-${status}`}>
         <polygon
           className="flora-dark"
           points="0,-12.5 5.5,-10.5 8.5,-5.5 7,-1 0,0.8 -7,-1 -8.5,-5.5 -5.5,-10.5"
@@ -262,46 +268,12 @@ function SignIcon({ outcome }: { outcome: 'pass' | 'fail' }): React.JSX.Element 
   );
 }
 
-/** `arrowId` keeps marker ids unique when the chip and the drawer both render a road. */
-function RoadIcon({ arrowId, long }: { arrowId: string; long?: boolean }): React.JSX.Element {
-  const end = long ? 42 : 24;
-  return (
-    <svg viewBox={`0 -8 ${end + 6} 16`} aria-hidden="true">
-      <defs>
-        <marker
-          id={arrowId}
-          viewBox="0 0 10 10"
-          refX="7.5"
-          refY="5"
-          markerWidth="5"
-          markerHeight="5"
-          orient="auto-start-reverse"
-        >
-          <path d="M 0 1.2 L 8 5 L 0 8.8 z" fill="context-stroke" />
-        </marker>
-      </defs>
-      <path className="world-trail-bed" d={`M 2 0 L ${end + 4} 0`} />
-      <path className="world-trail-line" d={`M 2 0 L ${end} 0`} markerEnd={`url(#${arrowId})`} />
-    </svg>
-  );
-}
-
 function WispIcon({ band }: { band: Band }): React.JSX.Element {
   return (
     <svg viewBox="-8 -8 16 16" aria-hidden="true">
       <g className={`world-wisp band-${band}`}>
         <circle className="world-wisp-glow" r={5.5} />
         <circle className="world-wisp-dot" r={2.4} />
-      </g>
-    </svg>
-  );
-}
-
-function HexIcon({ cls }: { cls: string }): React.JSX.Element {
-  return (
-    <svg viewBox="-13 -13 26 26" aria-hidden="true">
-      <g className={`legend-hex ${cls}`}>
-        <path d={HEX} />
       </g>
     </svg>
   );
@@ -377,8 +349,9 @@ function Tile({
   );
 }
 
-const treeForm = (st: string): 'full' | 'withered' | 'ghost' =>
-  st === 'unhealthy' ? 'withered' : st === 'retired' ? 'ghost' : 'full';
+/** Growth ladder (ADR-0038): proposed = young, mapped/healthy = full, unhealthy = withered. */
+const treeForm = (st: string): 'full' | 'withered' | 'young' =>
+  st === 'unhealthy' ? 'withered' : st === 'proposed' ? 'young' : 'full';
 
 function countNote(tot: { stories: number; caps: number }): string {
   const parts: string[] = [];
@@ -392,14 +365,12 @@ function countNote(tot: { stories: number; caps: number }): string {
 export function WorldLegend({
   stories,
   sessions,
-  roadCount,
   hidden,
   onToggleStatus,
   onResetHidden,
 }: {
   stories: TreeStory[];
   sessions: TreeSession[];
-  roadCount: number;
   hidden: ReadonlySet<string>;
   onToggleStatus: (st: string) => void;
   onResetHidden: () => void;
@@ -472,23 +443,6 @@ export function WorldLegend({
           {facts.capFail && <BadgeIcon outcome="fail" />}
           {facts.anyUnproven && !facts.capPass && !facts.capFail && <BadgeIcon outcome="none" />}
           {(facts.signPass || facts.signFail) && <SignIcon outcome={signOutcome} />}
-        </>
-      ),
-    },
-    {
-      key: 'roads',
-      label: 'roads',
-      visible: roadCount > 0,
-      icons: <RoadIcon arrowId="legend-arrow-bar" />,
-    },
-    {
-      key: 'focus',
-      label: 'focus',
-      visible: true,
-      icons: (
-        <>
-          <span className="legend-band-dot is-upstream" />
-          <span className="legend-band-dot is-downstream" />
         </>
       ),
     },
@@ -577,9 +531,13 @@ export function WorldLegend({
             )}
           </div>
           <p className="legend-cap">
-            An island is a <strong>story</strong>; the big tree is the story itself — foliage colour
-            is its authored status, and a lone sapling means claimed but nothing mapped yet. Click a
-            tile to fade that status across the world.
+            An island is a <strong>story</strong>; the big tree is the story itself — growth and
+            colour carry the lifecycle. A lone sapling = claimed, nothing mapped yet; a young amber
+            tree = <strong>proposed</strong>, still iterating (a story under active build renders
+            here too — live work shows as session wisps, not a hue); a full brown tree ={' '}
+            <strong>mapped</strong> brownfield, not yet UAT-proven; deep green ={' '}
+            <strong>healthy</strong>, proven through the gate. Retired stories leave the world.
+            Click a tile to fade that status across the world.
           </p>
         </div>
       )}
@@ -597,12 +555,6 @@ export function WorldLegend({
               label="withered"
               note="failed its last signed run, or unhealthy"
               absent={!facts.anyDeadFlora}
-            />
-            <Tile
-              icon={<PlantIcon status="retired" ghost />}
-              label="retired"
-              note="fades out"
-              absent={!facts.anyRetiredFlora}
             />
           </div>
           <p className="legend-cap">
@@ -638,44 +590,6 @@ export function WorldLegend({
           <p className="legend-cap">
             Marks only ever report a <strong>signed</strong> prove-it-gate verdict — never inferred.
             “All capabilities pass” and “the story passed UAT” are different claims.
-          </p>
-        </div>
-      )}
-
-      {openRow?.key === 'roads' && (
-        <div className="legend-drawer" role="region" aria-label="legend — roads">
-          <div className="legend-fan">
-            <Tile
-              icon={<RoadIcon arrowId="legend-arrow-fan" long />}
-              label="a dependency"
-              note="the arrow points at the dependent"
-              wide
-            />
-          </div>
-          <p className="legend-cap">
-            Roads are dependencies — declared <code>depends_on</code> and links derived from
-            capability deps draw the same road (hover one for its evidence). Foundations sit at the
-            bottom; dependents fan upward.
-          </p>
-        </div>
-      )}
-
-      {openRow?.key === 'focus' && (
-        <div className="legend-drawer" role="region" aria-label="legend — focus">
-          <div className="legend-fan">
-            <Tile icon={<HexIcon cls="is-focus" />} label="focused story" />
-            <Tile icon={<HexIcon cls="is-upstream" />} label="upstream" note="what it stands on" />
-            <Tile
-              icon={<HexIcon cls="is-downstream" />}
-              label="downstream"
-              note="what stands on it"
-            />
-            <Tile icon={<HexIcon cls="is-dim" />} label="unrelated" note="fades" />
-          </div>
-          <p className="legend-cap">
-            Hover or click an island to light its whole dependency chain, transitively — on-chain
-            roads turn solid. A click also selects it into the URL, so{' '}
-            <code>#/tree/&lt;story-id&gt;</code> deep-links straight back here.
           </p>
         </div>
       )}

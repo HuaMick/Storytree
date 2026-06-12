@@ -1,7 +1,7 @@
 ---
 id: "read-corpus"
 tier: capability
-story: studio-foundation
+story: studio
 title: "Read the doc/ADR corpus"
 outcome: "An operator reads any corpus document as rendered markdown in the studio."
 status: "proposed"

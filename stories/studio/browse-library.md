@@ -1,7 +1,7 @@
 ---
 id: "browse-library"
 tier: capability
-story: studio-foundation
+story: studio
 title: "Browse and view the guidance Library"
 outcome: "An operator explores the seeded guidance Library down to a single rendered artifact."
 status: "proposed"

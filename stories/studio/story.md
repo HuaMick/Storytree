@@ -1,7 +1,7 @@
 ---
-id: "studio-foundation"
+id: "studio"
 tier: story
-title: "The studio foundation"
+title: "The studio"
 outcome: "An operator reviews the project record through one browsable forum studio."
 status: proposed
 proof_mode: UAT
@@ -9,11 +9,11 @@ capabilities: [dev-server-persistence-backbone, seed-library-corpus, read-corpus
 # Story-level edges: the "Cross-story boundary" section below, encoded (consumed seams,
 # ADR-0010 §4; code-import-evidenced — see that section for file:line). ADR-0036.
 depends_on: [library, drive-machinery, notice-board]
-# Deciding ADRs (ADR-0037 §2): UI-drives-agents (8), the story world (36).
-decisions: [8, 36]
+# Deciding ADRs (ADR-0037 §2): UI-drives-agents (8), the story world (36, recalibrated by 38).
+decisions: [8, 36, 38]
 ---
 
-# The studio foundation
+# The studio
 
 **Outcome —** An operator reviews the project record through one browsable forum studio.
 
@@ -106,7 +106,7 @@ within-story standard applied across the boundary. Encoded as frontmatter `depen
 
 ## Story UAT
 
-The integrated **acceptance walkthrough** that proves the whole `studio-foundation`
+The integrated **acceptance walkthrough** that proves the whole `studio`
 organism meets its outcome end-to-end against the **real running studio** — the proof
 that moved up to the story tier (ADR-0010 §2). It is minimal-first (one coherent
 operator journey that touches read, annotate, resolve, browse, and author once) and

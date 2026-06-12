@@ -8,7 +8,7 @@ the [ADR-0002](../docs/decisions/0002-work-hierarchy-story-capability-contract.m
 work hierarchy. It is a hand-authored **specification of already-built code**, not the
 output of a real orchestrator run.
 
-The first (and currently only) story is **[`studio-foundation/`](studio-foundation/story.md)** —
+The first story authored was **[`studio/`](studio/story.md)** —
 `apps/studio`, decomposed into 7 capabilities and 80 contracts.
 
 ## The representation

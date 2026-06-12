@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 
-// The scripted story UAT (uat/ — see stories/studio-foundation/story.md § "Story UAT").
+// The scripted story UAT (uat/ — see stories/studio/story.md § "Story UAT").
 // Deliberately SEPARATE from `pnpm test` (vitest): it boots the real dev server and a real
 // chromium, so it is slower and needs a one-time `pnpm exec playwright install chromium`.
 // Run it with `pnpm --filter studio uat`.

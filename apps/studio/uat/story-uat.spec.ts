@@ -1,5 +1,5 @@
-// The scripted shadow of the studio-foundation Story UAT
-// (stories/studio-foundation/story.md § "Story UAT") — one coherent operator journey
+// The scripted shadow of the studio Story UAT
+// (stories/studio/story.md § "Story UAT") — one coherent operator journey
 // against the REAL running studio (real dev server, real browser, real /api/* middleware,
 // real seeded corpus). The only stub is the cross-story live-store seam: the server is
 // pinned to the offline json backend (playwright.config.ts, STORYTREE_STUDIO_STORE=json) —

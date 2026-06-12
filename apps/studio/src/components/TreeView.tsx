@@ -6,8 +6,11 @@
 // load-bearing foundation up through the canopy. Every story claims a
 // TERRITORY of extruded hexagonal tiles (one tile quota per capability plus a
 // margin) and grows ONE central story tree — the story itself, crown sized by
-// capability count, foliage colored by status, withered to bare branches when
-// unhealthy, a lone sapling when no capabilities are mapped yet. Capabilities
+// capability count, GROWTH and foliage carrying the lifecycle (ADR-0038): a
+// lone sapling when nothing is mapped yet, a young amber tree while proposed
+// (building wears proposed too — wisps carry live work), a full brownfield
+// tree when mapped, deep green when healthy, withered to bare branches when
+// unhealthy. Retired units don't render at all (worldStatus.ts). Capabilities
 // garden around it as small flora (flower beds / berry bushes / saplings); a
 // capability whose last signed run failed — or whose status is unhealthy —
 // withers to a dead plant (ADR-0033 d.3 semantics: glyphs and wither only
@@ -31,6 +34,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import dagre from '@dagrejs/dagre';
 import { api } from '../api';
 import { navigate, treeFocusHref, treeHref } from '../lib/route';
+import { presentStories } from '../lib/worldStatus.js';
 import { WorldLegend } from './WorldLegend.js';
 import type { TreeCapability, TreeSession, TreeStory, TreeVerdict } from '../types';
 
@@ -753,7 +757,7 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
     api
       .tree()
       .then((p) => {
-        setStories(p.stories);
+        setStories(presentStories(p.stories));
         setSessions(p.sessions ?? []);
       })
       .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : String(e)));
@@ -855,7 +859,6 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
 
   const territoryClass = (story: TreeStory): string => {
     const cls = ['hex-territory', `st-${story.status ?? 'unknown'}`];
-    if (story.status === 'retired') cls.push('is-ghost');
     if (focusStoryId && storyRelations) {
       if (story.id === focusStoryId) cls.push('is-focus');
       else if (storyRelations.ancestors.has(story.id)) cls.push('is-ancestor');
@@ -905,7 +908,7 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
         </span>
       </div>
 
-      <div className={`tree-layout${selected ? ' has-detail' : ''}`}>
+      <div className="tree-layout">
         <div className="world-frame">
           <div
             className="world-scroll"
@@ -1023,7 +1026,6 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
           <WorldLegend
             stories={stories}
             sessions={sessions}
-            roadCount={world.edges.length}
             hidden={hidden}
             onToggleStatus={toggleStatus}
             onResetHidden={() => setHidden(new Set())}
@@ -1065,12 +1067,16 @@ function DecorTree({ x, y, h, seed }: { x: number; y: number; h: number; seed: n
 }
 
 /**
- * The central story tree — the story ITSELF (ADR-0036 d.6b). Crown size grows
- * with capability count; foliage carries the story status; `unhealthy` withers
- * it to a sparse drooped crown with bare branches and leaf-fall; `retired` is
- * the gray ghost skeleton; zero capabilities grows only a sapling (the
- * claimed-but-empty authoring signal, ADR-0036 d.3). The signpost carries the
- * story's OWN UAT verdict — never a child roll-up, only when signed.
+ * The central story tree — the story ITSELF (ADR-0036 d.6b, vocabulary
+ * recalibrated by ADR-0038). Crown size grows with capability count; GROWTH
+ * and foliage carry the lifecycle: zero capabilities grows only a sapling (the
+ * claimed-but-empty authoring signal, ADR-0036 d.3), `proposed` (which
+ * `building` wears in the world) grows a not-yet-full young tree, `mapped` is
+ * the full brownfield canopy, `healthy` the full green one; `unhealthy`
+ * withers it to a sparse drooped crown with bare branches and leaf-fall.
+ * Retired stories never reach this component (worldStatus.ts prunes them).
+ * The signpost carries the story's OWN UAT verdict — never a child roll-up,
+ * only when signed.
  */
 function StoryTree({
   territory: t,
@@ -1082,11 +1088,13 @@ function StoryTree({
   const story = t.story;
   const st = story.status ?? 'unknown';
   const caps = story.capabilities.length;
-  const R = crownRadius(caps);
-  const cy = -1.65 * R;
-  const ghost = st === 'retired';
   const withered = st === 'unhealthy';
-  const sapling = caps === 0 && !ghost && !withered;
+  const sapling = caps === 0 && !withered;
+  // Proposed hasn't earned full growth: a young tree, bigger than the
+  // claimed-but-empty sapling, smaller than the mapped/healthy canopy.
+  const young = st === 'proposed' && !sapling;
+  const R = crownRadius(caps) * (young ? 0.62 : 1);
+  const cy = -1.65 * R;
   const verdictNote = story.verdict ? ` · UAT ${verdictPhrase(story.verdict)}` : '';
 
   // Deterministic per-blob jitter so the five islands' trees aren't clones.
@@ -1149,22 +1157,6 @@ function StoryTree({
           </g>
           <path className="grass-tuft" d="M -10 -1 l -2 -4 M -10 -1 l 0 -5 M -10 -1 l 2 -4" />
           <path className="grass-tuft" d="M 12 -2 l -2 -4 M 12 -2 l 0 -5 M 12 -2 l 2 -4" />
-        </>
-      ) : ghost ? (
-        <>
-          <path className="story-trunk is-ghost-wood" d={trunkD} />
-          <g className="story-bare is-ghost-wood">
-            {bareBranches.map((d, i) => (
-              <path key={i} d={d} />
-            ))}
-          </g>
-          <circle
-            className="ghost-crown"
-            cx={0}
-            cy={cy - 0.3 * R}
-            r={0.8 * R}
-            strokeDasharray="3 4"
-          />
         </>
       ) : withered ? (
         <>
@@ -1365,7 +1357,7 @@ function GardenPlant({
 
   return (
     <g
-      className={`garden-flora st-${st}${hidden.has(st) ? ' is-filtered' : ''}${cap.status === 'retired' ? ' is-ghost' : ''}`}
+      className={`garden-flora st-${st}${hidden.has(st) ? ' is-filtered' : ''}`}
       transform={`translate(${x.toFixed(1)} ${y.toFixed(1)})`}
       onClick={(e) => {
         e.stopPropagation();
@@ -1514,6 +1506,19 @@ function VerdictLine({ verdict }: { verdict: TreeVerdict | undefined }): React.J
   );
 }
 
+// The detail panel OVERLAYS the world from the right edge (the world never
+// reflows or rescales when it opens or resizes) and is drag-resizable from its
+// left edge — wide enough by default to fit a capability sub-DAG.
+const PANEL_MIN = 360;
+const PANEL_MAX = 960;
+const PANEL_DEFAULT = 520;
+const PANEL_W_KEY = 'st-tree-panel-w';
+
+function savedPanelWidth(): number {
+  const saved = Number(localStorage.getItem(PANEL_W_KEY));
+  return Number.isFinite(saved) && saved >= PANEL_MIN ? Math.min(saved, PANEL_MAX) : PANEL_DEFAULT;
+}
+
 function StoryPanel({
   story,
   storyIds,
@@ -1536,6 +1541,13 @@ function StoryPanel({
   onClose: () => void;
 }): React.JSX.Element {
   const layout = useMemo(() => layoutSubdag(story), [story]);
+  const [panelW, setPanelW] = useState(savedPanelWidth);
+  const [resizing, setResizing] = useState(false);
+  const dragFrom = useRef<{ x: number; w: number } | null>(null);
+  // The latest dragged width, read at pointerup — state can lag a render behind.
+  const liveW = useRef(panelW);
+  const clampW = (w: number): number =>
+    Math.min(PANEL_MAX, Math.max(PANEL_MIN, Math.min(w, window.innerWidth - 220)));
   // A selectedCap can survive cross-story navigation (depends-on buttons) —
   // ignore ids that aren't in this story instead of dimming the whole sub-DAG.
   const rawFocus = hoverCap ?? selectedCap;
@@ -1552,7 +1564,6 @@ function StoryPanel({
 
   const capClass = (c: TreeCapability): string => {
     const cls = ['tree-card', 'sub-card', `st-${c.status ?? 'unknown'}`];
-    if (c.status === 'retired') cls.push('is-ghost');
     if (hidden.has(c.status ?? 'unknown')) cls.push('is-filtered');
     if (focusCap && relations) {
       if (c.id === focusCap) cls.push('is-focus');
@@ -1577,7 +1588,40 @@ function StoryPanel({
   };
 
   return (
-    <aside className="tree-detail">
+    <aside
+      className={`tree-detail${resizing ? ' is-resizing' : ''}`}
+      style={{ width: panelW }}
+    >
+      <div
+        className="tree-detail-grip"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="resize detail panel (drag left to widen)"
+        onPointerDown={(e) => {
+          dragFrom.current = { x: e.clientX, w: panelW };
+          setResizing(true);
+          try {
+            e.currentTarget.setPointerCapture(e.pointerId);
+          } catch {
+            // synthetic pointers (tests) have no active pointer to capture
+          }
+        }}
+        onPointerMove={(e) => {
+          const from = dragFrom.current;
+          if (!from) return;
+          liveW.current = clampW(from.w + (from.x - e.clientX));
+          setPanelW(liveW.current);
+        }}
+        onPointerUp={() => {
+          dragFrom.current = null;
+          setResizing(false);
+          localStorage.setItem(PANEL_W_KEY, String(liveW.current));
+        }}
+        onPointerCancel={() => {
+          dragFrom.current = null;
+          setResizing(false);
+        }}
+      />
       <header>
         <span className={`tree-badge st-${story.status ?? 'unknown'}`}>
           {story.status ?? 'unknown'}

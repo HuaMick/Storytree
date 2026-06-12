@@ -63,7 +63,7 @@ test("story build with no mode (or both modes) is refused", async () => {
 
 test("story build on a story with unregistered nodes fails closed BEFORE any node runs", async () => {
   const env = await run(
-    ["story", "build", "studio-foundation", "--dry-run", "--actor", "t@e.c"],
+    ["story", "build", "studio", "--dry-run", "--actor", "t@e.c"],
     deps,
   );
   assert.equal(env.ok, false);
