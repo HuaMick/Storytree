@@ -6,13 +6,14 @@
 // ADR-0010 §5's mock-UAT allowance; in-story collaborators stay real. No Cloud SQL, no
 // network, no API keys.
 //
-// Coverage: the read slice (steps 1-2, 7-9) and the mutating journey (steps 4-6 annotate →
-// reload → resolve; steps 10-11 author → edit → delete; steps 12-13 cold-restart durability
-// + cleanup back to the git-tracked baseline). Only step 3 (the in-corpus cross-link hop)
-// remains unscripted. Where the prose describes the pre-fold UI (a sidebar doc index, an
-// 'all' chip, a body-only editor), this script shadows the SAME journey through the current
-// surfaces: the corpus index lives in the Library, and a structured kind is authored through
-// its per-kind fields (option C of oq-library-doc-shape).
+// Coverage: ALL steps — the read slice (steps 1-3, 7-9: backbone, read-corpus, the
+// in-corpus cross-link hop, Library browse, citation hop) and the mutating journey
+// (steps 4-6 annotate → reload → resolve; steps 10-11 author → edit → delete; steps 12-13
+// cold-restart durability + cleanup back to the git-tracked baseline). Where the prose
+// describes the pre-fold UI (a sidebar doc index, an 'all' chip, a body-only editor), this
+// script shadows the SAME journey through the current surfaces: the corpus index lives in
+// the Library, and a structured kind is authored through its per-kind fields (option C of
+// oq-library-doc-shape).
 //
 // The mutating tests write through the real handlers into the git-tracked JSON stores
 // (apps/studio/data/comments.json + assets.json) and MUST leave them at their seeded
@@ -33,7 +34,7 @@ const studioDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 const COMMENTS_FILE = path.join(studioDir, 'data', 'comments.json');
 const ASSETS_FILE = path.join(studioDir, 'data', 'assets.json');
 
-test('story UAT (steps 1-2, 7-9): backbone up → read an ADR → browse the Library → follow a citation back to the corpus', async ({ page }) => {
+test('story UAT (steps 1-3, 7-9): backbone up → read an ADR → cross-link hop → browse the Library → follow a citation back to the corpus', async ({ page }) => {
   // —— Step 1: the persistence backbone is live. The app boots, the /api/* middleware
   // answers (the corpus loads), and the store badge confirms the offline json backend.
   await page.goto('/');
@@ -47,6 +48,22 @@ test('story UAT (steps 1-2, 7-9): backbone up → read an ADR → browse the Lib
   await page.locator(`a.asset-card[href="#/doc/${encodeURIComponent(ADR_0002)}"]`).click();
   await expect(page.locator('article.doc h1').first()).toBeVisible();
   expect(page.url()).toContain('#/doc/decisions%2F0002');
+
+  // —— Step 3: the in-corpus cross-link hop. The glossary's intro cites ADR-0002 with a
+  // docs-root-relative markdown link; resolveDocHref turns it into an internal
+  // #/doc/<relpath> nav, the sibling renders from disk, and the browser's Back returns to
+  // the glossary — the corpus is genuinely navigable, not a single page.
+  await page.goto('/#/doc/glossary.md');
+  await expect(page.locator('article.doc h1').first()).toBeVisible();
+  await page
+    .locator(`article.doc a[href="#/doc/${encodeURIComponent(ADR_0002)}"]`)
+    .first()
+    .click();
+  await expect(page).toHaveURL(/#\/doc\/decisions%2F0002/);
+  await expect(page.locator('article.doc h1').first()).toContainText('ADR-0002');
+  await page.goBack();
+  await expect(page).toHaveURL(/#\/doc\/glossary\.md$/);
+  await expect(page.locator('article.doc h1').first()).toBeVisible();
 
   // —— Step 7: the Library landing renders the seeded corpus — one live-count type card
   // per non-empty category, served from the seeder's assets.json.
