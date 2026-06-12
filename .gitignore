@@ -24,6 +24,9 @@ pnpm-debug.log*
 # Test / coverage
 coverage/
 .nyc_output/
+# Playwright run artifacts (apps/studio UAT)
+test-results/
+playwright-report/
 
 # Deferred / not produced today: DBOS is deferred (ADR-0019) and the store is
 # keyless Cloud SQL (ADR-0021), so neither dir is generated now — kept ignored
