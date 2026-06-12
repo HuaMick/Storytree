@@ -499,6 +499,23 @@ async function readTree(storiesDir: string): Promise<TreePayload> {
   return { stories };
 }
 
+/**
+ * GET /api/presence — the active-session layer ALONE, so the client can poll it
+ * cheaply (StoreBanner's slow cadence) without re-walking stories/ the way
+ * /api/tree does. activeSessions() is contractually non-throwing: a down DB or
+ * the json backend answers 200 `{sessions: null}` (ADR-0033 advisory — absence,
+ * never an error), so the only error path here is the 405 method guard.
+ * Exported for the integration test (the dbControl.ts pattern).
+ */
+export async function handlePresence(
+  req: IncomingMessage,
+  res: ServerResponse,
+  backend: Pick<LibraryBackend, 'activeSessions'>,
+): Promise<void> {
+  if ((req.method ?? 'GET') !== 'GET') throw new HttpError(405, 'method not allowed');
+  sendJson(res, 200, { sessions: await backend.activeSessions() });
+}
+
 async function handleDocs(
   _req: IncomingMessage,
   res: ServerResponse,
@@ -585,6 +602,8 @@ export function storytreeDataApi(): Plugin {
               }
               if (sessions && sessions.length > 0) payload.sessions = sessions;
               sendJson(res, 200, payload);
+            } else if (url.pathname === '/api/presence') {
+              await handlePresence(req, res, backend);
             } else if (url.pathname === '/api/comments') {
               await handleComments(req, res, url, backend);
             } else if (url.pathname === '/api/assets') {

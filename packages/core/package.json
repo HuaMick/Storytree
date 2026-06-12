@@ -8,7 +8,8 @@
     ".": "./src/index.ts",
     "./sources": "./src/knowledge-sources.ts",
     "./knowledge": "./src/knowledge.ts",
-    "./knowledge-render": "./src/knowledge-render.ts"
+    "./knowledge-render": "./src/knowledge-render.ts",
+    "./presence": "./src/presence.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

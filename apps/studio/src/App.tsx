@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from './api';
 import { AppDataContext, type AppData } from './lib/appData';
 import { useOperator } from './lib/operator';
+import { notifyStoreRecovered } from './lib/presence';
 import { homeHref, libraryHref, treeHref, useRoute } from './lib/route';
 import type { Comment, DocMeta, GuidanceAsset } from './types';
 import { Sidebar } from './components/Sidebar';
@@ -63,6 +64,10 @@ export function App(): React.JSX.Element {
       void refreshAssets();
       void refreshComments();
     }
+    // The tree view's presence poll snaps back immediately instead of waiting
+    // out its interval — an event, not a prop, so TreeView never remounts
+    // (a remount would reset the world's scroll and selection).
+    notifyStoreRecovered();
   }, [status, loadInitial, refreshAssets, refreshComments]);
 
   const appData: AppData = useMemo(

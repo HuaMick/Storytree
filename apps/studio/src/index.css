@@ -1676,6 +1676,14 @@ mark.st-hl.flash {
 .captree-verdict.verdict-fail text { fill: var(--danger); }
 
 /* session wisps (notice-board presence orbiting a tree) */
+.world-wisp {
+  cursor: pointer;
+  animation: wisp-in 0.6s ease-out both; /* poll-arrived wisps fade in; unmount is instant */
+}
+@keyframes wisp-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 .world-wisp-glow {
   fill: var(--accent);
   opacity: 0.25;
@@ -1685,10 +1693,85 @@ mark.st-hl.flash {
   stroke: #ffffff;
   stroke-width: 1.2;
 }
+.world-wisp.is-selected .world-wisp-glow { opacity: 0.55; }
+.world-wisp.is-selected .world-wisp-dot { stroke-width: 2; }
 .world-wisp.band-stale .world-wisp-glow { fill: var(--warn); }
 .world-wisp.band-stale .world-wisp-dot { fill: var(--warn); }
 .world-wisp.band-possibly-dead .world-wisp-glow { fill: var(--st-retired); opacity: 0.15; }
 .world-wisp.band-possibly-dead .world-wisp-dot { fill: var(--st-retired); }
+.world-wisp.band-possibly-dead.is-selected .world-wisp-glow { opacity: 0.4; }
+
+/* the session dock — the wisps' clickable detail surface (list / one session) */
+.session-dock {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 3; /* above the legend dock (2) */
+  width: 300px;
+  max-width: calc(100% - 20px);
+  max-height: 55%;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(16, 24, 40, 0.18);
+  padding: 10px 12px;
+  font-size: 13px;
+}
+.session-dock header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.session-dock header h4 {
+  margin: 0;
+  font-size: 13px;
+}
+.session-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.session-row:hover {
+  background: var(--board-1);
+}
+.session-row code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.session-row .tree-session-band {
+  flex: none;
+  margin-right: 0;
+}
+.session-detail-id {
+  margin: 2px 0 8px;
+  overflow-wrap: anywhere;
+}
+.session-detail dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  margin: 0 0 8px;
+}
+.session-detail dt {
+  color: var(--muted);
+}
+.session-detail dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
 
 /* the legend bar (ADR-0036 d.6c — one entry per world model, expandable state
    fans; adaptive: entries/states only appear once they exist in the world) */
