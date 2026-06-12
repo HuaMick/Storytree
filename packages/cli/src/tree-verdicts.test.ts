@@ -43,6 +43,7 @@ function signingEvent(
     commitSha: "abc123",
     signer: "test-signer",
     runId: "run-1",
+    evidence: [],
     at: "2026-06-13T00:00:00.000Z",
   };
   return { kind: SIGNING_EVENT_KIND, seq, doc };
