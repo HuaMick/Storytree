@@ -17,7 +17,7 @@ decisions: [8, 36]
 
 **Outcome —** An operator reviews the project record through one browsable forum studio.
 
-apps/studio is a hand-built, single-process Vite dev app (run with `pnpm --filter studio dev`) that turns the repo's own docs/ corpus and a synthesised guidance Library into a reviewable forum: read rendered ADRs/glossary, anchor comments onto exact text spans / sections / whole topics and resolve them, and browse-author-seed a categorised Library of injectable guidance artifacts. The whole 'backend' is one Vite middleware file (server/devApi.ts) serving docs read-only from <repo>/docs and persisting comments + assets to git-tracked JSON stores under apps/studio/data. HONESTY: the app compiles and runs, but package.json has only dev/build/preview/typecheck — zero test tooling, no *.test/*.spec files anywhere in the package, no scripted UAT. Every unit below is a RETROSPECTIVE spec over already-working code: each contract describes the isolated unit test that WOULD prove a leaf (citing real code at file:line), each capability describes the integration test that WOULD prove it against its real in-story collaborators (no stubs within the organism), and the single story-level UAT below describes the acceptance walkthrough that WOULD prove the whole organism against the real running app. The lone capability whose integration proof is automatable TODAY is the Library seeder (a standalone Node script whose output is directly assertable). Nothing here is 'proven', 'healthy', or 'mapped'; proof status is authored-only.
+apps/studio is a hand-built, single-process Vite dev app (run with `pnpm --filter studio dev`) that turns the repo's own docs/ corpus and a synthesised guidance Library into a reviewable forum: read rendered ADRs/glossary, anchor comments onto exact text spans / sections / whole topics and resolve them, and browse-author-seed a categorised Library of injectable guidance artifacts. The whole 'backend' is one Vite middleware file (server/devApi.ts) serving docs read-only from <repo>/docs and persisting comments + assets to git-tracked JSON stores under apps/studio/data. HONESTY: every unit below is a RETROSPECTIVE spec over already-working code: each contract describes the isolated unit test that WOULD prove a leaf (citing real code at file:line), each capability describes the integration test that WOULD prove it against its real in-story collaborators (no stubs within the organism), and the single story-level UAT below describes the acceptance walkthrough that WOULD prove the whole organism against the real running app. As of 2026-06-12 the package carries test tooling (a vitest suite in `pnpm -r test` scope, and a scripted Playwright shadow of part of the story UAT — see § Proof), but no proof ceremony has run. Nothing here is 'proven', 'healthy', or 'mapped'; proof status is authored-only.
 
 ## What this is
 
@@ -142,13 +142,16 @@ acceptance walkthrough lives at the story tier, not as a pure rollup of capabili
 draft cited). The story is proven when that UAT passes against the real running organism
 *and* its capabilities' integration tests and contracts pass underneath it.
 
-**Honest status — `proposed`.** Nothing here is proven. `apps/studio` runs under
-`pnpm --filter studio dev` but has **no automated test suite and no scripted UAT**
-(`package.json` defines only dev/build/preview/typecheck; there are zero `*.test`/`*.spec`
-files in the package). This is a **retrospective spec** over already-built, hand-exercised
-code: the story UAT above is the acceptance walkthrough that *would* prove the organism,
-each capability's integration test is what *would* prove it against real in-story
-collaborators, and each contract is the isolated unit test that *would* prove its leaf —
-none are written or running. Nothing here is `healthy` or `mapped`. The lifecycle status
-for retro-authored specs over built code is an open modeling call — see
-[`../README.md`](../README.md) § "Open modeling calls".
+**Honest status — `proposed`.** Nothing here is proven *through the ceremony*. As of
+2026-06-12 `apps/studio` carries an automated suite — `pnpm --filter studio test` (vitest,
+in `pnpm -r test` scope: the db-control spawn contract, `/api/db/*` integration against a
+fake gcloud shim, and the StoreBanner state machine) — and a **scripted shadow of the story
+UAT now exists**: `pnpm --filter studio uat` (Playwright, `apps/studio/uat/story-uat.spec.ts`)
+executes the read-corpus + browse-library slice of the walkthrough above (steps 1-2 and 7-9)
+against the real running studio pinned to the offline json store (the cross-story live-store
+seam stubbed per ADR-0010 §5; in-story collaborators real; one-time setup:
+`pnpm exec playwright install chromium`). The mutating steps (4-6, 10-13:
+annotate/resolve/author/restart) are not yet scripted. Status stays `proposed`: healthy is
+**earned through the prove-it-gate, never edited** — a scripted UAT existing is not the
+ceremony having run it. The lifecycle status for retro-authored specs over built code is an
+open modeling call — see [`../README.md`](../README.md) § "Open modeling calls".

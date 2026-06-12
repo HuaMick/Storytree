@@ -10,5 +10,5 @@
     "sourceMap": false,
     "allowImportingTsExtensions": true
   },
-  "include": ["vite.config.ts", "vitest.config.ts", "server"]
+  "include": ["vite.config.ts", "vitest.config.ts", "playwright.config.ts", "server", "uat"]
 }
