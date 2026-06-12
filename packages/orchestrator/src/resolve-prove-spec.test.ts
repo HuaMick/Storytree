@@ -121,6 +121,7 @@ test("the verdict-line entry carries a REAL proof config whose write walls reall
     "noticeboard-cli",
     "presence-store",
     "tree-view",
+    "verdict-glyphs",
     "verdict-line",
   ]);
   const real = lookupNodeBuildConfig("verdict-line")?.real;
@@ -372,6 +373,7 @@ test("real mode fails closed on a registered node WITHOUT a real-proof config", 
     "noticeboard-cli",
     "presence-store",
     "tree-view",
+    "verdict-glyphs",
     "verdict-line",
   ]);
 });
