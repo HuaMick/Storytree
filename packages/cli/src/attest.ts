@@ -26,6 +26,8 @@ import type { SessionIdentity } from "./noticeboard.js";
 export interface AttestationStoreLike {
   record(att: Attestation): Promise<Attestation>;
   history(testId: string): Promise<Attestation[]>;
+  /** All attestation rows for the tree view's per-test marks (attestation-surface). */
+  readEvents(): Promise<ReadonlyArray<{ seq: number; doc: unknown }>>;
 }
 
 export interface AttestDeps {
@@ -161,8 +163,10 @@ export async function attestCommand(
     };
   }
 
-  // relayedBy = the scribing agent. Explicit flag wins; else this session (honest "agent scribed").
-  const relayedBy = opts.relayedBy ?? deps.identity?.sessionId;
+  // relayedBy = the agent that SCRIBED a relayed HUMAN attestation (ADR-0044 d.4) — explicit flag
+  // wins, else this session (honest "owner vouched, agent scribed"). A MACHINE signal's signer IS
+  // the runner, so it carries no relay unless one is passed explicitly.
+  const relayedBy = witness === "human" ? (opts.relayedBy ?? deps.identity?.sessionId) : opts.relayedBy;
 
   const doc: Attestation = {
     testId: testId.trim(),
@@ -175,11 +179,12 @@ export async function attestCommand(
   };
 
   const saved = await deps.store.record(doc);
+  const signerRole = saved.witness === "human" ? "the operator who observed" : "the machine runner";
   const lines = [
     `Recorded a ${saved.witness} attestation for "${saved.testId}".`,
     `  outcome:    ${saved.outcome}`,
     `  witness:    ${saved.witness}`,
-    `  signer:     ${saved.signer}   (the operator who observed)`,
+    `  signer:     ${saved.signer}   (${signerRole})`,
   ];
   if (saved.relayedBy !== undefined) lines.push(`  relayedBy:  ${saved.relayedBy}   (the agent that scribed)`);
   if (saved.note !== undefined) lines.push(`  note:       ${saved.note}`);

@@ -10,12 +10,17 @@
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 
-import { classifyPresence } from "@storytree/core";
+import { classifyPresence, type UatTest } from "@storytree/core";
 import { loadNodeSpec } from "@storytree/orchestrator";
 
 import type { PresenceStoreLike } from "./noticeboard.js";
 import type { Envelope } from "./envelope.js";
 import { glyphFor, readVerdictGlyphs, type VerdictReaderLike } from "./tree-verdicts.js";
+import {
+  attestationMark,
+  readAttestations,
+  type AttestationReaderLike,
+} from "./tree-attestations.js";
 
 // ---------------------------------------------------------------------------
 // Public interface
@@ -31,6 +36,12 @@ export interface TreeDeps {
    * absent/null offline — glyphs are then silently absent, never an error.
    */
   verdicts?: VerdictReaderLike | null;
+  /**
+   * The attestation log (ADR-0044 `attestation-surface`): the live store when --pg; null/absent
+   * offline — the per-UAT-test marks are then silently absent (the UAT-test list still renders,
+   * parsed from the spec; only the mark column drops, like the verdict glyphs).
+   */
+  attestations?: AttestationReaderLike | null;
   now: () => Date;
 }
 
@@ -147,12 +158,14 @@ export async function treeCommand(
   let storyStatus = "(unknown)";
   let storyOutcome = "(unknown)";
   let capIds: string[] = [];
+  let uatTests: UatTest[] = [];
   try {
     const spec = loadNodeSpec(storyFile);
     storyTitle = spec.title;
     storyStatus = spec.status;
     storyOutcome = spec.outcome;
     capIds = spec.capabilities;
+    uatTests = spec.uatTests;
   } catch {
     // tolerate — render what we can
   }
@@ -214,6 +227,21 @@ export async function treeCommand(
     lines.push("", "Dependency edges:");
     for (const edge of edges) {
       lines.push(`  ${edge}`);
+    }
+  }
+
+  // UAT-tests block (attestation-surface, ADR-0044): the story's addressable UAT tests with their
+  // per-test attestation marks — human seal / machine mark / – never built, or "" offline (the mark
+  // column drops, like the verdict glyphs; the test list itself still renders from the spec). The
+  // marks are a VOUCH, not the gate-proven ✓/✗, and never roll up to the story (d.3).
+  if (uatTests.length > 0) {
+    const marks = await readAttestations(deps.attestations ?? null);
+    lines.push("", "UAT tests:");
+    const idWidth = Math.max(...uatTests.map((t) => t.id.length));
+    for (const t of uatTests) {
+      const mark = attestationMark(marks, t.id);
+      const markCol = mark === "" ? "" : `  ${mark}`;
+      lines.push(`  ${t.id.padEnd(idWidth)}  witness=${t.witness.padEnd(7)}  ${t.title}${markCol}`);
     }
   }
 

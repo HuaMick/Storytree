@@ -52,6 +52,11 @@ before(() => {
       "---",
       "",
       "Demo story body.",
+      "",
+      "## Story UAT (would-be)",
+      "",
+      "1. **First check** _(witness: machine)_: it parses.",
+      "2. **Human look** _(witness: human)_: it looks right.",
     ].join("\n"),
   );
 
@@ -260,6 +265,59 @@ test("focused view with throwing presence store is still ok and omits sessions b
   const env = await treeCommand("demo-story", deps);
   assert.equal(env.ok, true);
   assert.ok(!env.body.includes("sessions here:"), "body must not contain 'sessions here:' when store throws");
+});
+
+// (6) UAT-tests block — offline (no attestations reader): the test list renders from the spec,
+// with witness kinds, but NO mark column (silently absent, like the verdict glyphs).
+test("focused view renders the UAT tests block from the spec; marks absent offline", async () => {
+  const deps: TreeDeps = {
+    storiesDir,
+    lookupConfig,
+    presence: null,
+    now: () => NOW,
+  };
+  const env = await treeCommand("demo-story", deps);
+  assert.equal(env.ok, true);
+  assert.ok(env.body.includes("UAT tests:"), "body has a UAT tests block");
+  assert.ok(env.body.includes("demo-story#uat-1"), "lists the first test id");
+  assert.ok(env.body.includes("demo-story#uat-2"), "lists the second test id");
+  assert.ok(env.body.includes("witness=machine"), "shows the declared witness kind");
+  assert.ok(env.body.includes("First check") && env.body.includes("Human look"), "shows titles");
+  assert.ok(!env.body.includes("◉") && !env.body.includes("▣"), "no attestation marks offline");
+});
+
+// (7) UAT-tests block — with an attestation reader: a human seal on the voucht test, – on the other.
+test("focused view shows attestation marks when the reader answers (human seal vs – never voucht)", async () => {
+  const reader = {
+    async readEvents() {
+      return [
+        {
+          seq: 1,
+          doc: {
+            testId: "demo-story#uat-2",
+            outcome: "pass",
+            witness: "human",
+            signer: "owner@example.com",
+            at: "2026-06-11T09:59:00.000Z",
+            relayedBy: "session-alpha",
+          },
+        },
+      ];
+    },
+  };
+  const deps: TreeDeps = {
+    storiesDir,
+    lookupConfig,
+    presence: null,
+    attestations: reader,
+    now: () => NOW,
+  };
+  const env = await treeCommand("demo-story", deps);
+  assert.equal(env.ok, true);
+  assert.ok(env.body.includes("◉ human:pass"), "the voucht test renders the human seal + outcome");
+  // uat-1 has no attestation → the never-voucht dash; and the marks are never the gate ✓/✗.
+  assert.ok(/demo-story#uat-1\s+witness=machine\s+First check\s+–/.test(env.body), "unvoucht test → –");
+  assert.ok(!env.body.includes("✓") && !env.body.includes("✗"), "attestation marks are not the verdict glyphs");
 });
 
 // (5) focused next pointers

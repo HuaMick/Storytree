@@ -35,15 +35,16 @@
 // live store answers. All "randomness" (tile growth, crown-blob jitter, road
 // bows) is hashed from ids so the world renders identically every time.
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import dagre from '@dagrejs/dagre';
 import { api } from '../api';
+import { useAppData } from '../lib/appData';
 import { verdictBloom, type VerdictBloom } from '../lib/activity.js';
 import { formatAge, isOrbitingBand, splitSessions, usePresence } from '../lib/presence';
 import { navigate, treeFocusHref, treeHref } from '../lib/route';
 import { presentStories } from '../lib/worldStatus.js';
 import { WorldLegend } from './WorldLegend.js';
-import type { TreeCapability, TreeSession, TreeStory, TreeVerdict } from '../types';
+import type { AttestationMark, TreeCapability, TreeSession, TreeStory, TreeVerdict, UatTestRow } from '../types';
 
 // ---------- deterministic pseudo-random ----------
 
@@ -1828,6 +1829,107 @@ function savedPanelWidth(): number {
   return Number.isFinite(saved) && saved >= PANEL_MIN ? Math.min(saved, PANEL_MAX) : PANEL_DEFAULT;
 }
 
+/** Human attestation seal (filled) / machine mark (boxed) — distinct from the ✓/✗ verdict glyph. */
+function Seal({ kind, mark }: { kind: 'human' | 'machine'; mark: AttestationMark }): React.JSX.Element {
+  const who = mark.relayedBy ? `${mark.signer} · relayed by ${mark.relayedBy}` : mark.signer;
+  return (
+    <span
+      className={`attest-seal witness-${kind} outcome-${mark.outcome}`}
+      title={`${kind} attestation — ${mark.outcome} · ${who}${mark.note ? ` · ${mark.note}` : ''}`}
+      aria-label={`${kind} attestation: ${mark.outcome}`}
+    >
+      {kind === 'human' ? '◉' : '▣'}
+    </span>
+  );
+}
+
+/**
+ * The story detail's "UAT tests" list (ADR-0044 attestation-surface): each addressable UAT test
+ * (parsed from the story's `## Story UAT` prose) with its per-test attestation mark — a human
+ * SEAL, a distinct machine mark, or blank (un-attested). The marks are deliberately NOT the
+ * crown-green verdict hue (a vouch is not a proof; d.2) and live in the DETAIL only — the world
+ * island hue is untouched (d.3). An admin can record a direct "I saw it work" human attestation
+ * (the higher-rigor in-UI signature; d.4). Fetched per-story on open; silently absent when the
+ * store/endpoint is unavailable.
+ */
+function UatTestsSection({ storyId }: { storyId: string }): React.JSX.Element | null {
+  const { me } = useAppData();
+  const isAdmin = me.role === 'admin';
+  const [tests, setTests] = useState<UatTestRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = useCallback(async (): Promise<void> => {
+    try {
+      const payload = await api.attestations(storyId);
+      setTests(payload.tests);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, [storyId]);
+
+  useEffect(() => {
+    setTests(null);
+    void load();
+  }, [load]);
+
+  const record = async (testId: string): Promise<void> => {
+    setBusy(testId);
+    try {
+      await api.recordAttestation({ testId, outcome: 'pass' });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  if (error) return <p className="muted small">UAT tests unavailable: {error}</p>;
+  if (tests === null || tests.length === 0) return null; // loading, or a story with no parsed UAT tests
+
+  return (
+    <div className="uat-tests">
+      <h4 className="tree-subdag-title">UAT tests ({tests.length})</h4>
+      <ul className="attest-list">
+        {tests.map((t) => (
+          <li key={t.id} className="attest-row">
+            <span className="attest-marks">
+              {t.human && <Seal kind="human" mark={t.human} />}
+              {t.machine && <Seal kind="machine" mark={t.machine} />}
+              {!t.human && !t.machine && (
+                <span className="attest-seal blank" aria-label="un-attested" title="no attestation yet">
+                  ◌
+                </span>
+              )}
+            </span>
+            <span className="attest-title">{t.title}</span>
+            <span className="muted attest-witness" title="who may attest this test">
+              {t.witness}
+            </span>
+            {isAdmin && t.human === undefined && t.witness !== 'machine' && (
+              <button
+                type="button"
+                className="btn small attest-record"
+                disabled={busy === t.id}
+                onClick={() => void record(t.id)}
+                title="record that you saw this test work — a signed human vouch, not a gate verdict"
+              >
+                {busy === t.id ? '…' : 'I saw it work'}
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p className="muted attest-note">
+        A vouch, not a gate verdict — recorded in <code>events.attestation</code>, never green-ing
+        the story (ADR-0044).
+      </p>
+    </div>
+  );
+}
+
 function StoryPanel({
   story,
   storyIds,
@@ -1966,6 +2068,7 @@ function StoryPanel({
         <VerdictLine verdict={story.verdict} />
         <span className="muted"> · witness: {story.uatWitness}</span>
       </p>
+      <UatTestsSection storyId={story.id} />
       {story.dependsOn.length > 0 && (
         <p className="small">
           <span className="muted">depends on </span>

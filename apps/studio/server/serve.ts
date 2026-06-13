@@ -157,6 +157,7 @@ if (isMain()) {
     assetsFile: paths.assetsFile,
     commentsFile: paths.commentsFile,
     usersFile: paths.usersFile,
+    attestationsFile: paths.attestationsFile,
   });
   const server = createStudioServer({
     distDir: path.join(STUDIO_ROOT, 'dist'),

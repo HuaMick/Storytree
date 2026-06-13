@@ -25,6 +25,7 @@ function spec(
     capabilities,
     decisions: [],
     guidance: undefined,
+    uatTests: [],
     file: `${id}.md`,
   };
 }

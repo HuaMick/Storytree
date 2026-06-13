@@ -17,7 +17,7 @@ import type { Server } from 'node:http';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { UserDoc } from '@storytree/core';
+import type { Attestation, UserDoc } from '@storytree/core';
 import { mergeUser, wouldOrphanAdminsOnRemove, wouldOrphanAdminsOnRole } from '@storytree/core';
 import { createStudioServer } from './serve';
 import { parseSeedAdmins } from './guestPolicy';
@@ -68,7 +68,13 @@ function comment(id: string, author: string): Comment {
 }
 
 /** What each backend method last received — the stub records instead of persisting. */
-const seen: { createdComment?: Comment; updatedCommentId?: string; assetCreated?: boolean; upserts: UserDoc[] } = {
+const seen: {
+  createdComment?: Comment;
+  updatedCommentId?: string;
+  assetCreated?: boolean;
+  upserts: UserDoc[];
+  recordedAttestation?: Attestation;
+} = {
   upserts: [],
 };
 
@@ -132,6 +138,11 @@ const stubBackend: LibraryBackend = {
     usersDb.splice(idx, 1);
     return true;
   },
+  listAttestations: async () => ({}),
+  recordAttestation: async (att) => {
+    seen.recordedAttestation = att;
+    return att;
+  },
   close: async () => {},
 };
 
@@ -156,6 +167,7 @@ beforeAll(async () => {
       commentsFile: path.join(distDir, 'comments.json'),
       assetsFile: path.join(distDir, 'assets.json'),
       usersFile: path.join(distDir, 'users.json'),
+      attestationsFile: path.join(distDir, 'attestations.json'),
     },
     backend: stubBackend,
     admins: parseSeedAdmins(` ${ADMIN.toUpperCase()}, `), // exercises trim + case-folding of the seed
@@ -407,6 +419,56 @@ describe('invite-ui: admin-only user management (ADR-0043)', () => {
   });
 });
 
+describe('attestations: member reads, admin records (ADR-0044)', () => {
+  it('GET is member-readable and returns the {storyId, tests} shape', async () => {
+    const res = await fetch(`${base}/api/attestations?storyId=demo-story`, { headers: iap(MEMBER) });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { storyId: string; tests: unknown[] };
+    expect(body.storyId).toBe('demo-story');
+    expect(Array.isArray(body.tests)).toBe(true); // empty corpus → []
+  });
+
+  it('a non-member is walled from GET (403 + requestAccess)', async () => {
+    const res = await fetch(`${base}/api/attestations?storyId=demo-story`, { headers: iap(STRANGER) });
+    expect(res.status).toBe(403);
+    expect((await res.json()) as { requestAccess?: boolean }).toMatchObject({ requestAccess: true });
+  });
+
+  it('GET without storyId is a 400', async () => {
+    const res = await fetch(`${base}/api/attestations`, { headers: iap(MEMBER) });
+    expect(res.status).toBe(400);
+  });
+
+  it('POST (record) is admin-only — a member is refused before any write', async () => {
+    delete seen.recordedAttestation;
+    const res = await fetch(`${base}/api/attestations`, {
+      method: 'POST',
+      headers: iap(MEMBER),
+      body: JSON.stringify({ testId: 'demo-story#uat-1', outcome: 'pass' }),
+    });
+    expect(res.status).toBe(403);
+    expect(seen.recordedAttestation).toBeUndefined();
+  });
+
+  it('an admin records a human attestation; the signer is stamped from the verified caller', async () => {
+    const res = await fetch(`${base}/api/attestations`, {
+      method: 'POST',
+      headers: iap(ADMIN),
+      body: JSON.stringify({ testId: 'demo-story#uat-2', outcome: 'pass', note: 'looked right', signer: 'forged@evil.com' }),
+    });
+    expect(res.status).toBe(201);
+    expect(seen.recordedAttestation).toMatchObject({
+      testId: 'demo-story#uat-2',
+      outcome: 'pass',
+      witness: 'human',
+      signer: ADMIN, // stamped from IAP identity, NOT the forged body field
+      note: 'looked right',
+    });
+    // a direct in-UI signature carries no agent relay (ADR-0044 d.4 — the higher-rigor path)
+    expect(seen.recordedAttestation?.relayedBy).toBeUndefined();
+  });
+});
+
 describe('store outage degrades to health/me only', () => {
   it('a backend that cannot list users keeps /api/health + /api/me alive and 503s the corpus', async () => {
     const downBackend: LibraryBackend = {
@@ -425,6 +487,7 @@ describe('store outage degrades to health/me only', () => {
         commentsFile: path.join(distDir, 'comments.json'),
         assetsFile: path.join(distDir, 'assets.json'),
         usersFile: path.join(distDir, 'users.json'),
+        attestationsFile: path.join(distDir, 'attestations.json'),
       },
       backend: downBackend,
       admins: parseSeedAdmins(ADMIN),

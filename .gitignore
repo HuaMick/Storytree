@@ -39,6 +39,11 @@ pgdata/
 # events."user" projection in Cloud SQL). Never committed.
 apps/studio/data/users.json
 
+# Per-UAT-test attestations (ADR-0044) are app-owned runtime state too: the offline JSON backend
+# writes apps/studio/data/attestations.json on the fly (the live source is events.attestation in
+# Cloud SQL). Never committed.
+apps/studio/data/attestations.json
+
 # Editor / OS
 .DS_Store
 Thumbs.db

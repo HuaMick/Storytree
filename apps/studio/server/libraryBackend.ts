@@ -22,7 +22,7 @@
 
 import { promises as fs, existsSync } from 'node:fs';
 import path from 'node:path';
-import type { UserDoc } from '@storytree/core';
+import type { Attestation, UserDoc } from '@storytree/core';
 import type {
   AssetCategory,
   Comment,
@@ -30,6 +30,9 @@ import type {
   TreeSession,
   TreeVerdict,
 } from '../src/types';
+
+/** Latest-per-(testId,witness) attestation marks for one story's tests, keyed by test id. */
+export type StoryAttestations = Record<string, { human?: Attestation; machine?: Attestation }>;
 
 /** Fields the API validates from a create/update asset request (no server-stamped timestamps). */
 export interface AssetInput {
@@ -127,6 +130,16 @@ export interface LibraryBackend {
   /** Returns `true` if a row was removed, `false` if absent. Throws on a last-admin violation. */
   removeUser(email: string, actor: string): Promise<boolean>;
 
+  // ----- per-UAT-test attestations (ADR-0044 attestation-surface) -----
+  // A SIGNED vouch log, deliberately separate from verdicts. listAttestations is the DISPLAY
+  // projection (latest human/machine per test) filtered to one story's `<story>#uat-*` tests;
+  // recordAttestation appends one validated signal. NEVER touches events.verdict (d.2), and the
+  // story island hue is unaffected (d.3) — these live in the detail only.
+  /** Latest human/machine marks for the story's tests, keyed by test id. `{}` for json/down DB. */
+  listAttestations(storyId: string): Promise<StoryAttestations>;
+  /** Append a signed attestation (validated at the write boundary). Returns the persisted doc. */
+  recordAttestation(att: Attestation, actor: string): Promise<Attestation>;
+
   /** Release any resources (the pg pool). No-op for the JSON backend. */
   close(): Promise<void>;
 }
@@ -150,11 +163,18 @@ export class JsonBackend implements LibraryBackend {
   readonly #assetsFile: string;
   readonly #commentsFile: string;
   readonly #usersFile: string;
+  readonly #attestationsFile: string;
 
-  constructor(opts: { assetsFile: string; commentsFile: string; usersFile: string }) {
+  constructor(opts: {
+    assetsFile: string;
+    commentsFile: string;
+    usersFile: string;
+    attestationsFile: string;
+  }) {
     this.#assetsFile = opts.assetsFile;
     this.#commentsFile = opts.commentsFile;
     this.#usersFile = opts.usersFile;
+    this.#attestationsFile = opts.attestationsFile;
   }
 
   async listAssets(): Promise<GuidanceAsset[]> {
@@ -294,6 +314,29 @@ export class JsonBackend implements LibraryBackend {
     return true;
   }
 
+  // ----- attestations (data/attestations.json) — the offline mirror of PgAttestationStore.
+  // Append-only array; the display projection is derived via @storytree/core (lazy). -----
+
+  async listAttestations(storyId: string): Promise<StoryAttestations> {
+    const core = await loadCoreModule();
+    const stored = await readStore<Attestation[]>(this.#attestationsFile, []);
+    const map = core.deriveAttestations(stored.map((doc, i) => ({ seq: i + 1, doc })));
+    const out: StoryAttestations = {};
+    for (const [testId, entry] of map) {
+      if (testId.startsWith(`${storyId}#`)) out[testId] = entry;
+    }
+    return out;
+  }
+
+  async recordAttestation(att: Attestation, _actor: string): Promise<Attestation> {
+    const core = await loadCoreModule();
+    const validated = core.Attestation.parse(att); // fail-closed at the write boundary
+    const all = await readStore<Attestation[]>(this.#attestationsFile, []);
+    all.push(validated);
+    await writeStore(this.#attestationsFile, all);
+    return validated;
+  }
+
   async close(): Promise<void> {
     /* no resources to release */
   }
@@ -316,7 +359,13 @@ function lastAdminError(message: string): Error {
 // also Node-only (pg / cloud-sql-connector) and has no place in a browser build. Keeping the import
 // dynamic means the store is only touched when STORYTREE_STUDIO_STORE='pg' actually runs the dev API.
 // Types are `import type` only (fully erased under verbatimModuleSyntax), so they add no runtime import.
-import type { PoolHandle, PgLibraryStore, PgCommentStore, PgUserStore } from '@storytree/store';
+import type {
+  PoolHandle,
+  PgLibraryStore,
+  PgCommentStore,
+  PgUserStore,
+  PgAttestationStore,
+} from '@storytree/store';
 
 type StoreModule = typeof import('@storytree/store');
 
@@ -375,6 +424,7 @@ export class PgBackend implements LibraryBackend {
   #library: PgLibraryStore | null = null;
   #comments: PgCommentStore | null = null;
   #users: PgUserStore | null = null;
+  #attestations: PgAttestationStore | null = null;
 
   /** Build the pool + stores on first use (the JSON default must never touch pg). */
   async #ready(): Promise<{
@@ -382,12 +432,14 @@ export class PgBackend implements LibraryBackend {
     library: PgLibraryStore;
     comments: PgCommentStore;
     users: PgUserStore;
+    attestations: PgAttestationStore;
   }> {
     if (
       this.#store === null ||
       this.#library === null ||
       this.#comments === null ||
-      this.#users === null
+      this.#users === null ||
+      this.#attestations === null
     ) {
       const store = await loadStoreModule();
       const handle = await store.createPool();
@@ -396,8 +448,15 @@ export class PgBackend implements LibraryBackend {
       this.#library = new store.PgLibraryStore(handle.pool);
       this.#comments = new store.PgCommentStore(handle.pool);
       this.#users = new store.PgUserStore(handle.pool);
+      this.#attestations = new store.PgAttestationStore(handle.pool);
     }
-    return { store: this.#store, library: this.#library, comments: this.#comments, users: this.#users };
+    return {
+      store: this.#store,
+      library: this.#library,
+      comments: this.#comments,
+      users: this.#users,
+      attestations: this.#attestations,
+    };
   }
 
   async listAssets(): Promise<GuidanceAsset[]> {
@@ -619,6 +678,24 @@ export class PgBackend implements LibraryBackend {
     return users.remove(email, actor);
   }
 
+  // ----- attestations (PgAttestationStore over events.attestation) -----
+
+  async listAttestations(storyId: string): Promise<StoryAttestations> {
+    const { attestations } = await this.#ready();
+    const core = await loadCoreModule();
+    const map = core.deriveAttestations(await attestations.readEvents());
+    const out: StoryAttestations = {};
+    for (const [testId, entry] of map) {
+      if (testId.startsWith(`${storyId}#`)) out[testId] = entry;
+    }
+    return out;
+  }
+
+  async recordAttestation(att: Attestation, _actor: string): Promise<Attestation> {
+    const { attestations } = await this.#ready();
+    return attestations.record(att);
+  }
+
   async close(): Promise<void> {
     if (this.#handle && this.#store) {
       await this.#store.closePool(this.#handle.pool, this.#handle.connector);
@@ -626,6 +703,7 @@ export class PgBackend implements LibraryBackend {
       this.#library = null;
       this.#comments = null;
       this.#users = null;
+      this.#attestations = null;
       this.#store = null;
     }
   }
@@ -647,6 +725,7 @@ export function createBackend(opts: {
   assetsFile: string;
   commentsFile: string;
   usersFile: string;
+  attestationsFile: string;
 }): LibraryBackend {
   return selectedStore() === 'pg'
     ? new PgBackend()
@@ -654,5 +733,6 @@ export function createBackend(opts: {
         assetsFile: opts.assetsFile,
         commentsFile: opts.commentsFile,
         usersFile: opts.usersFile,
+        attestationsFile: opts.attestationsFile,
       });
 }

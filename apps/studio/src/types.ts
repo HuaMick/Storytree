@@ -344,6 +344,44 @@ export interface TreePayload {
   sessions?: TreeSession[];
 }
 
+// ---------- per-UAT-test attestations (ADR-0044) ----------
+
+/**
+ * A recorded attestation mark (mirrors core's `Attestation`) — a SIGNED vouch that a human
+ * or a machine saw a test work. NOT a gate verdict (it never paints the crown-green hue;
+ * ADR-0044 d.2): it renders distinctly in the story detail and never rolls up to the story.
+ */
+export interface AttestationMark {
+  testId: string;
+  outcome: 'pass' | 'fail';
+  witness: 'human' | 'machine';
+  /** The resolved signing identity (the operator who observed, or the machine runner). */
+  signer: string;
+  at: string;
+  note?: string;
+  /** The agent/session that scribed a relayed human attestation (absent = direct/machine). */
+  relayedBy?: string;
+}
+
+/**
+ * One UAT test of a story (parsed from its `## Story UAT` prose) joined with its latest
+ * human/machine attestation. `witness` is the test's PERMISSION (who may attest); `human`/
+ * `machine` are the actual recorded marks (absent = un-attested → blank).
+ */
+export interface UatTestRow {
+  id: string;
+  title: string;
+  witness: 'human' | 'machine' | 'either';
+  human?: AttestationMark;
+  machine?: AttestationMark;
+}
+
+/** GET /api/attestations?storyId=… — a story's UAT tests with their per-test marks. */
+export interface AttestationsPayload {
+  storyId: string;
+  tests: UatTestRow[];
+}
+
 /**
  * GET /api/presence — the active-session layer alone, polled by the tree view
  * (the world geometry stays a one-shot /api/tree). Always a 200: `null` means
