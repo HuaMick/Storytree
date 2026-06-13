@@ -8,7 +8,7 @@ import {
 } from "@storytree/core";
 
 /**
- * ADR-0043 `user-directory`: the Postgres-backed trusted-circle user store. History
+ * ADR-0043 `user-directory`: the Postgres-backed app-owned user (member) store. History
  * lives in `events.user_event` (append-only); current state is the `events."user"`
  * projection, one row per lowercased email. Every write is one atomic transaction:
  * append event + upsert/delete projection, `ROLLBACK` on any error — the

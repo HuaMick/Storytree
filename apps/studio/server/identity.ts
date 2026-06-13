@@ -2,7 +2,7 @@
 // `guest-scope`): IAP authenticates every request at the edge and injects the
 // signed-in user as `x-goog-authenticated-user-email` ("accounts.google.com:
 // user@example.com"). The deployment invariant — ingress is IAP-only — is what
-// makes trusting the header acceptable for a trusted circle; verifying the
+// makes trusting the header acceptable for this small set of members; verifying the
 // `x-goog-iap-jwt-assertion` signature is the named hardening if exposure ever
 // widens. No I/O here: pure header parsing plus the local-trial override.
 

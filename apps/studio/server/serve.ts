@@ -19,9 +19,9 @@ import { fileURLToPath } from 'node:url';
 import { createBackend, selectedStore, type LibraryBackend } from './libraryBackend';
 import { handleApiRequest, isConnectionError, resolveStudioPaths, type Paths } from './apiRouter';
 import {
-  createCirclePolicy,
+  createMembersPolicy,
   createDegradedPolicy,
-  resolveCircleAccess,
+  resolveMembersAccess,
   parseSeedAdmins,
   ADMINS_ENV,
 } from './guestPolicy';
@@ -112,11 +112,11 @@ export function createStudioServer(opts: StudioServerOptions): Server {
         // during resolution degrades to health/me-only rather than 500-ing the diagnostics.
         let policy;
         if (!identity) {
-          policy = createCirclePolicy(null, null);
+          policy = createMembersPolicy(null, null);
         } else {
           try {
-            const access = await resolveCircleAccess(opts.backend, identity, opts.admins);
-            policy = createCirclePolicy(identity, access);
+            const access = await resolveMembersAccess(opts.backend, identity, opts.admins);
+            policy = createMembersPolicy(identity, access);
           } catch (err) {
             if (isConnectionError(err)) {
               policy = createDegradedPolicy(identity);

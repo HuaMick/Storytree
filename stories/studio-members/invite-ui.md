@@ -1,7 +1,7 @@
 ---
 id: "invite-ui"
 tier: capability
-story: trusted-circle-users
+story: studio-members
 title: "Admins invite, re-role, and remove users from the studio"
 outcome: "An admin invites, re-roles, and removes users from the studio; the invitee activates on first Google sign-in."
 status: proposed
@@ -21,12 +21,12 @@ on first Google sign-in.
   check, all respecting the last-admin guard.
 - Activation is implicit: a `GET /api/me`/any request from an `invited` email flips it to `active`
   + stamps `lastSeenAt` (the upsert in `user-directory`).
-- UI: a "Circle" admin panel (members list with role + status + invited-by, an invite box, role
+- UI: a "Members" admin panel (members list with role + status + invited-by, an invite box, role
   toggle, remove). Members never see it (the role check hides it and the API enforces).
 
 ## Story UAT (would-be)
 
-1. Admin opens the Circle panel and invites a member by email. **Success —** the row appears as
+1. Admin opens the Members panel and invites a member by email. **Success —** the row appears as
    invited; an audit event exists.
 2. The invitee signs in. **Success —** status flips to active; they can use the studio.
 3. Admin re-roles them to admin, then back. **Success —** enforced on their next request.

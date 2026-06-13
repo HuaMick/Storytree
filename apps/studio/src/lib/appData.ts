@@ -11,7 +11,7 @@ export interface AppData {
   docTitles: Map<string, string>;
   assets: GuidanceAsset[];
   comments: Comment[];
-  /** The signed-in caller's circle membership/role (ADR-0043). Drives admin-only UI. */
+  /** The signed-in caller's membership/role (ADR-0043). Drives admin-only UI. */
   me: MeInfo;
   refreshComments: () => Promise<void>;
   refreshAssets: () => Promise<void>;

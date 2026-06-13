@@ -1,4 +1,4 @@
-// The Circle admin panel (ADR-0043 invite-ui): list the trusted circle, invite by email + role,
+// The Members admin panel (ADR-0043 invite-ui): list the members, invite by email + role,
 // re-role, and remove — all admin-only. The server enforces the admin gate and the last-admin
 // guard (a 409 surfaces here as the error line); this panel is also hidden from members in the nav
 // and refuses to render its controls for a non-admin caller.
@@ -6,11 +6,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
 import { useAppData } from '../lib/appData';
-import type { CircleUser, UserRole } from '../types';
+import type { Member, UserRole } from '../types';
 
-export function CirclePanel(): React.JSX.Element {
+export function MembersPanel(): React.JSX.Element {
   const { me } = useAppData();
-  const [users, setUsers] = useState<CircleUser[] | null>(null);
+  const [users, setUsers] = useState<Member[] | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState('');
@@ -33,7 +33,7 @@ export function CirclePanel(): React.JSX.Element {
     return (
       <div className="pad error-box">
         <h2>Admins only</h2>
-        <p className="muted">The Circle is managed by admins. Ask an admin if you need access changed.</p>
+        <p className="muted">Members are managed by admins. Ask an admin if you need access changed.</p>
       </div>
     );
   }
@@ -60,29 +60,29 @@ export function CirclePanel(): React.JSX.Element {
     });
   }
 
-  const toggleRole = (u: CircleUser): Promise<void> =>
+  const toggleRole = (u: Member): Promise<void> =>
     withBusy(async () => {
       await api.setUserRole(u.email, u.role === 'admin' ? 'member' : 'admin');
       await refresh();
     });
 
-  const remove = (u: CircleUser): Promise<void> =>
+  const remove = (u: Member): Promise<void> =>
     withBusy(async () => {
-      if (!window.confirm(`Remove ${u.email} from the circle? Their comment history stays attributed.`)) return;
+      if (!window.confirm(`Remove ${u.email}? Their comment history stays attributed.`)) return;
       await api.removeUser(u.email);
       await refresh();
     });
 
   return (
-    <div className="circle pad">
-      <div className="doc-crumb muted small">circle</div>
-      <h1>Circle</h1>
+    <div className="members pad">
+      <div className="doc-crumb muted small">members</div>
+      <h1>Members</h1>
       <p className="muted">
-        The trusted circle — who can read, comment, and edit. IAP authenticates the Google account;
+        Who can read, comment, and edit. IAP authenticates the Google account;
         the studio authorizes from this list (ADR-0043). The last remaining admin can’t be removed.
       </p>
 
-      <form className="circle-invite" onSubmit={invite}>
+      <form className="members-invite" onSubmit={invite}>
         <input
           type="email"
           placeholder="email@example.com"
@@ -103,9 +103,9 @@ export function CirclePanel(): React.JSX.Element {
       {error && <p className="error-text">{error}</p>}
 
       {users === null ? (
-        <p className="muted">Loading the circle…</p>
+        <p className="muted">Loading members…</p>
       ) : (
-        <table className="circle-table">
+        <table className="members-table">
           <thead>
             <tr>
               <th>Email</th>
@@ -129,7 +129,7 @@ export function CirclePanel(): React.JSX.Element {
                   <span className={`badge status-${u.status}`}>{u.status}</span>
                 </td>
                 <td className="muted small">{u.invitedBy ?? '—'}</td>
-                <td className="circle-actions">
+                <td className="members-actions">
                   <button type="button" className="btn small" disabled={busy} onClick={() => void toggleRole(u)}>
                     {u.role === 'admin' ? 'Make member' : 'Make admin'}
                   </button>

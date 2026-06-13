@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * ADR-0043 `user-directory`: the trusted-circle user doc plus the pure logic the
+ * ADR-0043 `user-directory`: the app-owned user (member) doc plus the pure logic the
  * studio's authorization reuses — validation, email normalisation, upsert-merge,
  * the last-admin guard, and access resolution from the projection.
  *
