@@ -24,6 +24,7 @@ import { promises as fs, existsSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { Attestation, UatTest } from '@storytree/core';
 import type {
   AssetCategory,
   Comment,
@@ -67,6 +68,7 @@ export interface Paths {
   commentsFile: string;
   assetsFile: string;
   usersFile: string;
+  attestationsFile: string;
 }
 
 /** Resolve every repo path the API serves from, given the studio app root. */
@@ -81,6 +83,7 @@ export function resolveStudioPaths(studioRoot: string): Paths {
     commentsFile: path.join(dataDir, 'comments.json'),
     assetsFile: path.join(dataDir, 'assets.json'),
     usersFile: path.join(dataDir, 'users.json'),
+    attestationsFile: path.join(dataDir, 'attestations.json'),
   };
 }
 
@@ -555,6 +558,77 @@ export async function handleUsers(
   throw new HttpError(405, `method ${method} not allowed`);
 }
 
+// ---------- per-UAT-test attestations (ADR-0044 attestation-surface) ----------
+//
+// GET /api/attestations?storyId=<id> — the story's UAT tests (parsed from its `## Story UAT`
+// prose via the orchestrator's loadNodeSpec, the SAME source as the CLI tree column) joined with
+// their latest human/machine marks. Member-readable. POST /api/attestations — an admin records a
+// DIRECT human attestation (signer stamped from the verified caller, no agent relay — the higher-
+// rigor in-UI signature, ADR-0044 d.4); admin-only by the gate's method rule. A vouch, never a
+// gate verdict (d.2): this writes events.attestation only and the world island hue is untouched.
+
+/** A story's UAT test units via loadNodeSpec (lazy orchestrator); `[]` for a missing/odd spec. */
+async function uatTestsForStory(storiesDir: string, storyId: string): Promise<UatTest[]> {
+  const file = path.join(storiesDir, storyId, 'story.md');
+  if (!existsSync(file)) return [];
+  const { loadNodeSpec } = await loadOrchestrator();
+  try {
+    return loadNodeSpec(file).uatTests;
+  } catch {
+    return [];
+  }
+}
+
+export async function handleAttestations(
+  req: IncomingMessage,
+  res: ServerResponse,
+  url: URL,
+  ctx: { paths: Paths; backend: Pick<LibraryBackend, 'listAttestations' | 'recordAttestation'> },
+  caller: string | null,
+): Promise<void> {
+  const method = req.method ?? 'GET';
+
+  if (method === 'GET') {
+    const storyId = (url.searchParams.get('storyId') ?? '').trim();
+    if (!storyId) throw new HttpError(400, 'storyId query param is required');
+    const [tests, marks] = await Promise.all([
+      uatTestsForStory(ctx.paths.storiesDir, storyId),
+      ctx.backend.listAttestations(storyId),
+    ]);
+    const rows = tests.map((t) => ({ ...t, ...(marks[t.id] ?? {}) }));
+    return sendJson(res, 200, { storyId, tests: rows });
+  }
+
+  if (method === 'POST') {
+    const input = await readJsonBody<Record<string, unknown>>(req);
+    const testId = asString(input.testId).trim();
+    if (!testId) throw new HttpError(400, 'testId is required');
+    const outcome = input.outcome === 'fail' ? 'fail' : 'pass';
+    const note = asString(input.note).trim();
+    // Hosted mode stamps the verified admin as the signer (can't be forged); dev keeps the client
+    // field (open localhost posture). An in-UI signature is a DIRECT human vouch — no relayedBy.
+    const signer = caller ?? (asString(input.signer).trim() || 'operator');
+    const doc: Attestation = {
+      testId,
+      outcome,
+      witness: 'human',
+      signer,
+      at: new Date().toISOString(),
+      ...(note ? { note } : {}),
+    };
+    try {
+      return sendJson(res, 201, await ctx.backend.recordAttestation(doc, signer));
+    } catch (err) {
+      if (err && typeof err === 'object' && (err as { name?: unknown }).name === 'ZodError') {
+        throw new HttpError(400, `attestation failed validation: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      throw err;
+    }
+  }
+
+  throw new HttpError(405, `method ${method} not allowed`);
+}
+
 // ---------- story tree (read-only, live from <repo>/stories) ----------
 //
 // Mirrors the CLI `storytree tree` discovery contract (packages/cli/src/tree.ts):
@@ -794,6 +868,10 @@ export async function handleApiRequest(
     } else if (url.pathname === '/api/users') {
       // Admin-gated by the policy; the caller (invitedBy + audit actor) is the verified identity.
       await handleUsers(req, res, url, ctx.backend, ctx.policy?.me.email ?? null);
+    } else if (url.pathname === '/api/attestations') {
+      // GET is member-readable; POST is admin-only by the gate's method rule. The signer is the
+      // verified caller (stamped, can't be forged); the open dev posture has no caller (null).
+      await handleAttestations(req, res, url, ctx, ctx.policy?.me.email ?? null);
     } else {
       throw new HttpError(404, 'unknown endpoint');
     }

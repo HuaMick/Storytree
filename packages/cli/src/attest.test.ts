@@ -19,6 +19,9 @@ class FakeStore implements AttestationStoreLike {
   async history(_testId: string): Promise<Attestation[]> {
     return this.history_;
   }
+  async readEvents(): Promise<ReadonlyArray<{ seq: number; doc: unknown }>> {
+    return this.recorded.map((doc, i) => ({ seq: i + 1, doc }));
+  }
 }
 
 function deps(over: Partial<AttestDeps> = {}): AttestDeps {
@@ -58,8 +61,10 @@ test("record human relay: signer = operator, relayedBy = the scribing session", 
   assert.ok(env.body.includes("VOUCH, not a gate verdict"), "honest about not being a verdict");
 });
 
-test("record machine: witness machine, runner signer, no relayedBy", async () => {
-  const d = deps({ identity: null });
+test("record machine: witness machine, runner signer, no relayedBy even inside a session", async () => {
+  // A session identity is present, but a MACHINE signal must NOT pick it up as relayedBy —
+  // relayedBy is reserved for relayed HUMAN attestations (ADR-0044 d.4).
+  const d = deps({ identity: { sessionId: "nice-wright-3a8133", branch: "claude/x" } });
   const env = await attestCommand(
     { mode: "record", testId: "uat-attestation#uat-3" },
     { witness: "machine", outcome: "pass", signer: "uat-runner" },
@@ -69,7 +74,7 @@ test("record machine: witness machine, runner signer, no relayedBy", async () =>
   const rec = (d.store as FakeStore).recorded[0]!;
   assert.equal(rec.witness, "machine");
   assert.equal(rec.signer, "uat-runner");
-  assert.equal(rec.relayedBy, undefined, "machine attestation carries no relayedBy");
+  assert.equal(rec.relayedBy, undefined, "machine attestation carries no relayedBy, even in a session");
 });
 
 test("record: defaults are outcome=pass, witness=human", async () => {

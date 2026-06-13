@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { parse } from "yaml";
 import { z } from "zod";
-import { Status, Tier, ProofMode, UatWitness } from "@storytree/core";
+import { Status, Tier, ProofMode, UatWitness, parseUatTests, type UatTest } from "@storytree/core";
 
 /**
  * A LIGHT frontmatter loader for the `stories/<story>/<unit>.md` node specs (drive-machinery
@@ -60,6 +60,12 @@ export interface NodeSpec {
   decisions: number[];
   /** The `## Guidance` section's prose, when the body carries one (feeds prompt assembly). */
   guidance: string | undefined;
+  /**
+   * The story's UAT prose parsed into addressable test units (ADR-0044 `uat-test-units`): one per
+   * `## Story UAT` numbered item, with a stable `<id>#uat-<n>` id and a witness kind. `[]` for a
+   * capability/contract spec (no Story UAT section) — the attestation surface keys off these ids.
+   */
+  uatTests: UatTest[];
   /** The file the spec was loaded from (for honest provenance in CLI output). */
   file: string;
 }
@@ -93,6 +99,8 @@ export function loadNodeSpec(file: string): NodeSpec {
     capabilities: fm.capabilities,
     decisions: fm.decisions,
     guidance,
+    // Parsed off the same body — the join key the attestation surface (ADR-0044) writes against.
+    uatTests: parseUatTests(fm.id, body),
     file,
   };
 }

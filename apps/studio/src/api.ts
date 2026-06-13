@@ -2,6 +2,8 @@
 
 import type {
   AssetInput,
+  AttestationMark,
+  AttestationsPayload,
   CircleUser,
   Comment,
   DbStatus,
@@ -78,6 +80,14 @@ export const api = {
   // Trusted-circle users (ADR-0043). /api/me is the one endpoint a non-member may reach;
   // /api/users is admin-only (the server enforces; the panel is also hidden for members).
   me: (): Promise<MeInfo> => http('/api/me'),
+
+  // Per-UAT-test attestations (ADR-0044). GET is member-readable; POST (record) is admin-only
+  // (the server stamps the signer from the verified identity — the client `signer` is ignored).
+  attestations: (storyId: string): Promise<AttestationsPayload> =>
+    http(`/api/attestations?storyId=${q(storyId)}`),
+  recordAttestation: (input: { testId: string; outcome: 'pass' | 'fail'; note?: string }): Promise<AttestationMark> =>
+    http('/api/attestations', jsonInit('POST', input)),
+
   listUsers: (): Promise<CircleUser[]> => http('/api/users'),
   inviteUser: (email: string, role: UserRole): Promise<CircleUser> =>
     http('/api/users', jsonInit('POST', { email, role })),

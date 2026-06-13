@@ -31,6 +31,7 @@ export function storytreeDataApi(): Plugin {
         assetsFile: paths.assetsFile,
         commentsFile: paths.commentsFile,
         usersFile: paths.usersFile,
+        attestationsFile: paths.attestationsFile,
       });
     },
     configureServer(server) {

@@ -814,6 +814,7 @@ export async function run(argv: readonly string[], deps: RunDeps): Promise<Envel
       lookupConfig: lookupNodeBuildConfig,
       presence: deps.presence?.store ?? null,
       verdicts: deps.verdicts ?? null,
+      attestations: deps.attestations ?? null,
       now: () => new Date(),
     });
   }
