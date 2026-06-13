@@ -14,6 +14,8 @@ export { PgWorkStore } from "./pg-work-store.js";
 export type { WorkStoreClient } from "./pg-work-store.js";
 export { loadCorpus, loadComments } from "./load-corpus.js";
 export type { LoadCorpusResult } from "./load-corpus.js";
+export { sessionIdFromBranch, retireMergedSession } from "./ingest-merge.js";
+export type { MergeRetireStore } from "./ingest-merge.js";
 export { batchMigrate } from "./batch-migrate.js";
 export type { BatchMigrateResult } from "./batch-migrate.js";
 export { renderStoredDoc, buildLibraryDoc, isStructuredKind } from "./render-doc.js";
