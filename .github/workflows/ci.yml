@@ -76,6 +76,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      id-token: write # mint the WIF OIDC token for keyless GCP auth (presence-retire below)
     steps:
       - name: Merge now that the gate is green
         env:
@@ -85,3 +86,72 @@ jobs:
           --repo ${{ github.repository }}
           --merge
           --delete-branch
+
+      # -----------------------------------------------------------------------
+      # Presence merge-retire backstop (ADR-0033 / ADR-0041). The merge that just
+      # landed IS the authoritative "this session's work is done" fact — the one
+      # the racy SessionEnd hook misses when a fresh worktree is deleted before it
+      # fires. So retire the merged session's `events.session` presence row here.
+      #
+      # EVERYTHING below is FAIL-SOFT: every step is `continue-on-error: true` and
+      # the writer itself never exits non-zero. The merge already happened and
+      # presence is advisory (ADR-0033) — this must NEVER fail the merge job.
+      #
+      # Gated on a `claude/*` head ref: only agent sessions have presence rows, so
+      # non-session merges skip the GCP/DB spin-up entirely (done() would no-op on
+      # them regardless). Auth is keyless WIF (ADR-0021) — no JSON key in a secret.
+      # -----------------------------------------------------------------------
+      - name: Stamp merge time
+        id: merge_stamp
+        if: startsWith(github.event.pull_request.head.ref, 'claude/')
+        continue-on-error: true
+        run: echo "at=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout (for the presence writer)
+        if: startsWith(github.event.pull_request.head.ref, 'claude/')
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP (keyless WIF — ADR-0021)
+        id: gcp_auth
+        if: startsWith(github.event.pull_request.head.ref, 'claude/')
+        continue-on-error: true
+        uses: google-github-actions/auth@v2
+        with:
+          # The pool + provider + CI service account are provisioned by infra/ci-presence.tf
+          # (owner runs `terraform apply` once — see infra/ci-presence.md). The full provider
+          # resource name embeds the project NUMBER (635716509357), not the project id.
+          workload_identity_provider: projects/635716509357/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: storytree-ci-presence@storytree-498613.iam.gserviceaccount.com
+
+      - name: Set up pnpm
+        if: startsWith(github.event.pull_request.head.ref, 'claude/')
+        continue-on-error: true
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Set up Node
+        if: startsWith(github.event.pull_request.head.ref, 'claude/')
+        continue-on-error: true
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        if: startsWith(github.event.pull_request.head.ref, 'claude/')
+        continue-on-error: true
+        run: pnpm install --frozen-lockfile
+
+      - name: Retire the merged session's presence row (fail-soft)
+        if: startsWith(github.event.pull_request.head.ref, 'claude/')
+        continue-on-error: true
+        env:
+          # The CI service account's Cloud SQL IAM username (the `.iam` short form —
+          # Cloud SQL truncates `.gserviceaccount.com`, mirroring the studio host).
+          STORYTREE_DB_USER: storytree-ci-presence@storytree-498613.iam
+          STORYTREE_MERGED_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          STORYTREE_MERGED_AT: ${{ steps.merge_stamp.outputs.at }}
+        # Package-scoped exec resolves the workspace's pinned tsx (a @storytree/store devDep) —
+        # `npx tsx` from root would download tsx fresh (no root .bin in this pnpm workspace).
+        run: pnpm --filter @storytree/store exec tsx src/ingest-merge.ts
