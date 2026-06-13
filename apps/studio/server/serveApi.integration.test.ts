@@ -1,6 +1,6 @@
 // Integration tests for the hosted studio server (serve.ts + guestPolicy + identity) over a
 // REAL node:http server with a STUB backend and a temp dist/ — no DB, no Vite, no IAP (the
-// presenceApi.integration.test.ts pattern). The contracts under test are trusted-circle-users
+// presenceApi.integration.test.ts pattern). The contracts under test are studio-members
 // `app-authorization` (ADR-0043, superseding ADR-0042's allowlist): IAP authenticates and the APP
 // authorizes from its own users projection —
 //   - identity is fail-closed (no email → 401, every route);

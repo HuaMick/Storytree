@@ -1,4 +1,4 @@
-// The hosted studio's authorization (ADR-0043, trusted-circle-users `app-authorization`):
+// The hosted studio's authorization (ADR-0043, studio-members `app-authorization`):
 // IAP authenticates (the verified email is present); the APP authorizes from its own users
 // projection. This evolves the old guest/admin allowlist function into a role lookup:
 //
@@ -12,7 +12,7 @@
 // effective active admin on first sign-in, so there is always a first admin who can invite the rest.
 // Membership resolution also ACTIVATES: a seeded admin (no row) is persisted as an active admin, and
 // an `invited` row flips to `active` on first request. Pure decisions over (method, path, access);
-// the one impure step — reading the projection + the activation upsert — is `resolveCircleAccess`.
+// the one impure step — reading the projection + the activation upsert — is `resolveMembersAccess`.
 
 import { resolveAccess, parseSeedAdmins, type ResolvedAccess } from '@storytree/core';
 import { HttpError } from './httpUtil';
@@ -26,7 +26,7 @@ export const ADMINS_ENV = 'STORYTREE_STUDIO_ADMINS';
 export { parseSeedAdmins };
 
 /**
- * Resolve a verified email to its circle access, ACTIVATING along the way (ADR-0043 d.3/d.4):
+ * Resolve a verified email to its members access, ACTIVATING along the way (ADR-0043 d.3/d.4):
  *  - no identity → `null` (the gate refuses with 401).
  *  - not a member and not seeded → `null` (the request-access wall).
  *  - seeded admin with no row → persisted as an active admin row, returned as admin/active.
@@ -35,7 +35,7 @@ export { parseSeedAdmins };
  *
  * May throw if the store is unreachable (the caller degrades health/me and 503s the rest).
  */
-export async function resolveCircleAccess(
+export async function resolveMembersAccess(
   backend: Pick<LibraryBackend, 'listUsers' | 'upsertUser'>,
   identity: string | null,
   seedAdmins: ReadonlySet<string>,
@@ -73,7 +73,7 @@ function meFromAccess(identity: string | null, access: ResolvedAccess | null): M
  * identity): served nothing but `GET /api/me`. User management is admin-only by path; asset and
  * other non-comment writes are admin-only by method.
  */
-export function createCirclePolicy(identity: string | null, access: ResolvedAccess | null): ApiPolicy {
+export function createMembersPolicy(identity: string | null, access: ResolvedAccess | null): ApiPolicy {
   const isAdmin = access?.role === 'admin';
   return {
     gate(method: string, pathname: string): void {
@@ -83,7 +83,7 @@ export function createCirclePolicy(identity: string | null, access: ResolvedAcce
       if (pathname === '/api/me') return; // the one endpoint a non-member may reach
       if (access === null) {
         // Non-member: the corpus (tree/library/docs/comments) is served nothing.
-        throw new HttpError(403, 'not a member of the trusted circle', { requestAccess: true });
+        throw new HttpError(403, 'not a member', { requestAccess: true });
       }
       // User management is admin-only (any method); asset/other writes are admin-only too. Comment
       // writes stay open to members (scoped to own comments below); GETs read the whole corpus.
@@ -103,7 +103,7 @@ export function createCirclePolicy(identity: string | null, access: ResolvedAcce
 /**
  * The degraded policy when the live store can't be reached to resolve membership: keep the
  * diagnostic endpoints alive (`/api/health` drives the store banner; `/api/me` reports the outage)
- * and 503 everything else, rather than 500-ing or silently locking the circle out.
+ * and 503 everything else, rather than 500-ing or silently locking members out.
  */
 export function createDegradedPolicy(identity: string | null): ApiPolicy {
   return {

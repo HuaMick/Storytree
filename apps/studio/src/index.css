@@ -212,7 +212,7 @@ code {
   font-size: 13px;
 }
 
-/* ---------- verified identity + trusted circle (ADR-0043) ---------- */
+/* ---------- verified identity + members (ADR-0043) ---------- */
 
 .identity-chip {
   display: inline-flex;
@@ -253,16 +253,16 @@ code {
   margin-bottom: 12px;
 }
 
-.circle {
+.members {
   max-width: 880px;
 }
-.circle-invite {
+.members-invite {
   display: flex;
   gap: 8px;
   align-items: center;
   margin: 16px 0 6px;
 }
-.circle-invite input[type='email'] {
+.members-invite input[type='email'] {
   flex: 1 1 auto;
   max-width: 320px;
   padding: 6px 10px;
@@ -270,19 +270,19 @@ code {
   border-radius: 6px;
   font-size: 14px;
 }
-.circle-invite select {
+.members-invite select {
   padding: 6px 10px;
   border: 1px solid var(--border-strong);
   border-radius: 6px;
   font-size: 14px;
 }
-.circle-table {
+.members-table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 12px;
   font-size: 14px;
 }
-.circle-table th {
+.members-table th {
   text-align: left;
   font-weight: 600;
   color: var(--muted);
@@ -290,12 +290,12 @@ code {
   padding: 6px 10px;
   border-bottom: 1px solid var(--border);
 }
-.circle-table td {
+.members-table td {
   padding: 8px 10px;
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
-.circle-actions {
+.members-actions {
   display: flex;
   gap: 8px;
   justify-content: flex-end;

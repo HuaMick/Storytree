@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS events.session (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Trusted-circle users (ADR-0043): app-owned identity. IAP authenticates; the app authorizes from
+-- Members (ADR-0043): app-owned identity. IAP authenticates; the app authorizes from
 -- here. History append-only; current = a one-row-per-email projection keyed by the lowercased,
 -- verified email. The doc is zod-validated in @storytree/core at the write boundary; the last-admin
 -- guard (no lockout) is enforced in PgUserStore's transaction. ("user" is a reserved word — quoted.)

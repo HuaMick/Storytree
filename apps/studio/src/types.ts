@@ -181,13 +181,13 @@ export interface StoreHealth {
   code?: { startedAt: string; head: string; stale: boolean };
 }
 
-// ---------- trusted-circle users (ADR-0043) ----------
+// ---------- members (app-owned users, ADR-0043) ----------
 
 export type UserRole = 'admin' | 'member';
 export type UserStatus = 'invited' | 'active';
 
 /**
- * GET /api/me — the caller's circle membership, so the SPA can render the app or the
+ * GET /api/me — the caller's membership, so the SPA can render the app or the
  * request-access wall. `member` is false for an un-invited account; `storeUnreachable`
  * is the degraded signal when membership couldn't be resolved (the live store was down).
  */
@@ -199,8 +199,8 @@ export interface MeInfo {
   storeUnreachable?: boolean;
 }
 
-/** A row in the directory (GET /api/users) — the app-owned user projection. */
-export interface CircleUser {
+/** A member row (GET /api/users) — the app-owned user projection. */
+export interface Member {
   email: string;
   role: UserRole;
   status: UserStatus;

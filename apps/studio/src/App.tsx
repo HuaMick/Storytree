@@ -3,7 +3,7 @@ import { api } from './api';
 import { AppDataContext, type AppData } from './lib/appData';
 import { useOperator } from './lib/operator';
 import { notifyStoreRecovered } from './lib/presence';
-import { circleHref, homeHref, libraryHref, treeHref, useRoute } from './lib/route';
+import { membersHref, homeHref, libraryHref, treeHref, useRoute } from './lib/route';
 import type { Comment, DocMeta, GuidanceAsset, MeInfo } from './types';
 import { Sidebar } from './components/Sidebar';
 import { StoreBanner } from './components/StoreBanner';
@@ -13,7 +13,7 @@ import { Library } from './components/Library';
 import { AssetView } from './components/AssetView';
 import { AssetEditor } from './components/AssetEditor';
 import { TreeView } from './components/TreeView';
-import { CirclePanel } from './components/CirclePanel';
+import { MembersPanel } from './components/MembersPanel';
 
 /** A non-member's MeInfo while it's still loading — never read as a member. */
 const ANON_ME: MeInfo = { email: null, role: null, status: null, member: false };
@@ -37,7 +37,7 @@ export function App(): React.JSX.Element {
     setAssets(await api.listAssets());
   }, []);
 
-  // Resolve the caller's circle membership first (ADR-0043): IAP authenticated them; this asks the
+  // Resolve the caller's membership first (ADR-0043): IAP authenticated them; this asks the
   // app whether they're in, and as what. Non-members never load the corpus (they'd be 403'd anyway).
   const loadMe = useCallback(async (): Promise<void> => {
     setMeStatus('loading');
@@ -116,7 +116,7 @@ export function App(): React.JSX.Element {
               <a href={homeHref}>Overview</a>
               <a href={treeHref}>Tree</a>
               <a href={libraryHref()}>Library</a>
-              {me?.role === 'admin' && <a href={circleHref}>Circle</a>}
+              {me?.role === 'admin' && <a href={membersHref}>Members</a>}
             </nav>
           )}
           <div className="topbar-right">
@@ -202,12 +202,12 @@ function RequestAccessWall({ email }: { email: string | null }): React.JSX.Eleme
       <div className="pad wall">
         <h1>Request access</h1>
         <p className="muted">
-          You’re signed in{email ? <> as <code>{email}</code></> : ''}, but you’re not yet a member
-          of this trusted circle, so there’s nothing to show you here.
+          You’re signed in{email ? <> as <code>{email}</code></> : ''}, but you’re not yet a member,
+          so there’s nothing to show you here.
         </p>
         <p className="muted">
           Ask an admin to invite {email ? <code>{email}</code> : 'your account'} from the studio’s
-          Circle panel. Once you’ve been invited, reload this page and you’ll be in.
+          Members panel. Once you’ve been invited, reload this page and you’ll be in.
         </p>
       </div>
     </main>
@@ -230,7 +230,7 @@ function RouteView({ route }: { route: ReturnType<typeof useRoute> }): React.JSX
       return <AssetEditor mode="new" />;
     case 'tree':
       return <TreeView focus={route.focus} />;
-    case 'circle':
-      return <CirclePanel />;
+    case 'members':
+      return <MembersPanel />;
   }
 }

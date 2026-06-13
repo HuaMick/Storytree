@@ -243,7 +243,7 @@ export interface CommentScope {
 }
 
 /**
- * The caller's circle membership, as `GET /api/me` reports it to the SPA (ADR-0043):
+ * The caller's membership, as `GET /api/me` reports it to the SPA (ADR-0043):
  * who they are, their role, and whether they're a member at all (so the client can
  * render the app or the request-access wall). `storeUnreachable` is the degraded
  * signal when membership couldn't be resolved because the live store was down.
@@ -489,7 +489,7 @@ export async function handleAssets(
 
 // ---------- users (admin-only, ADR-0043 invite-ui) ----------
 //
-// The gate (createCirclePolicy) restricts /api/users to admins; these handlers carry the CRUD.
+// The gate (createMembersPolicy) restricts /api/users to admins; these handlers carry the CRUD.
 // invitedBy + the audit actor come from the verified caller (ctx.policy.me.email). The last-admin
 // guard lives at the store's write boundary — a violation throws a name-tagged LastAdminError that
 // the central catch maps to 409. Email is normalised locally (trim + lowercase) for lookups; the
@@ -518,7 +518,7 @@ export async function handleUsers(
 
   if (method === 'POST') {
     // Invite: write an `invited` row (no GCP/IAM call). Activation happens on the invitee's
-    // first request (resolveCircleAccess). A duplicate email is a 409, not a silent overwrite.
+    // first request (resolveMembersAccess). A duplicate email is a 409, not a silent overwrite.
     const input = await readJsonBody<Record<string, unknown>>(req);
     const email = normalizeEmailInput(asString(input.email));
     const role = asRole(input.role);
@@ -819,7 +819,7 @@ export async function handleApiRequest(
   try {
     ctx.policy?.gate(req.method ?? 'GET', url.pathname);
     if (url.pathname === '/api/me') {
-      // The caller's circle membership/role (ADR-0043) — the one endpoint a non-member
+      // The caller's membership/role (ADR-0043) — the one endpoint a non-member
       // may reach, so the SPA can render the request-access wall. Open dev posture (no
       // policy) reports full local access.
       if ((req.method ?? 'GET') !== 'GET') throw new HttpError(405, 'method not allowed');

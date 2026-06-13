@@ -1,7 +1,7 @@
 ---
-id: "trusted-circle-users"
+id: "studio-members"
 tier: story
-title: "Trusted-circle users — real accounts, roles, and invitations from the UI"
+title: "Studio members — real accounts, roles, and invitations from the UI"
 outcome: "An admin invites someone by email from the studio; they sign in with Google and become a tracked user with a role; the API enforces what each role may do, and non-members see nothing but a request-access wall."
 status: proposed
 proof_mode: UAT
@@ -10,7 +10,7 @@ depends_on: [studio-cloud, library]
 decisions: [43]
 ---
 
-# Trusted-circle users — real accounts, roles, and invitations from the UI
+# Studio members — real accounts, roles, and invitations from the UI
 
 **Outcome —** An admin invites someone by email from the studio; they sign in with Google and
 become a tracked user with a role; the API enforces what each role may do, and non-members see

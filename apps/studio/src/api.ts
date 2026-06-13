@@ -4,7 +4,7 @@ import type {
   AssetInput,
   AttestationMark,
   AttestationsPayload,
-  CircleUser,
+  Member,
   Comment,
   DbStatus,
   DocContent,
@@ -77,7 +77,7 @@ export const api = {
   dbStatus: (): Promise<DbStatus> => http('/api/db/status'),
   dbStart: (): Promise<{ ok: true }> => http('/api/db/start', { method: 'POST' }),
 
-  // Trusted-circle users (ADR-0043). /api/me is the one endpoint a non-member may reach;
+  // Members (app-owned users, ADR-0043). /api/me is the one endpoint a non-member may reach;
   // /api/users is admin-only (the server enforces; the panel is also hidden for members).
   me: (): Promise<MeInfo> => http('/api/me'),
 
@@ -88,10 +88,10 @@ export const api = {
   recordAttestation: (input: { testId: string; outcome: 'pass' | 'fail'; note?: string }): Promise<AttestationMark> =>
     http('/api/attestations', jsonInit('POST', input)),
 
-  listUsers: (): Promise<CircleUser[]> => http('/api/users'),
-  inviteUser: (email: string, role: UserRole): Promise<CircleUser> =>
+  listUsers: (): Promise<Member[]> => http('/api/users'),
+  inviteUser: (email: string, role: UserRole): Promise<Member> =>
     http('/api/users', jsonInit('POST', { email, role })),
-  setUserRole: (email: string, role: UserRole): Promise<CircleUser> =>
+  setUserRole: (email: string, role: UserRole): Promise<Member> =>
     http('/api/users', jsonInit('PATCH', { email, role })),
   removeUser: (email: string): Promise<{ ok: true }> =>
     http(`/api/users?email=${q(email)}`, { method: 'DELETE' }),

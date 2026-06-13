@@ -117,7 +117,7 @@ export interface LibraryBackend {
   /** Returns `true` if a row was removed, `false` if `id` did not exist. */
   deleteComment(id: string): Promise<boolean>;
 
-  // ----- trusted-circle users (ADR-0043) -----
+  // ----- members (app-owned users, ADR-0043) -----
   // The app-owned directory the hosted server authorizes from. The last-admin guard and zod
   // validation are enforced at the write boundary; a guard violation throws an error whose
   // `name` is 'LastAdminError' (mapped to 409 by the route layer).

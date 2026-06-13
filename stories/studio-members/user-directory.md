@@ -1,7 +1,7 @@
 ---
 id: "user-directory"
 tier: capability
-story: trusted-circle-users
+story: studio-members
 title: "Users persist as events plus a role/status projection, last-admin protected"
 outcome: "Users persist as append-only events plus a one-row-per-email projection with role + status, validated at the write boundary; the last admin can never be removed."
 status: proposed

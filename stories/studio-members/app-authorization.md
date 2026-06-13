@@ -1,7 +1,7 @@
 ---
 id: "app-authorization"
 tier: capability
-story: trusted-circle-users
+story: studio-members
 title: "The app authorizes by user row and role; non-members are served nothing"
 outcome: "Every API request resolves its verified email to a user row and enforces role; non-members are served nothing but a request-access signal."
 status: proposed

@@ -122,11 +122,12 @@ file conflicts).
 - Library CLI (ADR-0023): `pnpm storytree library` (explore; offline). Writes need the live DB:
   `pnpm db:up` then `pnpm storytree library artifact edit <id> --set <field>=<value> --pg`. See the
   Library section above (note: inline `--json` needs `npx tsx packages/cli/src/main.ts`, not `pnpm`).
-- **Hosted studio (ADR-0042):** the trusted-circle deployment — Cloud Run `storytree-studio`
+- **Hosted studio (ADR-0042):** the members deployment — Cloud Run `storytree-studio`
   (australia-southeast1) behind **direct IAP** (no LB, no domain), serving
-  `apps/studio/server/serve.ts`: guests read + comment (author stamped from the IAP identity,
-  own-comments-only edits), admins (`STORYTREE_STUDIO_ADMINS`) edit assets, db control off.
-  Deploy + circle grant/revoke: `infra/studio-cloud.md` (image:
+  `apps/studio/server/serve.ts`: members read + comment (author stamped from the IAP identity,
+  own-comments-only edits), admins (`STORYTREE_STUDIO_ADMINS` seeds the first) manage members + edit
+  assets, db control off. Day-to-day membership is the in-UI **Members** panel (ADR-0043,
+  `stories/studio-members`); the old gcloud grant/revoke runbook lives in `infra/studio-cloud.md` (image:
   `infra/studio-cloudbuild.yaml`; Terraform codification = the open `cloud-run-iap` capability).
   Local guarded trial: `pnpm --filter studio build` then `pnpm --filter studio serve` with
   `STORYTREE_STUDIO_DEV_IDENTITY=<email>`.
