@@ -41,17 +41,20 @@ story has one tree but many UAT tests, and "always allow both" human and machine
 
 ## Story UAT (would-be)
 
-1. **Decompose:** a story's UAT prose resolves to addressable test ids with witness kinds.
-   **Success —** each test has a stable id and a `witness`.
-2. **Human relay:** the owner tells the agent "test 2 works"; the agent records a human
-   attestation. **Success —** `events.attestation` holds one signal for that test id, signer = the
-   owner, relayedBy = the agent; nothing landed in `events.verdict`.
-3. **Machine:** an automated UAT run attests a `machine` test. **Success —** a machine signal for
-   that test id.
-4. **No roll-up:** all of a story's tests are attested. **Success —** the world island's hue is
-   unchanged; the story is not "green" from attestations.
-5. **Distinct display:** the panel shows test 2 with the human seal, the machine test with its
-   mark, the rest blank. **Success —** neither reads as a gate-proven pass.
+The bold lead is each test's title; the `(witness: …)` tag declares who may attest it (parsed by
+`uat-test-units` into `<story>#uat-<n>` ids — absent ⇒ `either`).
+
+1. **Decompose** _(witness: machine)_: a story's UAT prose resolves to addressable test ids with
+   witness kinds. **Success —** each test has a stable id and a `witness`.
+2. **Human relay** _(witness: human)_: the owner tells the agent "test 2 works"; the agent records a
+   human attestation. **Success —** `events.attestation` holds one signal for that test id, signer =
+   the owner, relayedBy = the agent; nothing landed in `events.verdict`.
+3. **Machine** _(witness: machine)_: an automated UAT run attests a `machine` test. **Success —** a
+   machine signal for that test id.
+4. **No roll-up** _(witness: machine)_: all of a story's tests are attested. **Success —** the world
+   island's hue is unchanged; the story is not "green" from attestations.
+5. **Distinct display** _(witness: human)_: the panel shows test 2 with the human seal, the machine
+   test with its mark, the rest blank. **Success —** neither reads as a gate-proven pass.
 
 ## Open modeling calls (for the owner)
 
