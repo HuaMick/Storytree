@@ -5,6 +5,11 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bash scripts/remote-session-setup.sh",
+            "timeout": 60
+          },
+          {
+            "type": "command",
             "command": "pnpm --silent --filter @storytree/cli exec tsx src/ambient-presence-entry.ts start",
             "timeout": 20
           }
