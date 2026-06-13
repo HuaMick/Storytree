@@ -1,0 +1,16 @@
+# What `gcloud builds submit` uploads as the studio image's build context
+# (infra/studio-cloudbuild.yaml). Presence of this file means .gitignore is NOT
+# consulted — list every heavy/irrelevant path explicitly.
+.git
+.gitmodules
+legacy/
+node_modules/
+**/node_modules/
+.claude/
+apps/studio/dist/
+apps/studio/.studio.log
+apps/studio/.studio.pid
+apps/studio/test-results/
+apps/studio/playwright-report/
+infra/functions/
+infra/.terraform/

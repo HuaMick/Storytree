@@ -14,6 +14,13 @@ depends_on: [container-image, guest-scope]
 **Outcome —** Terraform stands up the Cloud Run service gated by IAP; the runtime SA reaches
 Cloud SQL keylessly; the allowlist is the only door.
 
+> **Stand-up status (honest).** First deployed **imperatively** on 2026-06-14 via
+> `infra/studio-hosting.md` (the runbook records every command): the direct Cloud Run–IAP
+> integration (`gcloud run deploy --iap`) was available, so **no load balancer and no domain**
+> were needed — the ~US$20/mo LB contingency in ADR-0042 was not spent. Terraform codification
+> of exactly that state is what completes this capability; until then the runbook is the
+> source of truth for the deployed shape.
+
 ## Guidance
 
 - Lands in `infra/` next to the existing Terraform (GCS remote state, ADR-0015). Pieces: the

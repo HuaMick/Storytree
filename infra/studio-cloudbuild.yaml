@@ -1,0 +1,23 @@
+# Cloud Build config for the hosted studio image (studio-hosting `container-image`).
+# Run from the repo root (the upload obeys /.gcloudignore):
+#   gcloud builds submit --config infra/studio-cloudbuild.yaml `
+#     --substitutions=_TAG=$(git rev-parse --short HEAD) .
+substitutions:
+  _TAG: manual
+  _IMAGE: australia-southeast1-docker.pkg.dev/storytree-498613/storytree/studio
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - "-t"
+      - "${_IMAGE}:${_TAG}"
+      - "-t"
+      - "${_IMAGE}:latest"
+      - "-f"
+      - apps/studio/Dockerfile
+      - "."
+images:
+  - "${_IMAGE}:${_TAG}"
+  - "${_IMAGE}:latest"
+options:
+  logging: CLOUD_LOGGING_ONLY

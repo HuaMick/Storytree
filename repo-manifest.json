@@ -14,7 +14,8 @@
       ".gitattributes": "Git attributes (eol/diff).",
       ".gitmodules": "Submodule wiring (legacy/Agentic, read-only).",
       ".editorconfig": "Editor formatting baseline.",
-      ".nvmrc": "Pinned Node version (24)."
+      ".nvmrc": "Pinned Node version (24).",
+      ".gcloudignore": "Upload filter for `gcloud builds submit` (the hosted studio image, ADR-0042); must sit at the upload root, which is the repo root."
     },
     "dirs": {
       "packages": "Workspace packages (core / agent / orchestrator / store / cli).",
