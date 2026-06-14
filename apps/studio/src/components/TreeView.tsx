@@ -1092,19 +1092,12 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
                   territory={t}
                   className={territoryClass(t.story)}
                   hidden={hidden}
-                  // Wisps orbit for fresh/stale only (ADR-0041) — the band is the
-                  // client-recomputed one, so a session crossing 4 h vanishes on
-                  // the reband tick, not at the next fetch. Parked sessions stay
-                  // reachable in the dock and the story panel.
-                  sessions={(sessionsByStory.get(t.story.id) ?? []).filter((s) =>
-                    isOrbitingBand(s.band),
-                  )}
+                  // The world orbits the HARNESS now (ADR-0048 §5): in-flight
+                  // builds only. Session presence lives in the dock / panel.
                   builds={buildsByStory.get(t.story.id) ?? []}
                   now={now}
-                  selectedSessionId={sessionDock?.kind === 'detail' ? sessionDock.id : null}
                   onHover={(on) => setHoverStory(on ? t.story.id : null)}
                   onSelect={(capId) => selectStory(t.story.id, capId)}
-                  onSelectSession={(id) => setSessionDock({ kind: 'detail', id })}
                 />
               ))}
             </g>
@@ -1112,7 +1105,6 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
           </div>
           <WorldLegend
             stories={stories}
-            sessions={sessions}
             builds={rawBuilds}
             now={now}
             hidden={hidden}
@@ -1566,24 +1558,18 @@ function TerritoryFlora({
   territory: t,
   className,
   hidden,
-  sessions,
   builds,
   now,
-  selectedSessionId,
   onHover,
   onSelect,
-  onSelectSession,
 }: {
   territory: Territory;
   className: string;
   hidden: ReadonlySet<string>;
-  sessions: TreeSession[];
   builds: BuildActivity[];
   now: Date;
-  selectedSessionId: string | null;
   onHover: (on: boolean) => void;
   onSelect: (capId: string | null) => void;
-  onSelectSession: (sessionId: string) => void;
 }): React.JSX.Element {
   const story = t.story;
   const statusKey = story.status ?? 'unknown';
@@ -1652,43 +1638,17 @@ function TerritoryFlora({
         </text>
       </g>
 
+      {/* The orbiting layer is the HARNESS (ADR-0048 §5): a wisp orbits a story
+          only while a leaf agent is mechanically building one of its units.
+          Session presence no longer orbits — it lives in the dock / toolbar /
+          panel ("who's planning work" is re-homed to a quieter form later). This
+          is what makes the layer self-cleaning: no SessionEnd dependency, no 4 h
+          zombie window, no nodes:[] dead-ends. */}
       <g transform={`translate(${t.centroid.x} ${t.centroid.y})`}>
-        {sessions.map((s) => {
-          // Orbit phase is a pure function of the session's identity — NEVER of
-          // the array index or length, or every poll-driven set change would
-          // make the surviving wisps jump orbit mid-flight.
-          const phase = rand01(hash(s.sessionId)) * 360;
-          const isSelected = s.sessionId === selectedSessionId;
-          return (
-            <g
-              key={s.sessionId}
-              className={`world-wisp band-${s.band satisfies Band}${isSelected ? ' is-selected' : ''}`}
-              onClick={(e) => {
-                e.stopPropagation(); // the territory click would select the story instead
-                onSelectSession(s.sessionId);
-              }}
-            >
-              <title>{`${s.sessionId} [${s.band}] ${formatAge(s.lastSeenAt, now)} — ${s.workingOn}`}</title>
-              <animateTransform
-                attributeName="transform"
-                type="rotate"
-                from={`${phase} 0 0`}
-                to={`${phase + 360} 0 0`}
-                dur={`${s.band === 'fresh' ? 9 : 16}s`}
-                repeatCount="indefinite"
-              />
-              <g transform={`translate(${t.radius * 0.72 + 10} 0)`}>
-                <circle className="world-wisp-hit" r={12} fill="transparent" />
-                <circle className="world-wisp-glow" r={6.5} />
-                <circle className="world-wisp-dot" r={2.8} />
-              </g>
-            </g>
-          );
-        })}
-        {/* In-flight BUILD wisps (ADR-0048): a leaf agent is mechanically building
-            this unit right now. Distinct band (teal pulse), faster orbit, keyed by
-            runId (its own identity). Informational — the tooltip carries the unit +
-            run; clicking falls through to selecting the story (no session detail). */}
+        {/* In-flight BUILD wisps: a leaf agent is mechanically building this unit
+            right now. Teal pulse, faster orbit, keyed by runId (its own identity).
+            Informational — the tooltip carries the unit + run; clicking falls
+            through to selecting the story. */}
         {builds.map((b) => {
           const phase = rand01(hash(b.runId)) * 360;
           return (

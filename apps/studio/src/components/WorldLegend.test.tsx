@@ -2,17 +2,18 @@
 //
 // The legend bar is ADAPTIVE (one entry per world model, fans expose the full
 // vocabulary): these tests pin the grounding rules — which entries appear for
-// an offline frontmatter-only world vs a live one with verdicts/sessions, that
-// absent states render dimmed as "not in world yet", and that the status fan
-// drives the same hidden-status filter the old toolbar chips did. The legend
-// receives the PRESENTED world (worldStatus.ts): hue already carries the
-// signed verdict (ADR-0040), so the proof row speaks hue + signpost, never
-// ✓/✗ badges.
+// an offline frontmatter-only world vs a live one with verdicts/in-flight
+// builds, that absent states render dimmed as "not in world yet", and that the
+// status fan drives the same hidden-status filter the old toolbar chips did.
+// The legend receives the PRESENTED world (worldStatus.ts): hue already carries
+// the signed verdict (ADR-0040), so the proof row speaks hue + signpost, never
+// ✓/✗ badges. Session presence no longer orbits (ADR-0048 §5) — it has no
+// legend row; the world's only orbiting layer is the in-flight build.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { WorldLegend, legendFacts } from './WorldLegend';
-import type { BuildActivity, TreeCapability, TreeSession, TreeStory, WorkStatus } from '../types';
+import type { BuildActivity, TreeCapability, TreeStory, WorkStatus } from '../types';
 
 const cap = (
   id: string,
@@ -45,13 +46,11 @@ const story = (
   ...extra,
 });
 
-const session = (id: string, band: TreeSession['band']): TreeSession => ({
-  sessionId: id,
-  branch: 'claude/x',
-  workingOn: 'gardening',
-  nodes: [],
-  band,
-  lastSeenAt: '2026-06-12T00:00:00.000Z',
+const buildFor = (unitId: string, at: string): BuildActivity => ({
+  unitId,
+  tier: 'capability',
+  runId: `run-${unitId}`,
+  at,
 });
 
 /** Today's corpus shape offline: proposed+mapped only, one sapling, no proof hues. */
@@ -70,13 +69,11 @@ const noop = (): void => {};
 const NOW = new Date('2026-06-14T00:00:00.000Z');
 const renderLegend = (
   stories: TreeStory[],
-  sessions: TreeSession[] = [],
   over: Partial<Parameters<typeof WorldLegend>[0]> = {},
 ) =>
   render(
     <WorldLegend
       stories={stories}
-      sessions={sessions}
       now={NOW}
       hidden={new Set()}
       onToggleStatus={noop}
@@ -89,7 +86,7 @@ afterEach(cleanup);
 
 describe('legendFacts', () => {
   it('grounds the legend in the loaded world', () => {
-    const facts = legendFacts(offlineWorld(), [session('s1', 'fresh')]);
+    const facts = legendFacts(offlineWorld());
     expect(facts.statusTotals.get('proposed')).toEqual({ stories: 2, caps: 2 });
     expect(facts.statusTotals.get('mapped')).toEqual({ stories: 1, caps: 1 });
     expect(facts.saplingPresent).toBe(true);
@@ -99,17 +96,16 @@ describe('legendFacts', () => {
     expect(facts.signWitnessedPass || facts.signWitnessedFail).toBe(false);
     // every story here is human-witnessed (the default) and unsigned → blank signs
     expect(facts.signBlank).toBe(true);
-    expect([...facts.bands]).toEqual(['fresh']);
   });
 
   it('presented healthy = a signed pass painted it — anyProven on either tier', () => {
-    expect(legendFacts([story('s', 'mapped', [cap('c', 'healthy')])], []).anyProven).toBe(true);
-    expect(legendFacts([story('s', 'healthy', [])], []).anyProven).toBe(true);
-    expect(legendFacts([story('s', 'mapped', [cap('c', 'mapped')])], []).anyProven).toBe(false);
+    expect(legendFacts([story('s', 'mapped', [cap('c', 'healthy')])]).anyProven).toBe(true);
+    expect(legendFacts([story('s', 'healthy', [])]).anyProven).toBe(true);
+    expect(legendFacts([story('s', 'mapped', [cap('c', 'mapped')])]).anyProven).toBe(false);
   });
 
   it('a presented-unhealthy capability withers flora (signed ✗ or authored unhealthy)', () => {
-    const facts = legendFacts([story('s', 'mapped', [cap('c', 'unhealthy')])], []);
+    const facts = legendFacts([story('s', 'mapped', [cap('c', 'unhealthy')])]);
     expect(facts.anyDeadFlora).toBe(true);
   });
 
@@ -117,35 +113,34 @@ describe('legendFacts', () => {
     const pass = { outcome: 'pass', at: 'now' } as const;
     const fail = { outcome: 'fail', at: 'now' } as const;
     // human + signed → witnessed (by outcome); human + unsigned → blank
-    expect(legendFacts([story('s', 'healthy', [], { verdict: pass })], []).signWitnessedPass).toBe(
+    expect(legendFacts([story('s', 'healthy', [], { verdict: pass })]).signWitnessedPass).toBe(true);
+    expect(legendFacts([story('s', 'unhealthy', [], { verdict: fail })]).signWitnessedFail).toBe(
       true,
     );
-    expect(legendFacts([story('s', 'unhealthy', [], { verdict: fail })], []).signWitnessedFail).toBe(
-      true,
-    );
-    expect(legendFacts([story('s', 'mapped', [])], []).signBlank).toBe(true);
+    expect(legendFacts([story('s', 'mapped', [])]).signBlank).toBe(true);
     // a machine-witnessed story contributes NO signpost facts at all
-    const machine = legendFacts(
-      [story('s', 'healthy', [], { uatWitness: 'machine', verdict: pass })],
-      [],
-    );
+    const machine = legendFacts([
+      story('s', 'healthy', [], { uatWitness: 'machine', verdict: pass }),
+    ]);
     expect(machine.signBlank || machine.signWitnessedPass || machine.signWitnessedFail).toBe(false);
   });
 
   it('an unhealthy zero-cap story is NOT a sapling (it withers instead)', () => {
     // retired never reaches the legend — presentStories prunes it (ADR-0038)
-    expect(legendFacts([story('s', 'unhealthy', [])], []).saplingPresent).toBe(false);
-    expect(legendFacts([story('s', 'proposed', [])], []).saplingPresent).toBe(true);
+    expect(legendFacts([story('s', 'unhealthy', [])]).saplingPresent).toBe(false);
+    expect(legendFacts([story('s', 'proposed', [])]).saplingPresent).toBe(true);
   });
 });
 
 describe('WorldLegend (adaptive bar)', () => {
-  it('offline world: no sessions entry; proof stays and explains the under-claim', () => {
+  it('offline world: no orbiting (building) entry; proof stays and explains the under-claim', () => {
     renderLegend(offlineWorld());
     for (const label of ['story trees', 'garden plants', 'proof', 'decoration']) {
       expect(screen.getByRole('button', { name: label })).toBeTruthy();
     }
+    // sessions never orbit (ADR-0048 §5) and nothing is building → no orbiting row
     expect(screen.queryByRole('button', { name: 'sessions' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'building' })).toBeNull();
     // roads and focus carry no legend entry — self-explanatory in place (ADR-0038)
     expect(screen.queryByRole('button', { name: 'roads' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'focus' })).toBeNull();
@@ -162,13 +157,13 @@ describe('WorldLegend (adaptive bar)', () => {
     );
   });
 
-  it('proof hues and witnessed signposts light their tiles; sessions stay advisory', () => {
+  it('proof hues and witnessed signposts light their tiles', () => {
     const stories = [
       story('s', 'healthy', [cap('c', 'healthy', { verdict: { outcome: 'pass', at: 'now' } })], {
         verdict: { outcome: 'pass', at: 'now' },
       }),
     ];
-    renderLegend(stories, [session('s1', 'stale')]);
+    renderLegend(stories);
     fireEvent.click(screen.getByRole('button', { name: 'proof' }));
     expect(screen.getByText(/never a roll-up/)).toBeTruthy();
     expect(screen.getByText('proven green').closest('.legend-tile')?.className).not.toContain(
@@ -177,8 +172,6 @@ describe('WorldLegend (adaptive bar)', () => {
     expect(screen.getByText('witnessed').closest('.legend-tile')?.className).not.toContain(
       'is-absent',
     );
-    fireEvent.click(screen.getByRole('button', { name: 'sessions' }));
-    expect(screen.getByText(/advisory only/)).toBeTruthy();
   });
 
   it('a recent signed PASS lights the activity row with the honesty caption (ADR-0045)', () => {
@@ -206,13 +199,8 @@ describe('WorldLegend (adaptive bar)', () => {
   });
 
   it('an in-flight build lights the building row with the harness honesty caption (ADR-0048)', () => {
-    const build: BuildActivity = {
-      unitId: 'studio',
-      tier: 'capability',
-      runId: 'live-smoke-abc',
-      at: '2026-06-13T23:55:00.000Z', // 5 min before NOW — well inside the TTL
-    };
-    renderLegend(offlineWorld(), [], { builds: [build] });
+    // 5 min before NOW — well inside the TTL
+    renderLegend(offlineWorld(), { builds: [buildFor('studio', '2026-06-13T23:55:00.000Z')] });
     const chip = screen.getByRole('button', { name: 'building' });
     expect(chip).toBeTruthy();
     fireEvent.click(chip);
@@ -221,13 +209,8 @@ describe('WorldLegend (adaptive bar)', () => {
   });
 
   it('an aged-out build (older than the TTL) shows no building row', () => {
-    const stale: BuildActivity = {
-      unitId: 'studio',
-      tier: 'capability',
-      runId: 'old',
-      at: '2026-06-13T00:00:00.000Z', // a full day before NOW — past the TTL
-    };
-    renderLegend(offlineWorld(), [], { builds: [stale] });
+    // a full day before NOW — past the TTL
+    renderLegend(offlineWorld(), { builds: [buildFor('studio', '2026-06-13T00:00:00.000Z')] });
     expect(screen.queryByRole('button', { name: 'building' })).toBeNull();
   });
 
@@ -250,25 +233,6 @@ describe('WorldLegend (adaptive bar)', () => {
     expect(screen.getByText('witnessed').closest('.legend-tile')?.className).toContain('is-absent');
   });
 
-  it('a world with only possibly-dead sessions drops the sessions entry (ADR-0041)', () => {
-    // No wisps orbit for parked sessions, so the legend has nothing to key —
-    // the aged rows live in the toolbar's session dock instead.
-    renderLegend(offlineWorld(), [session('s1', 'possibly-dead')]);
-    expect(screen.queryByRole('button', { name: 'sessions' })).toBeNull();
-  });
-
-  it('possibly-dead never reaches the bar icons; the fan parks it as a dock pointer', () => {
-    renderLegend(offlineWorld(), [session('s1', 'fresh'), session('s2', 'possibly-dead')]);
-    const chip = screen.getByRole('button', { name: 'sessions' });
-    expect(chip.querySelector('.band-fresh')).toBeTruthy();
-    expect(chip.querySelector('.band-possibly-dead')).toBeNull();
-    fireEvent.click(chip);
-    const tile = screen.getByText('possibly dead').closest('.legend-tile');
-    expect(tile?.className).not.toContain('is-absent'); // it exists — just parked
-    expect(tile?.textContent).toContain('parked in the session list');
-    expect(screen.getByText(/stops orbiting/)).toBeTruthy();
-  });
-
   it('Escape closes the drawer', () => {
     renderLegend(offlineWorld());
     fireEvent.click(screen.getByRole('button', { name: 'story trees' }));
@@ -279,21 +243,20 @@ describe('WorldLegend (adaptive bar)', () => {
 
   it('the status fan dims absent states and filters present ones', () => {
     const onToggleStatus = vi.fn();
-    renderLegend(offlineWorld(), [], { onToggleStatus });
+    renderLegend(offlineWorld(), { onToggleStatus });
     fireEvent.click(screen.getByRole('button', { name: 'story trees' }));
     // healthy / unhealthy don't occur in this world
     expect(screen.getAllByText('not in world yet')).toHaveLength(2);
     fireEvent.click(screen.getByRole('button', { name: /^proposed/ }));
     expect(onToggleStatus).toHaveBeenCalledWith('proposed');
-    // building and retired are not legend states at all — the world folds
+    // building and retired are not legend STATUS states — the world folds
     // building into proposed and prunes retired (ADR-0038)
-    expect(screen.queryByText('building')).toBeNull();
     expect(screen.queryByText('retired')).toBeNull();
   });
 
   it('hidden statuses surface the reset chip', () => {
     const onResetHidden = vi.fn();
-    renderLegend(offlineWorld(), [], { hidden: new Set(['proposed']), onResetHidden });
+    renderLegend(offlineWorld(), { hidden: new Set(['proposed']), onResetHidden });
     fireEvent.click(screen.getByRole('button', { name: /show all statuses \(1 hidden\)/ }));
     expect(onResetHidden).toHaveBeenCalled();
   });
