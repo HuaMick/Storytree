@@ -1,4 +1,5 @@
 import * as fs from "node:fs/promises";
+import { existsSync, readdirSync } from "node:fs";
 import * as os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -126,6 +127,45 @@ export function repoRoot(): string {
 /** Repo-relative display path (forward slashes, stable across platforms). */
 export function rel(file: string): string {
   return path.relative(repoRoot(), file).replace(/\\/g, "/");
+}
+
+/**
+ * The buildable node ids for CLI discovery: the registry ids UNION the SPEC-BORNE ids scanned from
+ * `storiesDir` (ADR-0057 keystone A). A node whose own spec carries a `proof:` block is buildable by
+ * authoring alone, with NO registry entry — but the registry-only `registeredNodeIds()` /
+ * `realBuildableNodeIds()` never listed it, so a self-registered node was invisible to discovery (a
+ * gap the blind dogfood test surfaced). This merges them so authoring a node makes it *visible*, not
+ * just buildable. Best-effort: a malformed spec is SKIPPED in the listing (it fails LOUD when you
+ * actually build it), so one bad spec never blanks the list.
+ */
+export function buildableNodeIds(storiesDir: string): { buildable: string[]; realBuildable: string[] } {
+  const buildable = new Set(registeredNodeIds());
+  const realBuildable = new Set(realBuildableNodeIds());
+  if (existsSync(storiesDir)) {
+    for (const story of readdirSync(storiesDir, { withFileTypes: true })) {
+      if (!story.isDirectory()) continue;
+      const dir = path.join(storiesDir, story.name);
+      for (const f of readdirSync(dir)) {
+        if (!f.endsWith(".md")) continue;
+        try {
+          const spec = loadNodeSpec(path.join(dir, f));
+          if (spec.buildConfig !== undefined) {
+            buildable.add(spec.id);
+            if (spec.buildConfig.real !== undefined) realBuildable.add(spec.id);
+          }
+        } catch {
+          // A malformed spec is skipped in the LISTING; it fails loud on an actual build (loadNodeSpec
+          // wraps the throw with the file path). Discovery must never blank on one bad file.
+        }
+      }
+    }
+  }
+  return { buildable: [...buildable].sort(), realBuildable: [...realBuildable].sort() };
+}
+
+/** The stories dir for discovery scans (overridable in tests via the same default as nodeBuild). */
+function defaultStoriesDir(): string {
+  return path.join(repoRoot(), "stories");
 }
 
 // ── The live SDK leaf's per-phase system prompt = the rendered Library agent (ADR-0051 §4) ──
@@ -391,10 +431,15 @@ export function liveLeafLines(liveAuthor: ClaudeAgentAuthor): string[] {
  * strips types — only a worktree `tsc --noEmit` catches type-illegal-but-runtime-green code). Returns
  * a refusal Envelope, or null when the node is real-buildable.
  */
-export function realConfigRefusal(spec: NodeSpec, buildConfig: NodeBuildConfig | null): Envelope | null {
+export function realConfigRefusal(
+  spec: NodeSpec,
+  buildConfig: NodeBuildConfig | null,
+  storiesDir: string = defaultStoriesDir(),
+): Envelope | null {
   const realConfig = buildConfig?.real;
   if (realConfig === undefined) {
-    const buildable = realBuildableNodeIds();
+    // Discovery includes spec-borne real nodes (ADR-0057 A), not just the registry.
+    const buildable = buildableNodeIds(storiesDir).realBuildable;
     return {
       ok: false,
       body:
@@ -647,7 +692,7 @@ export async function nodeBuild(
   const buildConfig = resolveBuildConfig(spec)?.config ?? null;
   const realConfig = buildConfig?.real;
   if (real) {
-    const refusal = realConfigRefusal(spec, buildConfig);
+    const refusal = realConfigRefusal(spec, buildConfig, storiesDir);
     if (refusal !== null) return refusal;
   }
 
@@ -840,7 +885,10 @@ export async function nodeBuild(
   }
 }
 
-export function nodeHelp(): Envelope {
+export function nodeHelp(storiesDir: string = defaultStoriesDir()): Envelope {
+  // Discovery includes SPEC-BORNE nodes (ADR-0057 A), not just the registry — authoring a node makes
+  // it visible here, not only buildable.
+  const { buildable, realBuildable } = buildableNodeIds(storiesDir);
   return {
     ok: true,
     body: [
@@ -871,8 +919,8 @@ export function nodeHelp(): Envelope {
       "      Needs the DB up (pnpm db:up) and STORYTREE_DB_USER. Refused for --dry-run — a",
       "      scripted PASS persisted to the shared store would be a forged healthy (ADR-0020).",
       "",
-      `buildable (registered) nodes: ${registeredNodeIds().join(", ")}`,
-      `REAL-buildable nodes:         ${realBuildableNodeIds().join(", ") || "(none yet)"}`,
+      `buildable nodes (registry + spec-borne): ${buildable.join(", ")}`,
+      `REAL-buildable nodes:                    ${realBuildable.join(", ") || "(none yet)"}`,
     ].join("\n"),
     next: ["storytree node build library-cli --dry-run", "storytree story build library --dry-run"],
   };

@@ -271,7 +271,7 @@ export async function storyBuild(
   // refuses rather than pretends.
   if (real) {
     for (const n of driveOrder) {
-      const refusal = realConfigRefusal(n, resolveBuildConfig(n)?.config ?? null);
+      const refusal = realConfigRefusal(n, resolveBuildConfig(n)?.config ?? null, storiesDir);
       if (refusal !== null) return refusal;
     }
   }
