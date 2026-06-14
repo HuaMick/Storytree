@@ -107,6 +107,11 @@ file conflicts).
   this kind of ways-of-working is a `process` artifact, ADR-0034 — write it from a session that has
   the DB.)*
 - Install: `corepack enable pnpm` · `pnpm install`
+- **Fresh worktree?** A new git worktree has NO `node_modules` — run `pnpm install` in it FIRST, or
+  the gate / `pnpm storytree …` / `tsx` all fail. And invoke the CLI as **`pnpm storytree …`** (not a
+  bare `node --import tsx packages/cli/src/main.ts` — tsx resolves only through the workspace, so the
+  bare form errors `ERR_MODULE_NOT_FOUND 'tsx'` from the worktree root). Presence hooks already
+  self-heal via `scripts/presence-hook.sh`; your own CLI calls do not.
 - Gate: `pnpm -r typecheck` · `pnpm -r test` (tests are offline — no DB or API key needed)
 - **Credentials auto-hydrate:** the CLI fills `CLAUDE_CODE_OAUTH_TOKEN` (SDK leaf) and
   `STORYTREE_DB_USER` (live `--pg` store) from `~/.storytree/secrets.json` when unset — env always

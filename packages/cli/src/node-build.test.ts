@@ -1,10 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
 
 import { InMemoryStore } from "@storytree/core";
 
 import { run } from "./commands.js";
-import { renderLeafPhasePrompts } from "./node-build.js";
+import { buildableNodeIds, nodeHelp, renderLeafPhasePrompts } from "./node-build.js";
 
 /**
  * `storytree node build <id> --dry-run` (drive-machinery Phase C), driven through `run` exactly as
@@ -110,7 +113,7 @@ test("node build without an id, and bare `node`, are help/guidance", async () =>
   assert.match(bare.body, /--real/);
   assert.match(
     bare.body,
-    /REAL-buildable nodes: {9}ambient-integration, declare-presence, noticeboard-cli, presence-store, tree-view, verdict-glyphs, verdict-line/,
+    /REAL-buildable nodes: +ambient-integration, declare-presence, noticeboard-cli, presence-store, tree-view, verdict-glyphs, verdict-line/,
   );
 
   const noId = await run(["node", "build", "--dry-run"], deps);
@@ -148,4 +151,98 @@ test("the story node (library) dry-runs too, with the UAT → story proof-mode m
   assert.match(env.body, /stories\/library\/story\.md/);
   assert.match(env.body, /UAT → story/);
   assert.match(env.body, /rollup: {6}healthy/);
+});
+
+// ── spec-borne node DISCOVERY (ADR-0057 A; the gap the blind dogfood test surfaced) ─────────────
+
+/** A fixture stories dir with ONE spec-borne-only node (a `proof:` block, NO registry entry). */
+async function fixtureSpecBorneStories(opts: { withMalformed?: boolean } = {}): Promise<string> {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "storytree-discovery-"));
+  const storyDir = path.join(dir, "feat-story");
+  await fs.mkdir(storyDir, { recursive: true });
+  await fs.writeFile(
+    path.join(storyDir, "cap-spec-borne.md"),
+    [
+      "---",
+      'id: "cap-spec-borne"',
+      "tier: capability",
+      'title: "x"',
+      'outcome: "y"',
+      "status: proposed",
+      "proof_mode: integration-test",
+      "proof:",
+      "  command:",
+      "    file: node",
+      '    args: ["--version"]',
+      "  scope:",
+      '    testGlobs: ["x.test.ts"]',
+      '    sourceGlobs: ["x.ts"]',
+      "  real:",
+      '    testFile: "x.test.ts"',
+      '    sourceFile: "x.ts"',
+      "    scope:",
+      '      testGlobs: ["x.test.ts"]',
+      '      sourceGlobs: ["x.ts"]',
+      "---",
+      "# x",
+      "",
+    ].join("\n"),
+  );
+  if (opts.withMalformed === true) {
+    // A malformed proof block (scope missing sourceGlobs) — must be SKIPPED in the listing, not throw.
+    await fs.writeFile(
+      path.join(storyDir, "cap-bad.md"),
+      [
+        "---",
+        'id: "cap-bad"',
+        "tier: capability",
+        'title: "x"',
+        'outcome: "y"',
+        "status: proposed",
+        "proof_mode: integration-test",
+        "proof:",
+        "  command:",
+        "    file: node",
+        '    args: ["--version"]',
+        "  scope:",
+        '    testGlobs: ["x.test.ts"]',
+        "---",
+        "# x",
+        "",
+      ].join("\n"),
+    );
+  }
+  return dir;
+}
+
+test("buildableNodeIds merges SPEC-BORNE nodes with the registry (a self-registered node is discoverable)", async () => {
+  const dir = await fixtureSpecBorneStories();
+  try {
+    const { buildable, realBuildable } = buildableNodeIds(dir);
+    // The spec-borne-only node (no registry entry) appears in BOTH lists.
+    assert.ok(buildable.includes("cap-spec-borne"), `buildable has cap-spec-borne: ${buildable}`);
+    assert.ok(realBuildable.includes("cap-spec-borne"), `realBuildable has cap-spec-borne`);
+    // The registry nodes are still there (union, not replacement).
+    assert.ok(buildable.includes("library-cli"), "registry node library-cli still listed");
+    assert.ok(realBuildable.includes("verdict-line"), "registry real node verdict-line still listed");
+    // Sorted + de-duped.
+    assert.deepEqual(buildable, [...buildable].sort());
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("nodeHelp lists spec-borne nodes; a malformed spec is SKIPPED, never blanks the list", async () => {
+  const dir = await fixtureSpecBorneStories({ withMalformed: true });
+  try {
+    const env = nodeHelp(dir);
+    assert.equal(env.ok, true);
+    // The self-registered node shows in the help discovery surface.
+    assert.match(env.body, /cap-spec-borne/);
+    // The malformed sibling is skipped (no throw) and the registry nodes still render.
+    assert.doesNotMatch(env.body, /cap-bad/);
+    assert.match(env.body, /library-cli/);
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true });
+  }
 });
