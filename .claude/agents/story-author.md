@@ -83,15 +83,15 @@ Run the **deletion test**: imagine deleting the module. If complexity vanishes, 
 ## Rules — your behavioural floor; follow these
 
 ### The journey principle  [principle]
-**The principle.** A story encompasses one complete user journey — if finishing story A naturally leads the user to need story B, they are the same journey and likely the same story.
+**The principle.** A story encompasses one complete consumer journey — where the consumer may be a person, an agent, or another story/surface — if finishing story A naturally leads that consumer to need story B, they are the same journey and likely the same story.
 
 ## Why
 
-Fragmenting one journey across units scatters its proof: no single UAT walks the user's actual end-to-end path, and the seams between fragments are exactly where unproven behaviour hides. The v2 story is deliberately bigger than v1's (a bounded-context organism, ADR-0010) precisely to keep one journey in one provable unit.
+Fragmenting one journey across units scatters its proof: no single UAT walks the consumer's actual end-to-end path, and the seams between fragments are exactly where unproven behaviour hides. The v2 story is deliberately bigger than v1's (a bounded-context organism, ADR-0010) precisely to keep one journey in one provable unit. 'Consumer' generalises 'user' on purpose: a substrate story (library, ci-cd) still has a journey — its consumer is an agent or a contributor, not an end-user — so it is INSIDE this principle, never an exception to it.
 
 ## How to apply
 
-This decides WHETHER to split; the `splitting-rule` refines HOW. Default: do not split. Ask of any proposed boundary: would the user, on finishing the first unit's journey, immediately need the second to get value? If yes, it is one journey.
+This decides WHETHER to split; the `splitting-rule` refines HOW, and `cross-story-dependency` governs the DIRECTION of edges between the stories you end up with. Default: do not split. Ask of any proposed boundary: would the consumer, on finishing the first unit's journey, immediately need the second to get value? If yes, it is one journey. A story's 'trunk/substrate' feel is never a reason to split or to exempt it — that is just the emergent shape of a root many stories depend on (ADR-0058 §2).
 
 ### The splitting rule  [principle]
 **The principle.** Split a unit only when EITHER its outcome cannot be stated in one sentence without conjunctions, OR its proof does not share a common precondition and observable.
@@ -103,6 +103,17 @@ Premature splits fragment a journey and multiply seams (the failure the `journey
 ## How to apply
 
 Tiebreakers — split if 2+ hold: distinct REAL user populations (not role labels worn by the same person), two separate rebuild briefs, a spike mixed with delivery, an internal contradiction. Length is NEVER a splitting criterion. After deciding to split, re-check each side against the journey-principle and the tier rules (ADR-0010).
+
+### Cross-story dependency direction and the no-cycle rule  [principle]
+**The principle.** Story A depends on story B if and only if A needs B's delivered outcome — consumed through B's declared boundary — as a precondition to pass A's own UAT. Run that test both ways for any pair; the 'yes' gives the edge direction, and if both directions are 'yes' you have a cycle. A cycle is a modelling error on every proven/greenfield path and must be resolved, never tolerated. The single exception is a `mapped` (brownfield) graph, where a real cycle is recorded as a flagged defect that can never reach `healthy`.
+
+## Why
+
+Without a direction rule, 'trunk' and 'depends-on' get decided by intuition, and a single outcome counted in two stories reads as a symbiotic cycle (the ci-cd↔studio-cloud trap, where 'keep the studio fresh' belongs to ci-cd alone). The prove-it-gate must topologically order the graph to drive units red→green in dependency order, so a cycle in the proven graph is literally unbuildable — the same reason dbt forbids cycles in its model DAG. Tying the one escape to `mapped` lets storytree reflect real, cyclic, brownfield architecture honestly (and surface its cycles as a feature) without weakening the greenfield guarantee.
+
+## How to apply
+
+DIRECTION: ask 'does A need B's delivered outcome to pass A's UAT?' both ways; the yes is the edge. A capability that consumes a sibling capability's boundary means the WHOLE story depends on that sibling — roll it up into the story's `depends_on`; never drop a real outbound edge because the reliance feels foundational. TRUNK is not declared: it is the emergent shape of a root (`depends_on: []`) that many stories depend on (library is the exemplar). A story everything 'rides on' for delivery (ci-cd) is a process fact on a different axis, not a dependency edge — do not draw it as inbound edges and do not mislabel it a trunk. CYCLE: if both directions are yes, work the ladder cheapest-first — (1) re-allocate the double-counted outcome to ONE story (the usual fix; no structural change), (2) extract a shared upstream both depend on, (3) merge into one story only if the journey-principle + splitting-rule say it is genuinely one journey. HATCH: a cycle may stand only in a `mapped` brownfield graph, recorded as a visible cyclic-dependency defect that can never be `healthy` — healing it means breaking it. Detail: ADR-0058.
 
 ### Proof-walkthrough first  [pattern]
 **The pattern.** Draft the unit's proof-walkthrough before its prose — the walkthrough is the sizing test that re-tiers a wrong-sized unit before it is authored.

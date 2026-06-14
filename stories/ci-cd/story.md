@@ -5,18 +5,22 @@ title: "CI/CD — the one enforced pipeline every green unit crosses to reach tr
 outcome: "Every contributor's green unit reaches trunk — and the surfaces that ride on trunk stay fresh — through one enforced pipeline; nothing reaches main unproven."
 status: proposed
 proof_mode: UAT
-# The trunk. Foundational substrate with no standalone deliverable: every other story's LANDING
-# rides on this pipeline, but that universal reliance is deliberately NOT modelled as inbound edges
-# (it would make ci-cd a dependency of everything — noise, not signal). Two LEAF capabilities reach
-# FORWARD to sibling stories (merge-presence-retire → notice-board, deploy-on-merge → studio-cloud);
-# the story ROOT stays edgeless. Verified acyclic: neither notice-board (depends_on: [library,
-# drive-machinery]) nor studio-cloud (depends_on: [studio, library]) depends on ci-cd.
+# ci-cd depends on the two sibling surfaces its post-merge side-effects WRITE TO (ADR-0058 §1, §3):
+# deploy-on-merge needs studio-cloud's Cloud Run + IAP service as a deploy target, and
+# merge-presence-retire needs notice-board's presence store as a write target — real OUTBOUND
+# dependencies, so they roll up to depends_on. ci-cd is NOT a trunk: the "everything's delivery rides
+# on this pipeline" reliance is a PROCESS-axis fact (how any unit reaches main), deliberately NOT
+# drawn as inbound edges (it would make ci-cd a dependency of everything — noise, not signal), and
+# ci-cd has zero inbound edges. Verified acyclic: studio-cloud (depends_on: [studio, library]) and
+# notice-board (depends_on: [library, drive-machinery]) never reach back to ci-cd. (library is the
+# genuine trunk — a root every story depends on.)
 capabilities: [green-gate, repo-surface-manifest, adr-health-gate, gate-ci-parity, auto-merge-on-green, merge-presence-retire, deploy-on-merge]
-depends_on: []
+depends_on: [studio-cloud, notice-board]
 # Deciding ADRs (ADR-0037 §2): the green gate + auto-merge (22), repo-surface manifest (25),
 # decision binding + adr-health (37), the ADR-number allocator (50), session presence the retire
-# backstop serves (33), the display posture it heals (41), studio CD (46), keyless WIF auth (21).
-decisions: [22, 25, 37, 50, 33, 41, 46, 21]
+# backstop serves (33), the display posture it heals (41), studio CD (46), keyless WIF auth (21),
+# the dependency-direction / no-cycle model that fixed this story's edges (58).
+decisions: [22, 25, 37, 50, 33, 41, 46, 21, 58]
 ---
 
 # CI/CD — the one enforced pipeline every green unit crosses to reach trunk
@@ -24,9 +28,12 @@ decisions: [22, 25, 37, 50, 33, 41, 46, 21]
 **Outcome —** Every contributor's green unit reaches trunk — and the surfaces that ride on trunk
 stay fresh — through one enforced pipeline; nothing reaches `main` unproven.
 
-This is storytree's **trunk**: the approval-gated path from a contributor's local green to a landed,
-deployed `main`. It is foundational substrate, not a feature — it has no standalone deliverable a
-user opens, yet every other story's *landing* rides on it. It is the work-tracked home for the
+This is storytree's **delivery process**: the approval-gated path from a contributor's local green to
+a landed, deployed `main`. It has no standalone deliverable a user opens, and every other story's
+*landing* rides on it — but that universal reliance is a PROCESS-axis fact, not a dependency edge
+(ADR-0058 §2): on the story DAG ci-cd is an ordinary consumer (it depends on the two sibling surfaces
+its post-merge side-effects write to) with zero inbound edges, **not** a "trunk" root. (`library` is
+the genuine trunk — a root every story depends on.) It is the work-tracked home for the
 machinery that today lives in `.github/workflows/` (the `verify` + `automerge` jobs in
 [`ci.yml`](../../.github/workflows/ci.yml), the deploy in
 [`deploy-studio.yml`](../../.github/workflows/deploy-studio.yml)), the root-surface and ADR-number
@@ -98,18 +105,24 @@ reaches forward to a sibling story.
 - `deploy-on-merge` → `auto-merge-on-green` — `deploy-studio.yml` triggers on the `push:main` the
   auto-merge creates (subject to the GITHUB_TOKEN no-cascade note recorded in that workflow).
 
-**Cross-story boundary (ADR-0010 §4) — two FORWARD leaf edges (unusual for a trunk; owner-accepted):**
-- `merge-presence-retire` reaches forward to the **`presence-store`** capability of
+**Cross-story boundary (ADR-0010 §4; direction per ADR-0058 §1, §3) — ci-cd's two OUTBOUND dependencies:**
+- `merge-presence-retire` depends on the **`presence-store`** capability of
   [`stories/notice-board`](../notice-board/story.md): the retire writer (`ingest-merge.ts`) marks the
-  merged session's `events.session` row done through that story's presence store seam.
-- `deploy-on-merge` reaches forward to the **`cloud-run-iap`** capability of
+  merged session's `events.session` row done through that story's presence store seam — it needs that
+  seam delivered to do its job.
+- `deploy-on-merge` depends on the **`cloud-run-iap`** capability of
   [`stories/studio-cloud`](../studio-cloud/story.md): the deploy targets the Cloud Run + IAP service
-  that capability stands up.
+  that capability stands up — it needs that target delivered to do its job.
 
-Both are *forward* edges (ci-cd → sibling), so they introduce **no cycle**: verified that neither
-`notice-board` (`depends_on: [library, drive-machinery]`) nor `studio-cloud` (`depends_on: [studio,
-library]`) depends on `ci-cd`. The story root stays `depends_on: []` — only two leaves reach forward,
-and the universal "everything lands through here" reliance is deliberately NOT drawn as inbound edges.
+By the direction rule (ADR-0058 §1) ci-cd needs both siblings' delivered outcomes to pass its own UAT
+(steps 5–6), so it **depends on** them, and §3 rolls those capability-level boundary edges up to the
+story's `depends_on: [studio-cloud, notice-board]`. This is **acyclic**: studio-cloud
+(`depends_on: [studio, library]`) and notice-board (`depends_on: [library, drive-machinery]`) never
+reach back to `ci-cd`, which has **zero inbound** edges. The earlier `depends_on: []` was a modelling
+error — it conflated the (correctly-omitted) *inbound* "everything lands through here" reliance, a
+process-axis fact, with these two real *outbound* dependencies. Note that **freshness is ci-cd's
+outcome, not studio-cloud's**; counting it in both is exactly what produced the false "symbiotic
+cycle" ADR-0058 §1 dissolves.
 
 ## Story UAT (would-be)
 
@@ -165,13 +178,15 @@ Surfaced rather than guessed — plain files, cheap to revise.
    gate↔CI parity as an ADR (and add it to this story's `decisions:`), or leave it as a
    capability-level contract. I did not pick a number (no `storytree adr new` from this authoring
    role); flagging for the owner / orchestrator.
-2. **The two forward leaf edges are an unusual trunk shape (owner-accepted).** A foundational trunk
-   story whose leaves reach FORWARD into sibling stories (`merge-presence-retire` → notice-board,
-   `deploy-on-merge` → studio-cloud) inverts the usual "leaves are pure" intuition. You have accepted
-   this. A cleaner alternative would re-home those two side effects as capabilities OF their target
-   stories (presence-retire under notice-board, deploy under studio-cloud) and leave ci-cd as just
-   the gate+merge core — but that scatters the pipeline across three stories and loses the "one
-   enforced path" framing. I authored as specified; noting the alternative only.
+2. **RESOLVED (owner, 2026-06-15 — [ADR-0058](../../docs/decisions/0058-cross-story-dependency-direction-the-no-cycle-rule-and-the-b.md)).**
+   The earlier "trunk with two forward leaf edges" framing was a modelling error. By the
+   dependency-direction rule (ADR-0058 §1) ci-cd needs both sibling surfaces delivered to pass its own
+   UAT, so it **depends on** them — `depends_on` is now `[studio-cloud, notice-board]`, and ci-cd is
+   the delivery *process*, not a trunk (its "everything rides on it" universality is a process axis
+   the DAG does not encode, §2). The owner kept deploy + retire IN ci-cd (Model A — one cohesive
+   pipeline) rather than re-homing them to the targets; the apparent ci-cd↔studio-cloud cycle was an
+   artifact of double-counting "stay fresh," which is ci-cd's outcome alone (§1). Verified acyclic
+   globally.
 3. **`green-gate`'s invariant set is broader than the original spec named.** The live `verify` job
    runs `check:manifest` + `check:claude` + **`check:agents`** (ADR-0052, generated `.claude/agents`)
    + `typecheck` + `test` + `build` — i.e. there are now THREE generated-view/surface gates, not the

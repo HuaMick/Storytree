@@ -2060,19 +2060,21 @@
     "id": "journey-principle",
     "kind": "principle",
     "title": "The journey principle",
-    "description": "A story encompasses one complete user journey; if finishing A naturally leads the user to need B, they are the same story.",
-    "statement": "A story encompasses one complete user journey — if finishing story A naturally leads the user to need story B, they are the same journey and likely the same story.",
-    "why": "Fragmenting one journey across units scatters its proof: no single UAT walks the user's actual end-to-end path, and the seams between fragments are exactly where unproven behaviour hides. The v2 story is deliberately bigger than v1's (a bounded-context organism, ADR-0010) precisely to keep one journey in one provable unit.",
-    "howToApply": "This decides WHETHER to split; the `splitting-rule` refines HOW. Default: do not split. Ask of any proposed boundary: would the user, on finishing the first unit's journey, immediately need the second to get value? If yes, it is one journey.",
+    "description": "A story encompasses one complete consumer journey (the consumer may be a person, an agent, or another story); if finishing A naturally leads that consumer to need B, they are the same story.",
+    "statement": "A story encompasses one complete consumer journey — where the consumer may be a person, an agent, or another story/surface — if finishing story A naturally leads that consumer to need story B, they are the same journey and likely the same story.",
+    "why": "Fragmenting one journey across units scatters its proof: no single UAT walks the consumer's actual end-to-end path, and the seams between fragments are exactly where unproven behaviour hides. The v2 story is deliberately bigger than v1's (a bounded-context organism, ADR-0010) precisely to keep one journey in one provable unit. 'Consumer' generalises 'user' on purpose: a substrate story (library, ci-cd) still has a journey — its consumer is an agent or a contributor, not an end-user — so it is INSIDE this principle, never an exception to it.",
+    "howToApply": "This decides WHETHER to split; the `splitting-rule` refines HOW, and `cross-story-dependency` governs the DIRECTION of edges between the stories you end up with. Default: do not split. Ask of any proposed boundary: would the consumer, on finishing the first unit's journey, immediately need the second to get value? If yes, it is one journey. A story's 'trunk/substrate' feel is never a reason to split or to exempt it — that is just the emergent shape of a root many stories depend on (ADR-0058 §2).",
     "references": [
       "doc:decisions/0010-organism-model-story-bounded-context.md",
+      "doc:decisions/0058-cross-story-dependency-direction-the-no-cycle-rule-and-the-b.md",
       "doc:glossary.md",
       "asset:deep-modules",
-      "asset:splitting-rule"
+      "asset:splitting-rule",
+      "asset:cross-story-dependency"
     ],
-    "provenance": "Harvested from V1 `story-writer` (journey-principle), re-tiered to the v2 story (ADR-0002/0010); graduated for v2 (owner call, 2026-06-14). Consumers: story-author.",
+    "provenance": "Harvested from V1 `story-writer` (journey-principle), re-tiered to the v2 story (ADR-0002/0010); graduated for v2 (owner call, 2026-06-14). Generalised 'user'→'consumer' and confirmed no-exception for substrate stories (ADR-0058, owner call 2026-06-15). Consumers: story-author.",
     "createdAt": "2026-06-10T00:00:00Z",
-    "updatedAt": "2026-06-14T00:00:00.000Z",
+    "updatedAt": "2026-06-15T00:00:00.000Z",
     "schemaVersion": 2
   },
   {
@@ -2092,6 +2094,28 @@
     "provenance": "Harvested from V1 `story-writer` (splitting-rule); graduated for v2 (owner call, 2026-06-14). Consumers: story-author.",
     "createdAt": "2026-06-10T00:00:00Z",
     "updatedAt": "2026-06-14T00:00:00.000Z",
+    "schemaVersion": 2
+  },
+  {
+    "id": "cross-story-dependency",
+    "kind": "principle",
+    "title": "Cross-story dependency direction and the no-cycle rule",
+    "description": "A story depends on another only when it needs that story's delivered outcome to pass its OWN UAT; the cross-story graph is acyclic on every proven path, and an apparent cycle is fixed by re-allocating the double-counted outcome, not by tolerating the edge.",
+    "statement": "Story A depends on story B if and only if A needs B's delivered outcome — consumed through B's declared boundary — as a precondition to pass A's own UAT. Run that test both ways for any pair; the 'yes' gives the edge direction, and if both directions are 'yes' you have a cycle. A cycle is a modelling error on every proven/greenfield path and must be resolved, never tolerated. The single exception is a `mapped` (brownfield) graph, where a real cycle is recorded as a flagged defect that can never reach `healthy`.",
+    "why": "Without a direction rule, 'trunk' and 'depends-on' get decided by intuition, and a single outcome counted in two stories reads as a symbiotic cycle (the ci-cd↔studio-cloud trap, where 'keep the studio fresh' belongs to ci-cd alone). The prove-it-gate must topologically order the graph to drive units red→green in dependency order, so a cycle in the proven graph is literally unbuildable — the same reason dbt forbids cycles in its model DAG. Tying the one escape to `mapped` lets storytree reflect real, cyclic, brownfield architecture honestly (and surface its cycles as a feature) without weakening the greenfield guarantee.",
+    "howToApply": "DIRECTION: ask 'does A need B's delivered outcome to pass A's UAT?' both ways; the yes is the edge. A capability that consumes a sibling capability's boundary means the WHOLE story depends on that sibling — roll it up into the story's `depends_on`; never drop a real outbound edge because the reliance feels foundational. TRUNK is not declared: it is the emergent shape of a root (`depends_on: []`) that many stories depend on (library is the exemplar). A story everything 'rides on' for delivery (ci-cd) is a process fact on a different axis, not a dependency edge — do not draw it as inbound edges and do not mislabel it a trunk. CYCLE: if both directions are yes, work the ladder cheapest-first — (1) re-allocate the double-counted outcome to ONE story (the usual fix; no structural change), (2) extract a shared upstream both depend on, (3) merge into one story only if the journey-principle + splitting-rule say it is genuinely one journey. HATCH: a cycle may stand only in a `mapped` brownfield graph, recorded as a visible cyclic-dependency defect that can never be `healthy` — healing it means breaking it. Detail: ADR-0058.",
+    "references": [
+      "doc:decisions/0058-cross-story-dependency-direction-the-no-cycle-rule-and-the-b.md",
+      "doc:decisions/0010-organism-model-story-bounded-context.md",
+      "doc:glossary.md",
+      "asset:journey-principle",
+      "asset:splitting-rule",
+      "asset:dependency",
+      "asset:boundary"
+    ],
+    "provenance": "Authored from the design conversation that resolved the ci-cd↔studio-cloud apparent cycle (ADR-0058, owner calls 2026-06-15). Distils the dependency-direction rule, the acyclicity invariant + resolution ladder, the trunk-as-emergent-shape clarification, and the brownfield `mapped` exit hatch. Consumers: story-author.",
+    "createdAt": "2026-06-15T00:00:00.000Z",
+    "updatedAt": "2026-06-15T00:00:00.000Z",
     "schemaVersion": 2
   },
   {
@@ -2283,6 +2307,7 @@
     "rules": [
       "asset:journey-principle",
       "asset:splitting-rule",
+      "asset:cross-story-dependency",
       "asset:proof-walkthrough-first",
       "asset:edit-first-curation",
       "asset:defects-amend-the-owning-story",
@@ -2300,6 +2325,7 @@
       "asset:deep-modules",
       "asset:journey-principle",
       "asset:splitting-rule",
+      "asset:cross-story-dependency",
       "asset:proof-walkthrough-first",
       "asset:edit-first-curation",
       "asset:defects-amend-the-owning-story",
