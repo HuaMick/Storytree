@@ -154,7 +154,13 @@ foundation was ported *conceptually* from it (see `docs/research/agentic-foundat
 `supersedes`/`supersedes_in_part`/`amends` edges; ADR-0037) — CI validates it (`adr-health` in
 `@storytree/cli`), so flip status BY HAND and record supersession as an outgoing edge on the new
 ADR, or the gate goes red. Read the Status sections for the detail (many are superseded-in-part).
-The current-state set:
+
+**New ADR? Don't hand-pick the number — allocate it: `pnpm storytree adr new --title "..." --pg`**
+(ADR-0050; `pnpm db:up` first). It reserves the next number ATOMICALLY from the store and scaffolds
+`docs/decisions/NNNN-slug.md`, so parallel sessions can't collide (0047/0048 both got picked twice
+before this). Offline it falls back to `max+1` with a loud "not reserved" warning; either way the
+`adr-number-unique` gate (in `pnpm -r test`) + a cross-PR CI check fail any duplicate before it sits
+on `main`. The current-state set:
 
 - **0011** — own the agent loop (pi retired) — *superseded in part by 0030*
 - **0017** — the knowledge/library tier lives in shared Postgres
