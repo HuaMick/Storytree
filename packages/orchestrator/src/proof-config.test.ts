@@ -64,6 +64,9 @@ test("a no-install block parses with install/typecheck/cwd keys ABSENT (the exac
   assert.equal("install" in cfg.real, false);
   assert.equal("typecheck" in cfg.real, false);
   assert.equal("cwd" in cfg.command, false);
+  // B (ADR-0057 §3): a default node:test node carries no proofCommand — the key must be ABSENT, so
+  // the parity deepEqual against the registry twins (which never declare one) holds.
+  assert.equal("proofCommand" in cfg.real, false);
 });
 
 test("a block carrying only command+scope (no real arm) parses — dry-run/live-smoke buildable only", () => {
@@ -159,4 +162,108 @@ test("malformed: a non-array glob is loud (the loader's loud posture covers nest
 test("NodeBuildConfigSchema is exported and rejects a non-object", () => {
   assert.equal(NodeBuildConfigSchema.safeParse(null).success, false);
   assert.equal(NodeBuildConfigSchema.safeParse("nope").success, false);
+});
+
+// ── ADR-0057 §3 expansion B: a node-declared proof command (proof-mode vocabulary) ──────────────
+
+/** A no-deps custom proof command (node-based) — install-free-legitimate. */
+const DECLARED_NODE_PROOF = {
+  command: { file: "pnpm", args: ["--filter", "@storytree/core", "test"] },
+  scope: {
+    testGlobs: ["packages/core/src/**/*.test.ts"],
+    sourceGlobs: ["packages/core/src/**/*.ts"],
+  },
+  real: {
+    testFile: "packages/core/src/widget.test.ts",
+    sourceFile: "packages/core/src/widget.ts",
+    scope: {
+      testGlobs: ["packages/core/src/widget.test.ts"],
+      sourceGlobs: ["packages/core/src/widget.ts"],
+    },
+    proofCommand: { file: "node", args: ["--test", "packages/core/src/widget.test.cjs"] },
+  },
+};
+
+/** A pnpm custom proof command — needs node_modules, so install:true + typecheck are required. */
+const DECLARED_PNPM_PROOF = {
+  command: { file: "pnpm", args: ["--filter", "@storytree/cli", "test"] },
+  scope: {
+    testGlobs: ["packages/cli/src/**/*.test.ts"],
+    sourceGlobs: ["packages/cli/src/**/*.ts"],
+  },
+  real: {
+    testFile: "packages/cli/src/widget.test.ts",
+    sourceFile: "packages/cli/src/widget.ts",
+    scope: {
+      testGlobs: ["packages/cli/src/widget.test.ts"],
+      sourceGlobs: ["packages/cli/src/widget.ts"],
+    },
+    install: true,
+    typecheck: { file: "pnpm", args: ["--filter", "@storytree/cli", "typecheck"] },
+    proofCommand: { file: "pnpm", args: ["--filter", "@storytree/cli", "test"] },
+  },
+};
+
+test("B — a real arm with a declared (node) proofCommand parses and round-trips", () => {
+  const cfg = parseNodeBuildConfig(DECLARED_NODE_PROOF);
+  assert.deepEqual(cfg, DECLARED_NODE_PROOF);
+  assert.deepEqual(cfg.real?.proofCommand, {
+    file: "node",
+    args: ["--test", "packages/core/src/widget.test.cjs"],
+  });
+});
+
+test("B — a pnpm proofCommand WITH install+typecheck parses and round-trips", () => {
+  const cfg = parseNodeBuildConfig(DECLARED_PNPM_PROOF);
+  assert.deepEqual(cfg, DECLARED_PNPM_PROOF);
+  assert.equal(cfg.real?.proofCommand?.file, "pnpm");
+});
+
+test("B — malformed: a proofCommand with an empty file is loud", () => {
+  assert.throws(() =>
+    parseNodeBuildConfig({
+      ...DECLARED_NODE_PROOF,
+      real: { ...DECLARED_NODE_PROOF.real, proofCommand: { file: "", args: [] } },
+    }),
+  );
+});
+
+test("B — malformed: a proofCommand carrying a cwd is loud (the spine forces cwd)", () => {
+  assert.throws(
+    () =>
+      parseNodeBuildConfig({
+        ...DECLARED_NODE_PROOF,
+        real: {
+          ...DECLARED_NODE_PROOF.real,
+          proofCommand: { file: "node", args: ["--test", "x"], cwd: "../../etc" },
+        },
+      }),
+    /cwd is not allowed/,
+  );
+});
+
+test("B — malformed: a typo'd key inside proofCommand is loud (.strict reused)", () => {
+  assert.throws(() =>
+    parseNodeBuildConfig({
+      ...DECLARED_NODE_PROOF,
+      real: {
+        ...DECLARED_NODE_PROOF.real,
+        proofCommand: { file: "node", args: ["--test", "x"], arrgs: ["typo"] },
+      },
+    }),
+  );
+});
+
+test("B — malformed: a pnpm proofCommand WITHOUT install:true is loud (worktree has no node_modules)", () => {
+  assert.throws(
+    () =>
+      parseNodeBuildConfig({
+        ...DECLARED_NODE_PROOF,
+        real: {
+          ...DECLARED_NODE_PROOF.real,
+          proofCommand: { file: "pnpm", args: ["--filter", "x", "test"] },
+        },
+      }),
+    /pnpm proof command requires real\.install:true/,
+  );
 });

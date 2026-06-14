@@ -20,6 +20,7 @@ import {
   promoteRealPass,
   proveUnit,
   realBuildableNodeIds,
+  realProofCommand,
   registeredNodeIds,
   resolveBuildConfig,
   resolveProveSpec,
@@ -98,8 +99,8 @@ function honestFramingReal(
   return (
     "honest framing: a REAL build (ADR-0031). What was real: a fresh git worktree of THIS repo, the\n" +
     "node's REAL test/impl files at their real repo paths authored by a live Claude Agent SDK leaf\n" +
-    "under hook-enforced write scope, the registry's REAL proof command run by the spine for both\n" +
-    "red and green, a spine-side commit of the authored files, and a GATE that read genuine\n" +
+    "under hook-enforced write scope, the node's declared REAL proof command run by the spine for\n" +
+    "both red and green, a spine-side commit of the authored files, and a GATE that read genuine\n" +
     `\`git status\` off that worktree. ${commitFate}` +
     (persisted ? "" : "; the verdict\nlanded in an in-memory store and is gone") +
     `; and ${suiteClause}.` +
@@ -656,7 +657,9 @@ export async function nodeBuild(
       ...(real && worktree !== undefined && realConfig !== undefined
         ? [
             `worktree:    ${worktree.root} (detached @ ${worktree.headSha.slice(0, 7)}${realConfig.install === true ? ", deps installed (lockfile-only)" : ""}, removed after)`,
-            `real proof:  node --import tsx --test ${realConfig.testFile}`,
+            // Single source of the display (avoids drift/double-spaces vs the spawned command):
+            // the same realProofCommand the resolver uses, with a (declared) marker for a spec command.
+            `real proof:  ${realProofCommand(realConfig, worktree.root).display}${realConfig.proofCommand !== undefined ? " (declared)" : ""}`,
           ]
         : []),
       ...(liveAuthor !== undefined ? liveLeafLines(liveAuthor) : []),

@@ -82,6 +82,7 @@ export type {
 export {
   resolveProveSpec,
   resolveBuildConfig,
+  realProofCommand,
   assemblePrompts,
   liveSmokePrompts,
   realPrompts,

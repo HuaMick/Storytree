@@ -19,6 +19,7 @@ import {
 import {
   resolveProveSpec,
   resolveBuildConfig,
+  realProofCommand,
   assemblePrompts,
   feedbackCommandsFor,
   realPrompts,
@@ -28,7 +29,7 @@ import { proveUnit, gitTreeState } from "./prove-it-gate.js";
 import { PathWriteScope } from "./phase-machine.js";
 import { WriteScopedToolExecutor } from "./write-scoped-executor.js";
 import { OwnedLoopAuthor } from "./owned-loop-author.js";
-import { createBuildWorktree } from "./build-worktree.js";
+import { createBuildWorktree, platformShellCommand } from "./build-worktree.js";
 
 /**
  * Phase B (drive-machinery): the resolver glue. Loads the REAL stories/library node specs from the
@@ -425,7 +426,7 @@ test("realPrompts names the REAL files, the REAL proof command, and the no-node_
   const spec = loadNodeSpec(path.join(STORIES_DIR, "drive-machinery", "verdict-line.md"));
   const real = lookupNodeBuildConfig("verdict-line")?.real;
   assert.ok(real !== undefined);
-  const prompts = realPrompts(spec, real);
+  const prompts = realPrompts(spec, real, realProofCommand(real, REPO_ROOT).display);
   assert.match(prompts.authorTest, /packages\/core\/src\/verdict-line\.test\.ts/);
   assert.match(prompts.authorTest, /node --import tsx --test/);
   assert.match(prompts.authorTest, /must NOT exist yet/);
@@ -439,7 +440,7 @@ test("realPrompts for an install-bearing node names the typecheck wall (type-leg
   const spec = loadNodeSpec(path.join(STORIES_DIR, "notice-board", "declare-presence.md"));
   const real = lookupNodeBuildConfig("declare-presence")?.real;
   assert.ok(real !== undefined);
-  const prompts = realPrompts(spec, real);
+  const prompts = realPrompts(spec, real, realProofCommand(real, REPO_ROOT).display);
   // The install-mode brief: dependencies are present, but the leaf is told promotion also runs
   // tsc --noEmit — runtime-green is not enough (the tsx type-strip hole, closed).
   assert.match(prompts.authorTest, /dependencies installed/);
@@ -454,7 +455,7 @@ test("realPrompts brief the feedback loop: run_proof in both phases, feedback �
   const spec = loadNodeSpec(path.join(STORIES_DIR, "drive-machinery", "verdict-line.md"));
   const real = lookupNodeBuildConfig("verdict-line")?.real;
   assert.ok(real !== undefined);
-  const prompts = realPrompts(spec, real);
+  const prompts = realPrompts(spec, real, realProofCommand(real, REPO_ROOT).display);
   // AUTHOR_TEST: confirm the red is the RIGHT-KIND red before stopping (ADR-0020 §3).
   assert.match(prompts.authorTest, /run_proof/);
   assert.match(prompts.authorTest, /fails for the RIGHT\s+reason/);
@@ -470,7 +471,7 @@ test("realPrompts for an install-bearing node also brief run_typecheck", () => {
   const spec = loadNodeSpec(path.join(STORIES_DIR, "notice-board", "declare-presence.md"));
   const real = lookupNodeBuildConfig("declare-presence")?.real;
   assert.ok(real !== undefined);
-  const prompts = realPrompts(spec, real);
+  const prompts = realPrompts(spec, real, realProofCommand(real, REPO_ROOT).display);
   assert.match(prompts.authorTest, /run_typecheck/);
   assert.match(prompts.implement, /`run_typecheck` is green/);
 });
@@ -826,4 +827,134 @@ test("contract 6 — the ENFORCEMENT path refuses an out-of-phase write from a s
   assert.equal(calls.length, 0, "the inner executor was never reached (fail-closed)");
   assert.equal(executor.violations.length, 1);
   assert.equal(executor.violations[0]?.path, real.sourceFile);
+});
+
+// ── ADR-0057 §3 expansion B: node-declared proof command (proof-mode vocabulary) ────────────────
+
+test("B — realProofCommand defaults to node --import tsx --test when no proofCommand is declared", () => {
+  const real = loadById("verdict-line").buildConfig?.real;
+  assert.ok(real !== undefined);
+  const ws = path.join(os.tmpdir(), "ws-default");
+  const { command, display } = realProofCommand(real, ws);
+  assert.equal(command.file, process.execPath);
+  assert.ok(command.args.includes("--import") && command.args.includes("--test"));
+  assert.equal(command.args[command.args.length - 1], path.join(ws, real.testFile));
+  assert.equal(command.cwd, ws);
+  assert.equal(display, `node --import tsx --test ${real.testFile}`);
+});
+
+test("B — a declared no-deps proofCommand is chosen with cwd FORCED to the worktree", () => {
+  const base = loadById("verdict-line").buildConfig?.real;
+  assert.ok(base !== undefined);
+  const real = { ...base, proofCommand: { file: "node", args: ["--test", "x.test.cjs"] } };
+  const { command, display } = realProofCommand(real, "/ws");
+  assert.equal(command.file, "node");
+  assert.deepEqual(command.args, ["--test", "x.test.cjs"]);
+  assert.equal(command.cwd, "/ws"); // forced — a node declares WHAT, never WHERE
+  assert.equal(display, "node --test x.test.cjs");
+});
+
+test("B — a declared pnpm proofCommand delegates to platformShellCommand (cmd.exe shim on win32)", () => {
+  const base = loadById("verdict-line").buildConfig?.real;
+  assert.ok(base !== undefined);
+  const pnpmCmd = { file: "pnpm", args: ["--filter", "@storytree/cli", "test"] };
+  const real = { ...base, proofCommand: pnpmCmd };
+  const { command } = realProofCommand(real, "/ws");
+  // realProofCommand must route the declared command through platformShellCommand (so the Windows
+  // pnpm.cmd shim applies); deepEqual holds on every platform.
+  assert.deepEqual(command, platformShellCommand({ ...pnpmCmd, cwd: "/ws" }));
+});
+
+test("B — real-mode arms run_proof with the declared command (spec-borne, no registry entry)", () => {
+  const base = loadById("verdict-line");
+  const bc = base.buildConfig;
+  assert.ok(bc?.real !== undefined);
+  const specOnly = {
+    ...base,
+    id: "spec-only-proofcmd",
+    buildConfig: {
+      ...bc,
+      real: {
+        ...bc.real,
+        proofCommand: { file: "node", args: ["--test", "packages/core/src/verdict-line.test.ts"] },
+      },
+    },
+  };
+  const result = resolveProveSpec(specOnly, {
+    mode: "real",
+    workspace: os.tmpdir(),
+    store: new InMemoryStore(),
+    runId: "b-arm-1",
+    signerInputs: { flag: "tester@example.com" },
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.liveAuthor?.feedbackToolNames, ["mcp__spine__run_proof"]);
+});
+
+test("B — realPrompts name the declared command and the custom-proof brief, not tsx-on-one-file", () => {
+  const base = loadById("verdict-line");
+  const bc = base.buildConfig;
+  assert.ok(bc?.real !== undefined);
+  const real = {
+    ...bc.real,
+    install: true,
+    typecheck: { file: "pnpm", args: ["--filter", "@storytree/cli", "typecheck"] },
+    proofCommand: { file: "pnpm", args: ["--filter", "@storytree/cli", "test"] },
+  };
+  const display = realProofCommand(real, "/ws").display;
+  const prompts = realPrompts(base, real, display);
+  assert.match(prompts.authorTest, /pnpm --filter @storytree\/cli test/);
+  assert.match(prompts.authorTest, /CUSTOM proof command/);
+  assert.doesNotMatch(prompts.authorTest, /node --import tsx --test/);
+});
+
+test("B — every migrated real node stays the node:test default (no proofCommand) — parity intact", () => {
+  for (const id of PARITY_IDS) {
+    const real = loadById(id).buildConfig?.real;
+    assert.ok(real !== undefined, `${id} has a real arm`);
+    assert.equal("proofCommand" in real, false, `${id} declares no custom proof command`);
+    assert.match(realProofCommand(real, "/ws").display, /^node --import tsx --test /);
+  }
+});
+
+test("B — a trivially-green declared proofCommand still fails CONFIRM_RED (no forged green)", async () => {
+  // The load-bearing honesty test: a node author who declares an always-exit-0 proof command cannot
+  // forge a pass — the spine observes the SAME command at CONFIRM_RED, and a green there aborts.
+  const worktree = await createBuildWorktree(REPO_ROOT);
+  const store = new InMemoryStore();
+  try {
+    const base = loadById("verdict-line");
+    const bc = base.buildConfig;
+    assert.ok(bc?.real !== undefined);
+    const real = {
+      ...bc.real,
+      proofCommand: { file: process.execPath, args: ["-e", "process.exit(0)"] },
+    };
+    const spec = { ...base, buildConfig: { ...bc, real } };
+    // The leaf authors the test file (allowed in AUTHOR_TEST); the always-green command then runs at
+    // CONFIRM_RED and is observed green → the gate refuses to proceed (a real red must come first).
+    const author = new OwnedLoopAuthor({
+      model: scriptedWriterModel([{ path: real.testFile, content: "// scripted forge test\n" }]),
+      tools: new FileToolExecutor({ rootDir: worktree.root }),
+      scope: new PathWriteScope(real.scope),
+      writeTools: FILE_WRITE_TOOLS,
+    });
+    const resolved = resolveProveSpec(spec, {
+      mode: "real",
+      workspace: worktree.root,
+      store,
+      runId: "forge-1",
+      signerInputs: { flag: "tester@example.com" },
+      authorOverride: author,
+    });
+    assert.equal(resolved.ok, true);
+    if (!resolved.ok) return;
+    const result = await proveUnit(resolved.spec);
+    assert.equal(result.ok, false, "an always-green proof command must NOT yield a signed pass");
+    if (result.ok) return;
+    assert.equal(result.failedAt, "CONFIRM_RED");
+  } finally {
+    await worktree.remove();
+  }
 });

@@ -63,6 +63,21 @@ export interface RealProofConfig {
    * declare-presence, 2026-06-11) and only a worktree `tsc` catches it before the PR-time CI does.
    */
   typecheck?: ShellCommand;
+  /**
+   * The proof command the spine SPAWNS for red/green (ADR-0057 §3, expansion B — a proof-mode
+   * vocabulary beyond node:test). ABSENT = the default `node --import tsx --test <testFile>` at the
+   * worktree root (the node:test status quo — the migrated nodes keep this, byte-for-byte). PRESENT
+   * = the spine spawns THIS command for BOTH the CONFIRM red/green observations AND the leaf's
+   * `run_proof` feedback tool (one oracle, two consumers). `cwd` is NOT allowed (the schema refuses
+   * it) — the resolver FORCES cwd to the worktree root, so a proof can never redirect out of its own
+   * worktree (declare file+args only). `pnpm` is platform-shimmed at spawn (pnpm.cmd on Windows) and
+   * REQUIRES `install: true` (a bare worktree has no node_modules — the schema refuses pnpm without
+   * install). Honesty: a declared command CANNOT forge a green — the spine still spawns it
+   * out-of-band, and a trivially-green command still fails CONFIRM_RED (a real red must be observed
+   * FIRST). The leaf still authors exactly testFile→sourceFile; this widens the OBSERVATION
+   * vocabulary, never the authoring surface.
+   */
+  proofCommand?: ShellCommand;
 }
 
 /**
@@ -108,6 +123,7 @@ const RealProofConfigSchema = z
     scope: PathWriteScopeConfigSchema,
     install: z.boolean().optional(),
     typecheck: ShellCommandSchema.optional(),
+    proofCommand: ShellCommandSchema.optional(),
   })
   .strict()
   .refine((r) => !(r.install === true && r.typecheck === undefined), {
@@ -115,6 +131,24 @@ const RealProofConfigSchema = z
       "install:true requires real.typecheck (the proof run is tsx — types are stripped; only " +
       "tsc --noEmit catches type-illegal-but-runtime-green code, ADR-0031 §2)",
     path: ["typecheck"],
+  })
+  // B (ADR-0057 §3): the spine FORCES the proof cwd to the worktree root — a declared cwd is refused
+  // so a proof can never redirect out of its own worktree (declare file+args only).
+  .refine((r) => r.proofCommand?.cwd === undefined, {
+    message:
+      "real.proofCommand.cwd is not allowed — the spine forces cwd to the worktree root so the " +
+      "proof cannot redirect out of its own worktree (declare file+args only)",
+    path: ["proofCommand", "cwd"],
+  })
+  // B: a `pnpm` proof command needs the worktree's node_modules — so it REQUIRES install:true (a
+  // bare no-install worktree has none and the command would spurious-red). Scoped to pnpm, so a
+  // builtins-only `node`/shell proof command stays legitimately install-free.
+  .refine((r) => !(r.proofCommand?.file === "pnpm" && r.install !== true), {
+    message:
+      "a pnpm proof command requires real.install:true — the worktree has no node_modules without " +
+      "it (and install:true then requires real.typecheck). Use a node-based command for an " +
+      "install-free proof.",
+    path: ["proofCommand"],
   });
 
 /** The spec-borne `proof:` block schema — mirrors {@link NodeBuildConfig} 1:1. */
@@ -152,6 +186,7 @@ function buildReal(raw: z.infer<typeof RealProofConfigSchema>): RealProofConfig 
     scope: buildScope(raw.scope),
     ...(raw.install !== undefined ? { install: raw.install } : {}),
     ...(raw.typecheck !== undefined ? { typecheck: buildShellCommand(raw.typecheck) } : {}),
+    ...(raw.proofCommand !== undefined ? { proofCommand: buildShellCommand(raw.proofCommand) } : {}),
   };
 }
 

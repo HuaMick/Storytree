@@ -5,7 +5,7 @@ title: "The drive machinery"
 outcome: "The spine drives any registered node through a genuine red→green proof and lands the proven commit through the merge gate."
 status: mapped
 proof_mode: UAT
-capabilities: [halt-aware-sequence, red-green-phase-machine, work-verdict-event-log, phase-scoped-write-wall, shell-test-observer, prove-it-gate, owned-loop-phase-author, real-build-worktree, prove-spec-resolution, spec-borne-proof-config, story-topo-build, oq-hygiene-gate, build-drive-cli]
+capabilities: [halt-aware-sequence, red-green-phase-machine, work-verdict-event-log, phase-scoped-write-wall, shell-test-observer, prove-it-gate, owned-loop-phase-author, real-build-worktree, prove-spec-resolution, spec-borne-proof-config, proof-command-vocabulary, story-topo-build, oq-hygiene-gate, build-drive-cli]
 # Story-level edge (ADR-0010 §4, code-import-evidenced; ADR-0036): the drive consumes the
 # library story's store connection seam — createPool/closePool/applySchema in
 # packages/cli/src/node-build.ts:36 (events.work_event/verdict are its OWN tables), and the
@@ -78,7 +78,7 @@ exists, the seam becomes its declared cross-story interface (ADR-0010 §4) and t
 frontmatter gains that story-level edge. Until then the coupling is documented here and in each
 consuming capability, not hidden.
 
-## Capabilities (13)
+## Capabilities (14)
 
 Listed roots-first (a capability appears after everything it depends on). `mapped` = a real
 passing offline suite observationally verifies the dominant behaviour; the Proof blockquote in
@@ -99,6 +99,7 @@ each file pins the `proposed` pockets.
 | 11 | [`oq-hygiene-gate`](oq-hygiene-gate.md) | A live story build is refused while an operator answer on a deciding ADR's open question sits unprocessed. | mapped | `prove-spec-resolution` |
 | 12 | [`build-drive-cli`](build-drive-cli.md) | An operator drives any registered node or whole story through the gate from one CLI command and gets an honest envelope back. | mapped | `prove-spec-resolution`, `prove-it-gate`, `real-build-worktree`, `story-topo-build`, `oq-hygiene-gate`, `work-verdict-event-log` |
 | 13 | [`spec-borne-proof-config`](spec-borne-proof-config.md) | A node carries its own proof config, so authoring it is the single act that makes it inner-loop-buildable. | mapped | `prove-spec-resolution` |
+| 14 | [`proof-command-vocabulary`](proof-command-vocabulary.md) | A node declares its own proof command, so the same gate drives non-node:test work red→green. | mapped | `spec-borne-proof-config` |
 
 ## Dependency graph (code-derived)
 
@@ -174,6 +175,13 @@ coupling) and marked.
     demoted to a validation/fallback layer (imports the `NodeBuildConfig`/`RealProofConfig` shape from
     `proof-config.ts`, keeps the 7 entries as the parity oracle). The CLI build path
     (`node-build.ts`, `story-build.ts`) resolves spec-first via the same helper.
+- `proof-command-vocabulary` → `spec-borne-proof-config` *(BUILT — ADR-0057 §3, code-import-evidenced)*
+  - extends the spec-borne config (A) with a declarable proof command: `proof-config.ts` adds
+    `RealProofConfig.proofCommand` + its forced-cwd and pnpm⇒install refines; `resolve-prove-spec.ts`
+    adds `realProofCommand(real, workspace)` (the one place that chooses the declared-or-default
+    command for both the CONFIRM observations and the `run_proof` feedback tool) and threads the
+    command's display into `realPrompts`. The 7 default nodes are unchanged (the A parity guard stays
+    green). No `test-command-registry.ts` change; no new ADR (ships under ADR-0057 §3 + ADR-0020).
 
 **Cross-story:** the `library` edge in the frontmatter (the store-connection seam +
 the OQ loader's library stores). **Cross-package, consumed:** the `PhaseAuthor` seam — see the
