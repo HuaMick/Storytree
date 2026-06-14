@@ -2,35 +2,34 @@
 // rework; vocabulary recalibrated by ADR-0038).
 //
 // Games-style: ONE entry per world model (story trees, garden plants, proof
-// marks, sessions, decoration), representative state icons side by side, a
-// single caption. Clicking an entry expands a drawer fanning out that model's
-// FULL state vocabulary — states that don't occur in the current world render
-// dimmed ("not in world yet"), and entries whose model has no instance at all
-// (no verdicts, no orbiting sessions — possibly-dead ones park in the session
-// dock, ADR-0041) drop out of the bar entirely, so the legend only ever
-// describes what's on screen. Roads and the focus tints carry no legend
-// entry — they're self-explanatory in place (ADR-0038). The legend receives
-// the PRESENTED world (worldStatus.ts): retired is pruned and building wears
+// marks, activity blooms, in-flight builds, decoration), representative state
+// icons side by side, a single caption. Clicking an entry expands a drawer
+// fanning out that model's FULL state vocabulary — states that don't occur in
+// the current world render dimmed ("not in world yet"), and entries whose model
+// has no instance at all (no verdicts, nothing building) drop out of the bar
+// entirely, so the legend only ever describes what's on screen. Session
+// presence has NO legend row — it no longer orbits (ADR-0048 §5); it lives in
+// the toolbar's session dock. Roads and the focus tints carry no legend entry —
+// they're self-explanatory in place (ADR-0038). The legend receives the
+// PRESENTED world (worldStatus.ts): retired is pruned and building wears
 // proposed before anything reaches here.
 //
 // The status fan doubles as the status filter (it absorbed the old toolbar
 // chips): tiles toggle the same `hidden` set, and the world fades matching
 // trees/flora. Icons reuse the world's OWN css classes (story-tree st-*,
-// garden-flora, story-sign, world-wisp band-*), so the legend can never drift
-// from the world's palette — it IS the world's palette.
+// garden-flora, story-sign, world-wisp band-building), so the legend can never
+// drift from the world's palette — it IS the world's palette.
 //
 // The captions carry the observability contract's caveats in operator-facing
 // text: hue-is-the-signed-verdict (ADR-0040 — authored status can never paint
 // green), crown-is-never-a-roll-up, signpost-is-the-human-witness-mark,
-// offline-under-claims, presence-is-advisory (ADR-0033 d.3 / ADR-0036).
+// offline-under-claims, build-wisps-are-the-harness (ADR-0048).
 
 import { useEffect, useRef, useState } from 'react';
-import { anyRecentLanding } from '../lib/activity';
-import { isOrbitingBand } from '../lib/presence';
-import type { TreeSession, TreeStory } from '../types';
+import { anyInFlight, anyRecentLanding } from '../lib/activity';
+import type { BuildActivity, TreeStory } from '../types';
 
-type Band = TreeSession['band'];
-type RowKey = 'tree' | 'flora' | 'proof' | 'activity' | 'wisps' | 'decor';
+type RowKey = 'tree' | 'flora' | 'proof' | 'activity' | 'building' | 'decor';
 
 /**
  * Status fan order: the growth ladder, then the failure state. `building` and
@@ -41,8 +40,6 @@ const STATUS_ORDER = ['proposed', 'mapped', 'healthy', 'unhealthy'] as const;
 
 /** Statuses an ALIVE plant can wear in the world — unhealthy flora always renders dead. */
 const ALIVE_STATUSES = STATUS_ORDER.filter((st) => st !== 'unhealthy');
-
-const BAND_ORDER: Band[] = ['fresh', 'stale', 'possibly-dead'];
 
 export interface LegendFacts {
   /** status → instance counts across both tiers ('unknown' = spec error / no status). */
@@ -57,7 +54,6 @@ export interface LegendFacts {
   signWitnessedFail: boolean;
   /** Any capability renders the dead silhouette (signed ✗ or authored unhealthy). */
   anyDeadFlora: boolean;
-  bands: Set<Band>;
 }
 
 /**
@@ -65,7 +61,7 @@ export interface LegendFacts {
  * Receives the PRESENTED world (worldStatus.ts), so `healthy` here already
  * means "the last signed run passed" — authored paint never reaches it.
  */
-export function legendFacts(stories: TreeStory[], sessions: TreeSession[]): LegendFacts {
+export function legendFacts(stories: TreeStory[]): LegendFacts {
   const statusTotals = new Map<string, { stories: number; caps: number }>();
   const bump = (key: string, tier: 'stories' | 'caps'): void => {
     const cur = statusTotals.get(key) ?? { stories: 0, caps: 0 };
@@ -103,7 +99,6 @@ export function legendFacts(stories: TreeStory[], sessions: TreeSession[]): Lege
     signWitnessedPass,
     signWitnessedFail,
     anyDeadFlora,
-    bands: new Set(sessions.map((s) => s.band)),
   };
 }
 
@@ -253,10 +248,12 @@ function SignIcon({ state }: { state: 'blank' | 'pass' | 'fail' }): React.JSX.El
   );
 }
 
-function WispIcon({ band }: { band: Band }): React.JSX.Element {
+/** The in-flight build wisp (ADR-0048) — the world's `world-wisp band-building`
+ *  classes, so the swatch can never drift from the live teal pulse. */
+function BuildWispIcon(): React.JSX.Element {
   return (
     <svg viewBox="-8 -8 16 16" aria-hidden="true">
-      <g className={`world-wisp band-${band}`}>
+      <g className="world-wisp band-building">
         <circle className="world-wisp-glow" r={5.5} />
         <circle className="world-wisp-dot" r={2.4} />
       </g>
@@ -364,14 +361,14 @@ function countNote(tot: { stories: number; caps: number }): string {
 
 export function WorldLegend({
   stories,
-  sessions,
+  builds = [],
   now,
   hidden,
   onToggleStatus,
   onResetHidden,
 }: {
   stories: TreeStory[];
-  sessions: TreeSession[];
+  builds?: BuildActivity[];
   now: Date;
   hidden: ReadonlySet<string>;
   onToggleStatus: (st: string) => void;
@@ -395,7 +392,7 @@ export function WorldLegend({
       window.removeEventListener('pointerdown', onDown);
     };
   }, [open]);
-  const facts = legendFacts(stories, sessions);
+  const facts = legendFacts(stories);
   const totals = (st: string): { stories: number; caps: number } =>
     facts.statusTotals.get(st) ?? { stories: 0, caps: 0 };
   const present = (st: string): boolean => {
@@ -416,6 +413,10 @@ export function WorldLegend({
   // ticker. The row drops the moment the last bloom ages out, exactly like a
   // model with no instance (ADR-0045 §6).
   const recentLandings = anyRecentLanding(stories, now);
+  // The building row appears IFF a leaf agent is mechanically building a unit
+  // right now (ADR-0048) — an in-flight build, aged by the same `now` ticker.
+  // It drops the moment the last build lands or times out.
+  const building = anyInFlight(builds, now);
   const toggle = (key: RowKey): void => setOpen((cur) => (cur === key ? null : key));
 
   const rows: { key: RowKey; label: string; visible: boolean; icons: React.JSX.Element }[] = [
@@ -469,19 +470,14 @@ export function WorldLegend({
       icons: <BloomIcon />,
     },
     {
-      key: 'wisps',
-      label: 'sessions',
-      // Wisps = fresh/stale only (ADR-0041): a world holding nothing but
-      // possibly-dead sessions shows no wisps, so the entry drops out — the
-      // parked sessions live in the toolbar's session list, not the world.
-      visible: sessions.some((s) => isOrbitingBand(s.band)),
-      icons: (
-        <>
-          {BAND_ORDER.filter((b) => isOrbitingBand(b) && facts.bands.has(b)).map((b) => (
-            <WispIcon key={b} band={b} />
-          ))}
-        </>
-      ),
+      // The in-flight harness layer (ADR-0048): a wisp orbits while a leaf agent
+      // drives a unit through the red-green gate. Drops out when nothing builds.
+      // This is the world's ONLY orbiting layer now — session presence was
+      // demoted out of orbit (§5) and lives in the toolbar's session dock.
+      key: 'building',
+      label: 'building',
+      visible: building,
+      icons: <BuildWispIcon />,
     },
     { key: 'decor', label: 'decoration', visible: true, icons: <ConiferIcon /> },
   ];
@@ -653,33 +649,21 @@ export function WorldLegend({
         </div>
       )}
 
-      {openRow?.key === 'wisps' && (
-        <div className="legend-drawer" role="region" aria-label="legend — sessions">
+      {openRow?.key === 'building' && (
+        <div className="legend-drawer" role="region" aria-label="legend — building">
           <div className="legend-fan">
             <Tile
-              icon={<WispIcon band="fresh" />}
-              label="fresh"
-              note="seen < 1 h"
-              absent={!facts.bands.has('fresh')}
-            />
-            <Tile
-              icon={<WispIcon band="stale" />}
-              label="stale"
-              note="quiet ≥ 1 h"
-              absent={!facts.bands.has('stale')}
-            />
-            <Tile
-              icon={<WispIcon band="possibly-dead" />}
-              label="possibly dead"
-              note="quiet ≥ 4 h — parked in the session list, not orbiting"
-              absent={!facts.bands.has('possibly-dead')}
+              icon={<BuildWispIcon />}
+              label="building"
+              note="a leaf agent is driving this unit through the gate right now"
             />
           </div>
           <p className="legend-cap">
-            An orbiting wisp is a session that declared work on this story — advisory only, it never
-            blocks anything. Hover a wisp for who it is and what they're doing. A session quiet ≥ 4 h
-            stops orbiting (its worktree may already be gone — the board can't tell) and parks in
-            the toolbar's session list instead.
+            A teal wisp orbits a story while the <strong>harness</strong> is mechanically building one
+            of its units — a leaf agent walking the red-green prove-it-gate (ADR-0048). Unlike a
+            session wisp it tracks <strong>work, not who is online</strong>: it appears when a build
+            starts and <strong>self-clears</strong> when the verdict lands (a pass then blooms green)
+            or after a few minutes if the run died — so it can never become a stale false positive.
           </p>
         </div>
       )}
