@@ -334,32 +334,24 @@ function resolveReal(
     };
   }
 
-  // The REAL proof command: the spine runs the registry's test file in the worktree itself.
-  // tsx is resolved from THIS package's installation (absolute URL), so the bare worktree —
-  // deliberately not `pnpm install`ed — can still run a TypeScript test file.
-  const realProofCmd: ShellCommand = {
-    file: process.execPath,
-    args: ["--import", tsxLoaderUrl(), "--test", path.join(opts.workspace, real.testFile)],
-    cwd: opts.workspace,
-  };
+  // The REAL proof command: the node's DECLARED `real.proofCommand` (ADR-0057 §3, expansion B) or
+  // the default `node --import tsx --test <testFile>`. ONE place chooses it, so the spine's CONFIRM
+  // observations and the leaf's run_proof can never diverge (the one-oracle property).
+  const { command: realProofCmd, display: proofDisplay } = realProofCommand(real, opts.workspace);
   const testExecutor = new ShellTestExecutor({
     command: (): ShellCommand => realProofCmd,
   });
   const scope = new PathWriteScope(real.scope);
 
-  // The leaf's bounded feedback tools (option A): run_proof spawns the SAME command the CONFIRM
-  // observations spawn; run_typecheck (install-bearing nodes) spawns the registry's typecheck in
-  // the worktree. One oracle, two consumers — the leaf iterates against exactly what will be
-  // observed, and the observations themselves stay out-of-band.
+  // The leaf's bounded feedback tools (option A): run_proof spawns the SAME command object the
+  // CONFIRM observations spawn (above); run_typecheck (install-bearing nodes) spawns the package
+  // typecheck in the worktree. One oracle, two consumers — the leaf iterates against exactly what
+  // will be observed, and the observations themselves stay out-of-band.
   const typecheckCmd =
     real.install === true && real.typecheck !== undefined
       ? platformShellCommand({ ...real.typecheck, cwd: opts.workspace })
       : undefined;
-  const feedbackCommands = feedbackCommandsFor(
-    realProofCmd,
-    `node --import tsx --test ${real.testFile}`,
-    typecheckCmd,
-  );
+  const feedbackCommands = feedbackCommandsFor(realProofCmd, proofDisplay, typecheckCmd);
 
   let author: PhaseAuthor;
   let liveAuthor: ClaudeAgentAuthor | undefined;
@@ -404,7 +396,7 @@ function resolveReal(
     signerInputs: opts.signerInputs,
     treeState,
     now: opts.now ?? ((): string => new Date().toISOString()),
-    prompts: realPrompts(spec, real),
+    prompts: realPrompts(spec, real, proofDisplay),
     runId: opts.runId,
   };
   return liveAuthor !== undefined
@@ -415,6 +407,36 @@ function resolveReal(
 /** Resolve the tsx loader to an ABSOLUTE url usable by `node --import` in a bare worktree. */
 function tsxLoaderUrl(): string {
   return import.meta.resolve("tsx");
+}
+
+/**
+ * The REAL proof command for a node (ADR-0057 §3, expansion B): the node's DECLARED
+ * `real.proofCommand` when present, else the default `node --import tsx --test <testFile>`. The
+ * declared command is platform-shimmed (pnpm.cmd on Windows) and its cwd is FORCED to the worktree
+ * root — a node declares WHAT to run, never WHERE (the schema already refuses a declared cwd, so
+ * forcing it here cannot silently override an author's intent). `display` is the honest human string
+ * the leaf briefs + the run_proof description use. ONE place chooses the command, so the spine's
+ * CONFIRM observations and the leaf's run_proof can never diverge (the one-oracle property).
+ */
+export function realProofCommand(
+  real: RealProofConfig,
+  workspace: string,
+): { command: ShellCommand; display: string } {
+  if (real.proofCommand !== undefined) {
+    const command = platformShellCommand({ ...real.proofCommand, cwd: workspace });
+    return {
+      command,
+      display: `${real.proofCommand.file} ${real.proofCommand.args.join(" ")}`.trim(),
+    };
+  }
+  return {
+    command: {
+      file: process.execPath,
+      args: ["--import", tsxLoaderUrl(), "--test", path.join(workspace, real.testFile)],
+      cwd: workspace,
+    },
+    display: `node --import tsx --test ${real.testFile}`,
+  };
 }
 
 /**
@@ -431,7 +453,7 @@ export function feedbackCommandsFor(
     {
       name: "run_proof",
       description:
-        `Run the registered proof command (${proofDisplay}) in the workspace and return its ` +
+        `Run the node's proof command (${proofDisplay}) in the workspace and return its ` +
         "exit code and output. Bounded runs. FEEDBACK ONLY: the spine re-runs this command " +
         "itself, out-of-band, and only that observation decides red/green.",
       run: () => runShellCommand(proofCmd),
@@ -455,10 +477,15 @@ export function feedbackCommandsFor(
  * leaf needs to author the REAL files — exact paths, the proof command the spine runs, and the
  * iteration-one no-node_modules constraint (builtins + relative imports only).
  */
-export function realPrompts(spec: NodeSpec, real: RealProofConfig): PhasePrompts {
+export function realPrompts(
+  spec: NodeSpec,
+  real: RealProofConfig,
+  proofDisplay: string,
+): PhasePrompts {
   const guidance =
     spec.guidance !== undefined ? `\n\nGuidance from the node spec:\n${spec.guidance}` : "";
   const header = `Unit "${spec.id}" (${spec.tier}): ${spec.title}.\nOutcome: ${spec.outcome}`;
+  const customProof = real.proofCommand !== undefined;
   const depsLine =
     real.install === true
       ? `- the worktree HAS its workspace dependencies installed (lockfile-only): you may import ` +
@@ -472,15 +499,23 @@ export function realPrompts(spec: NodeSpec, real: RealProofConfig): PhasePrompts
       : `- the worktree has NO node_modules: the test and the implementation may import ONLY ` +
         `\`node:\` builtins and relative files. \`import type { ... } from "./x.js"\` is fine ` +
         `(erased at runtime); a VALUE import of any package (zod etc.) will crash the proof run.`;
+  // The proof line: the node's declared command (B) or the node:test default. A custom command may
+  // run a package suite or another runner, so the brief points the leaf at THAT command going
+  // red→green rather than naming node:test on a single file.
+  const proofLine = customProof
+    ? `- this node declares a CUSTOM proof command: author the test so that command goes ` +
+      `red→green (it may run a package suite or another runner, not necessarily node:test on a ` +
+      `single file).\n`
+    : `- the TEST file is \`${real.testFile}\` (node:test + node:assert/strict).\n`;
   const conventions =
     `This is a REAL build: you are in a fresh git worktree of the storytree repo (TypeScript, ` +
     `strict, ESM NodeNext — relative imports use the .js extension). The spine proves the unit ` +
     `by running\n` +
-    `  node --import tsx --test ${real.testFile}\n` +
+    `  ${proofDisplay}\n` +
     `itself for the OFFICIAL red/green. You can run that same command yourself at any time via ` +
     `the \`run_proof\` feedback tool (bounded runs; its output is feedback, never the verdict). ` +
     `You cannot run shell commands.\n` +
-    `- the TEST file is \`${real.testFile}\` (node:test + node:assert/strict).\n` +
+    proofLine +
     `- the IMPLEMENTATION file is \`${real.sourceFile}\`.\n` +
     depsLine;
   return {
