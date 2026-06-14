@@ -105,6 +105,76 @@ export async function renderAgentPrompt(store: Store, name: string | undefined):
   };
 }
 
+/** The compact manifest labels for a digest (shorter than the full prompt's section headings). */
+const DIGEST_REFS: { field: "context" | "rules" | "antiPatterns"; label: string }[] = [
+  { field: "context", label: "Ceremonies & context" },
+  { field: "rules", label: "Rules" },
+  { field: "antiPatterns", label: "Refuse" },
+];
+
+export interface AgentDigest {
+  name: string;
+  title: string;
+  /** A CONCISE markdown block — the agent's prose + a manifest pointer, NOT the injected bodies. */
+  digest: string;
+  missingRefs: string[];
+}
+
+export type RenderDigestResult =
+  | { ok: true; agent: AgentDigest }
+  | { ok: false; reason: string; available: string[] };
+
+/**
+ * A CONCISE digest of an agent — its own prose (role / outcome / workflow / escalation) plus a
+ * manifest of the artifacts it stands on, pointing at `storytree agents <name>` for the full
+ * assembled text. This is what shapes CLAUDE.md's operating-discipline region (ADR-0051 §3): the
+ * thin cheat-sheet the friction audit asked for, NOT a dump of every referenced body.
+ */
+export async function renderAgentDigest(store: Store, name: string): Promise<RenderDigestResult> {
+  const available = await agentIds(store);
+  const stored = await store.getDoc(name);
+  if (!stored || stored.kind !== "agent") {
+    return { ok: false, reason: `no agent "${name}" in the Library.`, available };
+  }
+  const doc = stored.doc as Record<string, unknown>;
+  const str = (k: string): string => (typeof doc[k] === "string" ? (doc[k] as string).trim() : "");
+  const missingRefs: string[] = [];
+
+  const lines: string[] = [];
+  const oneLine = str("oneLine");
+  if (oneLine) lines.push(oneLine, "");
+  for (const [field, label] of [
+    ["role", "Role"],
+    ["outcome", "Outcome"],
+    ["workflow", "Workflow"],
+    ["escalation", "Escalation"],
+  ] as const) {
+    const value = str(field);
+    if (value) lines.push(`**${label}.** ${value}`, "");
+  }
+
+  const groups: string[] = [];
+  for (const { field, label } of DIGEST_REFS) {
+    const ids = refIds(doc, field);
+    if (ids.length === 0) continue;
+    for (const id of ids) {
+      if (!(await store.getDoc(id))) missingRefs.push(`asset:${id}`);
+    }
+    groups.push(`- **${label}:** ${ids.join(", ")}`);
+  }
+  if (groups.length > 0) {
+    lines.push(
+      `**Stands on** — assembled from these library artifacts; run \`storytree agents ${stored.id}\` for their full text:`,
+      ...groups,
+    );
+  }
+
+  return {
+    ok: true,
+    agent: { name: stored.id, title: str("title") || stored.id, digest: lines.join("\n").trim(), missingRefs },
+  };
+}
+
 /** `storytree agents <name>` — print one agent's assembled system prompt (ADR-0051). */
 export async function agentsCommand(store: Store, name: string | undefined): Promise<Envelope> {
   const result = await renderAgentPrompt(store, name);

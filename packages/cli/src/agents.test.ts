@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { InMemoryStore } from "@storytree/core";
 
-import { renderAgentPrompt, agentsCommand } from "./agents.js";
+import { renderAgentPrompt, renderAgentDigest, agentsCommand } from "./agents.js";
 import { run } from "./commands.js";
 
 /** A store seeded with a principle + two agents (one clean, one with a dangling ref). */
@@ -109,6 +109,29 @@ test("agentsCommand: clean agent → ok envelope; dangling agent → not-ok with
   const broken = await agentsCommand(store, "broken-agent");
   assert.equal(broken.ok, false);
   assert.match(broken.body, /dangling ref/);
+});
+
+test("renderAgentDigest is CONCISE — prose + a manifest pointer, not the injected bodies", async () => {
+  const store = await seeded();
+  const res = await renderAgentDigest(store, "clean-agent");
+  assert.equal(res.ok, true);
+  if (!res.ok) return;
+  // the agent's prose
+  assert.match(res.agent.digest, /The clean agent does one thing\./);
+  assert.match(res.agent.digest, /\*\*Role\.\*\*/);
+  // a manifest of refs by id + the pointer to the full assembly — NOT the injected body
+  assert.match(res.agent.digest, /storytree agents clean-agent/);
+  assert.match(res.agent.digest, /test-principle/);
+  assert.doesNotMatch(res.agent.digest, /Always assemble from the library\./); // the ref BODY is not inlined
+  assert.deepEqual(res.agent.missingRefs, []);
+});
+
+test("renderAgentDigest flags a dangling ref (the gate's drift/integrity guard)", async () => {
+  const store = await seeded();
+  const res = await renderAgentDigest(store, "broken-agent");
+  assert.equal(res.ok, true);
+  if (!res.ok) return;
+  assert.deepEqual(res.agent.missingRefs, ["asset:ghost-ref"]);
 });
 
 test("the `agents` area is wired into the dispatch", async () => {
