@@ -1,10 +1,10 @@
-# Hosted studio self-wakes its idle-stopped DB (ADR-0048, studio-cloud `hosted-db-wake`).
+# Hosted studio self-wakes its idle-stopped DB (ADR-0049, studio-cloud `hosted-db-wake`).
 #
 # The hosted studio (Cloud Run `storytree-studio`) authorizes members from a users projection in
 # `storytree-pg`. That instance idle-stops for cost (idle-stop.tf + cost-backstop.tf, ADR-0015), and
 # when it is STOPPED membership cannot be resolved — members hit the "can't resolve access" wall with
 # no in-site way back, because the existing `/api/db/*` start path shells out to gcloud on the
-# OPERATOR's machine, which doesn't exist in the container. ADR-0048 adds a keyless, hosted-native
+# OPERATOR's machine, which doesn't exist in the container. ADR-0049 adds a keyless, hosted-native
 # wake: the studio's RUNTIME SA calls the Cloud SQL Admin REST API directly (PATCH
 # settings.activationPolicy=ALWAYS — the exact inverse of cost-backstop.tf's nightly stop), using its
 # ambient metadata token (the ADR-0021 keyless posture). The endpoint is admin-gated in the app
@@ -32,7 +32,7 @@
 # no data plane, no user/database management — the smallest grant that can wake a stopped instance.
 resource "google_project_iam_custom_role" "studio_db_wake" {
   role_id     = "storytreeStudioDbWake"
-  title       = "Storytree studio — wake the DB (ADR-0048)"
+  title       = "Storytree studio — wake the DB (ADR-0049)"
   description = "Lets the hosted studio runtime SA start its idle-stopped Cloud SQL instance: get + update only."
   permissions = [
     "cloudsql.instances.get",    # describe / read state (the Admin API may read before patching)
@@ -52,5 +52,5 @@ resource "google_project_iam_member" "studio_host_db_wake" {
 
 output "studio_db_wake_role_id" {
   value       = google_project_iam_custom_role.studio_db_wake.role_id
-  description = "The custom role granting the studio runtime SA cloudsql.instances get+update (ADR-0048)."
+  description = "The custom role granting the studio runtime SA cloudsql.instances get+update (ADR-0049)."
 }

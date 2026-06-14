@@ -4,7 +4,7 @@ decided: 2026-06-14
 amends: [42]
 ---
 
-# ADR-0048: The hosted studio may wake its own DB (keyless, admin-gated)
+# ADR-0049: The hosted studio may wake its own DB (keyless, admin-gated)
 
 ## Status
 
@@ -26,9 +26,11 @@ key files), [ADR-0015](0015-gcp-hosting-cloud-sql-event-store.md) (the idle-stop
 recovers from), and [ADR-0043](0043-app-owned-users-roles-and-ui-invitations.md) (IAP was widened to
 `allAuthenticatedUsers` + the app authorizes — which is *why* the wake must be narrowly gated).
 
-*Numbering note:* `docs/decisions/` runs 0001–0046 on `main`; `git log --all` shows
-`0047-inbound-signal-librarian-and-recursive-graduation.md` on a draft branch (PR #109), so **0047 is
-taken** and this is **0048**. ADRs are docs, not DB rows (ADR-0017/0045) — no live-DB ref to collide.
+*Numbering note:* `docs/decisions/` runs 0001–0046 on `main`; `git log --all` shows **0047**
+(`0047-inbound-signal-librarian-and-recursive-graduation.md`, draft PR #109) and **0048**
+(`0048-in-flight-build-is-the-primary-wisp.md`, a parallel session's harness-driven-wisps ADR) both
+already taken on draft branches, so this is **0049**. ADRs are docs, not DB rows (ADR-0017/0045) — no
+live-DB ref to collide; the on-disk-number collision is what the rename to 0049 avoids.
 
 ## Date
 

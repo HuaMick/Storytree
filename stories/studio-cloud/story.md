@@ -8,7 +8,7 @@ proof_mode: UAT
 capabilities: [serve-mode, guest-scope, container-image, cloud-run-iap, circle-onboarding, hosted-db-wake]
 # Story-level edges: the studio UI being served, and the library story's store seam (ADR-0010 §4).
 depends_on: [studio, library]
-decisions: [42, 48] # deciding ADRs (ADR-0037 §2): 0042 stood it up, 0048 lets it wake its own DB
+decisions: [42, 49] # deciding ADRs (ADR-0037 §2): 0042 stood it up, 0049 lets it wake its own DB
 ---
 
 # Studio cloud — the trusted circle interacts with a served studio

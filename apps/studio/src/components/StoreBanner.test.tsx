@@ -186,7 +186,7 @@ describe('StoreBanner', () => {
     expect(container.innerHTML).toBe('');
   });
 
-  // ── hosted DB wake (ADR-0048): canWake swaps the gcloud Start DB for the keyless wake ──
+  // ── hosted DB wake (ADR-0049): canWake swaps the gcloud Start DB for the keyless wake ──
   it('canWake: shows "Wake the database"; click → api.dbWake → starting → health ok → recovered', async () => {
     apiMock.health.mockResolvedValue(dbDown);
     apiMock.dbStatus.mockRejectedValue(new Error('403')); // hosted: /api/db/status is structurally off

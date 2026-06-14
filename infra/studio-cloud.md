@@ -156,11 +156,11 @@ Send the dev the service URL (`gcloud run services describe storytree-studio --r
 australia-southeast1 --format="value(status.url)"`). They sign in with the granted Google
 account and land in the studio — no other setup.
 
-## 6. Wake the DB from the site (ADR-0048) — one-time grant + deploy
+## 6. Wake the DB from the site (ADR-0049) — one-time grant + deploy
 
 The shared Cloud SQL instance idle-stops for cost (ADR-0015). When it's stopped, hosted members hit
 the store-unreachable wall — and the old `/api/db/*` Start DB path is off hosted (it needs the
-operator's gcloud). ADR-0048 adds a keyless, container-native wake: an **admin** presses "Wake the
+operator's gcloud). ADR-0049 adds a keyless, container-native wake: an **admin** presses "Wake the
 database" and the runtime SA (`storytree-studio-host`) PATCHes the Cloud SQL Admin API directly. Two
 owner steps turn it on.
 
@@ -191,7 +191,7 @@ unresolvable) by the bootstrap-admin seed (`STORYTREE_STUDIO_ADMINS`). IAP is `a
 - They can comment everywhere (attributed to their email — the server stamps it); they can
   edit/resolve only their own comments.
 - Artifact editing answers 403 (owner-side). If the DB is idle-stopped, **admins** see a
-  "Wake the database" button that brings it back from the site (§6, ADR-0048) and the page
+  "Wake the database" button that brings it back from the site (§6, ADR-0049) and the page
   self-recovers; **members** see the honest degraded banner until an admin (or `pnpm db:up`) wakes it.
 - docs/stories are a deploy-time snapshot; library/comments/verdicts/presence are live.
 

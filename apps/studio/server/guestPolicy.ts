@@ -63,7 +63,7 @@ export async function resolveMembersAccess(
 }
 
 /**
- * PURE: may this identity wake the idle-stopped DB (studio-cloud `hosted-db-wake`, ADR-0048)?
+ * PURE: may this identity wake the idle-stopped DB (studio-cloud `hosted-db-wake`, ADR-0049)?
  * Gated on the bootstrap-admin SEED, not the projection: when the store is down, membership can't
  * be resolved (chicken-and-egg), so seed admins — env-resolvable without the DB — are the only
  * identities we can authorize a billable instance start for. IAP was widened to allAuthenticatedUsers
@@ -117,7 +117,7 @@ export function createMembersPolicy(identity: string | null, access: ResolvedAcc
 /**
  * The degraded policy when the live store can't be reached to resolve membership: keep the
  * diagnostic endpoints alive (`/api/health` drives the store banner; `/api/me` reports the outage),
- * ALSO let a seed admin wake the DB (studio-cloud `hosted-db-wake`, ADR-0048 — so a stopped store can
+ * ALSO let a seed admin wake the DB (studio-cloud `hosted-db-wake`, ADR-0049 — so a stopped store can
  * self-recover instead of staying walled), and 503 everything else, rather than 500-ing or silently
  * locking members out. The wake is the ONE write reachable while membership is unresolved, so it is
  * authorized off the env seed (`mayWakeDb`), never the projection.

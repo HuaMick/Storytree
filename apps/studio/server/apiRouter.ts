@@ -258,7 +258,7 @@ export interface MeInfo {
   storeUnreachable?: boolean;
   /**
    * Whether this caller may wake the idle-stopped DB from the hosted studio (studio-cloud
-   * `hosted-db-wake`, ADR-0048) — drives the StoreBanner's "Wake the database" button. Seed admins
+   * `hosted-db-wake`, ADR-0049) — drives the StoreBanner's "Wake the database" button. Seed admins
    * (degraded mode) or resolved admins (normal mode); false for the open dev posture (local uses
    * the gcloud Start DB button instead).
    */
@@ -817,7 +817,7 @@ export interface ApiContext {
    */
   allowDbControl: boolean;
   /**
-   * Hosted-native DB wake (studio-cloud `hosted-db-wake`, ADR-0048): the keyless Cloud SQL Admin
+   * Hosted-native DB wake (studio-cloud `hosted-db-wake`, ADR-0049): the keyless Cloud SQL Admin
    * REST waker (dbWake.ts). Unlike `/api/db/*` (gcloud, operator's machine), this works IN the
    * container, so it is served regardless of `allowDbControl`. Absent (the dev plugin) → 404.
    */
@@ -854,7 +854,7 @@ export async function handleApiRequest(
         codeStamp: ctx.codeStamp,
       });
     } else if (url.pathname === '/api/db/wake') {
-      // Hosted-native wake (ADR-0048): keyless Cloud SQL Admin REST, so it works in the container
+      // Hosted-native wake (ADR-0049): keyless Cloud SQL Admin REST, so it works in the container
       // — served REGARDLESS of allowDbControl (the gcloud `/api/db/*` premise below doesn't hold
       // hosted). The policy gate already authorized it (seed admin in degraded mode / admin in
       // normal mode); absent waker (dev plugin) → 404 inside the handler.

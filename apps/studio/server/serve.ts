@@ -98,7 +98,7 @@ export interface StudioServerOptions {
   /** Invite-email sender; absent → a disabled mailer (invites still write their row, no email). */
   invites?: InviteMailer | undefined;
   /**
-   * Hosted DB waker (studio-cloud `hosted-db-wake`, ADR-0048). The entrypoint injects the real
+   * Hosted DB waker (studio-cloud `hosted-db-wake`, ADR-0049). The entrypoint injects the real
    * metadata-token waker; tests inject a stub. Absent → /api/db/wake answers 404.
    */
   dbWake?: DbWaker | undefined;
@@ -143,7 +143,7 @@ export function createStudioServer(opts: StudioServerOptions): Server {
           store: selectedStore(),
           codeStamp,
           allowDbControl: false, // gcloud-on-the-operator's-machine never holds hosted
-          dbWake: opts.dbWake, // keyless Cloud SQL Admin REST — works in the container (ADR-0048)
+          dbWake: opts.dbWake, // keyless Cloud SQL Admin REST — works in the container (ADR-0049)
           policy,
           invites,
         });
@@ -180,7 +180,7 @@ if (isMain()) {
     admins: parseSeedAdmins(process.env[ADMINS_ENV]),
     devIdentity: process.env.STORYTREE_STUDIO_DEV_IDENTITY,
     invites: createInviteMailer(process.env),
-    // Hosted DB wake (ADR-0048): the runtime SA's metadata token + Cloud SQL Admin REST. Only
+    // Hosted DB wake (ADR-0049): the runtime SA's metadata token + Cloud SQL Admin REST. Only
     // meaningful on Cloud Run; a local serve trial has no metadata server, so wake() would reject.
     dbWake: createMetadataDbWaker(),
   });

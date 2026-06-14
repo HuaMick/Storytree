@@ -340,7 +340,7 @@ describe('db control is off (structurally, not by role)', () => {
   });
 });
 
-describe('hosted DB wake (ADR-0048) — admin-only, even though /api/db/* is off', () => {
+describe('hosted DB wake (ADR-0049) — admin-only, even though /api/db/* is off', () => {
   it('an admin wakes the DB (202, the waker fires); a member is refused before any wake', async () => {
     seen.wakeCount = 0;
     const member = await fetch(`${base}/api/db/wake`, { method: 'POST', headers: iap(MEMBER) });
@@ -541,7 +541,7 @@ describe('store outage degrades to health/me only', () => {
 
       // The chicken-and-egg: with the store down, membership can't be resolved — yet a SEED admin
       // can still wake it (authorized off the env seed, not the projection), so the studio recovers
-      // instead of staying walled (ADR-0048). A non-seed member cannot trigger a billable start.
+      // instead of staying walled (ADR-0049). A non-seed member cannot trigger a billable start.
       seen.wakeCount = 0;
       const memberWake = await fetch(`${dbase}/api/db/wake`, { method: 'POST', headers: iap(MEMBER) });
       expect(memberWake.status).toBe(403);

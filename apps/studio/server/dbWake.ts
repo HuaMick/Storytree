@@ -1,4 +1,4 @@
-// Hosted-native DB wake (studio-cloud `hosted-db-wake`, ADR-0048): bring the idle-stopped Cloud SQL
+// Hosted-native DB wake (studio-cloud `hosted-db-wake`, ADR-0049): bring the idle-stopped Cloud SQL
 // instance back up FROM THE CONTAINER, with no gcloud. The local `/api/db/start` (dbControl.ts)
 // shells out to gcloud using the operator's ambient ADC — neither gcloud nor that ADC exists on
 // Cloud Run, so hosted members were stuck behind the "membership can't be resolved" wall until

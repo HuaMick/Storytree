@@ -77,7 +77,7 @@ export const api = {
     http('/api/presence', { signal: AbortSignal.timeout(10_000) }),
   dbStatus: (): Promise<DbStatus> => http('/api/db/status'),
   dbStart: (): Promise<{ ok: true }> => http('/api/db/start', { method: 'POST' }),
-  // Hosted-native DB wake (ADR-0048): keyless Cloud SQL Admin REST, so it works on Cloud Run where
+  // Hosted-native DB wake (ADR-0049): keyless Cloud SQL Admin REST, so it works on Cloud Run where
   // gcloud-based dbStart() answers 403. Admin-gated server-side; 202 fire-and-forget like dbStart.
   dbWake: (): Promise<{ ok: true }> => http('/api/db/wake', { method: 'POST' }),
 

@@ -45,7 +45,7 @@ export function StoreBanner({
 }: {
   onRecovered: () => void;
   /**
-   * Hosted-mode admins (ADR-0048): show a "Wake the database" button that calls the keyless
+   * Hosted-mode admins (ADR-0049): show a "Wake the database" button that calls the keyless
    * Cloud SQL Admin REST endpoint, instead of the local gcloud Start DB. False (the default, and
    * the local dev posture) keeps the existing gcloud flow untouched.
    */
@@ -144,7 +144,7 @@ export function StoreBanner({
     }
   }, []);
 
-  // Hosted wake (ADR-0048): the keyless Cloud SQL Admin REST path. Same recovery loop as startDb —
+  // Hosted wake (ADR-0049): the keyless Cloud SQL Admin REST path. Same recovery loop as startDb —
   // set 'starting', fire, let the health poll flip to recovery. A non-seed admin during an outage
   // is refused server-side (403); surface that message instead of silently failing.
   const wakeDb = useCallback(async (): Promise<void> => {
@@ -203,7 +203,7 @@ export function StoreBanner({
           reload this page.
         </span>
       ) : canWake ? (
-        // Hosted admin (ADR-0048): the keyless wake button. Takes precedence over the local
+        // Hosted admin (ADR-0049): the keyless wake button. Takes precedence over the local
         // stopped/unreachable split — on Cloud Run /api/db/status 403s, so the phase is
         // 'unreachable', but the instance is idle-stopped and an admin can bring it back.
         <>

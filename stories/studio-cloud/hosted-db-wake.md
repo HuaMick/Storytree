@@ -16,12 +16,12 @@ hosted studio and the DB comes back — keyless, from the container, with no gcl
 the page self-recovers; non-admins are refused, and any authenticated user is kept off the billable
 start.
 
-The deciding ADR is [ADR-0048](../../docs/decisions/0048-hosted-studio-self-wakes-its-db.md) (amends
+The deciding ADR is [ADR-0049](../../docs/decisions/0049-hosted-studio-self-wakes-its-db.md) (amends
 ADR-0042). Closes the dead end ADR-0042 left: hosted members hit the store-unreachable wall when the
 DB idle-stops (ADR-0015) and had no way back — the existing `/api/db/start` shells out to gcloud on
 the operator's machine, which doesn't exist on Cloud Run.
 
-## Design floor (from ADR-0048)
+## Design floor (from ADR-0049)
 
 - **Keyless, container-native wake.** `POST /api/db/wake` reads the runtime SA's metadata token and
   PATCHes the Cloud SQL Admin REST API (`activationPolicy = ALWAYS`) — the inverse of the
