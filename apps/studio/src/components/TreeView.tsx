@@ -1090,6 +1090,237 @@ function buildWorld(stories: TreeStory[]): HexWorld {
   };
 }
 
+// ---------- relaxed substrate (VISUAL SPIKE, ADR-pending) ----------
+//
+// A prototype that swaps the regular hex-tile interiors for an irregular,
+// relaxed grid (Oskar Stålberg / Townscaper style) so each island reads as one
+// organic landmass instead of a cluster of hexagons. Gated behind the
+// `?substrate=…` query param — the default world is untouched. Two techniques:
+//
+//   `relaxed-hex`  — cheap path: relax the SHARED hex-corner lattice (dedupe each
+//                    unique corner, hash-jitter + Laplacian-relax the interior
+//                    ones, rebuild each tile from its now-displaced shared corners
+//                    so adjacent tiles stay gap-free). Wobbly irregular hexagons.
+//   `relaxed-quad` — faithful path: subdivide every hex into 6 quads (centre →
+//                    edge-midpoints → corners), then jitter + relax the shared
+//                    vertex mesh. The Townscaper cobble look (`relaxed` aliases it).
+//
+// Both keep the DAG-driven layout and the existing organic coastline; only the
+// interior tile geometry changes. Deterministic throughout (hash/rand01, no
+// Math.random). Boundary vertices (the outer silhouette the coastline was
+// smoothed from) are PINNED so the shore still encloses the relaxed cells.
+
+export type SubstrateMode = 'relaxed-hex' | 'relaxed-quad';
+
+/** One filled cell of the relaxed substrate: a polygon owned by a territory. */
+interface RelaxedCell {
+  owner: number;
+  poly: Pt[];
+  variant: number;
+  wheat: boolean;
+}
+
+const VKEY = (p: Pt): string => `${Math.round(p.x * 10)},${Math.round(p.y * 10)}`;
+
+/**
+ * Jitter (deterministically) then Laplacian-relax a vertex mesh in place.
+ * Interior vertices wobble and smooth into organic cells; pinned (boundary)
+ * vertices hold the silhouette. Light relaxation keeps the jittered character
+ * — full convergence would regularise a regular-topology mesh back to a grid.
+ */
+function relaxVerts(
+  verts: Pt[],
+  adj: Set<number>[],
+  pinned: Set<number>,
+  opts: { jitterMag: number; iters: number; relax: number },
+): void {
+  const orig = verts.map((p) => VKEY(p));
+  for (let i = 0; i < verts.length; i++) {
+    if (pinned.has(i)) continue;
+    const p = verts[i];
+    if (!p) continue;
+    const ang = rand01(hash(`jx:${orig[i]}`)) * Math.PI * 2;
+    const mag = rand01(hash(`jm:${orig[i]}`)) * opts.jitterMag;
+    p.x += Math.cos(ang) * mag;
+    p.y += Math.sin(ang) * mag;
+  }
+  for (let it = 0; it < opts.iters; it++) {
+    const next = verts.map((p) => ({ x: p.x, y: p.y }));
+    for (let i = 0; i < verts.length; i++) {
+      if (pinned.has(i)) continue;
+      const ns = adj[i];
+      const cur = verts[i];
+      const nx = next[i];
+      if (!ns || !cur || !nx || ns.size === 0) continue;
+      let sx = 0;
+      let sy = 0;
+      for (const j of ns) {
+        const q = verts[j];
+        if (q) {
+          sx += q.x;
+          sy += q.y;
+        }
+      }
+      nx.x = cur.x + (sx / ns.size - cur.x) * opts.relax;
+      nx.y = cur.y + (sy / ns.size - cur.y) * opts.relax;
+    }
+    for (let i = 0; i < verts.length; i++) {
+      const cur = verts[i];
+      const nx = next[i];
+      if (cur && nx) {
+        cur.x = nx.x;
+        cur.y = nx.y;
+      }
+    }
+  }
+}
+
+/** Path A — relax the shared hex-corner lattice; rebuild irregular hexagons. */
+function buildRelaxedHexCells(world: HexWorld): RelaxedCell[] {
+  const verts: Pt[] = [];
+  const vId = new Map<string, number>();
+  const adj: Set<number>[] = [];
+  const intern = (p: Pt): number => {
+    const k = VKEY(p);
+    let id = vId.get(k);
+    if (id === undefined) {
+      id = verts.length;
+      verts.push({ x: p.x, y: p.y });
+      vId.set(k, id);
+      adj.push(new Set());
+    }
+    return id;
+  };
+  // Each tile → its 6 shared corner ids; track hex-edge usage to find the shore.
+  const tileCorners: { owner: number; key: string; ids: number[] }[] = [];
+  const edgeUse = new Map<string, number>();
+  const eKey = (a: number, b: number): string => (a < b ? `${a}|${b}` : `${b}|${a}`);
+  for (const { h, owner } of world.drawTiles) {
+    const c = hexCenter(h);
+    const ids = hexCorners(c.x, c.y, HEX_R).map(intern);
+    tileCorners.push({ owner, key: axialKey(h), ids });
+    for (let i = 0; i < 6; i++) {
+      const a = ids[i];
+      const b = ids[(i + 1) % 6];
+      if (a === undefined || b === undefined) continue;
+      adj[a]?.add(b);
+      adj[b]?.add(a);
+      const k = eKey(a, b);
+      edgeUse.set(k, (edgeUse.get(k) ?? 0) + 1);
+    }
+  }
+  const pinned = new Set<number>();
+  for (const [k, n] of edgeUse) {
+    if (n === 1) {
+      const [a, b] = k.split('|');
+      pinned.add(Number(a));
+      pinned.add(Number(b));
+    }
+  }
+  relaxVerts(verts, adj, pinned, { jitterMag: HEX_R * 0.5, iters: 3, relax: 0.34 });
+  return tileCorners.map(({ owner, key, ids }) => ({
+    owner,
+    poly: ids.map((id) => verts[id] ?? { x: 0, y: 0 }),
+    variant: hash(`tile:${key}`) % 3,
+    wheat: world.territories[owner]?.wheatTiles.has(key) ?? false,
+  }));
+}
+
+/** Path B — subdivide each hex into 6 quads, relax the shared mesh (Townscaper). */
+function buildRelaxedQuadCells(world: HexWorld): RelaxedCell[] {
+  const verts: Pt[] = [];
+  const vId = new Map<string, number>();
+  const adj: Set<number>[] = [];
+  const intern = (p: Pt): number => {
+    const k = VKEY(p);
+    let id = vId.get(k);
+    if (id === undefined) {
+      id = verts.length;
+      verts.push({ x: p.x, y: p.y });
+      vId.set(k, id);
+      adj.push(new Set());
+    }
+    return id;
+  };
+  interface Quad {
+    owner: number;
+    ids: number[];
+    variant: number;
+    wheat: boolean;
+  }
+  const quads: Quad[] = [];
+  const edgeUse = new Map<string, number>();
+  const eKey = (a: number, b: number): string => (a < b ? `${a}|${b}` : `${b}|${a}`);
+  const link = (a: number, b: number): void => {
+    adj[a]?.add(b);
+    adj[b]?.add(a);
+    const k = eKey(a, b);
+    edgeUse.set(k, (edgeUse.get(k) ?? 0) + 1);
+  };
+  for (const { h, owner } of world.drawTiles) {
+    const c = hexCenter(h);
+    const corners = hexCorners(c.x, c.y, HEX_R);
+    const oid = intern(c);
+    const key = axialKey(h);
+    const wheat = world.territories[owner]?.wheatTiles.has(key) ?? false;
+    const cornerIds = corners.map(intern);
+    const midIds = corners.map((cor, i) => {
+      const nxt = corners[(i + 1) % 6] ?? cor;
+      return intern({ x: (cor.x + nxt.x) / 2, y: (cor.y + nxt.y) / 2 });
+    });
+    for (let i = 0; i < 6; i++) {
+      const ci = cornerIds[i];
+      const mPrev = midIds[(i + 5) % 6];
+      const mNext = midIds[i];
+      if (ci === undefined || mPrev === undefined || mNext === undefined) continue;
+      const ids = [oid, mPrev, ci, mNext];
+      quads.push({ owner, ids, variant: hash(`cell:${key}:${i}`) % 3, wheat });
+      link(ids[0]!, ids[1]!);
+      link(ids[1]!, ids[2]!);
+      link(ids[2]!, ids[3]!);
+      link(ids[3]!, ids[0]!);
+    }
+  }
+  const pinned = new Set<number>();
+  for (const [k, n] of edgeUse) {
+    if (n === 1) {
+      const [a, b] = k.split('|');
+      pinned.add(Number(a));
+      pinned.add(Number(b));
+    }
+  }
+  relaxVerts(verts, adj, pinned, { jitterMag: HEX_R * 0.42, iters: 4, relax: 0.4 });
+  return quads.map((q) => ({
+    owner: q.owner,
+    poly: q.ids.map((id) => verts[id] ?? { x: 0, y: 0 }),
+    variant: q.variant,
+    wheat: q.wheat,
+  }));
+}
+
+function buildRelaxedCells(world: HexWorld, mode: SubstrateMode): RelaxedCell[] {
+  return mode === 'relaxed-hex' ? buildRelaxedHexCells(world) : buildRelaxedQuadCells(world);
+}
+
+/** A closed polygon `d` string. */
+function polyPath(pts: Pt[]): string {
+  if (pts.length === 0) return '';
+  return (
+    pts
+      .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
+      .join(' ') + ' Z'
+  );
+}
+
+/** Read the substrate spike mode from the URL (`?substrate=relaxed|relaxed-hex|relaxed-quad`). */
+function readSubstrateMode(): SubstrateMode | null {
+  if (typeof window === 'undefined') return null;
+  const raw = new URLSearchParams(window.location.search).get('substrate');
+  if (raw === 'relaxed-hex') return 'relaxed-hex';
+  if (raw === 'relaxed-quad' || raw === 'relaxed') return 'relaxed-quad';
+  return null;
+}
+
 // ---------- focus relations (V1's ancestor/descendant highlighting) ----------
 
 interface Relations {
@@ -1242,6 +1473,14 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
   }, []);
 
   const world = useMemo(() => (stories ? buildWorld(stories) : null), [stories]);
+
+  // VISUAL SPIKE (do not land): swap the regular hex interiors for an irregular
+  // relaxed grid when `?substrate=…` is set. Null = the default hex world.
+  const substrateMode = useMemo(() => readSubstrateMode(), []);
+  const relaxedCells = useMemo(
+    () => (world && substrateMode ? buildRelaxedCells(world, substrateMode) : null),
+    [world, substrateMode],
+  );
 
   // The world reads bottom-up (foundation at the bottom), so the frame opens
   // scrolled to the bottom; selecting / deep-linking a story scrolls its
@@ -1514,31 +1753,59 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
               </g>
 
               {/* claimed land, back-to-front so extrusions layer */}
-              <g className="hex-land">
-                {world.drawTiles.map(({ h, owner }) => {
-                  const territory = world.territories[owner];
-                  if (!territory) return null;
-                  const c = hexCenter(h);
-                  const key = axialKey(h);
-                  const variant = hash(`tile:${key}`) % 3;
-                  const wheat = territory.wheatTiles.has(key);
-                  return (
-                    <g
-                      key={key}
-                      className={`hex-tile ${territoryClass(territory.story)}`}
-                      onMouseEnter={() => setHoverStory(territory.story.id)}
-                      onMouseLeave={() => setHoverStory(null)}
-                      onClick={() => selectStory(territory.story.id, null)}
-                    >
-                      <path className="hex-side" d={hexPath(c.x, c.y + TILE_DEPTH, HEX_R)} />
-                      <path
-                        className={`hex-top ${wheat ? 'is-wheat' : `v-${variant}`}`}
-                        d={hexPath(c.x, c.y, HEX_R)}
-                      />
-                    </g>
-                  );
-                })}
-              </g>
+              {relaxedCells ? (
+                // VISUAL SPIKE: irregular relaxed substrate (flat cells, grouped
+                // by territory for hover/focus). Replaces the extruded hex tiles.
+                <g className="relaxed-land">
+                  {world.territories.map((territory, owner) => {
+                    const cells = relaxedCells.filter((c) => c.owner === owner);
+                    if (cells.length === 0) return null;
+                    return (
+                      <g
+                        key={territory.story.id}
+                        className={`relaxed-tile ${territoryClass(territory.story)}`}
+                        onMouseEnter={() => setHoverStory(territory.story.id)}
+                        onMouseLeave={() => setHoverStory(null)}
+                        onClick={() => selectStory(territory.story.id, null)}
+                      >
+                        {cells.map((cell, i) => (
+                          <path
+                            key={i}
+                            className={`relaxed-cell ${cell.wheat ? 'is-wheat' : `v-${cell.variant}`}`}
+                            d={polyPath(cell.poly)}
+                          />
+                        ))}
+                      </g>
+                    );
+                  })}
+                </g>
+              ) : (
+                <g className="hex-land">
+                  {world.drawTiles.map(({ h, owner }) => {
+                    const territory = world.territories[owner];
+                    if (!territory) return null;
+                    const c = hexCenter(h);
+                    const key = axialKey(h);
+                    const variant = hash(`tile:${key}`) % 3;
+                    const wheat = territory.wheatTiles.has(key);
+                    return (
+                      <g
+                        key={key}
+                        className={`hex-tile ${territoryClass(territory.story)}`}
+                        onMouseEnter={() => setHoverStory(territory.story.id)}
+                        onMouseLeave={() => setHoverStory(null)}
+                        onClick={() => selectStory(territory.story.id, null)}
+                      >
+                        <path className="hex-side" d={hexPath(c.x, c.y + TILE_DEPTH, HEX_R)} />
+                        <path
+                          className={`hex-top ${wheat ? 'is-wheat' : `v-${variant}`}`}
+                          d={hexPath(c.x, c.y, HEX_R)}
+                        />
+                      </g>
+                    );
+                  })}
+                </g>
+              )}
 
               {/* rivers between dependent territories (dep → dependent): a light
                   bank casing (also the bridge-gap where rivers cross), the water
