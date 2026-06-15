@@ -15,7 +15,7 @@ depends_on: [library]
 # Deciding ADRs (ADR-0037 §2): the spine sequence (5), the gate (20), the SDK leaf (30),
 # promotion (31), leaf feedback tools (35), the OQ hygiene gate on live builds (37), the
 # inner-loop-expansion keystone — node-borne proof config (57) — and gate-as-proof authoring (59).
-decisions: [5, 20, 30, 31, 35, 37, 57, 59]
+decisions: [5, 20, 30, 31, 35, 37, 57, 59, 60]
 ---
 
 # The drive machinery

@@ -50,6 +50,8 @@ import {
 import { renderAgentPrompt } from "./agents.js";
 import { withPresence } from "./ambient-presence.js";
 import type { AmbientDeps } from "./ambient-presence.js";
+import { effectiveVerdictStore, ensureLiveDb } from "./db-control.js";
+import type { EnsureDbResult } from "./db-control.js";
 import type { Envelope } from "./envelope.js";
 import { resolveReport } from "./resolve-report.js";
 import { deriveIdentity } from "./noticeboard.js";
@@ -255,7 +257,9 @@ export async function resolveVerdictStore(
   scripted: boolean,
   retryCmd: string,
 ): Promise<VerdictStoreChoice> {
-  if (flag === undefined) {
+  if (flag === undefined || flag === "memory") {
+    // `memory` is the explicit opt-out (ADR-0060): a live/real build that should NOT persist
+    // (and so not feed the studio's wisp/bloom). `undefined` is the dry-run default.
     return {
       ok: true,
       store: new InMemoryStore(),
@@ -270,7 +274,7 @@ export async function resolveVerdictStore(
       ok: false,
       refusal: {
         ok: false,
-        body: `unknown --store "${flag}" — the only persistent verdict store is "pg" (events.work_event + events.verdict).`,
+        body: `unknown --store "${flag}" — the persistent verdict store is "pg" (events.work_event + events.verdict); "memory" forces the in-memory store.`,
         next: [`${retryCmd} --store pg`],
       },
     };
@@ -604,8 +608,17 @@ export interface NodeBuildOpts {
   maxTurns?: number;
   /** `--actor` — the signer chain's flag tier (flag → STORYTREE_SIGNER → git email). */
   actor?: string;
-  /** `--store` — the verdict store: absent = in-memory, `pg` = the live work tables (live/real only). */
+  /**
+   * `--store` — the verdict store. For `--live`/`--real` it DEFAULTS to `pg` (the build owns the DB,
+   * ADR-0060); `memory` is the explicit opt-out (no persistence, no studio wisp/bloom). For
+   * `--dry-run`, absent = in-memory and `pg` is refused (a scripted PASS must not persist, ADR-0020).
+   */
   verdictStore?: string;
+  /**
+   * Injectable for tests (ADR-0060): the live-store preflight for a `--live`/`--real` build that will
+   * persist. Default = {@link ensureLiveDb} (probe → `db:up` + wait when the instance is down).
+   */
+  ensureDb?: (log: (message: string) => void) => Promise<EnsureDbResult>;
   /** Injectable for tests; defaults to `<repoRoot>/stories`. */
   storiesDir?: string;
   /**
@@ -710,11 +723,27 @@ export async function nodeBuild(
   }
 
   const modeFlag = real ? "--real" : live ? "--live" : "--dry-run";
-  const storeChoice = await resolveVerdictStore(
-    opts.verdictStore,
-    mode === "dry-run",
-    `storytree node build ${spec.id} ${modeFlag}`,
-  );
+  const retryCmd = `storytree node build ${spec.id} ${modeFlag}`;
+  // ADR-0060: a live/real build OWNS the database. `--store` defaults to `pg` for live/real (so real
+  // work feeds the studio's wisp/bloom), and the preflight ENSURES the instance is up before we
+  // connect — probing it, and starting it (`db:up`) + waiting if it is down. `--store memory` opts
+  // out; `--dry-run` is untouched (in-memory, never the DB).
+  const effectiveStore = effectiveVerdictStore(opts.verdictStore, mode === "dry-run");
+  if (effectiveStore === "pg" && mode !== "dry-run") {
+    const ensureDb = opts.ensureDb ?? ensureLiveDb;
+    const ready = await ensureDb((m) => console.error(`[db] ${m}`));
+    if (!ready.ok) {
+      return {
+        ok: false,
+        body: `${modeFlag} persists to the live store, but the database could not be brought up:\n${ready.reason}`,
+        next: [
+          "pnpm db:status",
+          `${retryCmd} --store memory   (run WITHOUT persisting — no studio wisp/bloom)`,
+        ],
+      };
+    }
+  }
+  const storeChoice = await resolveVerdictStore(effectiveStore, mode === "dry-run", retryCmd);
   if (!storeChoice.ok) return storeChoice.refusal;
   const { store, persisted } = storeChoice;
 
@@ -1039,10 +1068,12 @@ export function nodeHelp(storiesDir: string = defaultStoriesDir()): Envelope {
       "      pnpm install in the worktree plus a package typecheck (tsx strips types; tsc must",
       "      agree) and a package-suite regression run — a red of either withholds the push.",
       "",
-      "  --store pg   (--live/--real only) persist the building mark + signed verdict to the",
-      "      live work tables (events.work_event/events.verdict) instead of an in-memory store.",
-      "      Needs the DB up (pnpm db:up) and STORYTREE_DB_USER. Refused for --dry-run — a",
-      "      scripted PASS persisted to the shared store would be a forged healthy (ADR-0020).",
+      "  --store     (--live/--real) DEFAULTS to pg (ADR-0060): the build owns the DB — it",
+      "      persists the building mark + signed verdict to the live work tables",
+      "      (events.work_event/events.verdict) so real work feeds the studio's wisp/bloom, and",
+      "      it auto-starts the instance (db:up) and waits if it is down. --store memory opts out",
+      "      (no persistence, no wisp/bloom). For --dry-run the default is in-memory and --store pg",
+      "      is refused — a scripted PASS persisted to the shared store is a forged healthy (ADR-0020).",
       "",
       `buildable nodes (registry + spec-borne): ${buildable.join(", ")}`,
       `REAL-buildable nodes:                    ${realBuildable.join(", ") || "(none yet)"}`,

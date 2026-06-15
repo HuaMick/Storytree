@@ -23,6 +23,8 @@ import type {
 } from "@storytree/orchestrator";
 
 import type { AmbientDeps } from "./ambient-presence.js";
+import { effectiveVerdictStore, ensureLiveDb } from "./db-control.js";
+import type { EnsureDbResult } from "./db-control.js";
 import type { Envelope } from "./envelope.js";
 import {
   buildNodeReal,
@@ -116,8 +118,16 @@ export interface StoryBuildOpts {
   maxTurns?: number;
   /** `--actor` — the signer chain's flag tier. */
   actor?: string;
-  /** `--store` — the verdict store: absent = in-memory, `pg` = the live work tables (live/real only). */
+  /**
+   * `--store` — the verdict store. For `--live`/`--real` it DEFAULTS to `pg` (the build owns the DB,
+   * ADR-0060); `memory` opts out. For `--dry-run`, absent = in-memory and `pg` is refused (ADR-0020).
+   */
   verdictStore?: string;
+  /**
+   * Injectable for tests (ADR-0060): the live-store preflight for a persisting `--live`/`--real`
+   * chain. Default = {@link ensureLiveDb} (probe → `db:up` + wait when the instance is down).
+   */
+  ensureDb?: (log: (message: string) => void) => Promise<EnsureDbResult>;
   /** Injectable for tests; defaults to `<repoRoot>/stories`. */
   storiesDir?: string;
   /** Injectable repo root for `--real` worktree + promotion (tests use a fixture repo); defaults to repoRoot(). */
@@ -276,6 +286,27 @@ export async function storyBuild(
     }
   }
 
+  // ADR-0060: a live/real story chain OWNS the database — `--store` defaults to `pg`, and the
+  // preflight ENSURES the instance is up (probe → `db:up` + wait if down) BEFORE anything that
+  // touches it: the oq-hygiene gate's live loader composes the PgLibraryStore, and the verdict store
+  // is pg. `--store memory` opts out; `--dry-run` is untouched (in-memory, never the DB).
+  const retryCmd = `storytree story build ${story.id} ${real ? "--real" : "--live"}`;
+  const effectiveStore = effectiveVerdictStore(opts.verdictStore, mode === "dry-run");
+  if (effectiveStore === "pg" && mode !== "dry-run") {
+    const ensureDb = opts.ensureDb ?? ensureLiveDb;
+    const ready = await ensureDb((m) => console.error(`[db] ${m}`));
+    if (!ready.ok) {
+      return {
+        ok: false,
+        body: `this build persists to the live store, but the database could not be brought up:\n${ready.reason}`,
+        next: [
+          "pnpm db:status",
+          `${retryCmd} --store memory   (run WITHOUT persisting — no studio wisp/bloom)`,
+        ],
+      };
+    }
+  }
+
   // ADR-0037 §5: open-question hygiene gates a LIVE/REAL build, before any store setup or spend.
   // An unprocessed operator answer on a deciding ADR's OQ refuses the run; offline never refuses.
   const hygiene = await oqHygieneGate(story, live || real, opts.oqGateDeps ?? {});
@@ -291,11 +322,7 @@ export async function storyBuild(
     phasePrompts = rendered.prompts;
   }
 
-  const storeChoice = await resolveVerdictStore(
-    opts.verdictStore,
-    mode === "dry-run",
-    `storytree story build ${story.id} ${real ? "--real" : "--live"}`,
-  );
+  const storeChoice = await resolveVerdictStore(effectiveStore, mode === "dry-run", retryCmd);
   if (!storeChoice.ok) return storeChoice.refusal;
   const { store, persisted } = storeChoice;
 
@@ -622,8 +649,11 @@ export function storyHelp(): Envelope {
       "      is parked LOCAL-ONLY (never pushed). Every driven node must be REAL-buildable (a real:",
       "      arm). Same total budget ceiling. The default $10 may be low for a multi-node real chain.",
       "",
-      "  --store pg   (--live/--real only) persist building marks + signed verdicts to the live work",
-      "      tables (events.work_event/events.verdict). Refused for --dry-run (forged-healthy guard).",
+      "  --store     (--live/--real) DEFAULTS to pg (ADR-0060): the build owns the DB — it persists",
+      "      building marks + signed verdicts (events.work_event/events.verdict) so real work feeds",
+      "      the studio's wisp/bloom, auto-starting the instance (db:up) and waiting if it is down.",
+      "      --store memory opts out. For --dry-run the default is in-memory and pg is refused",
+      "      (forged-healthy guard, ADR-0020).",
       "",
       "buildable stories: those whose story + capabilities all have registry entries (today: library).",
     ].join("\n"),
