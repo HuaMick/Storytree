@@ -60,7 +60,7 @@
      with banks, and fuses seamlessly into the island beach), a pale shallows rim,
      ONE water-body colour (river bodies and moats match, so a river mouth dissolves
      into the moat with no seam), and a flowing glint. */
-  --river-land: #e6d6b3; /* the sand banks casing both sides of every river/moat — a notch darker than --coast-sand so the channel reads */
+  --river-land: #d8be8c; /* the sand banks casing both sides of every river/moat — a notch darker than --coast-sand so the channel reads as carved terrain */
   --river: #5aa9d6; /* the one water colour: river bodies AND island moats */
   --river-bank: #cfeaf6; /* pale shallows between the sand bank and the open water */
   --river-glint: #ffffff;
