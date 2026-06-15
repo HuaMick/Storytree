@@ -1573,6 +1573,26 @@ mark.st-hl.flash {
   opacity: 0.35;
 }
 
+/* VISUAL SPIKE (?substrate=…): the irregular relaxed substrate — flat polygon
+   cells reusing the grass/wheat palette, with a soft cell seam so the island
+   reads as an organic landmass instead of a cluster of hexagons. */
+.relaxed-tile {
+  cursor: pointer;
+  transition: opacity 0.18s ease;
+}
+.relaxed-cell {
+  stroke: rgba(95, 120, 60, 0.28);
+  stroke-width: 0.7;
+  stroke-linejoin: round;
+}
+.relaxed-cell.v-0 { fill: var(--hex-top-0); }
+.relaxed-cell.v-1 { fill: var(--hex-top-1); }
+.relaxed-cell.v-2 { fill: var(--hex-top-2); }
+.relaxed-cell.is-wheat { fill: var(--hex-wheat); }
+.relaxed-tile.is-dim {
+  opacity: 0.35;
+}
+
 /* organic island land: the smoothed coastline filled as a sandy beach, drawn
    UNDER the hex tiles so each island reads as one solid blob with a shore rim
    instead of loose tiles ringed by a hexagonal moat. */
