@@ -2022,7 +2022,8 @@
     "context": [
       "asset:prove-it-gate",
       "asset:red-green",
-      "asset:spine-sequences-leaf-judges"
+      "asset:spine-sequences-leaf-judges",
+      "asset:deep-modules"
     ],
     "tools": "Read / Write / Edit / Glob / Grep — NO Bash, by design: the leaf cannot run the suite; the spine observes green itself. Writes are scope-gated by a fail-closed `PreToolUse` hook (the brief's source file(s) only — never the test). When feedback tools are wired (`mcp__spine__*`), their output is FEEDBACK ONLY — the spine re-runs the command after the leaf stops, and only that observation counts.",
     "workflow": "**session_start:** read the phase brief — the red test to satisfy and the exact source file(s) in scope.\n\n1. Write the SMALLEST source change that turns that one test green — no speculative abstraction, dependency, or refactor.\n2. (If feedback tools exist) check your work and iterate within scope — never edit the test, never widen scope.\n3. Stop when the deliverable is written — no claim of green, no spawning.",
@@ -2043,6 +2044,7 @@
       "asset:prove-it-gate",
       "asset:red-green",
       "asset:spine-sequences-leaf-judges",
+      "asset:deep-modules",
       "asset:slow-growth-minimum-to-green",
       "asset:baseline-preservation",
       "asset:dogfood-fix-the-source",
@@ -2052,9 +2054,9 @@
       "asset:faked-uat-theatre",
       "asset:agent-never-self-exempts"
     ],
-    "provenance": "Captured from the LIVE leaf system prompt — `leafSystemPrompt()` / `SYSTEM_PROMPT_BASE` plus the no-feedback / feedback closings in packages/agent/src/sdk-author.ts — and split by phase per the owner's call (2026-06-14) that test-authoring and flipping-to-green want separate prompts. Renamed from `leaf-implementer` (owner steer 2026-06-14) AND hard-wired: the SDK leaf's IMPLEMENT system prompt IS this rendered agent (ADR-0051 §4) — the CLI assembles it via `renderAgentPrompt`, threads it through `resolveProveSpec` into `ClaudeAgentAuthor.phasePrompts`, and a live leaf with no injected prompt fails closed (no generic fallback). Supersedes the retired `agent-owned-loop-builder` draft, which cited ungraduated candidate refs. No ADRs are injected: this role searches ADRs just-in-time via the library.",
+    "provenance": "Captured from the LIVE leaf system prompt — `leafSystemPrompt()` / `SYSTEM_PROMPT_BASE` plus the no-feedback / feedback closings in packages/agent/src/sdk-author.ts — and split by phase per the owner's call (2026-06-14) that test-authoring and flipping-to-green want separate prompts. Renamed from `leaf-implementer` (owner steer 2026-06-14) AND hard-wired: the SDK leaf's IMPLEMENT system prompt IS this rendered agent (ADR-0051 §4) — the CLI assembles it via `renderAgentPrompt`, threads it through `resolveProveSpec` into `ClaudeAgentAuthor.phasePrompts`, and a live leaf with no injected prompt fails closed (no generic fallback). Supersedes the retired `agent-owned-loop-builder` draft, which cited ungraduated candidate refs. No ADRs are injected: this role searches ADRs just-in-time via the library. `deep-modules` added to context 2026-06-15 (agent↔artifact routing review): V1 routed it to `build-rust`, this role's ancestor, for an implementation-time decision the leaf still faces — don't widen a unit's public surface 'for testability', and run the deletion test on a boundary you're about to add; it composes with slow-growth-minimum-to-green's resistance to speculative structure rather than duplicating it.",
     "createdAt": "2026-06-14T00:00:00.000Z",
-    "updatedAt": "2026-06-14T00:00:00.000Z"
+    "updatedAt": "2026-06-15T00:00:00.000Z"
   },
   {
     "id": "journey-principle",
