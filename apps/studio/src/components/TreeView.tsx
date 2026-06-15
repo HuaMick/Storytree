@@ -1112,6 +1112,24 @@ function buildWorld(stories: TreeStory[]): HexWorld {
 
 export type SubstrateMode = 'relaxed-hex' | 'relaxed-quad';
 
+/**
+ * How wild the relaxed substrate is. `jitter` is the per-vertex displacement as
+ * a fraction of HEX_R (the main "randomness" knob); `iters`/`relax` are the
+ * Laplacian smoothing that untangles the jitter (more smoothing = cleaner but
+ * more regular). `wheatScatter` breaks whole-hex wheat patches into a per-cell
+ * scatter so the tan fields stop reading as hexagons. All overridable live via
+ * the URL: `?substrate=relaxed-quad&jitter=0.8&iters=2&relax=0.28&wheatScatter=1`.
+ */
+interface SubstrateTuning {
+  jitter: number;
+  iters: number;
+  relax: number;
+  wheatScatter: boolean;
+}
+
+const QUAD_TUNING: SubstrateTuning = { jitter: 0.78, iters: 2, relax: 0.26, wheatScatter: true };
+const HEX_TUNING: SubstrateTuning = { jitter: 0.7, iters: 2, relax: 0.28, wheatScatter: false };
+
 /** One filled cell of the relaxed substrate: a polygon owned by a territory. */
 interface RelaxedCell {
   owner: number;
@@ -1176,7 +1194,7 @@ function relaxVerts(
 }
 
 /** Path A — relax the shared hex-corner lattice; rebuild irregular hexagons. */
-function buildRelaxedHexCells(world: HexWorld): RelaxedCell[] {
+function buildRelaxedHexCells(world: HexWorld, t: SubstrateTuning): RelaxedCell[] {
   const verts: Pt[] = [];
   const vId = new Map<string, number>();
   const adj: Set<number>[] = [];
@@ -1217,7 +1235,7 @@ function buildRelaxedHexCells(world: HexWorld): RelaxedCell[] {
       pinned.add(Number(b));
     }
   }
-  relaxVerts(verts, adj, pinned, { jitterMag: HEX_R * 0.5, iters: 3, relax: 0.34 });
+  relaxVerts(verts, adj, pinned, { jitterMag: HEX_R * t.jitter, iters: t.iters, relax: t.relax });
   return tileCorners.map(({ owner, key, ids }) => ({
     owner,
     poly: ids.map((id) => verts[id] ?? { x: 0, y: 0 }),
@@ -1227,7 +1245,7 @@ function buildRelaxedHexCells(world: HexWorld): RelaxedCell[] {
 }
 
 /** Path B — subdivide each hex into 6 quads, relax the shared mesh (Townscaper). */
-function buildRelaxedQuadCells(world: HexWorld): RelaxedCell[] {
+function buildRelaxedQuadCells(world: HexWorld, t: SubstrateTuning): RelaxedCell[] {
   const verts: Pt[] = [];
   const vId = new Map<string, number>();
   const adj: Set<number>[] = [];
@@ -1274,7 +1292,11 @@ function buildRelaxedQuadCells(world: HexWorld): RelaxedCell[] {
       const mNext = midIds[i];
       if (ci === undefined || mPrev === undefined || mNext === undefined) continue;
       const ids = [oid, mPrev, ci, mNext];
-      quads.push({ owner, ids, variant: hash(`cell:${key}:${i}`) % 3, wheat });
+      // wheatScatter: a wheat hex normally tints all 6 sub-cells — which reads as
+      // a tan hexagon. Scatter it per-cell instead so the field stops being hexy
+      // (grass cells mixed back in; ~70% of a wheat hex's cells stay wheat).
+      const cellWheat = wheat && (!t.wheatScatter || rand01(hash(`wheat:${key}:${i}`)) < 0.7);
+      quads.push({ owner, ids, variant: hash(`cell:${key}:${i}`) % 3, wheat: cellWheat });
       link(ids[0]!, ids[1]!);
       link(ids[1]!, ids[2]!);
       link(ids[2]!, ids[3]!);
@@ -1289,7 +1311,7 @@ function buildRelaxedQuadCells(world: HexWorld): RelaxedCell[] {
       pinned.add(Number(b));
     }
   }
-  relaxVerts(verts, adj, pinned, { jitterMag: HEX_R * 0.42, iters: 4, relax: 0.4 });
+  relaxVerts(verts, adj, pinned, { jitterMag: HEX_R * t.jitter, iters: t.iters, relax: t.relax });
   return quads.map((q) => ({
     owner: q.owner,
     poly: q.ids.map((id) => verts[id] ?? { x: 0, y: 0 }),
@@ -1298,8 +1320,15 @@ function buildRelaxedQuadCells(world: HexWorld): RelaxedCell[] {
   }));
 }
 
-function buildRelaxedCells(world: HexWorld, mode: SubstrateMode): RelaxedCell[] {
-  return mode === 'relaxed-hex' ? buildRelaxedHexCells(world) : buildRelaxedQuadCells(world);
+function buildRelaxedCells(
+  world: HexWorld,
+  mode: SubstrateMode,
+  override: Partial<SubstrateTuning>,
+): RelaxedCell[] {
+  if (mode === 'relaxed-hex') {
+    return buildRelaxedHexCells(world, { ...HEX_TUNING, ...override });
+  }
+  return buildRelaxedQuadCells(world, { ...QUAD_TUNING, ...override });
 }
 
 /** A closed polygon `d` string. */
@@ -1319,6 +1348,28 @@ function readSubstrateMode(): SubstrateMode | null {
   if (raw === 'relaxed-hex') return 'relaxed-hex';
   if (raw === 'relaxed-quad' || raw === 'relaxed') return 'relaxed-quad';
   return null;
+}
+
+/** Live tuning overrides from the URL — let the owner dial the look in directly. */
+function readSubstrateTuning(): Partial<SubstrateTuning> {
+  if (typeof window === 'undefined') return {};
+  const q = new URLSearchParams(window.location.search);
+  const out: Partial<SubstrateTuning> = {};
+  const num = (key: string): number | null => {
+    const raw = q.get(key);
+    if (raw === null) return null;
+    const v = Number(raw);
+    return Number.isFinite(v) ? v : null;
+  };
+  const j = num('jitter');
+  const it = num('iters');
+  const rx = num('relax');
+  const ws = q.get('wheatScatter');
+  if (j !== null) out.jitter = j;
+  if (it !== null) out.iters = Math.max(0, Math.round(it));
+  if (rx !== null) out.relax = rx;
+  if (ws !== null) out.wheatScatter = ws === '1' || ws === 'true';
+  return out;
 }
 
 // ---------- focus relations (V1's ancestor/descendant highlighting) ----------
@@ -1476,10 +1527,13 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
 
   // VISUAL SPIKE (do not land): swap the regular hex interiors for an irregular
   // relaxed grid when `?substrate=…` is set. Null = the default hex world.
+  // Tuning (`jitter`/`iters`/`relax`/`wheatScatter`) is read from the URL so the
+  // owner can dial the look in live without a rebuild.
   const substrateMode = useMemo(() => readSubstrateMode(), []);
+  const substrateTuning = useMemo(() => readSubstrateTuning(), []);
   const relaxedCells = useMemo(
-    () => (world && substrateMode ? buildRelaxedCells(world, substrateMode) : null),
-    [world, substrateMode],
+    () => (world && substrateMode ? buildRelaxedCells(world, substrateMode, substrateTuning) : null),
+    [world, substrateMode, substrateTuning],
   );
 
   // The world reads bottom-up (foundation at the bottom), so the frame opens
