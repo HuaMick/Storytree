@@ -194,9 +194,6 @@ interface WorldEdge {
   to: string;
   via: string[];
   d: string;
-  /** Set on the merged tributary trunk (confluence → destination mouth); the
-   *  string is the destination story id, used for focus highlighting. */
-  trunkFor?: string;
 }
 
 interface HexWorld {
@@ -435,24 +432,12 @@ function avoidanceBow(
   return -(worst >= 0 ? 1 : -1) * Math.min(dist * 0.5, Math.abs(worst) + HEX_W + 14);
 }
 
-/** A quadratic d-string from a→b, bowed `bow` px perpendicular to the chord. */
-function bowedQuad(a: Pt, b: Pt, bow: number): string {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const dist = Math.hypot(dx, dy) || 1;
-  const ux = dx / dist;
-  const uy = dy / dist;
-  const mx = (a.x + b.x) / 2 - uy * bow;
-  const my = (a.y + b.y) / 2 + ux * bow;
-  return `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
-}
-
 /**
  * A cubic d-string from `a` to a coast `dock`, bowed `bow` px around any island
- * in the way (like bowedQuad) but with its final handle aligned to the coast's
- * outward normal — so the river arrives PERPENDICULAR to the shore (head-on)
- * and tucks under the moat, instead of clipping the coast at a glancing angle.
- * `flare` is the handle length: longer = a gentler, more frontal approach.
+ * in the way but with its final handle aligned to the coast's outward normal — so
+ * the river arrives PERPENDICULAR to the shore (head-on) and tucks under the moat,
+ * instead of clipping the coast at a glancing angle. `flare` is the handle length:
+ * longer = a gentler, more frontal approach.
  */
 function rivermouthCubic(a: Pt, dock: Dock, bow: number, flare = 16): string {
   const dx = dock.x - a.x;
@@ -460,8 +445,8 @@ function rivermouthCubic(a: Pt, dock: Dock, bow: number, flare = 16): string {
   const dist = Math.hypot(dx, dy) || 1;
   const ux = dx / dist;
   const uy = dy / dist;
-  // the bowed chord midpoint (same convention as bowedQuad); the first handle
-  // reaches toward it so the river still sweeps around an island in the corridor.
+  // the bowed chord midpoint; the first handle reaches toward it so the river
+  // still sweeps around an island sitting in the corridor.
   const mx = (a.x + dock.x) / 2 - uy * bow;
   const my = (a.y + dock.y) / 2 + ux * bow;
   const c1x = a.x + (mx - a.x) * 0.7;
@@ -927,11 +912,13 @@ function buildWorld(stories: TreeStory[]): HexWorld {
     })
     .sort((a, b) => a.h.r - b.h.r || a.h.q - b.h.q);
 
-  // Rivers render the SAME edge set the ranking used (declared ∪ derived), but
-  // grouped by DESTINATION so several dependencies of one story MERGE into a
-  // single tributary trunk before reaching it (confluence) — rivers that share
-  // a destination join instead of crossing, which removes the densest crossings
-  // by construction. A lone dependency stays one island-avoiding river.
+  // Rivers render the SAME edge set the ranking used (declared ∪ derived), grouped
+  // by DESTINATION. Several dependencies of one story do NOT merge into a trunk —
+  // each stays its own visible river and they LAND AS A DELTA: a fanned row of
+  // separate mouths along the destination coast, ordered by approach angle so the
+  // channels arrive as distinct parallel lanes instead of a crossing tangle (this
+  // mirrors the source-side delta fan below). A lone dependency stays one
+  // island-avoiding river.
   const byId = new Map(territories.map((t, i) => [t.story.id, i]));
   const incomingByTo = new Map<string, { from: string; to: string; via: string[] }[]>();
   for (const e of edgeList) {
@@ -945,10 +932,8 @@ function buildWorld(stories: TreeStory[]): HexWorld {
   // pass: a heavily-depended-upon island has many dependents — all ranked above
   // it — so every outgoing river would dock at nearly the same northward point,
   // piling into an ugly starburst. We collect the rivers here, then fan each
-  // source's docks across its shore (a delta). `aim` is where the river heads (a
-  // destination mouth or a confluence hub); `emit` builds the path once the dock
-  // is known. Confluence TRUNKS leave a mid-water hub, not a coast, so they emit
-  // straight away (collected last so they draw on top of their tributaries).
+  // source's docks across its shore (a delta). `aim` is the destination mouth the
+  // river heads for; `emit` builds the path once the source dock is known.
   interface RiverStub {
     srcT: Territory;
     aim: Pt;
@@ -958,7 +943,6 @@ function buildWorld(stories: TreeStory[]): HexWorld {
     emit: (src: Dock, bow: number) => WorldEdge;
   }
   const stubs: RiverStub[] = [];
-  const trunkEdges: WorldEdge[] = [];
 
   for (const [toId, incoming] of incomingByTo) {
     const b = territories[byId.get(toId) ?? -1];
@@ -972,12 +956,12 @@ function buildWorld(stories: TreeStory[]): HexWorld {
       x: sources.reduce((s, x) => s + x.a.centroid.x, 0) / sources.length,
       y: sources.reduce((s, x) => s + x.a.centroid.y, 0) / sources.length,
     };
-    // The mouth docks on the destination's REAL coast, facing its deps; the
-    // river meets it head-on (rivermouthCubic) and tucks under the moat.
-    const mouth = coastDock(b, bary, 0.96);
     if (sources.length === 1) {
       const only = sources[0];
       if (!only) continue;
+      // The mouth docks on the destination's REAL coast, facing its dep; the
+      // river meets it head-on (rivermouthCubic) and tucks under the moat.
+      const mouth = coastDock(b, bary, 0.96);
       stubs.push({
         srcT: only.a,
         aim: mouth,
@@ -988,31 +972,38 @@ function buildWorld(stories: TreeStory[]): HexWorld {
       });
       continue;
     }
-    // Confluence: a hub partway from the mouth toward the deps; tributaries dock
-    // on their source coasts and run to the hub, one wider trunk runs hub →
-    // mouth, meeting the destination coast head-on.
-    const conf: Pt = {
-      x: mouth.x + (bary.x - mouth.x) * 0.42,
-      y: mouth.y + (bary.y - mouth.y) * 0.42,
-    };
-    for (const { e, a } of sources) {
+    // Several dependencies share this destination. Rather than MERGE them into one
+    // trunk, keep each its own river and land them as a DELTA: fan a separate mouth
+    // per dependency along the destination's coast, ordered by approach angle so the
+    // channels arrive as distinct parallel lanes that never cross (mirrors the
+    // source-side delta fan below; each mouth still meets the coast head-on and
+    // tucks under the moat).
+    const c = b.centroid;
+    const baryAng = Math.atan2(bary.y - c.y, bary.x - c.x);
+    const angOf = (t: Territory): number => Math.atan2(t.centroid.y - c.y, t.centroid.x - c.x);
+    const ordered = sources
+      .map((s) => ({
+        s,
+        rel: Math.atan2(Math.sin(angOf(s.a) - baryAng), Math.cos(angOf(s.a) - baryAng)),
+      }))
+      .sort((x, y) => x.rel - y.rel);
+    const n = ordered.length;
+    const spread = Math.min(RIVER_FAN_MAX, (n - 1) * RIVER_FAN_STEP);
+    ordered.forEach(({ s }, i) => {
+      const ang = baryAng - spread / 2 + (spread * i) / (n - 1);
+      const toward: Pt = {
+        x: c.x + Math.cos(ang) * b.radius * 2,
+        y: c.y + Math.sin(ang) * b.radius * 2,
+      };
+      const mouth = coastDock(b, toward, 0.96);
       stubs.push({
-        srcT: a,
-        aim: conf,
-        seed: hash(`${e.from}->${toId}`),
-        skip: new Set([a.story.id, b.story.id]),
-        bowScale: 0.7,
-        emit: (src, bow) => ({ ...e, d: bowedQuad(src, conf, bow) }),
+        srcT: s.a,
+        aim: mouth,
+        seed: hash(`${s.e.from}->${toId}`),
+        skip: new Set([s.a.story.id, b.story.id]),
+        bowScale: 1,
+        emit: (src, bow) => ({ ...s.e, d: rivermouthCubic(src, mouth, bow) }),
       });
-    }
-    const trunkBow =
-      avoidanceBow(conf, mouth, territories, new Set([b.story.id]), hash(`trunk:${toId}`)) * 0.5;
-    trunkEdges.push({
-      from: '',
-      to: toId,
-      via: sources.map((s) => s.e.from),
-      d: rivermouthCubic(conf, mouth, trunkBow),
-      trunkFor: toId,
     });
   }
 
@@ -1062,7 +1053,6 @@ function buildWorld(stories: TreeStory[]): HexWorld {
       edges.push(s.emit(src, bow));
     });
   }
-  edges.push(...trunkEdges);
 
   // Scene bounds over every tile (claimed + coast), plus label + tree space.
   const allCenters = [...drawTiles.map((t) => hexCenter(t.h)), ...empties.map(hexCenter)];
@@ -1404,20 +1394,6 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
     return cls.join(' ');
   };
 
-  // The merged trunk carries every dependency's flow into one destination, so it
-  // can't key off a single `from`. It is upstream of focus when the destination
-  // IS focus or an ancestor of it (gold); downstream when the destination is a
-  // descendant of focus (red); dim otherwise.
-  const trunkClass = (toId: string): string => {
-    const cls = ['world-trail', 'is-trunk'];
-    if (focusStoryId && storyRelations) {
-      if (toId === focusStoryId || storyRelations.ancestors.has(toId)) cls.push('is-ancestor');
-      else if (storyRelations.descendants.has(toId)) cls.push('is-descendant');
-      else cls.push('is-dim');
-    }
-    return cls.join(' ');
-  };
-
   const clearSelection = (): void => {
     setSelectedCap(null);
     navigate(treeHref);
@@ -1500,6 +1476,27 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
                 })}
               </g>
 
+              {/* WATER NETWORK pass 1/4 — sand banks (the land casing). Every river
+                  and every island moat shares one sandy casing, drawn here BENEATH
+                  the island land + tiles so a river bank fuses into the island beach
+                  with no seam, and the banks of crossing/parallel rivers merge into
+                  one continuous sandy coast. (The remaining passes — shallows, water,
+                  glint — are drawn ABOVE the land, after the tiles.) */}
+              <g className="water-net-land">
+                {world.edges.map((e) => (
+                  <g key={`${e.from}->${e.to}`} className={roadClass(e)}>
+                    <path className="world-trail-land" d={e.d} />
+                  </g>
+                ))}
+                {world.territories.map((t) => (
+                  <g key={t.story.id} className={`hex-water-border ${territoryClass(t.story)}`}>
+                    {t.coastPaths.map((d, i) => (
+                      <path key={`ml${i}`} className="moat-land" d={d} />
+                    ))}
+                  </g>
+                ))}
+              </g>
+
               {/* organic island land: the smoothed coast filled as sand, UNDER the
                   hex tiles, so each island reads as one solid blob with a beach
                   rim instead of loose tiles floating in a hexagonal moat. */}
@@ -1540,43 +1537,61 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
                 })}
               </g>
 
-              {/* rivers between dependent territories (dep → dependent): a light
-                  bank casing (also the bridge-gap where rivers cross), the water
-                  body, and a dashed glint that flows downstream. Tributaries
-                  sharing a destination merge at a confluence into one trunk. */}
-              {world.edges.map((e) => {
-                const isTrunk = e.trunkFor !== undefined;
-                const title = isTrunk
-                  ? `${e.to} draws from ${e.via.join(', ')}`
-                  : `${e.to} depends on ${e.from}${e.via.length ? ` (via ${e.via.join(', ')})` : ''}`;
-                return (
-                  <g
-                    key={isTrunk ? `trunk->${e.to}` : `${e.from}->${e.to}`}
-                    className={isTrunk && e.trunkFor ? trunkClass(e.trunkFor) : roadClass(e)}
-                  >
-                    <title>{title}</title>
+              {/* WATER NETWORK pass 2/4 — pale shallows: the rim between the sand
+                  bank and the open water, for every river and moat. */}
+              <g className="water-net-shallow">
+                {world.edges.map((e) => (
+                  <g key={`${e.from}->${e.to}`} className={roadClass(e)}>
                     <path className="world-trail-bank" d={e.d} />
+                  </g>
+                ))}
+                {world.territories.map((t) => (
+                  <g key={t.story.id} className={`hex-water-border ${territoryClass(t.story)}`}>
+                    {t.coastPaths.map((d, i) => (
+                      <path key={`mb${i}`} className="moat-bank" d={d} />
+                    ))}
+                  </g>
+                ))}
+              </g>
+
+              {/* WATER NETWORK pass 3/4 — the water body: river bodies AND island
+                  moats share ONE colour in ONE layer, so a river mouth dissolves
+                  into the moat with no seam (moats drawn last → they always cover a
+                  river's tip). Dep → dependent; several deps land as a fanned delta,
+                  never a merged trunk. */}
+              <g className="water-net-water">
+                {world.edges.map((e) => (
+                  <g key={`${e.from}->${e.to}`} className={roadClass(e)}>
+                    <title>
+                      {`${e.to} depends on ${e.from}${e.via.length ? ` (via ${e.via.join(', ')})` : ''}`}
+                    </title>
                     <path className="world-trail-water" d={e.d} />
+                  </g>
+                ))}
+                {world.territories.map((t) => (
+                  <g key={t.story.id} className={`hex-water-border ${territoryClass(t.story)}`}>
+                    {t.coastPaths.map((d, i) => (
+                      <path key={`mw${i}`} className="moat-water" d={d} />
+                    ))}
+                  </g>
+                ))}
+              </g>
+
+              {/* WATER NETWORK pass 4/4 — the flowing glint, on top of all water. */}
+              <g className="water-net-glint">
+                {world.edges.map((e) => (
+                  <g key={`${e.from}->${e.to}`} className={roadClass(e)}>
                     <path className="world-trail-glint" d={e.d} />
                   </g>
-                );
-              })}
-
-              {/* organic coastline water (the smoothed shore, drawn over the rivers
-                  so each river mouths cleanly into the moat with no hard seam). */}
-              {world.territories.map((t) => (
-                <g key={t.story.id} className={`hex-water-border ${territoryClass(t.story)}`}>
-                  {t.coastPaths.map((d, i) => (
-                    <path key={`b${i}`} className="moat-bank" d={d} />
-                  ))}
-                  {t.coastPaths.map((d, i) => (
-                    <path key={`w${i}`} className="moat-water" d={d} />
-                  ))}
-                  {t.coastPaths.map((d, i) => (
-                    <path key={`g${i}`} className="moat-glint" d={d} />
-                  ))}
-                </g>
-              ))}
+                ))}
+                {world.territories.map((t) => (
+                  <g key={t.story.id} className={`hex-water-border ${territoryClass(t.story)}`}>
+                    {t.coastPaths.map((d, i) => (
+                      <path key={`mg${i}`} className="moat-glint" d={d} />
+                    ))}
+                  </g>
+                ))}
+              </g>
 
               {/* trees, decoration, nameplates, wisps — per territory */}
               {world.territories.map((t) => (
