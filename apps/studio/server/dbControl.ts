@@ -11,7 +11,7 @@ import type { ChildProcessByStdio } from 'node:child_process';
 import type { Readable } from 'node:stream';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { HttpError, sendJson } from './httpUtil';
-import { createAdcCloudSqlAdmin, type CloudSqlAdmin } from '@storytree/store';
+import type { CloudSqlAdmin } from '@storytree/store';
 
 export const DB_INSTANCE = 'storytree-pg';
 export const DB_PROJECT = 'storytree-498613';
@@ -72,11 +72,16 @@ export function runGcloud(args: string[]): Promise<string> {
 
 /** Injected effects for {@link handleDb}: the REST admin client. Default = ADC against the live instance. */
 export interface DbControlDeps {
-  makeAdmin?: () => CloudSqlAdmin;
+  makeAdmin?: () => CloudSqlAdmin | Promise<CloudSqlAdmin>;
 }
 
-const defaultMakeAdmin = (): CloudSqlAdmin =>
-  createAdcCloudSqlAdmin({ project: DB_PROJECT, instance: DB_INSTANCE });
+// Dynamic import: a STATIC `@storytree/store` import here breaks `vite build` — vite.config.ts loads
+// this module (via server/devApi → apiRouter), and node-ESM can't resolve the store's internal `.js`
+// specifiers during config load (only tsx maps `.js`→`.ts`). Defer it to runtime under tsx.
+const defaultMakeAdmin = async (): Promise<CloudSqlAdmin> => {
+  const { createAdcCloudSqlAdmin } = await import('@storytree/store');
+  return createAdcCloudSqlAdmin({ project: DB_PROJECT, instance: DB_INSTANCE });
+};
 
 export async function handleDb(
   req: IncomingMessage,
@@ -91,7 +96,8 @@ export async function handleDb(
     if (method !== 'GET') throw new HttpError(405, `method ${method} not allowed`);
     // REST-first (ADR-0063): no gcloud subprocess on the happy path. Fall back to gcloud describe.
     try {
-      const s = await makeAdmin().describe();
+      const admin = await makeAdmin();
+      const s = await admin.describe();
       return sendJson(res, 200, { state: s.state, activationPolicy: s.activationPolicy });
     } catch {
       let out: string;
@@ -120,7 +126,8 @@ export async function handleDb(
     // spawn (the old gcloud path). The instance still takes ~a minute to accept connections; the
     // UI polls /api/health / /api/db/status. Fall back to the gcloud fire-and-forget patch on error.
     try {
-      await makeAdmin().setActivationPolicy('ALWAYS');
+      const admin = await makeAdmin();
+      await admin.setActivationPolicy('ALWAYS');
       return sendJson(res, 202, { ok: true });
     } catch {
       const child = spawnGcloud([
