@@ -44,7 +44,15 @@ import { useBuildActivity } from '../lib/buildActivity';
 import { formatAge, isOrbitingBand, splitSessions, usePresence } from '../lib/presence';
 import { navigate, treeFocusHref, treeHref } from '../lib/route';
 import { presentStories } from '../lib/worldStatus.js';
-import { offsetCurve, quadPt } from '../lib/riverGeometry.js';
+import {
+  offsetCurve,
+  quadPt,
+  rampWidth,
+  smoothOpenPath,
+  rayPolyIntersect,
+  pointInPoly,
+  type LoopDock,
+} from '../lib/riverGeometry.js';
 import { WorldLegend } from './WorldLegend.js';
 import type { BuildActivity, TreeCapability, TreeSession, TreeStory, TreeVerdict, UatTestRow } from '../types';
 
@@ -197,6 +205,30 @@ interface WorldEdge {
   to: string;
   via: string[];
   d: string;
+  /** Tributary load this segment carries (merged-river mode): drives stroke width
+   *  so a trunk fattens with the number of rivers it gathers. Unset = CSS default. */
+  flow?: number;
+  /** A synthetic shared TRUNK stub (merged-river mode) — the fat channel a source
+   *  island's outgoing rivers leave through before they branch. Non-interactive. */
+  kind?: 'trunk';
+}
+
+/** A small inland pond: a smoothed closed water shape sitting on an island,
+ *  rendered ABOVE the tiles. `story` keys focus dimming; `loop` is kept so the
+ *  substrate pass can tell which cells the pond covers (cells-become-water). */
+interface PondShape {
+  story: string;
+  d: string;
+  loop: Pt[];
+}
+
+/** Inland water carried by `?water=pond|through`: per-island ponds and/or the
+ *  channels that carry rivers across the beach to the pond (or clear across the
+ *  island). Empty when `?water=off`. Channels reuse WorldEdge so focus relations
+ *  (ancestor/descendant dimming) work exactly like the over-sea rivers. */
+interface InlandWater {
+  ponds: PondShape[];
+  channels: WorldEdge[];
 }
 
 interface HexWorld {
@@ -206,6 +238,8 @@ interface HexWorld {
   /** Claimed tiles in global back-to-front draw order, with territory index. */
   drawTiles: { h: Axial; owner: number }[];
   edges: WorldEdge[];
+  /** Inland water (`?water=pond|through`); empty arrays when off. */
+  inland: InlandWater;
   width: number;
   height: number;
   offset: Pt;
@@ -377,12 +411,12 @@ const MOUTH_INSET = 3.5;
  * the moat band so the moat (drawn on top) swallows the seam. Falls back to the
  * old circle estimate (frac·radius) when the coast yields no crossing.
  */
-function coastDock(t: Territory, toward: Pt, frac: number): Dock {
+function coastDock(t: Territory, toward: Pt, frac: number, inset: number = MOUTH_INSET): Dock {
   const hit = rayCoastIntersect(t, toward);
   if (hit) {
     return {
-      x: hit.x - hit.nx * MOUTH_INSET,
-      y: hit.y - hit.ny * MOUTH_INSET,
+      x: hit.x - hit.nx * inset,
+      y: hit.y - hit.ny * inset,
       nx: hit.nx,
       ny: hit.ny,
     };
@@ -470,7 +504,11 @@ interface RiverRec {
   mouth: Dock;
   seed: number;
   skip: Set<string>;
-  srcDock: Dock; // filled in the source-fan pass
+  srcDock: Dock; // filled in the source-fan pass (in merge mode, the TRUNK TIP)
+  /** Merge mode only: the real coast dock the shared trunk leaves through. The
+   *  trunk runs outDock → srcDock(tip); every river in the group then branches
+   *  from the shared tip, so the source emits ONE fat channel, not a starburst. */
+  outDock?: Dock;
 }
 
 /**
@@ -708,7 +746,103 @@ function smoothCoast(segs: BoundarySeg[], storyId: string): { loops: Pt[][]; pat
   return { loops, paths: loops.map(smoothLoopPath) };
 }
 
-function buildWorld(stories: TreeStory[]): HexWorld {
+/** px an inland pond keeps clear of any capability plant on its island. */
+const POND_CLEAR = 9;
+/** points around a pond's raw rim before Chaikin-smoothing. */
+const POND_RING_N = 14;
+
+/**
+ * A squashed, hash-jittered closed ring for an inland pond — the raw silhouette
+ * fed through the SAME chaikinClosed + smoothLoopPath pipeline as the coastline so
+ * a pond's shore reads as the same organic terrain (just smaller). `ry < rx` gives
+ * the top-down squash the whole map uses. Deterministic — no Math.random.
+ */
+function pondRing(center: Pt, rx: number, ry: number, seed: number): Pt[] {
+  const out: Pt[] = [];
+  for (let i = 0; i < POND_RING_N; i++) {
+    const a = (i / POND_RING_N) * Math.PI * 2;
+    const j = 0.8 + rand01(hash(`pond:${seed}:${i}`)) * 0.4; // 0.8‥1.2 radius wobble
+    out.push({ x: center.x + Math.cos(a) * rx * j, y: center.y + Math.sin(a) * ry * j });
+  }
+  return out;
+}
+
+/**
+ * Place a small pond on territory `t`, offset toward `aimDir` (the side its rivers
+ * enter from). The capability plants ring the tree's FRONT 240° arc, so the clear
+ * water-able land is the band BETWEEN that ring and the shore: we scan INWARD from
+ * just inside the coast, fanning the angle around `aimDir`, and take the first spot
+ * that fits fully on land and clears every plant. That seats the pond on the rivers'
+ * entry side near the shore (a short inland flow that never crosses the garden).
+ * Returns the smoothed loop + centre, or null when no clear spot fits (tiny/crowded
+ * island → those rivers stay on the coast). Deterministic.
+ */
+function placePond(t: Territory, aimDir: Pt): { center: Pt; loop: Pt[] } | null {
+  const coast = t.coastLoops[0];
+  if (!coast) return null;
+  const baseAng = Math.atan2(aimDir.y, aimDir.x);
+  const crownR = crownRadius(t.story.capabilities.length);
+  const far = rayCoastIntersect(t, {
+    x: t.treeSpot.x + aimDir.x * 2000,
+    y: t.treeSpot.y + aimDir.y * 2000,
+  });
+  const maxD = far ? Math.hypot(far.x - t.treeSpot.x, far.y - t.treeSpot.y) : t.radius;
+  const fan = [0, 0.22, -0.22, 0.45, -0.45, 0.7, -0.7, 1.0, -1.0];
+  const rx0 = Math.max(HEX_R * 0.7, Math.min(HEX_R * 1.2, t.radius * 0.22));
+  // Try a full-size pond first, then shrink so even a thin coastal band between the
+  // plant ring and the shore can hold a (smaller) pool — every island that takes a
+  // river still gets one, none pushed into the garden.
+  for (const scale of [1, 0.78, 0.58]) {
+    const rx = rx0 * scale;
+    const ry = rx * 0.66;
+    const clear = POND_CLEAR * scale;
+    const fitsOnLand = (c: Pt): boolean => {
+      if (!pointInPoly(c, coast)) return false;
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2;
+        if (!pointInPoly({ x: c.x + Math.cos(a) * rx, y: c.y + Math.sin(a) * ry }, coast)) return false;
+      }
+      return true;
+    };
+    const clearOfCaps = (c: Pt): boolean =>
+      t.caps.every((cap) => Math.hypot(cap.x - c.x, cap.y - c.y) > rx + clear);
+    for (let d = maxD - rx; d >= crownR + ry * 0.5; d -= 4) {
+      for (const da of fan) {
+        const ang = baseAng + da;
+        const c = { x: t.treeSpot.x + Math.cos(ang) * d, y: t.treeSpot.y + Math.sin(ang) * d };
+        if (fitsOnLand(c) && clearOfCaps(c)) {
+          return { center: c, loop: chaikinClosed(pondRing(c, rx, ry, hash(t.story.id)), 2) };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/** Unit vector a→b (zero-safe). */
+function unit(a: Pt, b: Pt): Pt {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const d = Math.hypot(dx, dy) || 1;
+  return { x: dx / d, y: dy / d };
+}
+
+function buildWorld(
+  stories: TreeStory[],
+  opts?: {
+    riverMode?: RiverMode;
+    moat?: boolean;
+    tuning?: RiverTuning;
+    waterMode?: WaterMode;
+    plantsScatter?: boolean;
+  },
+): HexWorld {
+  const riverMode = opts?.riverMode ?? 'strands';
+  const moat = opts?.moat ?? true;
+  const tuning = opts?.tuning ?? RIVER_TUNING;
+  const waterMode = opts?.waterMode ?? 'off';
+  const plantsScatter = opts?.plantsScatter ?? false;
+  const mouthInset = moat ? MOUTH_INSET : tuning.mouthInset;
   const quotas = stories.map((s) => Math.max(3, s.capabilities.length + 2));
 
   // One edge set drives BOTH the roads and the ranking (declared ∪ derived).
@@ -893,9 +1027,21 @@ function buildWorld(stories: TreeStory[]): HexWorld {
     const ARC = (Math.PI * 4) / 3;
     const caps: CapSpot[] = story.capabilities.map((cap, j) => {
       const n = story.capabilities.length;
-      const jitterA = (rand01(hash(`${story.id}:${cap.id}:a`)) - 0.5) * (ARC / n) * 0.5;
-      const angle = -Math.PI / 6 + ((j + 0.5) / n) * ARC + jitterA;
-      const rr = ringR + (rand01(hash(`${story.id}:${cap.id}:r`)) - 0.5) * 10;
+      // `?plants=scatter` (VISUAL SPIKE): keep the rough angular slot (so plants
+      // never clump) but widen the angle wobble and spread the radius across a
+      // BAND rather than one ring, so the garden reads as an organic orchard
+      // instead of a rigid arc — most visible on the high-cap islands. Plants stay
+      // in the front arc (else they hide under the canopy) and clear of the trunk.
+      const slot = -Math.PI / 6 + ((j + 0.5) / n) * ARC;
+      const jitterA =
+        (rand01(hash(`${story.id}:${cap.id}:a`)) - 0.5) * (ARC / n) * (plantsScatter ? 1.5 : 0.5);
+      const angle = slot + jitterA;
+      const rr = plantsScatter
+        ? Math.max(
+            crownR * 0.95,
+            ringR * (0.62 + rand01(hash(`${story.id}:${cap.id}:rb`)) * 0.72),
+          )
+        : ringR + (rand01(hash(`${story.id}:${cap.id}:r`)) - 0.5) * 10;
       let x = treeSpot.x + Math.cos(angle) * rr;
       let y = treeSpot.y + Math.sin(angle) * rr * 0.66; // top-down squash
       for (let k = 0; k < 4 && owner.get(axialKey(pixelToHex({ x, y }))) !== i; k++) {
@@ -1036,7 +1182,7 @@ function buildWorld(stories: TreeStory[]): HexWorld {
       const only = sources[0];
       if (!only) continue;
       // Docks on the destination's REAL coast facing its dep.
-      record(only.e, only.a, coastDock(b, bary, 0.96));
+      record(only.e, only.a, coastDock(b, bary, 0.96, mouthInset));
       continue;
     }
     // Fan a mouth per dep along the destination coast, ordered by approach angle.
@@ -1057,7 +1203,7 @@ function buildWorld(stories: TreeStory[]): HexWorld {
         x: c.x + Math.cos(ang) * b.radius * 2,
         y: c.y + Math.sin(ang) * b.radius * 2,
       };
-      record(s.e, s.a, coastDock(b, toward, 0.96));
+      record(s.e, s.a, coastDock(b, toward, 0.96, mouthInset));
     });
   }
 
@@ -1077,6 +1223,31 @@ function buildWorld(stories: TreeStory[]): HexWorld {
     if (group.length === 1) {
       const r = group[0];
       if (r) r.srcDock = coastDock(srcT, r.aim, 0.96);
+      continue;
+    }
+    if (riverMode === 'merge') {
+      // MERGE: collapse the whole outgoing fan into ONE trunk. Leave through a
+      // single dock aimed at the barycentre of the mouths, run out perpendicular
+      // to the shore for a trunk length, and hand every river the SHARED tip as
+      // its source — so they all branch from one fat channel instead of spraying
+      // a dozen strands across the shore (the library starburst).
+      const meanAim: Pt = {
+        x: group.reduce((s, r) => s + r.aim.x, 0) / group.length,
+        y: group.reduce((s, r) => s + r.aim.y, 0) / group.length,
+      };
+      const dock = coastDock(srcT, meanAim, 0.96);
+      const dists = group.map((r) => Math.hypot(r.mouth.x - dock.x, r.mouth.y - dock.y));
+      const meanDist = dists.reduce((s, d) => s + d, 0) / dists.length;
+      const minDist = Math.min(...dists);
+      // The trunk runs MOST of the way to the destinations and forks only near
+      // them (a river splitting into a delta), instead of branching at the shore.
+      // Never overshoot the nearest mouth (else its branch would U-turn back).
+      const len = Math.max(HEX_W, Math.min(minDist * 0.9, meanDist * tuning.trunkFrac));
+      const tip: Dock = { x: dock.x + dock.nx * len, y: dock.y + dock.ny * len, nx: dock.nx, ny: dock.ny };
+      for (const r of group) {
+        r.outDock = dock;
+        r.srcDock = tip; // every downstream pass branches from the shared tip
+      }
       continue;
     }
     const angs = group.map((r) => Math.atan2(r.aim.y - c.y, r.aim.x - c.x));
@@ -1122,6 +1293,114 @@ function buildWorld(stories: TreeStory[]): HexWorld {
     edges.push(...laneBundle(bundle, territories));
   }
 
+  // Merge mode — emit the shared TRUNK stubs LAST (drawn on top within each water
+  // pass), so a source's fat trunk fuses over the tails of the rivers branching
+  // from its tip: the island reads as emitting one channel that forks downstream,
+  // not a starburst. flow = how many rivers the trunk gathers (drives its width).
+  if (riverMode === 'merge') {
+    for (const group of riversBySrc.values()) {
+      const r0 = group[0];
+      if (!r0 || group.length < 2 || !r0.outDock) continue;
+      const out = r0.outDock;
+      const tip = r0.srcDock;
+      // Bow the trunk around any island sitting in its corridor (it runs most of
+      // the way to the destinations, so it can't be assumed straight-and-clear).
+      const skip = new Set<string>([r0.srcT.story.id, ...group.map((r) => r.dstT.story.id)]);
+      const bow = avoidanceBow(out, tip, territories, skip, hash(`trunk:${r0.srcT.story.id}`));
+      const tx = tip.x - out.x;
+      const ty = tip.y - out.y;
+      const tl = Math.hypot(tx, ty) || 1;
+      const ctrl: Pt = { x: (out.x + tip.x) / 2 - (ty / tl) * bow, y: (out.y + tip.y) / 2 + (tx / tl) * bow };
+      edges.push({
+        from: r0.srcT.story.id,
+        to: `${r0.srcT.story.id}#trunk`,
+        via: [],
+        d: smoothOpenPath([out, ctrl, tip]),
+        flow: group.length,
+        kind: 'trunk',
+      });
+    }
+  }
+
+  // Inland water (`?water=pond|through`) — built AFTER the rivers so each river's
+  // coast mouth is the seam the inland flow continues from. The over-sea river
+  // edges are left untouched (they still bank into the beach below the tiles); the
+  // inland geometry here is rendered in its own ABOVE-tiles passes.
+  const inland: InlandWater = { ponds: [], channels: [] };
+  if (waterMode === 'pond') {
+    for (const [dstId, bundle] of riversByDst) {
+      const b = bundle[0]?.dstT;
+      if (!b || bundle.length === 0) continue;
+      const meanMouth: Pt = {
+        x: bundle.reduce((s, r) => s + r.mouth.x, 0) / bundle.length,
+        y: bundle.reduce((s, r) => s + r.mouth.y, 0) / bundle.length,
+      };
+      const aim = unit(b.treeSpot, meanMouth);
+      const pond = placePond(b, aim);
+      if (!pond) continue;
+      inland.ponds.push({ story: dstId, d: smoothLoopPath(pond.loop), loop: pond.loop });
+      // Each incoming river continues from its coast mouth to the pond rim,
+      // meeting it head-on (rivermouthCubic + the rim's outward normal).
+      for (const r of bundle) {
+        const dock = rayPolyIntersect(r.mouth, pond.center, pond.loop);
+        if (!dock) continue;
+        inland.channels.push({
+          from: r.srcT.story.id,
+          to: dstId,
+          via: [],
+          d: rivermouthCubic(r.mouth, dock as Dock, 0, 8),
+        });
+      }
+    }
+  } else if (waterMode === 'through') {
+    // A single channel crosses each island that has incoming rivers: it enters on
+    // the coast its rivers approach and exits the coast facing its dependents, bowed
+    // around the crown so it skirts the tree rather than running through it.
+    for (const [dstId, bundle] of riversByDst) {
+      const b = bundle[0]?.dstT;
+      if (!b || bundle.length === 0) continue;
+      const meanMouth: Pt = {
+        x: bundle.reduce((s, r) => s + r.mouth.x, 0) / bundle.length,
+        y: bundle.reduce((s, r) => s + r.mouth.y, 0) / bundle.length,
+      };
+      const deps = bundle.map((r) => r.srcT);
+      // exit faces the barycentre of this island's dependents; with none, it exits
+      // straight opposite the entry (the channel reads as passing clean through).
+      const dependents = (dependentsOf.get(dstId) ?? [])
+        .map((id) => territories[byId.get(id) ?? -1])
+        .filter((x): x is Territory => Boolean(x));
+      const entry = coastDock(b, meanMouth, 0.96, mouthInset);
+      const exitToward: Pt = dependents.length
+        ? {
+            x: dependents.reduce((s, t) => s + t.centroid.x, 0) / dependents.length,
+            y: dependents.reduce((s, t) => s + t.centroid.y, 0) / dependents.length,
+          }
+        : { x: 2 * b.centroid.x - meanMouth.x, y: 2 * b.centroid.y - meanMouth.y };
+      const exit = coastDock(b, exitToward, 0.96, mouthInset);
+      // Bow the crossing to the side of the tree that keeps it clearest of plants.
+      const mid: Pt = { x: (entry.x + exit.x) / 2, y: (entry.y + exit.y) / 2 };
+      const ax = unit(entry, exit);
+      const nrm: Pt = { x: -ax.y, y: ax.x };
+      const crownR = crownRadius(b.story.capabilities.length);
+      const sideClear = (sign: number): number => {
+        const c = { x: mid.x + nrm.x * sign * (crownR + 10), y: mid.y + nrm.y * sign * (crownR + 10) };
+        return Math.min(...b.caps.map((cap) => Math.hypot(cap.x - c.x, cap.y - c.y)), Infinity);
+      };
+      const sign = sideClear(1) >= sideClear(-1) ? 1 : -1;
+      const ctrl: Pt = {
+        x: mid.x + nrm.x * sign * (crownR + 12),
+        y: mid.y + nrm.y * sign * (crownR + 12),
+      };
+      const seed = deps[0]?.story.id ?? dstId;
+      inland.channels.push({
+        from: seed,
+        to: dstId,
+        via: [],
+        d: smoothOpenPath([entry, ctrl, exit]),
+      });
+    }
+  }
+
   // Scene bounds over every tile (claimed + coast), plus label + tree space.
   const allCenters = [...drawTiles.map((t) => hexCenter(t.h)), ...empties.map(hexCenter)];
   const minX = Math.min(...allCenters.map((p) => p.x)) - HEX_W / 2 - MARGIN;
@@ -1142,6 +1421,7 @@ function buildWorld(stories: TreeStory[]): HexWorld {
     empties,
     drawTiles,
     edges,
+    inland,
     width: Math.ceil(maxX - minX),
     height: Math.ceil(maxY - minY),
     offset: { x: -minX, y: -minY },
@@ -1678,6 +1958,97 @@ function readSubstrateTuning(): Partial<SubstrateTuning> {
   return out;
 }
 
+// ---------- river network mode (VISUAL SPIKE, flag-gated, ADR-pending) ----------
+//
+// The default world still draws one strand per dependency edge (`?rivers=strands`,
+// the pre-spike behaviour). `?rivers=merge` collapses each SOURCE island's outgoing
+// fan into one shared TRUNK that branches only after it has left the shore — the
+// fix for the "library starburst" (a heavily-depended island spraying a dozen
+// near-parallel strands). `?moat=off` drops the island water RING and seats river
+// mouths further onto the beach so they meet land cleanly without the moat to hide
+// the seam. Live knobs (`?trunkFrac=`, `?trunkW=`, `?mouthInset=`) let the owner
+// dial the look in without a rebuild, exactly like the substrate spike.
+type RiverMode = 'strands' | 'merge';
+
+// Inland water (VISUAL SPIKE, flag-gated). The default world rings each island in a
+// water MOAT (`?moat=on`). `?water=pond|through` instead carries the dependency
+// rivers INLAND — independent of `?moat`, so the natural combo for review is
+// `?moat=off&water=pond`:
+//   `pond`    — a small organic pond sits just inside each island's shore on the
+//               side its rivers enter from (clear of the capability plants); every
+//               incoming river continues past the beach and ends AT the pond rim.
+//   `through` — a single channel crosses each island from the coast its rivers
+//               enter to the coast facing its dependents (water passes THROUGH).
+// Inland water is drawn in dedicated passes ABOVE the island tiles (the sand-bank
+// casing of the over-sea passes sits BENEATH the tiles, so an inland segment drawn
+// there would render bankless — blue on grass).
+type WaterMode = 'off' | 'pond' | 'through';
+
+interface RiverTuning {
+  /** Trunk length as a fraction of the mean source→mouth distance (clamped). */
+  trunkFrac: number;
+  /** Multiplier on how fast a trunk fattens per gathered tributary. */
+  trunkW: number;
+  /** px a river mouth sits inside the coast when the moat is OFF (so the tip lands
+   *  on the beach, not floating past the shore the moat used to cover). */
+  mouthInset: number;
+}
+
+const RIVER_TUNING: RiverTuning = { trunkFrac: 0.78, trunkW: 1, mouthInset: 7 };
+
+/** Per-water-layer stroke width as a function of flow load (merged trunks). flow=1
+ *  reproduces the CSS defaults so member strands are unchanged; trunks fatten. */
+const FLOW_W = {
+  land: { base: 12.5, step: 3.0, max: 26 },
+  bank: { base: 7.5, step: 2.0, max: 17 },
+  water: { base: 4.2, step: 1.4, max: 11 },
+  glint: { base: 1.5, step: 0, max: 1.5 },
+} as const;
+
+function readRiverMode(): RiverMode {
+  if (typeof window === 'undefined') return 'strands';
+  return new URLSearchParams(window.location.search).get('rivers') === 'merge' ? 'merge' : 'strands';
+}
+
+function readMoat(): boolean {
+  if (typeof window === 'undefined') return true;
+  const raw = new URLSearchParams(window.location.search).get('moat');
+  return !(raw === 'off' || raw === 'none' || raw === '0' || raw === 'false');
+}
+
+function readWaterMode(): WaterMode {
+  if (typeof window === 'undefined') return 'off';
+  const raw = new URLSearchParams(window.location.search).get('water');
+  if (raw === 'pond') return 'pond';
+  if (raw === 'through') return 'through';
+  return 'off';
+}
+
+/** `?plants=scatter` disperses the capability garden off its rigid front arc. */
+function readPlantsScatter(): boolean {
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('plants') === 'scatter';
+}
+
+function readRiverTuning(): RiverTuning {
+  if (typeof window === 'undefined') return RIVER_TUNING;
+  const q = new URLSearchParams(window.location.search);
+  const out: RiverTuning = { ...RIVER_TUNING };
+  const num = (key: string): number | null => {
+    const raw = q.get(key);
+    if (raw === null) return null;
+    const v = Number(raw);
+    return Number.isFinite(v) ? v : null;
+  };
+  const tf = num('trunkFrac');
+  const tw = num('trunkW');
+  const mi = num('mouthInset');
+  if (tf !== null) out.trunkFrac = Math.max(0, tf);
+  if (tw !== null) out.trunkW = Math.max(0, tw);
+  if (mi !== null) out.mouthInset = mi;
+  return out;
+}
+
 // ---------- focus relations (V1's ancestor/descendant highlighting) ----------
 
 interface Relations {
@@ -1829,7 +2200,35 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
       .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : String(e)));
   }, []);
 
-  const world = useMemo(() => (stories ? buildWorld(stories) : null), [stories]);
+  // River network spike (flag-gated): `?rivers=merge` collapses each source's
+  // outgoing fan into one trunk; `?moat=off` drops the island water ring. Read
+  // once (URL constants), threaded into buildWorld AND its memo deps so the flag
+  // never silently no-ops against the [stories]-only memo.
+  const riverMode = useMemo(() => readRiverMode(), []);
+  const moatOn = useMemo(() => readMoat(), []);
+  const waterMode = useMemo(() => readWaterMode(), []);
+  const plantsScatter = useMemo(() => readPlantsScatter(), []);
+  const riverTuning = useMemo(() => readRiverTuning(), []);
+  const world = useMemo(
+    () =>
+      stories
+        ? buildWorld(stories, {
+            riverMode,
+            moat: moatOn,
+            tuning: riverTuning,
+            waterMode,
+            plantsScatter,
+          })
+        : null,
+    [stories, riverMode, moatOn, waterMode, plantsScatter, riverTuning],
+  );
+
+  /** Merged-trunk stroke width per water layer, or undefined (CSS default). */
+  const flowStyle = (e: WorldEdge, layer: keyof typeof FLOW_W): React.CSSProperties | undefined => {
+    if (e.flow == null) return undefined;
+    const c = FLOW_W[layer];
+    return { strokeWidth: rampWidth(e.flow, c.base, c.step * riverTuning.trunkW, c.max) };
+  };
 
   // VISUAL SPIKE (do not land): swap the regular hex interiors for an irregular
   // relaxed grid when `?substrate=…` is set. Null = the default hex world.
@@ -1992,15 +2391,30 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
 
   const roadClass = (e: WorldEdge): string => {
     const cls = ['world-trail'];
+    if (e.kind === 'trunk') cls.push('is-trunk');
     if (focusStoryId && storyRelations) {
       const anc = (id: string): boolean => id === focusStoryId || storyRelations.ancestors.has(id);
       const desc = (id: string): boolean =>
         id === focusStoryId || storyRelations.descendants.has(id);
-      if (storyRelations.ancestors.has(e.from) && anc(e.to)) cls.push('is-ancestor');
+      if (e.kind === 'trunk') {
+        // A trunk has no real `to`; key its relation on the source island alone.
+        if (anc(e.from)) cls.push('is-ancestor');
+        else if (desc(e.from)) cls.push('is-descendant');
+        else cls.push('is-dim');
+      } else if (storyRelations.ancestors.has(e.from) && anc(e.to)) cls.push('is-ancestor');
       else if (storyRelations.descendants.has(e.to) && desc(e.from)) cls.push('is-descendant');
       else cls.push('is-dim');
     }
     return cls.join(' ');
+  };
+
+  /** Dim an inland pond when a focus is set and its island is off the focus path. */
+  const pondClass = (p: PondShape): string => {
+    if (!focusStoryId || !storyRelations) return '';
+    const id = p.story;
+    if (id === focusStoryId || storyRelations.ancestors.has(id) || storyRelations.descendants.has(id))
+      return '';
+    return 'is-dim';
   };
 
   const clearSelection = (): void => {
@@ -2094,16 +2508,17 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
               <g className="water-net-land">
                 {world.edges.map((e) => (
                   <g key={`${e.from}->${e.to}`} className={roadClass(e)}>
-                    <path className="world-trail-land" d={e.d} />
+                    <path className="world-trail-land" d={e.d} style={flowStyle(e, 'land')} />
                   </g>
                 ))}
-                {world.territories.map((t) => (
-                  <g key={t.story.id} className={`hex-water-border ${territoryClass(t.story)}`}>
-                    {t.coastPaths.map((d, i) => (
-                      <path key={`ml${i}`} className="moat-land" d={d} />
-                    ))}
-                  </g>
-                ))}
+                {moatOn &&
+                  world.territories.map((t) => (
+                    <g key={t.story.id} className={`hex-water-border ${territoryClass(t.story)}`}>
+                      {t.coastPaths.map((d, i) => (
+                        <path key={`ml${i}`} className="moat-land" d={d} />
+                      ))}
+                    </g>
+                  ))}
               </g>
 
               {/* organic island land: the smoothed coast filled as sand, UNDER the
@@ -2174,21 +2589,62 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
                 </g>
               )}
 
+              {/* INLAND WATER (?water=pond|through) — drawn ABOVE the island tiles
+                  so the sandy banks show on land (the over-sea casing pass sits
+                  BENEATH the tiles, where an inland segment would render bankless).
+                  Layered back-to-front like the over-sea passes — every sand bank
+                  first, then water, then glint — so a channel fuses seamlessly into
+                  the pond it feeds. */}
+              {(world.inland.ponds.length > 0 || world.inland.channels.length > 0) && (
+                <g className="inland-water">
+                  {world.inland.channels.map((e) => (
+                    <g key={`il-l-${e.from}->${e.to}`} className={roadClass(e)}>
+                      <path className="world-trail-land" d={e.d} />
+                    </g>
+                  ))}
+                  {world.inland.ponds.map((p) => (
+                    <path key={`p-l-${p.story}`} className={`inland-pond-sand ${pondClass(p)}`} d={p.d} />
+                  ))}
+                  {world.inland.channels.map((e) => (
+                    <g key={`il-b-${e.from}->${e.to}`} className={roadClass(e)}>
+                      <path className="world-trail-bank" d={e.d} />
+                    </g>
+                  ))}
+                  {world.inland.channels.map((e) => (
+                    <g key={`il-w-${e.from}->${e.to}`} className={roadClass(e)}>
+                      <path className="world-trail-water" d={e.d} />
+                    </g>
+                  ))}
+                  {world.inland.ponds.map((p) => (
+                    <path key={`p-w-${p.story}`} className={`inland-pond-water ${pondClass(p)}`} d={p.d} />
+                  ))}
+                  {world.inland.channels.map((e) => (
+                    <g key={`il-g-${e.from}->${e.to}`} className={roadClass(e)}>
+                      <path className="world-trail-glint" d={e.d} />
+                    </g>
+                  ))}
+                  {world.inland.ponds.map((p) => (
+                    <path key={`p-g-${p.story}`} className={`inland-pond-glint ${pondClass(p)}`} d={p.d} />
+                  ))}
+                </g>
+              )}
+
               {/* WATER NETWORK pass 2/4 — pale shallows: the rim between the sand
                   bank and the open water, for every river and moat. */}
               <g className="water-net-shallow">
                 {world.edges.map((e) => (
                   <g key={`${e.from}->${e.to}`} className={roadClass(e)}>
-                    <path className="world-trail-bank" d={e.d} />
+                    <path className="world-trail-bank" d={e.d} style={flowStyle(e, 'bank')} />
                   </g>
                 ))}
-                {world.territories.map((t) => (
-                  <g key={t.story.id} className={`hex-water-border ${territoryClass(t.story)}`}>
-                    {t.coastPaths.map((d, i) => (
-                      <path key={`mb${i}`} className="moat-bank" d={d} />
-                    ))}
-                  </g>
-                ))}
+                {moatOn &&
+                  world.territories.map((t) => (
+                    <g key={t.story.id} className={`hex-water-border ${territoryClass(t.story)}`}>
+                      {t.coastPaths.map((d, i) => (
+                        <path key={`mb${i}`} className="moat-bank" d={d} />
+                      ))}
+                    </g>
+                  ))}
               </g>
 
               {/* WATER NETWORK pass 3/4 — the water body: river bodies AND island
@@ -2197,37 +2653,45 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
                   river's tip). Dep → dependent; several deps land as a fanned delta,
                   never a merged trunk. */}
               <g className="water-net-water">
-                {world.edges.map((e) => (
-                  <g key={`${e.from}->${e.to}`} className={roadClass(e)}>
-                    <title>
-                      {`${e.to} depends on ${e.from}${e.via.length ? ` (via ${e.via.join(', ')})` : ''}`}
-                    </title>
-                    <path className="world-trail-water" d={e.d} />
-                  </g>
-                ))}
-                {world.territories.map((t) => (
-                  <g key={t.story.id} className={`hex-water-border ${territoryClass(t.story)}`}>
-                    {t.coastPaths.map((d, i) => (
-                      <path key={`mw${i}`} className="moat-water" d={d} />
-                    ))}
-                  </g>
-                ))}
+                {world.edges.map((e) =>
+                  e.kind === 'trunk' ? (
+                    <g key={`${e.from}->${e.to}`} className={roadClass(e)}>
+                      <path className="world-trail-water" d={e.d} style={flowStyle(e, 'water')} />
+                    </g>
+                  ) : (
+                    <g key={`${e.from}->${e.to}`} className={roadClass(e)}>
+                      <title>
+                        {`${e.to} depends on ${e.from}${e.via.length ? ` (via ${e.via.join(', ')})` : ''}`}
+                      </title>
+                      <path className="world-trail-water" d={e.d} style={flowStyle(e, 'water')} />
+                    </g>
+                  ),
+                )}
+                {moatOn &&
+                  world.territories.map((t) => (
+                    <g key={t.story.id} className={`hex-water-border ${territoryClass(t.story)}`}>
+                      {t.coastPaths.map((d, i) => (
+                        <path key={`mw${i}`} className="moat-water" d={d} />
+                      ))}
+                    </g>
+                  ))}
               </g>
 
               {/* WATER NETWORK pass 4/4 — the flowing glint, on top of all water. */}
               <g className="water-net-glint">
                 {world.edges.map((e) => (
                   <g key={`${e.from}->${e.to}`} className={roadClass(e)}>
-                    <path className="world-trail-glint" d={e.d} />
+                    <path className="world-trail-glint" d={e.d} style={flowStyle(e, 'glint')} />
                   </g>
                 ))}
-                {world.territories.map((t) => (
-                  <g key={t.story.id} className={`hex-water-border ${territoryClass(t.story)}`}>
-                    {t.coastPaths.map((d, i) => (
-                      <path key={`mg${i}`} className="moat-glint" d={d} />
-                    ))}
-                  </g>
-                ))}
+                {moatOn &&
+                  world.territories.map((t) => (
+                    <g key={t.story.id} className={`hex-water-border ${territoryClass(t.story)}`}>
+                      {t.coastPaths.map((d, i) => (
+                        <path key={`mg${i}`} className="moat-glint" d={d} />
+                      ))}
+                    </g>
+                  ))}
               </g>
 
               {/* trees, decoration, nameplates, wisps — per territory */}

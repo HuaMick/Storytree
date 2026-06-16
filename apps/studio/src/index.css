@@ -1607,6 +1607,23 @@ mark.st-hl.flash {
 .coast-fill-group.is-dim {
   opacity: 0.4;
 }
+/* When the moat ring is OFF (?moat=off) the island loses its water-ring focus
+   accent — relocate the selection/focus ring onto the island's own shore line so
+   a focused territory still reads. Harmless when the moat is on (mostly hidden
+   under the tiles). */
+.coast-fill-group.is-focus .coast-fill,
+.coast-fill-group.is-selected .coast-fill {
+  stroke: var(--accent);
+  stroke-width: 2.4;
+}
+.coast-fill-group.is-ancestor .coast-fill {
+  stroke: var(--warn);
+  stroke-width: 2;
+}
+.coast-fill-group.is-descendant .coast-fill {
+  stroke: var(--danger);
+  stroke-width: 2;
+}
 
 /* (Territory borders are now the smoothed water coastline — see .hex-water-border below.) */
 
@@ -1654,6 +1671,14 @@ mark.st-hl.flash {
   stroke-dasharray: 5 16;
   opacity: 0.7;
   animation: river-flow 2.6s linear infinite;
+}
+/* A merged TRUNK carries more flow — its current runs faster and its dashes sit
+   a touch longer, so at the fork you SEE a fast fat trunk feeding slower branches:
+   the animation, not spacing, conveys where the water goes (?rivers=merge). */
+.world-trail.is-trunk .world-trail-glint {
+  stroke-dasharray: 7 13;
+  opacity: 0.8;
+  animation-duration: 1.7s;
 }
 /* only the water body carries the hover tooltip; the casing/glint passes are
    inert so the title resolves to one river, not whichever layer is on top. */
@@ -1738,9 +1763,46 @@ mark.st-hl.flash {
 }
 @media (prefers-reduced-motion: reduce) {
   .world-trail-glint,
-  .hex-water-border .moat-glint {
+  .hex-water-border .moat-glint,
+  .inland-pond-glint {
     animation: none;
   }
+}
+
+/* INLAND WATER (?water=pond|through) — drawn ABOVE the island tiles. The channels
+   reuse the .world-trail-* river stack; the ponds are a banked, filled pool: a
+   sand shore (wide stroke + sand fill), the water body (fill + a pale shallow rim),
+   and a slow rim glint. Stacked so a feeding channel fuses into the pond's shore. */
+.inland-water {
+  transition: opacity 0.18s ease;
+}
+.inland-pond-sand {
+  fill: var(--river-land);
+  stroke: var(--river-land);
+  stroke-width: 8;
+  stroke-linejoin: round;
+}
+.inland-pond-water {
+  fill: var(--river);
+  stroke: var(--river-bank);
+  stroke-width: 3;
+  stroke-linejoin: round;
+  opacity: 0.97;
+}
+.inland-pond-glint {
+  fill: none;
+  stroke: var(--river-glint);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  stroke-dasharray: 4 20;
+  opacity: 0.5;
+  animation: river-flow 8s linear infinite;
+}
+/* focus dimming, mirroring .world-trail.is-dim on the channels */
+.inland-pond-sand.is-dim,
+.inland-pond-water.is-dim,
+.inland-pond-glint.is-dim {
+  opacity: 0.25;
 }
 
 /* flora: the per-territory layer of trees, plates and wisps */
