@@ -149,6 +149,33 @@ test("ENV HONESTY: secret-shaped vars never reach the spawned process (output fl
   }
 });
 
+test("ADR-0064 ENV FORCE: cmd.env is merged LAST and OVERRIDES an inherited (prod) value", async () => {
+  // The DB-backed proof honesty wall: the spine forces STORYTREE_DB_NAME to the disposable test DB,
+  // and that value must WIN even when the parent process points at production — so a db-backed proof
+  // can never reach prod through an inherited env.
+  process.env["STORYTREE_DB_NAME"] = "storytree"; // the parent points at PRODUCTION
+  try {
+    const out = await runShellCommand({
+      file: process.execPath,
+      args: ["-e", "process.stdout.write(process.env.STORYTREE_DB_NAME ?? 'absent')"],
+      env: { STORYTREE_DB_NAME: "storytree_test" }, // the spine forces the disposable DB
+    });
+    assert.equal(out.stdout, "storytree_test", "cmd.env must override the inherited prod value");
+  } finally {
+    delete process.env["STORYTREE_DB_NAME"];
+  }
+});
+
+test("ADR-0064 ENV FORCE: cmd.env injects a var the parent never set", async () => {
+  assert.equal(process.env["STORYTREE_INJECTED_ONLY"], undefined, "precondition: unset in parent");
+  const out = await runShellCommand({
+    file: process.execPath,
+    args: ["-e", "process.stdout.write(process.env.STORYTREE_INJECTED_ONLY ?? 'absent')"],
+    env: { STORYTREE_INJECTED_ONLY: "from-spine" },
+  });
+  assert.equal(out.stdout, "from-spine");
+});
+
 test("isScrubbedEnvKey: the real credential names are scrubbed; benign names are not", () => {
   for (const key of [
     "CLAUDE_CODE_OAUTH_TOKEN",

@@ -9,6 +9,9 @@ export {
 } from "./connection.js";
 export type { CreatePoolOptions, PoolHandle } from "./connection.js";
 export { applySchema, SCHEMA_SQL_PATH } from "./migrate.js";
+// The disposable test-DB isolation guard (ADR-0054), surfaced for the DB-backed inner-loop proof
+// (ADR-0064): the CLI asserts a db-backed proof's STORYTREE_DB_NAME is non-prod before any build.
+export { createTestPool, assertTestDatabase, TEST_DB_ENV } from "./test-db.js";
 export { PgLibraryStore } from "./pg-store.js";
 export { PgWorkStore } from "./pg-work-store.js";
 export type { WorkStoreClient } from "./pg-work-store.js";

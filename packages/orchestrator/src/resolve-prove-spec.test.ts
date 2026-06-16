@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { InMemoryStore, rollupStatus, workEvent } from "@storytree/core";
 import type { ToolResultBlock, ToolUseBlock } from "@storytree/core";
 import { FileToolExecutor, FILE_WRITE_TOOLS } from "@storytree/agent";
-import type { ToolExecutor } from "@storytree/agent";
+import type { PhaseAuthor, ToolExecutor } from "@storytree/agent";
 
 import { loadNodeSpec, findNodeSpecFile, mapProofMode } from "./node-spec.js";
 import {
@@ -1205,4 +1205,100 @@ test("C — edit-existing: a forged already-green regression test fails closed a
   } finally {
     await fs.rm(fix.root, { recursive: true, force: true });
   }
+});
+
+// ── ADR-0064: DB-backed proof mode (isolated test-DB env, fail-closed against prod) ──────────────
+
+/** A do-nothing leaf for tests that only exercise the resolver / the spine's proof command. */
+const NOOP_AUTHOR: PhaseAuthor = { author: async () => ({ ok: true }) };
+
+/** Build a db:true real spec over verdict-line's shape (schema bypassed — direct object construction). */
+function dbBackedSpec(id: string, proofCommand?: { file: string; args: string[] }) {
+  const base = loadById("verdict-line");
+  const bc = base.buildConfig;
+  assert.ok(bc?.real !== undefined);
+  return {
+    ...base,
+    id,
+    buildConfig: {
+      ...bc,
+      real: { ...bc.real, db: true, ...(proofCommand !== undefined ? { proofCommand } : {}) },
+    },
+  };
+}
+
+test("ADR-0064 — real mode REFUSES a db:true node with NO dbProofEnv (fail-closed, the second wall)", () => {
+  const result = resolveProveSpec(dbBackedSpec("db-no-env"), {
+    mode: "real",
+    workspace: os.tmpdir(),
+    store: new InMemoryStore(),
+    runId: "db-no-env-1",
+    signerInputs: { flag: "tester@example.com" },
+    authorOverride: NOOP_AUTHOR,
+    // no dbProofEnv supplied
+  });
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.match(result.reason, /no isolated test-DB env/);
+});
+
+test("ADR-0064 — real mode REFUSES a db:true node whose env names PRODUCTION (independent of the store guard)", () => {
+  const result = resolveProveSpec(dbBackedSpec("db-prod-env"), {
+    mode: "real",
+    workspace: os.tmpdir(),
+    store: new InMemoryStore(),
+    runId: "db-prod-env-1",
+    signerInputs: { flag: "tester@example.com" },
+    authorOverride: NOOP_AUTHOR,
+    dbProofEnv: { STORYTREE_DB_NAME: "storytree" }, // PRODUCTION
+  });
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.match(result.reason, /PRODUCTION database/);
+});
+
+test("ADR-0064 — db-backed resolution FORCES the test-DB env onto the spine's OWN proof command", async () => {
+  // A declared proof command that GREENS only when STORYTREE_DB_NAME is the injected disposable DB —
+  // run through the resolved spec's OWN testExecutor (the spine's out-of-band observation channel), so
+  // this proves the env reaches the command the gate actually observes (not just the leaf's feedback).
+  const spec = dbBackedSpec("db-env-forced", {
+    file: process.execPath,
+    args: ["-e", "process.exit(process.env.STORYTREE_DB_NAME === 'fake_test_db' ? 0 : 1)"],
+  });
+  const resolved = resolveProveSpec(spec, {
+    mode: "real",
+    workspace: os.tmpdir(),
+    store: new InMemoryStore(),
+    runId: "db-env-forced-1",
+    signerInputs: { flag: "tester@example.com" },
+    authorOverride: NOOP_AUTHOR,
+    dbProofEnv: { STORYTREE_DB_NAME: "fake_test_db" },
+  });
+  assert.equal(resolved.ok, true);
+  if (!resolved.ok) return;
+  const obs = await resolved.spec.testExecutor.run(spec.id);
+  assert.equal(obs.result, "green", "the proof command must spawn with the forced STORYTREE_DB_NAME");
+
+  // And the negative control: WITHOUT db:true the same proof command reds (no env forced).
+  const noDb = {
+    ...spec,
+    id: "db-env-absent",
+    buildConfig: {
+      ...spec.buildConfig,
+      real: { ...spec.buildConfig.real, db: false },
+    },
+  };
+  const resolvedNoDb = resolveProveSpec(noDb, {
+    mode: "real",
+    workspace: os.tmpdir(),
+    store: new InMemoryStore(),
+    runId: "db-env-absent-1",
+    signerInputs: { flag: "tester@example.com" },
+    authorOverride: NOOP_AUTHOR,
+    dbProofEnv: { STORYTREE_DB_NAME: "fake_test_db" },
+  });
+  assert.equal(resolvedNoDb.ok, true);
+  if (!resolvedNoDb.ok) return;
+  const obsNoDb = await resolvedNoDb.spec.testExecutor.run(noDb.id);
+  assert.equal(obsNoDb.result, "red", "without db:true the env is NOT forced onto the proof command");
 });

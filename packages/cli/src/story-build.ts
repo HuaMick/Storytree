@@ -33,6 +33,7 @@ import {
   renderLeafPhasePrompts,
   repoRoot,
   rel,
+  resolveDbProofEnv,
   resolveVerdictStore,
 } from "./node-build.js";
 import { deriveIdentity } from "./noticeboard.js";
@@ -286,22 +287,41 @@ export async function storyBuild(
     }
   }
 
+  // ADR-0064: if any driven node is db-backed, compute + assert the isolated test-DB env ONCE for the
+  // chain (fail-closed against prod) before any worktree, and require the instance up below.
+  let dbProofEnv: Record<string, string> | undefined;
+  const anyDb = real && driveOrder.some((n) => resolveBuildConfig(n)?.config.real?.db === true);
+  if (anyDb) {
+    const resolvedDb = resolveDbProofEnv();
+    if (!resolvedDb.ok) return resolvedDb.refusal;
+    dbProofEnv = resolvedDb.env;
+  }
+
   // ADR-0060: a live/real story chain OWNS the database — `--store` defaults to `pg`, and the
   // preflight ENSURES the instance is up (probe → `db:up` + wait if down) BEFORE anything that
   // touches it: the oq-hygiene gate's live loader composes the PgLibraryStore, and the verdict store
   // is pg. `--store memory` opts out; `--dry-run` is untouched (in-memory, never the DB).
   const retryCmd = `storytree story build ${story.id} ${real ? "--real" : "--live"}`;
   const effectiveStore = effectiveVerdictStore(opts.verdictStore, mode === "dry-run");
-  if (effectiveStore === "pg" && mode !== "dry-run") {
+  // The instance must be up to PERSIST verdicts (--store pg) AND to run any db-backed proof in the
+  // chain (ADR-0064: the proof connects to the test DB on this instance even with --store memory).
+  const needsDb = (effectiveStore === "pg" && mode !== "dry-run") || anyDb;
+  if (needsDb) {
     const ensureDb = opts.ensureDb ?? ensureLiveDb;
     const ready = await ensureDb((m) => console.error(`[db] ${m}`));
     if (!ready.ok) {
       return {
         ok: false,
-        body: `this build persists to the live store, but the database could not be brought up:\n${ready.reason}`,
+        body:
+          (anyDb
+            ? `this build runs a db-backed proof (real.db:true), but the database could not be brought up:\n`
+            : `this build persists to the live store, but the database could not be brought up:\n`) +
+          ready.reason,
         next: [
           "pnpm db:status",
-          `${retryCmd} --store memory   (run WITHOUT persisting — no studio wisp/bloom)`,
+          ...(anyDb
+            ? []
+            : [`${retryCmd} --store memory   (run WITHOUT persisting — no studio wisp/bloom)`]),
         ],
       };
     }
@@ -398,6 +418,7 @@ export async function storyBuild(
             presence: ambient,
             repoRoot: rootDir,
             promote: false,
+            ...(dbProofEnv !== undefined ? { dbProofEnv } : {}),
             ...(override !== undefined ? { authorOverride: override } : {}),
             ...(opts.model !== undefined ? { model: opts.model } : {}),
             budgetUsd: Math.min(SLICE_BUDGET_USD, remainingUsd ?? SLICE_BUDGET_USD),

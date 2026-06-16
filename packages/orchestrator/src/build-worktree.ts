@@ -273,6 +273,8 @@ export function platformShellCommand(
     file: process.env["ComSpec"] ?? "cmd.exe",
     args: ["/d", "/s", "/c", "pnpm", ...cmd.args],
     ...(cmd.cwd !== undefined ? { cwd: cmd.cwd } : {}),
+    // Preserve any per-command env overrides through the win32 rewrap (ADR-0064 DB-backed proof).
+    ...(cmd.env !== undefined ? { env: cmd.env } : {}),
   };
 }
 

@@ -231,3 +231,19 @@ test("platformShellCommand wraps pnpm via cmd.exe on win32 and passes everything
   const node = { file: process.execPath, args: ["-e", "0"] };
   assert.deepEqual(platformShellCommand(node, "win32"), node);
 });
+
+test("platformShellCommand preserves per-command env through the win32 pnpm rewrap (ADR-0064)", () => {
+  // The DB-backed proof forces STORYTREE_DB_NAME via cmd.env; the win32 cmd.exe rewrap must carry it
+  // through, or a db-backed pnpm proof would lose its isolated-DB env on Windows.
+  const pnpm = {
+    file: "pnpm",
+    args: ["--filter", "@storytree/store", "test"],
+    cwd: "/ws",
+    env: { STORYTREE_DB_NAME: "storytree_test" },
+  };
+  const onWin = platformShellCommand(pnpm, "win32");
+  assert.match(onWin.file, /cmd/i);
+  assert.deepEqual(onWin.env, { STORYTREE_DB_NAME: "storytree_test" });
+  // Passthrough (non-pnpm or non-win32) returns the command verbatim — env already present.
+  assert.deepEqual(platformShellCommand(pnpm, "linux"), pnpm);
+});

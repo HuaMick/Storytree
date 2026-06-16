@@ -7,7 +7,13 @@ import * as path from "node:path";
 import { InMemoryStore } from "@storytree/core";
 
 import { run } from "./commands.js";
-import { buildableNodeIds, nodeHelp, renderLeafPhasePrompts } from "./node-build.js";
+import {
+  buildableNodeIds,
+  DEFAULT_TEST_DB_NAME,
+  nodeHelp,
+  renderLeafPhasePrompts,
+  resolveDbProofEnv,
+} from "./node-build.js";
 
 /**
  * `storytree node build <id> --dry-run` (drive-machinery Phase C), driven through `run` exactly as
@@ -297,4 +303,55 @@ test("node resolve on an unknown id is guidance listing buildable nodes", async 
   assert.equal(env.ok, false);
   assert.match(env.body, /no node spec "no-such-node"/);
   assert.ok(env.next?.some((n) => n.includes("storytree node resolve")));
+});
+
+// ── ADR-0064: resolveDbProofEnv — the CLI's first honesty wall for a db-backed proof ─────────────
+
+test("resolveDbProofEnv defaults to the canonical disposable test DB when STORYTREE_DB_NAME is unset", () => {
+  const savedName = process.env["STORYTREE_DB_NAME"];
+  const savedUser = process.env["STORYTREE_DB_USER"];
+  try {
+    delete process.env["STORYTREE_DB_NAME"];
+    process.env["STORYTREE_DB_USER"] = "iam@example.com";
+    const res = resolveDbProofEnv();
+    assert.equal(res.ok, true);
+    if (!res.ok) return;
+    assert.equal(res.dbName, DEFAULT_TEST_DB_NAME);
+    assert.equal(res.env["STORYTREE_DB_NAME"], DEFAULT_TEST_DB_NAME);
+    // The IAM user (keyless auth) is carried through for the worktree proof to authenticate.
+    assert.equal(res.env["STORYTREE_DB_USER"], "iam@example.com");
+  } finally {
+    if (savedName === undefined) delete process.env["STORYTREE_DB_NAME"];
+    else process.env["STORYTREE_DB_NAME"] = savedName;
+    if (savedUser === undefined) delete process.env["STORYTREE_DB_USER"];
+    else process.env["STORYTREE_DB_USER"] = savedUser;
+  }
+});
+
+test("resolveDbProofEnv honors an explicit disposable STORYTREE_DB_NAME override", () => {
+  const saved = process.env["STORYTREE_DB_NAME"];
+  try {
+    process.env["STORYTREE_DB_NAME"] = "storytree_test_alt";
+    const res = resolveDbProofEnv();
+    assert.equal(res.ok, true);
+    if (!res.ok) return;
+    assert.equal(res.dbName, "storytree_test_alt");
+  } finally {
+    if (saved === undefined) delete process.env["STORYTREE_DB_NAME"];
+    else process.env["STORYTREE_DB_NAME"] = saved;
+  }
+});
+
+test("resolveDbProofEnv REFUSES production (STORYTREE_DB_NAME=storytree) — fail-closed, the first wall", () => {
+  const saved = process.env["STORYTREE_DB_NAME"];
+  try {
+    process.env["STORYTREE_DB_NAME"] = "storytree"; // PRODUCTION
+    const res = resolveDbProofEnv();
+    assert.equal(res.ok, false);
+    if (res.ok) return;
+    assert.match(res.refusal.body, /ISOLATED test database, never production|PRODUCTION/i);
+  } finally {
+    if (saved === undefined) delete process.env["STORYTREE_DB_NAME"];
+    else process.env["STORYTREE_DB_NAME"] = saved;
+  }
 });

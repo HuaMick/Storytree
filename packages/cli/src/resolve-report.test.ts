@@ -62,6 +62,7 @@ test("resolveReport on a spec-borne node reports source=spec, all command/scope/
   assert.equal(report.real.sourceFile, "packages/core/src/verdict-line.ts");
   assert.equal(report.real.install, false);      // absent in spec → normalised to false
   assert.equal(report.real.editsExisting, false); // absent in spec → normalised to false
+  assert.equal(report.real.db, false);            // absent in spec → normalised to false (ADR-0064)
   assert.equal(report.real.typecheck, null);       // no typecheck declared → null
   assert.equal(report.real.proofCommand, null);    // no custom proofCommand → null (default node:test)
 
