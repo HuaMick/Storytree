@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { InMemoryStore } from "@storytree/core";
+import type { Store } from "@storytree/core";
 import type { Comment } from "@storytree/store";
 
 import {
   CURATOR_ACTOR,
   ScriptedCuratorRunner,
   enactCuration,
+  runCurationPass,
   type CommentSink,
   type CurationAction,
   type CurationContext,
@@ -222,4 +224,44 @@ test("ScriptedCuratorRunner returns its fixed actions and the function form sees
   );
   const actions = await dynamic.run(ctx);
   assert.equal(actions[0]?.type, "escalate");
+});
+
+// --- runCurationPass (the pass orchestration) ----------------------------------------------------
+
+test("runCurationPass defers (no-op) when no library store is wired", async () => {
+  const lines = await runCurationPass({
+    runner: new ScriptedCuratorRunner(),
+    library: null,
+    context: { storyId: "s", nodeIds: ["s"], decisions: [], adrs: [] },
+  });
+  assert.ok(lines.some((l) => l.includes("deferred")));
+});
+
+test("runCurationPass loads the OQ neighbourhood, runs the curator, and enacts", async () => {
+  const store = new InMemoryStore();
+  await store.upsertDoc({ id: "oq-old", kind: "open-question", doc: oqDoc("oq-old") });
+  const runner = new ScriptedCuratorRunner((ctx) =>
+    ctx.openQuestions.map((oq) => ({ type: "retire-open-question", id: oq.id, reason: "overtaken" })),
+  );
+  const lines = await runCurationPass({
+    runner,
+    library: store,
+    context: { storyId: "s", nodeIds: ["s"], decisions: [16], adrs: [] },
+  });
+  assert.equal(await store.getDoc("oq-old"), null, "the curator retired the OQ it judged overtaken");
+  assert.ok(lines.some((l) => l.includes("retired open-question oq-old")));
+});
+
+test("runCurationPass never throws — a failing store yields a best-effort skipped line", async () => {
+  const broken = {
+    queryDocs: async () => {
+      throw new Error("db down");
+    },
+  } as unknown as Store;
+  const lines = await runCurationPass({
+    runner: new ScriptedCuratorRunner(),
+    library: broken,
+    context: { storyId: "s", nodeIds: ["s"], decisions: [], adrs: [] },
+  });
+  assert.ok(lines.some((l) => l.includes("skipped")));
 });

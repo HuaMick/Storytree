@@ -287,6 +287,62 @@ function record(out: CurationOutcome, result: DocResult, verb: string): void {
   else out.refused.push(`${verb}: ${result.reason}`);
 }
 
+/**
+ * Run the whole curation pass and return its build-header report lines — NEVER throwing (curation
+ * is advisory and must never fail the enclosing build, ADR-0067). It loads the open-questions +
+ * proposals from the library store, assembles the {@link CurationContext} for the story nodes built,
+ * lets the {@link CuratorRunner} judge, and enacts the result kind-fenced. A null `library` means
+ * the live curator is not wired for this run (e.g. an offline dry-run with no store injected) — it
+ * reports a one-line deferral and does nothing.
+ */
+export interface CurationPassInput {
+  runner: CuratorRunner;
+  /** The library store to read OQs/proposals from + enact against; null = deferred (nothing to run). */
+  library: Store | null;
+  comments?: CommentSink | null;
+  context: { storyId: string; nodeIds: string[]; decisions: number[]; adrs: AdrMeta[] };
+  actor?: string;
+  now?: () => Date;
+}
+
+export async function runCurationPass(input: CurationPassInput): Promise<string[]> {
+  if (input.library === null) {
+    return [
+      "curation:    deferred — the live librarian-curator runs on --live/--real (ADR-0067 follow-up)",
+    ];
+  }
+  try {
+    const library = input.library;
+    const [openQuestions, proposals] = await Promise.all([
+      library.queryDocs({ kind: WRITABLE_KINDS.openQuestion }),
+      library.queryDocs({ kind: WRITABLE_KINDS.proposal }),
+    ]);
+    const ctx: CurationContext = {
+      storyId: input.context.storyId,
+      nodeIds: input.context.nodeIds,
+      decisions: input.context.decisions,
+      openQuestions,
+      proposals,
+      adrs: input.context.adrs,
+    };
+    const actions = await input.runner.run(ctx);
+    const outcome = await enactCuration(
+      {
+        store: library,
+        comments: input.comments ?? null,
+        ...(input.actor !== undefined ? { actor: input.actor } : {}),
+        ...(input.now !== undefined ? { now: input.now } : {}),
+      },
+      actions,
+    );
+    return outcome.lines;
+  } catch (e) {
+    return [
+      `curation:    skipped — ${(e as Error).message} (best-effort; the build is unaffected, ADR-0067)`,
+    ];
+  }
+}
+
 /** The build-header report block: a one-line summary + each enacted / refused / escalated line. */
 function summaryLines(out: CurationOutcome): string[] {
   const enacted = out.enacted.filter((l) => l !== "");
