@@ -11,6 +11,8 @@ export interface ResolveRealReport {
   install: boolean;
   /** Whether the node edits existing source (vs net-new). */
   editsExisting: boolean;
+  /** DB-backed proof (ADR-0064): the worktree proof gets an isolated test-DB connection. */
+  db: boolean;
   /** The declared typecheck command shown as one string, or null when none is declared. */
   typecheck: string | null;
   /** The DECLARED proof command shown as one string, or null when the default node:test is used. */
@@ -121,6 +123,7 @@ export function resolveReport(spec: NodeSpec): ResolveReport {
     sourceFile: realConfig.sourceFile,
     install: realConfig.install === true,
     editsExisting: realConfig.editsExisting === true,
+    db: realConfig.db === true,
     typecheck,
     proofCommand: proofCommandStr,
     proofDisplay,

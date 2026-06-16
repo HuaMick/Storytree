@@ -191,6 +191,16 @@ export interface RealResolveOptions extends BaseResolveOptions {
    * live {@link ClaudeAgentAuthor}. The executor seam (ADR-0030 §2), used as the test seam here.
    */
   authorOverride?: PhaseAuthor;
+  /**
+   * DB-backed proof env (ADR-0064): the spine-supplied env the worktree proof spawns with when the
+   * node declares `real.db: true` — at minimum a `STORYTREE_DB_NAME` pointing at a DISPOSABLE test
+   * database (the CLI computes it and asserts non-prod via `@storytree/store`'s `assertTestDatabase`,
+   * plus `STORYTREE_DB_USER` for keyless IAM). The resolver FORCES it onto the proof command (so both
+   * the spine's CONFIRM observation and the leaf's `run_proof` hit the test DB) and REFUSES a
+   * `db:true` node whose env is missing or names production — an independent SECOND honesty wall (the
+   * store's `createTestPool` guard is the first). Ignored when the node does not declare `db`.
+   */
+  dbProofEnv?: Record<string, string>;
 }
 
 export type ResolveOptions =
@@ -313,6 +323,17 @@ export function resolveProveSpec(
 }
 
 /**
+ * The production database name a db-backed proof must NEVER reach (ADR-0064/0054). Duplicated as a
+ * LITERAL rather than imported from `@storytree/store` (`DEFAULT_DATABASE`) to keep the orchestrator
+ * store-free; this is the SECOND, independent honesty wall — the store's `assertTestDatabase` is the
+ * first. Two unrelated checks must both hold, so a CLI bug alone can never reach prod.
+ */
+const PROD_DB_NAME = "storytree";
+
+/** The env var naming the disposable test database (mirrors `@storytree/store`'s `TEST_DB_ENV`). */
+const DB_NAME_ENV = "STORYTREE_DB_NAME";
+
+/**
  * Resolve REAL mode (plan Phase F). Fail-closed twice over: a registered node without a
  * {@link RealProofConfig} is not real-buildable, and the default tree seam earns cleanliness by a
  * real spine-side commit + a real `git status` (an injected `treeState` is for offline tests only).
@@ -334,10 +355,43 @@ function resolveReal(
     };
   }
 
+  // ADR-0064 DB-backed proof, the SECOND honesty wall: a `db:true` node must be handed an isolated
+  // test-DB env, and that env must NOT name production (or be blank). Refuse before any worktree work
+  // — independent of the store's own `assertTestDatabase` (the first wall), so both must agree.
+  if (real.db === true) {
+    const dbName = opts.dbProofEnv?.[DB_NAME_ENV]?.trim();
+    if (dbName === undefined || dbName === "") {
+      return {
+        ok: false,
+        reason:
+          `node "${spec.id}" declares real.db:true but no isolated test-DB env was supplied ` +
+          `(${DB_NAME_ENV}). A db-backed proof must connect to a DISPOSABLE test database, never ` +
+          `production — the CLI computes this env and asserts it non-prod (ADR-0064/0054).`,
+        registered: realBuildableNodeIds(),
+      };
+    }
+    if (dbName === PROD_DB_NAME) {
+      return {
+        ok: false,
+        reason:
+          `refusing a db-backed proof for "${spec.id}" against the PRODUCTION database "${dbName}" — ` +
+          `set ${DB_NAME_ENV} to a disposable test database (e.g. storytree_test). ADR-0064/0054.`,
+        registered: realBuildableNodeIds(),
+      };
+    }
+  }
+
   // The REAL proof command: the node's DECLARED `real.proofCommand` (ADR-0057 §3, expansion B) or
   // the default `node --import tsx --test <testFile>`. ONE place chooses it, so the spine's CONFIRM
-  // observations and the leaf's run_proof can never diverge (the one-oracle property).
-  const { command: realProofCmd, display: proofDisplay } = realProofCommand(real, opts.workspace);
+  // observations and the leaf's run_proof can never diverge (the one-oracle property). For a
+  // db-backed node (ADR-0064) the spine FORCES the test-DB env onto that one command, so the CONFIRM
+  // observation and the leaf's run_proof both hit the disposable DB (one oracle, one environment).
+  const base = realProofCommand(real, opts.workspace);
+  const proofDisplay = base.display;
+  const realProofCmd: ShellCommand =
+    real.db === true && opts.dbProofEnv !== undefined
+      ? { ...base.command, env: { ...(base.command.env ?? {}), ...opts.dbProofEnv } }
+      : base.command;
   const testExecutor = new ShellTestExecutor({
     command: (): ShellCommand => realProofCmd,
   });

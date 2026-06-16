@@ -98,6 +98,17 @@ export interface RealProofConfig {
    * scope/command — surfaced, not structurally verified).
    */
   editsExisting?: boolean;
+  /**
+   * DB-backed proof (ADR-0064): the node's proof needs a live Postgres connection (a store/pg
+   * adapter), so the spine provisions an ISOLATED test-database connection for the worktree proof.
+   * REQUIRES `install: true` — the proof imports `@storytree/store` / `pg` / the Cloud SQL connector
+   * from node_modules, which a bare (no-install) worktree does not have. Honesty wall (reuses
+   * ADR-0054): the spine FORCES `STORYTREE_DB_NAME` in the proof's env to a DISPOSABLE test database
+   * and refuses a prod/blank name, so a db-backed proof can NEVER touch production — even if the
+   * parent env points at it. The leaf still authors ONLY `testFile`->`sourceFile` and can write
+   * nothing else; `db` provisions the proof's ENVIRONMENT, it does not widen the write surface.
+   */
+  db?: boolean;
 }
 
 /**
@@ -145,8 +156,19 @@ const RealProofConfigSchema = z
     typecheck: ShellCommandSchema.optional(),
     proofCommand: ShellCommandSchema.optional(),
     editsExisting: z.boolean().optional(),
+    db: z.boolean().optional(),
   })
   .strict()
+  // ADR-0064: a db-backed proof imports @storytree/store / pg / the Cloud SQL connector from
+  // node_modules — a bare (no-install) worktree has none, so the proof would crash before it could
+  // connect. db:true therefore requires install:true (which in turn requires real.typecheck).
+  .refine((r) => !(r.db === true && r.install !== true), {
+    message:
+      "real.db:true requires real.install:true — a db-backed proof imports @storytree/store / pg / " +
+      "the Cloud SQL connector from node_modules, which a bare worktree does not have (and " +
+      "install:true then requires real.typecheck, ADR-0064).",
+    path: ["db"],
+  })
   .refine((r) => !(r.install === true && r.typecheck === undefined), {
     message:
       "install:true requires real.typecheck (the proof run is tsx — types are stripped; only " +
@@ -236,6 +258,9 @@ function buildReal(raw: z.infer<typeof RealProofConfigSchema>): RealProofConfig 
     // C (ADR-0057 §3): spread ONLY when present — absent-not-undefined, so a net-new node's config
     // stays byte-for-byte deepEqual to its registry twin (the established parity drift-lock idiom).
     ...(raw.editsExisting !== undefined ? { editsExisting: raw.editsExisting } : {}),
+    // ADR-0064: same absent-not-undefined idiom, so the 7 migrated nodes (no `db`) stay deepEqual
+    // to their registry twins (the contract-4 parity oracle holds byte-for-byte).
+    ...(raw.db !== undefined ? { db: raw.db } : {}),
   };
 }
 

@@ -40,11 +40,13 @@ import type {
 import type { LeafPhasePrompts } from "@storytree/orchestrator";
 import {
   applySchema,
+  assertTestDatabase,
   closePool,
   createPool,
   loadCorpus,
   PgPresenceStore,
   PgWorkStore,
+  TEST_DB_ENV,
 } from "@storytree/store";
 
 import { renderAgentPrompt } from "./agents.js";
@@ -317,6 +319,50 @@ export async function resolveVerdictStore(
   }
 }
 
+// ── The DB-backed proof env (ADR-0064) ──────────────────────────────────────
+
+/**
+ * The canonical disposable test database a db-backed proof connects to (ADR-0064/0054) when
+ * `STORYTREE_DB_NAME` is unset. The owner provisions it once
+ * (`gcloud sql databases create storytree_test --instance=storytree-pg`).
+ */
+export const DEFAULT_TEST_DB_NAME = "storytree_test";
+
+/**
+ * Compute the isolated test-DB env a `real.db:true` proof spawns with (ADR-0064). The DB name is
+ * `STORYTREE_DB_NAME` (an operator override) or the canonical {@link DEFAULT_TEST_DB_NAME}, and is
+ * ASSERTED non-production via `@storytree/store`'s {@link assertTestDatabase} — the FIRST honesty
+ * wall (the orchestrator's `resolveReal` repeats the check independently as the second). Fail-closed:
+ * a prod/blank name refuses the build before any worktree is cut. `STORYTREE_DB_USER` (keyless IAM,
+ * hydrated from secrets) is carried through when present so the worktree proof can authenticate.
+ */
+export function resolveDbProofEnv():
+  | { ok: true; env: Record<string, string>; dbName: string }
+  | { ok: false; refusal: Envelope } {
+  const dbName = process.env[TEST_DB_ENV]?.trim() || DEFAULT_TEST_DB_NAME;
+  try {
+    assertTestDatabase(dbName);
+  } catch (e) {
+    return {
+      ok: false,
+      refusal: {
+        ok: false,
+        body:
+          `a db-backed proof (real.db:true) needs an ISOLATED test database, never production:\n` +
+          `${(e as Error).message}`,
+        next: [
+          `${TEST_DB_ENV}=${DEFAULT_TEST_DB_NAME}   (the canonical disposable DB)`,
+          `gcloud sql databases create ${DEFAULT_TEST_DB_NAME} --instance=storytree-pg   (one-time)`,
+        ],
+      },
+    };
+  }
+  const env: Record<string, string> = { [TEST_DB_ENV]: dbName };
+  const dbUser = process.env["STORYTREE_DB_USER"]?.trim();
+  if (dbUser !== undefined && dbUser !== "") env["STORYTREE_DB_USER"] = dbUser;
+  return { ok: true, env, dbName };
+}
+
 // ── The single-node drive (shared by `node build` and `story build`) ────────
 
 export interface DriveNodeArgs {
@@ -491,6 +537,12 @@ export interface RealBuildArgs {
   model?: string;
   budgetUsd?: number;
   maxTurns?: number;
+  /**
+   * ADR-0064: the isolated test-DB env for a `real.db:true` node — forced onto the proof command so
+   * both the spine's CONFIRM observation and the leaf's `run_proof` connect to the disposable test
+   * database (never production). Absent for non-db nodes.
+   */
+  dbProofEnv?: Record<string, string>;
   /** Offline test seam: a scripted {@link PhaseAuthor}; defaults to the live SDK leaf. */
   authorOverride?: PhaseAuthor;
   /**
@@ -536,6 +588,7 @@ export async function buildNodeReal(args: RealBuildArgs): Promise<RealBuildResul
     signerInputs: { flag: signer },
     phasePrompts: args.phasePrompts,
     ...(args.authorOverride !== undefined ? { authorOverride: args.authorOverride } : {}),
+    ...(args.dbProofEnv !== undefined ? { dbProofEnv: args.dbProofEnv } : {}),
     ...(args.model !== undefined ? { model: args.model } : {}),
     ...(args.budgetUsd !== undefined ? { maxBudgetUsd: args.budgetUsd } : {}),
     ...(args.maxTurns !== undefined ? { maxTurns: args.maxTurns } : {}),
@@ -710,6 +763,16 @@ export async function nodeBuild(
     if (refusal !== null) return refusal;
   }
 
+  // ADR-0064: a `real.db:true` node's proof connects to an ISOLATED test DB. Compute + assert the
+  // env (fail-closed against prod) BEFORE any worktree or spend — the first of two honesty walls.
+  let dbProofEnv: Record<string, string> | undefined;
+  const dbBacked = real && realConfig?.db === true;
+  if (dbBacked) {
+    const resolved = resolveDbProofEnv();
+    if (!resolved.ok) return resolved.refusal;
+    dbProofEnv = resolved.env;
+  }
+
   // ADR-0051 §4: the live SDK leaf's per-phase system prompt IS the rendered Library agent
   // (red-builder → AUTHOR_TEST, green-builder → IMPLEMENT). Assemble it offline and fail-loud on a
   // missing agent / dangling ref BEFORE any spend or worktree — a live build runs the Library agent,
@@ -729,16 +792,26 @@ export async function nodeBuild(
   // connect — probing it, and starting it (`db:up`) + waiting if it is down. `--store memory` opts
   // out; `--dry-run` is untouched (in-memory, never the DB).
   const effectiveStore = effectiveVerdictStore(opts.verdictStore, mode === "dry-run");
-  if (effectiveStore === "pg" && mode !== "dry-run") {
+  // The instance must be up to PERSIST verdicts (--store pg) AND to run a db-backed proof (ADR-0064:
+  // even with --store memory, the proof connects to the test DB on this instance), so ensure it for
+  // either reason.
+  const needsDb = (effectiveStore === "pg" && mode !== "dry-run") || dbBacked;
+  if (needsDb) {
     const ensureDb = opts.ensureDb ?? ensureLiveDb;
     const ready = await ensureDb((m) => console.error(`[db] ${m}`));
     if (!ready.ok) {
       return {
         ok: false,
-        body: `${modeFlag} persists to the live store, but the database could not be brought up:\n${ready.reason}`,
+        body:
+          (dbBacked
+            ? `${modeFlag} runs a db-backed proof (real.db:true), but the database could not be brought up:\n`
+            : `${modeFlag} persists to the live store, but the database could not be brought up:\n`) +
+          ready.reason,
         next: [
           "pnpm db:status",
-          `${retryCmd} --store memory   (run WITHOUT persisting — no studio wisp/bloom)`,
+          ...(dbBacked
+            ? []
+            : [`${retryCmd} --store memory   (run WITHOUT persisting — no studio wisp/bloom)`]),
         ],
       };
     }
@@ -794,6 +867,7 @@ export async function nodeBuild(
           phasePrompts,
           presence: ambient,
           repoRoot: repoRoot(),
+          ...(dbProofEnv !== undefined ? { dbProofEnv } : {}),
           ...(opts.model !== undefined ? { model: opts.model } : {}),
           ...(opts.budgetUsd !== undefined ? { budgetUsd: opts.budgetUsd } : {}),
           ...(opts.maxTurns !== undefined ? { maxTurns: opts.maxTurns } : {}),
@@ -845,6 +919,11 @@ export async function nodeBuild(
             // Single source of the display (avoids drift/double-spaces vs the spawned command):
             // the same realProofCommand the resolver uses, with a (declared) marker for a spec command.
             `real proof:  ${realProofCommand(realConfig, worktree.root).display}${realConfig.proofCommand !== undefined ? " (declared)" : ""}`,
+            ...(dbProofEnv !== undefined
+              ? [
+                  `db proof:    isolated test DB "${dbProofEnv[TEST_DB_ENV]}" — ${TEST_DB_ENV} forced; refuses production (ADR-0064/0054)`,
+                ]
+              : []),
           ]
         : []),
       ...(liveAuthor !== undefined ? liveLeafLines(liveAuthor) : []),
@@ -1012,6 +1091,7 @@ export function nodeResolve(unitId: string | undefined, opts: NodeResolveOpts = 
       `  test file:    ${r.testFile}`,
       `  source file:  ${r.sourceFile}`,
       `  install:      ${r.install} (lockfile-only worktree install)`,
+      `  db proof:     ${r.db} (true = the proof gets an isolated test-DB connection, never prod — ADR-0064)`,
       `  edits source: ${r.editsExisting} (false = net-new file pair; true = edit-existing regression)`,
       `  typecheck:    ${r.typecheck ?? "(none — builtins-only, no install)"}`,
       `  proof cmd:    ${r.proofCommand ?? "(default: node:test on the test file)"}`,

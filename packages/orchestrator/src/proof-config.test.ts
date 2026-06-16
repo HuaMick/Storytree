@@ -377,3 +377,56 @@ test("C — a NET-NEW node may carry a broad source scope with no proofCommand (
   });
   assert.equal("editsExisting" in (cfg.real ?? {}), false);
 });
+
+// ── ADR-0064: DB-backed proof (real.db) ──────────────────────────────────────────────────────────
+
+/** A db-backed arm: db:true with install+typecheck (the proof imports @storytree/store from node_modules). */
+const DB_BACKED_BLOCK = {
+  command: { file: "pnpm", args: ["--filter", "@storytree/store", "test"] },
+  scope: {
+    testGlobs: ["packages/store/src/**/*.test.ts"],
+    sourceGlobs: ["packages/store/src/**/*.ts"],
+  },
+  real: {
+    testFile: "packages/store/src/change-store.test.ts",
+    sourceFile: "packages/store/src/change-store.ts",
+    scope: {
+      testGlobs: ["packages/store/src/change-store.test.ts"],
+      sourceGlobs: ["packages/store/src/change-store.ts"],
+    },
+    install: true,
+    typecheck: { file: "pnpm", args: ["--filter", "@storytree/store", "typecheck"] },
+    db: true,
+  },
+};
+
+test("ADR-0064 — a db:true arm with install+typecheck parses and round-trips", () => {
+  const cfg = parseNodeBuildConfig(DB_BACKED_BLOCK);
+  assert.deepEqual(cfg, DB_BACKED_BLOCK);
+  assert.equal(cfg.real?.db, true);
+});
+
+test("ADR-0064 — db is ABSENT (not undefined) when not declared — the parity drift-lock against the registry", () => {
+  // The 7 migrated nodes never declare db; the key must not materialize, or the contract-4 deepEqual
+  // parity against the registry twins (which omit it) would break.
+  const cfg = parseNodeBuildConfig(NO_INSTALL_BLOCK);
+  assert.ok(cfg.real !== undefined);
+  assert.equal("db" in cfg.real, false);
+});
+
+test("ADR-0064 — malformed: db:true WITHOUT install:true is LOUD (the proof can't import the store without node_modules)", () => {
+  assert.throws(
+    () =>
+      parseNodeBuildConfig({
+        command: { file: "pnpm", args: ["test"] },
+        scope: { testGlobs: ["a.test.ts"], sourceGlobs: ["a.ts"] },
+        real: {
+          testFile: "a.test.ts",
+          sourceFile: "a.ts",
+          scope: { testGlobs: ["a.test.ts"], sourceGlobs: ["a.ts"] },
+          db: true,
+        },
+      }),
+    /real\.db:true requires real\.install:true/,
+  );
+});

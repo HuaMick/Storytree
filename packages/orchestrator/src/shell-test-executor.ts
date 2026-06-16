@@ -29,6 +29,15 @@ export interface ShellCommand {
   args: string[];
   /** Optional working directory for the spawned process. */
   cwd?: string;
+  /**
+   * Optional env overrides MERGED OVER {@link scrubbedChildEnv} (these win, so they FORCE a value
+   * even if the parent env or the scrub list would set/strip it). The DB-backed proof seam
+   * (ADR-0064) uses this to force `STORYTREE_DB_NAME` to the disposable test database — so the proof
+   * can never reach production even when the parent process points at it. Spine-only: a spec-borne
+   * `proofCommand` is parsed by `ShellCommandSchema`, which does NOT accept `env` (file/args/cwd
+   * only), so a node author can never inject env here.
+   */
+  env?: Record<string, string>;
 }
 
 /**
@@ -135,7 +144,9 @@ export function runShellCommand(cmd: ShellCommand): Promise<ShellRunResult> {
   return new Promise<ShellRunResult>((resolve, reject) => {
     const options: { cwd?: string; maxBuffer: number; env: NodeJS.ProcessEnv } = {
       maxBuffer: 64 * 1024 * 1024,
-      env: scrubbedChildEnv(),
+      // Per-command env overrides are merged LAST so they WIN over both the inherited env and the
+      // scrub list (ADR-0064 DB-backed proof: force STORYTREE_DB_NAME to the disposable test DB).
+      env: cmd.env !== undefined ? { ...scrubbedChildEnv(), ...cmd.env } : scrubbedChildEnv(),
     };
     if (cmd.cwd !== undefined) {
       options.cwd = cmd.cwd;
