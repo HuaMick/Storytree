@@ -3131,7 +3131,8 @@ interface RiverTuning {
    *  that butts the over-sea edge at the coast with a mismatched tangent), dock on the
    *  rim along the river's OWN arrival bearing, depart the coast on that same inward
    *  tangent (no seam kink), and overshoot PAST the rim into the pool so it reads as
-   *  flowing IN. Default OFF ⇒ the world is byte-identical. */
+   *  flowing IN. DEFAULT ON (owner flip 2026-06-18); `?pondMouth=off` restores the old
+   *  closed-pond look. */
   fusedPondMouth: boolean;
   /** Inter-river REPULSION strength (`?riverRepel=`, `?rivers=bundle`): "negative
    *  gravity" between channels of DIFFERENT groups (source-delta sectors / standalone
@@ -3190,7 +3191,7 @@ const RIVER_TUNING: RiverTuning = {
   deltaPull: 1.0,
   deltaConeDeg: 0,
   deltaConePull: 0.1,
-  fusedPondMouth: false,
+  fusedPondMouth: true,
   // Inter-river repulsion OFF by default (byte-identical world). A positive
   // `?riverRepel=` turns the pass on; ~0.5 with the 56px radius visibly fans
   // parallel channels apart without shoving them off-course.
@@ -3318,8 +3319,11 @@ function readRiverTuning(): RiverTuning {
   // Open-space bias: strength ≥ 0 (0 = OFF, single-pass byte-identical), cell size > 0.
   if (rob !== null) out.riverOpenBias = Math.max(0, rob);
   if (roc !== null) out.riverOpenCell = Math.max(1, roc);
-  // `?pondMouth=fused` — opt-in fused river→pond mouth (default OFF, byte-identical).
-  out.fusedPondMouth = q.get('pondMouth') === 'fused';
+  // `?pondMouth` — the fused river→pond mouth is the DEFAULT now (owner flip
+  // 2026-06-18); `?pondMouth=off` (or legacy/closed/0/false) restores the old
+  // closed-pond look. Any other value (incl. the historical `fused`) keeps it on.
+  const pm = q.get('pondMouth');
+  if (pm !== null) out.fusedPondMouth = !['off', 'legacy', 'closed', '0', 'false'].includes(pm);
   return out;
 }
 
