@@ -65,6 +65,7 @@ import {
   crescentApplies,
   edgePathBundle,
   segmentKey,
+  fusedMouthPath,
   type Disk,
   type LoopDock,
   type DistributarySegment,
@@ -1123,6 +1124,21 @@ function buildBasin(
       if (!pond) return;
       inland.ponds.push({ story: t.story.id, d: smoothLoopPath(pond.loop), loop: pond.loop });
       for (const dk of ds) {
+        if (opts.tuning.fusedPondMouth) {
+          // FUSED mouth (`?pondMouth=fused`): one continuous channel that departs the
+          // coast on the river's own inward arrival tangent (no seam kink), docks on the
+          // rim ALONG that bearing (not through the pond centre), and overshoots PAST the
+          // rim into the pool so it reads as flowing IN.
+          const d = fusedMouthPath(
+            dk.dock,
+            { x: -dk.dock.nx, y: -dk.dock.ny },
+            pond,
+            { overshoot: 6, flare: 14, startLen: 12 },
+          );
+          if (!d) continue;
+          inland.channels.push({ from: t.story.id, to: t.story.id, via: [], d, flow: dk.flow });
+          continue;
+        }
         const dock = rayPolyIntersect(dk.dock, pond.center, pond.loop);
         if (!dock) continue;
         // Flare the channel into the lake (estuary mouth): a longer outward handle
@@ -1438,6 +1454,19 @@ function buildBundle(
       if (!pond) return;
       inland.ponds.push({ story: t.story.id, d: smoothLoopPath(pond.loop), loop: pond.loop });
       for (const dk of ds) {
+        if (opts.tuning.fusedPondMouth) {
+          // FUSED mouth (`?pondMouth=fused`): see buildBasin — one continuous channel,
+          // bearing-docked, tangent-matched at the seam, overshooting into the pool.
+          const d = fusedMouthPath(
+            dk.dock,
+            { x: -dk.dock.nx, y: -dk.dock.ny },
+            pond,
+            { overshoot: 6, flare: 14, startLen: 12 },
+          );
+          if (!d) continue;
+          inland.channels.push({ from: t.story.id, to: t.story.id, via: [], d, flow: dk.flow });
+          continue;
+        }
         const dock = rayPolyIntersect(dk.dock, pond.center, pond.loop);
         if (!dock) continue;
         // Flare into the lake and carry the stream's flow-width for continuity (#193).
@@ -2126,6 +2155,19 @@ function buildWorld(
       inland.ponds.push({ story: id, d: smoothLoopPath(pond.loop), loop: pond.loop });
       // Each seam continues from its coast point to the pond rim, head-on.
       for (const c of seams) {
+        if (tuning.fusedPondMouth) {
+          // FUSED mouth (`?pondMouth=fused`): see buildBasin — bearing-docked,
+          // tangent-matched at the seam, overshooting into the pool body.
+          const d = fusedMouthPath(
+            c.pt,
+            { x: -c.pt.nx, y: -c.pt.ny },
+            pond,
+            { overshoot: 5, flare: 8, startLen: 10 },
+          );
+          if (!d) continue;
+          inland.channels.push({ from: c.from, to: c.to, via: [], d });
+          continue;
+        }
         const dock = rayPolyIntersect(c.pt, pond.center, pond.loop);
         if (!dock) continue;
         inland.channels.push({
@@ -2871,6 +2913,13 @@ interface RiverTuning {
    *  EXACT single-delta path, so the bundle world is byte-identical until a positive
    *  cone is set. Separate from `deltaPull` (the within-sector fork point). */
   deltaConeDeg: number;
+  /** Fuse the river→pond transition (`?pondMouth=fused`): instead of the in-pond
+   *  channel raying through the pond CENTRE and stopping dead ON the rim (a stub mouth
+   *  that butts the over-sea edge at the coast with a mismatched tangent), dock on the
+   *  rim along the river's OWN arrival bearing, depart the coast on that same inward
+   *  tangent (no seam kink), and overshoot PAST the rim into the pool so it reads as
+   *  flowing IN. Default OFF ⇒ the world is byte-identical. */
+  fusedPondMouth: boolean;
 }
 
 const RIVER_TUNING: RiverTuning = {
@@ -2885,8 +2934,13 @@ const RIVER_TUNING: RiverTuning = {
   bundleDMax: 2,
   crescentMinDegree: 5,
   bundleFar: 300,
-  deltaPull: 0.05,
+  // owner default 2026-06-17: fork the source delta right at the source → a clean
+  // radial fan with no mid-map merge knots (the `?deltaPull=1.10` look, clamped to
+  // the [0,1] max at parse). Directional bundling (?deltaCone=) reintroduces smart
+  // merging on top of this — grouping the radial fan into a few fat trunks per sector.
+  deltaPull: 1.0,
   deltaConeDeg: 0,
+  fusedPondMouth: false,
 };
 
 /** Per-water-layer stroke width as a function of accumulated flow. Tuned for the
@@ -2987,6 +3041,8 @@ function readRiverTuning(): RiverTuning {
   if (dp !== null) out.deltaPull = Math.max(0, Math.min(1, dp));
   // Cone width in degrees; clamp to [0, 360]. 0 keeps clustering OFF (single delta).
   if (dc !== null) out.deltaConeDeg = Math.max(0, Math.min(360, dc));
+  // `?pondMouth=fused` — opt-in fused river→pond mouth (default OFF, byte-identical).
+  out.fusedPondMouth = q.get('pondMouth') === 'fused';
   return out;
 }
 
