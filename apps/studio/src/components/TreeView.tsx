@@ -2077,12 +2077,10 @@ function readSubstrateTuning(): Partial<SubstrateTuning> {
   return out;
 }
 
-// ---------- river network mode (VISUAL SPIKE, flag-gated, ADR-pending) ----------
+// ---------- river network mode (DEFAULT as of the 2026-06-17 owner call) ----------
 //
-// The default world draws one strand per dependency edge, and co-destination
-// strands run as parallel METRO LANES (`?rivers=strands`, the pre-spike behaviour).
-// `?rivers=merge` reworks the network so it BRAIDS and MERGES instead of running
-// parallel:
+// The DEFAULT world now BRAIDS and MERGES the river network (owner: "go all in on
+// rivers and ponds with no moats"):
 //   • each SOURCE island's outgoing fan collapses into one shared TRUNK (fixes the
 //     "library starburst" — a heavily-depended island spraying a dozen strands);
 //   • each DESTINATION's incoming rivers fuse into a CONFLUENCE TREE (nearest
@@ -2092,10 +2090,18 @@ function readSubstrateTuning(): Partial<SubstrateTuning> {
 //     river hugs the open water between islands and never cuts across an island
 //     that is neither its source nor its destination (where avoidanceBow's single
 //     bow gave up on clusters).
-// `?moat=off` drops the island water RING and seats river mouths further onto the
-// beach so they meet land cleanly without the moat to hide the seam. Live knobs
-// (`?trunkFrac=`, `?trunkW=`, `?mouthInset=`, `?confluencePull=`, `?routeMargin=`)
-// let the owner dial the look in without a rebuild, exactly like the substrate spike.
+// `?rivers=strands` restores the OLD look for comparison: one strand per dependency
+// edge with co-destination strands as parallel METRO LANES. Moats are OFF by default
+// (`?moat=on` restores the island water RINGS); when on, river mouths instead seat
+// further onto the beach. Live knobs (`?trunkFrac=`, `?trunkW=`, `?mouthInset=`,
+// `?confluencePull=`, `?routeMargin=`) dial the look without a rebuild.
+//
+// NOTE (in-progress, owner 2026-06-17): the visual is still being iterated in a
+// chipped-off session — remove the glint animation, fix loose-end stubs and the
+// phantom binding-staleness arc, globally MERGE nearby rivers into thicker
+// rivers/lakes (drop the keep-separate rule), and make pond placement a robust
+// PROCEDURAL system so every node gets a pond. An ADR should record this default
+// once the design settles.
 type RiverMode = 'strands' | 'merge';
 
 // Inland water (VISUAL SPIKE, flag-gated). The default world rings each island in a
@@ -2148,23 +2154,30 @@ const FLOW_W = {
   glint: { base: 1.2, step: 0, max: 1.2 },
 } as const;
 
+// DEFAULTS FLIPPED (owner call 2026-06-17 — "go all in on rivers and ponds with no
+// moats"): the merged river network, dropped moats and inland ponds are now the
+// DEFAULT world. The flags remain as OVERRIDES so the old look is still reachable
+// for comparison: `?rivers=strands` (one strand per edge / metro lanes),
+// `?moat=on` (restore the island water rings), `?water=off` (no inland ponds).
 function readRiverMode(): RiverMode {
-  if (typeof window === 'undefined') return 'strands';
-  return new URLSearchParams(window.location.search).get('rivers') === 'merge' ? 'merge' : 'strands';
+  if (typeof window === 'undefined') return 'merge';
+  return new URLSearchParams(window.location.search).get('rivers') === 'strands'
+    ? 'strands'
+    : 'merge';
 }
 
 function readMoat(): boolean {
-  if (typeof window === 'undefined') return true;
+  if (typeof window === 'undefined') return false;
   const raw = new URLSearchParams(window.location.search).get('moat');
-  return !(raw === 'off' || raw === 'none' || raw === '0' || raw === 'false');
+  return raw === 'on' || raw === '1' || raw === 'true';
 }
 
 function readWaterMode(): WaterMode {
-  if (typeof window === 'undefined') return 'off';
+  if (typeof window === 'undefined') return 'pond';
   const raw = new URLSearchParams(window.location.search).get('water');
-  if (raw === 'pond') return 'pond';
+  if (raw === 'off' || raw === 'none') return 'off';
   if (raw === 'through') return 'through';
-  return 'off';
+  return 'pond';
 }
 
 /** `?plants=scatter` disperses the capability garden off its rigid front arc. */
