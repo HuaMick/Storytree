@@ -60,6 +60,7 @@ import {
   circularMeanAngle,
   pondRadiusForDegree,
   embayCoast,
+  crescentApplies,
   edgePathBundle,
   segmentKey,
   type Disk,
@@ -927,7 +928,16 @@ function unit(a: Pt, b: Pt): Pt {
  */
 function buildBasin(
   territories: Territory[],
-  opts: { mouthInset: number; tuning: RiverTuning; waterMode: WaterMode; coastMode: CoastMode },
+  opts: {
+    mouthInset: number;
+    tuning: RiverTuning;
+    waterMode: WaterMode;
+    coastMode: CoastMode;
+    /** Real story connection degree (depends-on + depended-by) per story id — what
+     *  the crescent gates on, so a hub like the library (a leaf in the river MST)
+     *  still counts as highly-connected. */
+    depDegree: Map<string, number>;
+  },
 ): { edges: WorldEdge[]; inland: InlandWater } {
   const edges: WorldEdge[] = [];
   const inland: InlandWater = { ponds: [], channels: [] };
@@ -1004,13 +1014,24 @@ function buildBasin(
           : { x: 0, y: 1 };
       let flow = 0;
       for (const fe of flowEdges) if (fe.a === i || fe.b === i) flow += Math.max(1, fe.flow);
-      // CRESCENT MODE (`?coast=crescent`): size the lake by the island's river
-      // DEGREE (its incident-stream count) and grow a C of land around it (a bay
-      // open toward the rivers). An island with no rivers keeps the ordinary inland
-      // pond — there's no entry direction to open a bay toward.
+      // CRESCENT MODE (`?coast=crescent`): size the lake by the island's CONNECTION
+      // degree (its real dependency edges, in + out) and grow a C of land around it (a
+      // bay open toward the rivers) — but ONLY for HUBS whose degree meets the
+      // `crescentMinDegree` threshold (owner call 2026-06-17: the crescent only looks
+      // good where an island has many connections, e.g. the library; small islands
+      // looked worse than a plain pond). Degree is the real dependency count (depDegree),
+      // NOT the river-MST count — so the library (a one-river leaf in the basin but
+      // depended on by ~everything) qualifies. A low-degree island, and any island with
+      // no rivers (no entry direction to open a bay toward), keeps the ordinary inland
+      // pond below.
+      const depDeg = opts.depDegree.get(t.story.id) ?? 0;
       let pond: { center: Pt; loop: Pt[] } | null;
-      if (opts.coastMode === 'crescent' && ds.length > 0) {
-        const degree = ds.length;
+      if (
+        opts.coastMode === 'crescent' &&
+        ds.length > 0 &&
+        crescentApplies(depDeg, opts.tuning.crescentMinDegree)
+      ) {
+        const degree = depDeg;
         const rxWant = pondRadiusForDegree(degree, POND_RX_MIN, POND_DEGREE_GAIN, POND_RX_MAX_CRESCENT);
         // θ_bay = circular mean of the dock bearings around the island centre, so
         // the bay opens toward where the rivers actually enter.
@@ -1276,6 +1297,17 @@ function buildWorld(
     depsOf.get(e.to)?.push(e.from);
     dependentsOf.get(e.from)?.push(e.to);
   }
+  // A story's CONNECTION degree = its real dependency edges (depends-on + depended-by)
+  // over the SAME edge set that drives the roads — NOT the basin's spanning-tree
+  // river count. This is what gates the crescent (owner call 2026-06-17): the library
+  // is depended on by ~everything, so it's a high-degree hub here even though the MST
+  // draws only one river to it — the river-degree would have called it a leaf.
+  const depDegree = new Map<string, number>(
+    stories.map((s) => [
+      s.id,
+      (depsOf.get(s.id)?.length ?? 0) + (dependentsOf.get(s.id)?.length ?? 0),
+    ]),
+  );
 
   // Dependency-ranked seeds (ADR-0036 d.6a): the most-depended-upon stories sit
   // bottom-centre and dependents fan upward and outward. Rank rows stack from
@@ -1577,7 +1609,13 @@ function buildWorld(
   let inland: InlandWater = { ponds: [], channels: [] };
 
   if (riverMode === 'merge') {
-    ({ edges, inland } = buildBasin(territories, { mouthInset, tuning, waterMode, coastMode }));
+    ({ edges, inland } = buildBasin(territories, {
+      mouthInset,
+      tuning,
+      waterMode,
+      coastMode,
+      depDegree,
+    }));
   } else if (riverMode === 'bundle') {
     ({ edges, inland } = buildBundle(territories, edgeList, {
       mouthInset,
@@ -2607,6 +2645,13 @@ interface RiverTuning {
    *  detour's weight ≤ `bundleDMax · the edge's own weight`. Higher = more
    *  aggressive merging (more edges braid); lower = more edges stay direct. */
   bundleDMax: number;
+  /** Crescent-coast (`?coast=crescent`) hub threshold: an island grows the big
+   *  degree-scaled lake + embayed C of coast ONLY when its CONNECTION degree (real
+   *  dependency edges, in + out) meets this (`?crescentMinDegree=`); lower-degree
+   *  islands keep the ordinary inland pond (owner call 2026-06-17 — the crescent only
+   *  earns its keep on busy hubs like the library, dep-degree 7). 0 ⇒ every connected
+   *  island embays (the pre-threshold behaviour). */
+  crescentMinDegree: number;
 }
 
 const RIVER_TUNING: RiverTuning = {
@@ -2619,6 +2664,7 @@ const RIVER_TUNING: RiverTuning = {
   meanderFreq: 3.5,
   bundleD: 2,
   bundleDMax: 2,
+  crescentMinDegree: 5,
 };
 
 /** Per-water-layer stroke width as a function of accumulated flow. Tuned for the
@@ -2662,8 +2708,10 @@ function readWaterMode(): WaterMode {
   return 'pond';
 }
 
-/** `?coast=crescent` sizes each island's lake by its river degree and carves a
- *  C-shaped bay into the coast to hug it. Default OFF (byte-identical world). */
+/** `?coast=crescent` sizes a HUB island's lake by its connection degree (real
+ *  dependency edges, gated by `?crescentMinDegree=`) and carves a C-shaped bay into
+ *  the coast to hug it; non-hubs keep the ordinary pond. Default OFF (byte-identical
+ *  world). */
 function readCoastMode(): CoastMode {
   if (typeof window === 'undefined') return 'default';
   return new URLSearchParams(window.location.search).get('coast') === 'crescent'
@@ -2696,6 +2744,7 @@ function readRiverTuning(): RiverTuning {
   const mf = num('meanderFreq');
   const bd = num('bundleD');
   const bdm = num('bundleDMax');
+  const cmd = num('crescentMinDegree');
   if (tf !== null) out.trunkFrac = Math.max(0, tf);
   if (tw !== null) out.trunkW = Math.max(0, tw);
   if (mi !== null) out.mouthInset = mi;
@@ -2705,6 +2754,7 @@ function readRiverTuning(): RiverTuning {
   if (mf !== null) out.meanderFreq = Math.max(0, mf);
   if (bd !== null) out.bundleD = Math.max(0, bd);
   if (bdm !== null) out.bundleDMax = Math.max(0, bdm);
+  if (cmd !== null) out.crescentMinDegree = Math.max(0, cmd);
   return out;
 }
 
