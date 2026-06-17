@@ -66,6 +66,7 @@ import {
   segmentKey,
   type Disk,
   type LoopDock,
+  type DistributarySegment,
 } from '../lib/riverGeometry.js';
 import { WorldLegend } from './WorldLegend.js';
 import type { BuildActivity, TreeCapability, TreeSession, TreeStory, TreeVerdict, UatTestRow } from '../types';
@@ -907,6 +908,59 @@ function placePond(
   return { center: best.c, loop: chaikinClosed(pondRing(best.c, rx, rx * 0.66, hash(t.story.id)), 2) };
 }
 
+/**
+ * CONVERGENCE POND PLACER (bundle mode) — seat a lake as close to `target` (the
+ * midpoint of this island's incident river docks — where its streams actually meet)
+ * as the land allows, so every river connects to the NEAR rim instead of reaching
+ * across the island to a pool parked in an empty corner. Candidate centres are sampled
+ * OUTWARD along the tree→target ray (plus small lateral nudges), and at each on-land
+ * centre the pond is bounded by the same three obstacles as placePond (nearest coast
+ * edge, the crown, the nearest plant); among the centres that hold a real pool we keep
+ * the one CLOSEST to `target`, with a mild size bonus so it never degenerates to a
+ * sliver. Falls back to the max-room placePond when nothing near the target fits.
+ * Deterministic — no Math.random.
+ */
+function placePondAt(t: Territory, target: Pt, flow: number): { center: Pt; loop: Pt[] } | null {
+  const coast = t.coastLoops[0];
+  if (!coast) return null;
+  const crownR = crownRadius(t.story.capabilities.length);
+  const want = Math.min(POND_RX_MAX, HEX_R * (0.72 + Math.min(flow, 5) * 0.1));
+  const fitR = (c: Pt): number => {
+    if (!pointInPoly(c, coast)) return -1;
+    let r = Math.min(
+      want,
+      distToLoop(c, coast),
+      Math.hypot(c.x - t.treeSpot.x, c.y - t.treeSpot.y) - crownR,
+    );
+    for (const cap of t.caps) {
+      r = Math.min(r, Math.hypot(cap.x - c.x, cap.y - c.y) - POND_PLANT_CLEAR);
+      if (r <= 0) break;
+    }
+    return r;
+  };
+  const baseAng = Math.atan2(target.y - t.treeSpot.y, target.x - t.treeSpot.x);
+  const reach = Math.hypot(target.x - t.treeSpot.x, target.y - t.treeSpot.y) + POND_RX_MAX;
+  let best: { c: Pt; r: number } | null = null;
+  let bestScore = -Infinity;
+  for (let d = crownR + 2; d <= reach; d += 4) {
+    for (const da of [0, 0.16, -0.16, 0.32, -0.32]) {
+      const ang = baseAng + da;
+      const c = { x: t.treeSpot.x + Math.cos(ang) * d, y: t.treeSpot.y + Math.sin(ang) * d };
+      const r = fitR(c);
+      if (r < POND_RX_MIN) continue;
+      const dist = Math.hypot(c.x - target.x, c.y - target.y);
+      const score = Math.min(r, want) * 0.4 - dist; // proximity dominates; mild size bonus
+      if (score > bestScore) {
+        bestScore = score;
+        best = { c, r: Math.min(r, want) };
+      }
+    }
+  }
+  if (!best) return placePond(t, unit(t.treeSpot, target), flow, 4);
+  const rx = Math.max(POND_RX_MIN, best.r);
+  return { center: best.c, loop: chaikinClosed(pondRing(best.c, rx, rx * 0.66, hash(t.story.id)), 2) };
+}
+
 /** Unit vector a→b (zero-safe). */
 function unit(a: Pt, b: Pt): Pt {
   const dx = b.x - a.x;
@@ -1278,11 +1332,20 @@ function buildBundle(
     };
     const sourceDock = coastDock(srcT, bary, 0.96, opts.mouthInset);
     const destDocks = destTs.map((d) => coastDock(d.t, srcT.centroid, 0.96, opts.mouthInset));
-    // Obstacles = every island EXCEPT this delta's own source and dests, so the
-    // distributaries dock cleanly on their own dests yet skirt the central chain.
-    const skip = new Set<number>([srcIdx, ...destTs.map((d) => byId.get(d.t.story.id) ?? -1)]);
-    const obstacles = disks.filter((_, i) => !skip.has(i));
-    const route = (a: Pt, b: Pt): Pt[] => {
+    const destIslandIdx = destTs.map((d) => byId.get(d.t.story.id) ?? -1);
+    // A segment may ENTER only the island it docks at — its source end, or its own
+    // terminal dest — and treats EVERY other island as an obstacle to skirt. So a
+    // through-trunk routes AROUND a sibling dest (e.g. notice-board) instead of cutting
+    // across it; only that sibling's OWN leaf river enters it to reach its pond (owner:
+    // "rivers shouldn't cut through islands unless to reach a pond").
+    const route = (a: Pt, b: Pt, seg: DistributarySegment): Pt[] => {
+      const skipIdx = new Set<number>();
+      if (seg.bIsSource) skipIdx.add(srcIdx);
+      if (seg.aDestIndex >= 0) {
+        const isl = destIslandIdx[seg.aDestIndex];
+        if (isl !== undefined && isl >= 0) skipIdx.add(isl);
+      }
+      const obstacles = disks.filter((_, idx) => !skipIdx.has(idx));
       const routed = routeAround(a, b, obstacles);
       return meanderPath(
         routed,
@@ -1327,14 +1390,20 @@ function buildBundle(
     territories.forEach((t, i) => {
       const ds = docksByIsland[i] ?? [];
       const islandFlow = ds.reduce((s, d) => s + d.flow, 0);
-      const aim =
+      // Seat the lake at the MIDPOINT of where this island's rivers converge (the
+      // incident dock centroid) so each stream meets the near rim; an island with no
+      // rivers keeps the ordinary max-room placer aimed downward.
+      const pond =
         ds.length > 0
-          ? unit(t.treeSpot, {
-              x: ds.reduce((s, d) => s + d.dock.x, 0) / ds.length,
-              y: ds.reduce((s, d) => s + d.dock.y, 0) / ds.length,
-            })
-          : { x: 0, y: 1 };
-      const pond = placePond(t, aim, islandFlow, 4);
+          ? placePondAt(
+              t,
+              {
+                x: ds.reduce((s, d) => s + d.dock.x, 0) / ds.length,
+                y: ds.reduce((s, d) => s + d.dock.y, 0) / ds.length,
+              },
+              islandFlow,
+            )
+          : placePond(t, { x: 0, y: 1 }, islandFlow, 4);
       if (!pond) return;
       inland.ponds.push({ story: t.story.id, d: smoothLoopPath(pond.loop), loop: pond.loop });
       for (const dk of ds) {
@@ -2772,7 +2841,7 @@ const RIVER_TUNING: RiverTuning = {
   bundleDMax: 2,
   crescentMinDegree: 5,
   bundleFar: 300,
-  deltaPull: 0.12,
+  deltaPull: 0.05,
 };
 
 /** Per-water-layer stroke width as a function of accumulated flow. Tuned for the
