@@ -1167,3 +1167,169 @@ export function edgePathBundle(
 export function segmentKey(a: number, b: number): string {
   return a < b ? `${a}-${b}` : `${b}-${a}`;
 }
+
+/** Tuning for {@link repelChannels}: how far a channel point feels its neighbours,
+ *  how hard the push is, and how many relaxation passes to run. */
+export interface RepelOpts {
+  /** px: only points within this distance of each other repel. Also the spatial
+   *  grid cell size, so a query scans the 3×3 neighbourhood. */
+  radius: number;
+  /** Per-pass nudge scale (0 = no-op). A point moves by `strength · Σ falloff·dir`,
+   *  with the per-pass step clamped to `radius` so a near-coincident pair can't blow up. */
+  strength: number;
+  /** Relaxation passes (≤ 0 = no-op). More passes spread a dense cluster further. */
+  iterations: number;
+}
+
+/**
+ * INTER-RIVER REPULSION — a "negative gravity" pass that fans channels running
+ * close and parallel APART into distinct lanes where there's open space beside them,
+ * instead of letting same-direction rivers clump into one overlapping corridor
+ * (owner call: "some negative gravity between rivers that pushes them away from each
+ * other where possible"). Pure, deterministic — no Math.random, no wall-clock.
+ *
+ * Each polyline in `lines` carries a `groups[i]` tag (the source-delta sector id /
+ * the standalone-edge id). Repulsion acts ONLY BETWEEN points of DIFFERENT groups;
+ * points in the SAME group never push each other apart. This is what preserves the
+ * bundle's coherence: a fat `kind:'trunk'` overlay shares geometry with the
+ * tributaries it covers, so the trunk and its braid must travel together. Two
+ * guarantees keep them glued:
+ *   • same-group lines never repel one another, so a trunk is never pushed off its
+ *     own tributaries; and
+ *   • the displacement is computed PER LOCATION (keyed by quantised coordinate) and
+ *     applied to every point at that location, so a trunk stem point and its
+ *     tributary's COINCIDENT point receive bit-identical displacement — the trunk
+ *     stays exactly on top of its braid.
+ *
+ * ENDPOINTS ARE PINNED: a polyline's first and last point are the true source/dest
+ * docks (and pond docking points), so they never move — only interior points drift.
+ * Pinned endpoints still EXERT repulsion (a neighbour avoids a dock) but never
+ * receive it. Displacement is bounded: each pass's step is clamped to `radius`, and
+ * the falloff is linear to zero at `radius`, so a near-coincident pair relaxes
+ * smoothly rather than exploding.
+ *
+ * Performance: a spatial grid hash (cell = `radius`) buckets every point, so each
+ * point only scans its 3×3 neighbourhood — near-linear in the point count, not the
+ * O(N²) all-pairs a few thousand edges would make painful. Deterministic iteration
+ * order (lines then points), keyed force accumulation, no RNG.
+ *
+ * `strength ≤ 0` or `iterations ≤ 0` or fewer than two lines ⇒ the input is returned
+ * UNCHANGED (the disabled no-op — caller passes the originals straight through so the
+ * world is byte-identical when the flag is off). Empty / lone inputs are handled.
+ */
+export function repelChannels(lines: Vec2[][], groups: number[], opts: RepelOpts): Vec2[][] {
+  const { radius, strength, iterations } = opts;
+  if (strength <= 0 || iterations <= 0 || lines.length < 2 || radius <= 0) {
+    return lines;
+  }
+  // Working copy — interior points get mutated in place across passes; endpoints stay
+  // referentially equal to the input so the no-move guarantee is exact.
+  const work: Vec2[][] = lines.map((line) => line.map((p) => ({ x: p.x, y: p.y })));
+  const r2 = radius * radius;
+  const cell = radius;
+  // Quantise a coordinate to a stable string key, so coincident points across a trunk
+  // and its tributaries share ONE force bucket → identical displacement. The quantum is
+  // small (0.01px) so only TRULY coincident points (cut from the same routed polyline)
+  // collapse together; nearby-but-distinct points keep their own buckets.
+  const QUANT = 100; // 1/0.01px
+  const locKey = (x: number, y: number): string =>
+    `${Math.round(x * QUANT)},${Math.round(y * QUANT)}`;
+  const cellKey = (x: number, y: number): string =>
+    `${Math.floor(x / cell)},${Math.floor(y / cell)}`;
+
+  interface Pt {
+    x: number;
+    y: number;
+    g: number;
+  }
+
+  for (let it = 0; it < iterations; it++) {
+    // Bucket EVERY point (interior + pinned endpoints) into the grid — pinned points
+    // still exert force so a neighbour gives a dock a wide berth.
+    const grid = new Map<string, Pt[]>();
+    for (let li = 0; li < work.length; li++) {
+      const line = work[li];
+      if (!line) continue;
+      const g = groups[li] ?? li;
+      for (const p of line) {
+        const k = cellKey(p.x, p.y);
+        const bucket = grid.get(k);
+        const entry: Pt = { x: p.x, y: p.y, g };
+        if (bucket) bucket.push(entry);
+        else grid.set(k, [entry]);
+      }
+    }
+    // Accumulate displacement PER LOCATION (keyed), summed over the moving interior
+    // points only. Coincident points map to the same key → identical displacement.
+    const disp = new Map<string, { dx: number; dy: number }>();
+    for (let li = 0; li < work.length; li++) {
+      const line = work[li];
+      if (!line || line.length < 3) continue; // a 2-point line is all endpoints — nothing moves
+      const g = groups[li] ?? li;
+      for (let pi = 1; pi < line.length - 1; pi++) {
+        const p = line[pi];
+        if (!p) continue;
+        const key = locKey(p.x, p.y);
+        if (disp.has(key)) continue; // this location's force already computed this pass
+        // Sum repulsion from nearby points of a DIFFERENT group within `radius`.
+        let fx = 0;
+        let fy = 0;
+        const cx = Math.floor(p.x / cell);
+        const cy = Math.floor(p.y / cell);
+        for (let gx = cx - 1; gx <= cx + 1; gx++) {
+          for (let gy = cy - 1; gy <= cy + 1; gy++) {
+            const bucket = grid.get(`${gx},${gy}`);
+            if (!bucket) continue;
+            for (const q of bucket) {
+              if (q.g === g) continue; // same group never repels — keeps the bundle coherent
+              const dx = p.x - q.x;
+              const dy = p.y - q.y;
+              const d2 = dx * dx + dy * dy;
+              if (d2 >= r2 || d2 < 1e-9) continue;
+              const d = Math.sqrt(d2);
+              // Linear falloff: full push when coincident-ish, zero at the radius.
+              const falloff = (radius - d) / radius;
+              fx += (dx / d) * falloff;
+              fy += (dy / d) * falloff;
+            }
+          }
+        }
+        let mx = fx * strength;
+        let my = fy * strength;
+        // Clamp the per-pass step to `radius` so a near-coincident cluster can't blow up.
+        const ml = Math.hypot(mx, my);
+        if (ml > radius) {
+          mx = (mx / ml) * radius;
+          my = (my / ml) * radius;
+        }
+        disp.set(key, { dx: mx, dy: my });
+      }
+    }
+    // Apply: every interior point at a location gets that location's displacement, so
+    // coincident points (trunk stem + tributary) move identically. Endpoints untouched.
+    for (let li = 0; li < work.length; li++) {
+      const line = work[li];
+      if (!line || line.length < 3) continue;
+      for (let pi = 1; pi < line.length - 1; pi++) {
+        const p = line[pi];
+        if (!p) continue;
+        const d = disp.get(locKey(p.x, p.y));
+        if (!d) continue;
+        p.x += d.dx;
+        p.y += d.dy;
+      }
+    }
+  }
+
+  // Re-pin endpoints to the EXACT originals (defends against any FP drift) and hand
+  // back the originals untouched for lines that never moved.
+  return work.map((line, li) => {
+    const src = lines[li];
+    if (!src) return line;
+    if (line.length >= 1) {
+      line[0] = { x: src[0]!.x, y: src[0]!.y };
+      line[line.length - 1] = { x: src[src.length - 1]!.x, y: src[src.length - 1]!.y };
+    }
+    return line;
+  });
+}
