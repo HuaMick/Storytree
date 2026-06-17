@@ -30,6 +30,7 @@ import {
   fusedMouthPath,
   carvePondInlets,
   loopGapArcs,
+  repelChannels,
   type BundleEdge,
   type Disk,
   type Vec2,
@@ -1227,5 +1228,149 @@ describe('loopGapArcs', () => {
     const loop = ring();
     const gaps = [{ bearing: 0.7, halfAngle: 0.5 }];
     expect(loopGapArcs(loop, center, gaps)).toEqual(loopGapArcs(loop, center, gaps));
+  });
+});
+
+describe('repelChannels', () => {
+  /** A horizontal polyline at height `y` from x=0 to x=100, sampled at `n`+1 points. */
+  const lineAt = (y: number, n = 8): Vec2[] =>
+    Array.from({ length: n + 1 }, (_, i) => ({ x: (i / n) * 100, y }));
+
+  /** Minimum gap between two polylines, over every point pair. */
+  const minGap = (a: Vec2[], b: Vec2[]): number => {
+    let best = Infinity;
+    for (const p of a) for (const q of b) best = Math.min(best, Math.hypot(p.x - q.x, p.y - q.y));
+    return best;
+  };
+
+  /** Minimum gap over INTERIOR points only — endpoints are pinned (they share the
+   *  same x at the docks), so the interior is where the fan-apart actually shows. */
+  const minGapInterior = (a: Vec2[], b: Vec2[]): number => {
+    let best = Infinity;
+    for (let i = 1; i < a.length - 1; i++)
+      for (let j = 1; j < b.length - 1; j++)
+        best = Math.min(best, Math.hypot(a[i]!.x - b[j]!.x, a[i]!.y - b[j]!.y));
+    return best;
+  };
+
+  const OPTS = { radius: 40, strength: 0.5, iterations: 8 };
+
+  it('pushes two close parallel lines in different groups APART (interior separation grows)', () => {
+    const a = lineAt(50);
+    const b = lineAt(58); // 8px apart — well inside the 40px radius
+    const before = minGapInterior(a, b);
+    const [ra, rb] = repelChannels([a, b], [0, 1], OPTS);
+    const after = minGapInterior(ra!, rb!);
+    expect(after).toBeGreaterThan(before);
+  });
+
+  it('pins endpoints EXACTLY (first and last point of every line unchanged)', () => {
+    const a = lineAt(50);
+    const b = lineAt(56);
+    const out = repelChannels([a, b], [0, 1], OPTS);
+    out.forEach((line, li) => {
+      const src = li === 0 ? a : b;
+      expect(line[0]).toEqual(src[0]);
+      expect(line[line.length - 1]).toEqual(src[src.length - 1]);
+    });
+  });
+
+  it('never separates two lines in the SAME group (no intra-group repulsion)', () => {
+    const a = lineAt(50);
+    const b = lineAt(54); // close, but SAME group
+    const before = minGap(a, b);
+    const [ra, rb] = repelChannels([a, b], [0, 0], OPTS);
+    const after = minGap(ra!, rb!);
+    expect(after).toBeCloseTo(before, 6);
+    // and same-group lines are untouched entirely
+    expect(ra).toEqual(a);
+    expect(rb).toEqual(b);
+  });
+
+  it('gives a trunk and its tributary identical displacement at coincident points (bundle coherence)', () => {
+    // The trunk shares a stem with its tributary: their MIDDLE points coincide exactly.
+    // A third line in a DIFFERENT group sits beside the shared stem and pushes on it.
+    const stem: Vec2[] = [
+      { x: 0, y: 50 },
+      { x: 40, y: 50 },
+      { x: 60, y: 50 },
+      { x: 100, y: 50 },
+    ];
+    const tributary: Vec2[] = stem.map((p) => ({ x: p.x, y: p.y })); // same group, coincident
+    const neighbour = lineAt(58); // different group, beside the stem
+    const out = repelChannels(
+      [stem, tributary, neighbour],
+      [0, 0, 1], // stem+tributary share group 0; neighbour is group 1
+      OPTS,
+    );
+    const rStem = out[0]!;
+    const rTrib = out[1]!;
+    // Every coincident point moved IDENTICALLY → the trunk stays glued to its braid.
+    for (let i = 0; i < rStem.length; i++) {
+      expect(rTrib[i]!.x).toBeCloseTo(rStem[i]!.x, 9);
+      expect(rTrib[i]!.y).toBeCloseTo(rStem[i]!.y, 9);
+    }
+    // And an interior point actually moved (the pass did something).
+    expect(rStem[1]!.y).not.toBeCloseTo(50, 3);
+  });
+
+  it('drifts a line toward the OPEN side (away from a neighbour on one side only)', () => {
+    // Neighbour sits ABOVE (lower y); the middle line should drift DOWN (higher y), the open side.
+    const target = lineAt(50);
+    const neighbour = lineAt(42); // above (open space is below)
+    const [rTarget] = repelChannels([target, neighbour], [0, 1], OPTS);
+    const midIdx = Math.floor(rTarget!.length / 2);
+    expect(rTarget![midIdx]!.y).toBeGreaterThan(50); // pushed toward the open (below) side
+  });
+
+  it('is deterministic — identical inputs give identical output', () => {
+    const a = lineAt(50);
+    const b = lineAt(57);
+    const c = lineAt(64);
+    const r1 = repelChannels([a, b, c], [0, 1, 2], OPTS);
+    const r2 = repelChannels([a, b, c], [0, 1, 2], OPTS);
+    expect(r1).toEqual(r2);
+  });
+
+  it('is bounded and stable — no NaN, no blow-up across many iterations', () => {
+    const a = lineAt(50);
+    const b = lineAt(50.5); // nearly coincident, different groups — the worst case
+    const out = repelChannels([a, b], [0, 1], { radius: 40, strength: 1, iterations: 60 });
+    for (const line of out) {
+      for (const p of line) {
+        expect(Number.isFinite(p.x)).toBe(true);
+        expect(Number.isFinite(p.y)).toBe(true);
+        // displacement stays in a sane band (no runaway): within a few radii of the origin.
+        expect(Math.abs(p.y - 50)).toBeLessThan(200);
+      }
+    }
+  });
+
+  it('is a no-op when strength <= 0 (returns input unchanged, byte-identical)', () => {
+    const a = lineAt(50);
+    const b = lineAt(52);
+    const out = repelChannels([a, b], [0, 1], { radius: 40, strength: 0, iterations: 10 });
+    expect(out).toEqual([a, b]);
+  });
+
+  it('is a no-op when iterations <= 0', () => {
+    const a = lineAt(50);
+    const b = lineAt(52);
+    const out = repelChannels([a, b], [0, 1], { radius: 40, strength: 0.5, iterations: 0 });
+    expect(out).toEqual([a, b]);
+  });
+
+  it('handles empty and lone input', () => {
+    expect(repelChannels([], [], OPTS)).toEqual([]);
+    const lone = lineAt(50);
+    expect(repelChannels([lone], [0], OPTS)).toEqual([lone]);
+  });
+
+  it('does not move a far-apart neighbour (outside the radius)', () => {
+    const a = lineAt(50);
+    const b = lineAt(200); // 150px away — outside the 40px radius
+    const [ra, rb] = repelChannels([a, b], [0, 1], OPTS);
+    expect(ra).toEqual(a);
+    expect(rb).toEqual(b);
   });
 });

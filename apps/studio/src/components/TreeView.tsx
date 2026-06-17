@@ -68,6 +68,7 @@ import {
   fusedMouthPath,
   carvePondInlets,
   loopGapArcs,
+  repelChannels,
   type Disk,
   type LoopDock,
   type DistributarySegment,
@@ -1267,6 +1268,32 @@ function buildBundle(
   const byId = new Map(territories.map((t, i) => [t.story.id, i]));
   const centroids = territories.map((t) => t.centroid);
 
+  // ---- inter-river repulsion staging (`?riverRepel=`) ---------------------------
+  // The over-sea river channels (tributaries AND the fat trunks that overlay them) are
+  // STAGED here as point arrays with a `group` tag instead of being stringified to a
+  // d-string at the push site. After both layers below are built, an optional
+  // repulsion pass (repelChannels) fans channels of DIFFERENT groups apart where they
+  // run close and parallel, then every staged channel is emitted via smoothOpenPath.
+  // When `?riverRepel=0` (the default) the pass is SKIPPED and each channel is
+  // stringified from its ORIGINAL points — byte-identical to the pre-repulsion world.
+  // A trunk and the tributaries it covers share coincident points on their stem, so
+  // they receive identical displacement (repelChannels keys force by location) and the
+  // bundle stays glued; the source-delta sectors / standalone systems carry distinct
+  // groups so they push each other into separate lanes. Ponds dock off `docksByIsland`
+  // (coast docks, NOT channel interiors), so this never disturbs the lake wiring.
+  type RiverChannel = {
+    from: string;
+    to: string;
+    via: string[];
+    pts: Pt[];
+    group: number;
+    flow?: number;
+    kind?: 'trunk';
+  };
+  const channels: RiverChannel[] = [];
+  let repelGroupSeq = 0;
+  const nextGroup = (): number => repelGroupSeq++;
+
   // Real depends_on edges as node-index pairs (a = the dependency/source end —
   // `from` in storyEdges, e.g. the heavily-depended library; b = the dependent).
   // NOT an MST, so every adjacency survives — the property the basin destroyed.
@@ -1379,7 +1406,10 @@ function buildBundle(
         }
       }
       if (pts.length < 2) return;
-      edges.push({ from: srcId, to: dstId, via: e.via, d: smoothOpenPath(pts) });
+      // Each direct tributary is its own group; a trunk only exists OVER a shared stem
+      // where its points coincide with this tributary's, so the trunk stays glued to it
+      // by location-keyed displacement regardless of group.
+      channels.push({ from: srcId, to: dstId, via: e.via, pts, group: nextGroup() });
     });
 
     // TRUNK LAYER — a fat channel over every shared segment (flow ≥ 2), on top of the
@@ -1388,11 +1418,12 @@ function buildBundle(
       if (s.flow < 2) continue;
       const geom = segGeometry(s.a, s.b);
       if (geom.length < 2) continue;
-      edges.push({
+      channels.push({
         from: territories[s.a]?.story.id ?? '',
         to: territories[s.b]?.story.id ?? '',
         via: [],
-        d: smoothOpenPath(geom),
+        pts: geom,
+        group: nextGroup(),
         flow: s.flow,
         kind: 'trunk',
       });
@@ -1456,20 +1487,25 @@ function buildBundle(
         );
       };
       const delta = distributaryChains(sourceDock, destDocks, pull, route);
+      // One group per delta (source / sector): its tributaries and the trunks covering
+      // them never repel each other (same group), so the whole distributary fan stays a
+      // coherent merged system — only DIFFERENT deltas/sources push each other apart.
+      const deltaGroup = nextGroup();
       // Tributary per far edge — its chain ends are its TRUE source and dest docks.
       subset.forEach((d, di) => {
         const chain = delta.chains[di];
         if (!chain || chain.length < 2) return;
-        edges.push({ from: srcT.story.id, to: d.t.story.id, via: d.e.via, d: smoothOpenPath(chain) });
+        channels.push({ from: srcT.story.id, to: d.t.story.id, via: d.e.via, pts: chain, group: deltaGroup });
       });
       // Fat trunks over the shared stems (flow ≥ 2), on top to cover the braid.
       for (const trunk of delta.trunks) {
         if (trunk.flow < 2 || trunk.pts.length < 2) continue;
-        edges.push({
+        channels.push({
           from: srcT.story.id,
           to: `${srcT.story.id}#delta`,
           via: [],
-          d: smoothOpenPath(trunk.pts),
+          pts: trunk.pts,
+          group: deltaGroup,
           flow: trunk.flow,
           kind: 'trunk',
         });
@@ -1510,6 +1546,32 @@ function buildBundle(
         emitDelta(subset, subset.length, opts.tuning.deltaConePull);
       }
     }
+  }
+
+  // ---- INTER-RIVER REPULSION + FLUSH (`?riverRepel=`) ----------------------------
+  // Fan channels of DIFFERENT groups apart where they run close and parallel, then
+  // stringify every staged channel into the edge list. When `riverRepel <= 0` the
+  // staged point arrays are emitted UNCHANGED → the same smoothOpenPath d-strings the
+  // pre-repulsion world produced (byte-identical default).
+  if (opts.tuning.riverRepel > 0 && channels.length > 1) {
+    const repelled = repelChannels(
+      channels.map((c) => c.pts),
+      channels.map((c) => c.group),
+      {
+        radius: opts.tuning.riverRepelRadius,
+        strength: opts.tuning.riverRepel,
+        iterations: opts.tuning.riverRepelIters,
+      },
+    );
+    channels.forEach((c, i) => {
+      c.pts = repelled[i] ?? c.pts;
+    });
+  }
+  for (const c of channels) {
+    const edge: WorldEdge = { from: c.from, to: c.to, via: c.via, d: smoothOpenPath(c.pts) };
+    if (c.flow !== undefined) edge.flow = c.flow;
+    if (c.kind !== undefined) edge.kind = c.kind;
+    edges.push(edge);
   }
 
   // ---- PONDS: a lake at every node, each incident stream docking into its rim ----
@@ -3026,6 +3088,23 @@ interface RiverTuning {
    *  tangent (no seam kink), and overshoot PAST the rim into the pool so it reads as
    *  flowing IN. Default OFF ⇒ the world is byte-identical. */
   fusedPondMouth: boolean;
+  /** Inter-river REPULSION strength (`?riverRepel=`, `?rivers=bundle`): "negative
+   *  gravity" between channels of DIFFERENT groups (source-delta sectors / standalone
+   *  edges) that fans same-direction rivers running close and parallel APART into
+   *  distinct lanes where there's open space, instead of letting them clump into one
+   *  overlapping corridor (owner call). 0 (the default) SKIPS the pass entirely so the
+   *  bundle world is byte-identical. The trunk/tributary bundle stays coherent because
+   *  same-group lines never repel and coincident points move identically. Higher =
+   *  more spread. */
+  riverRepel: number;
+  /** Repulsion radius (`?riverRepelRadius=`, px): only channel points within this of
+   *  each other repel; also the spatial-grid cell size. Larger = a wider zone of
+   *  influence (rivers feel each other from further off). Only read when
+   *  `riverRepel > 0`. */
+  riverRepelRadius: number;
+  /** Repulsion relaxation passes (`?riverRepelIters=`): more passes spread a dense
+   *  cluster further apart. Only read when `riverRepel > 0`. */
+  riverRepelIters: number;
 }
 
 const RIVER_TUNING: RiverTuning = {
@@ -3048,6 +3127,12 @@ const RIVER_TUNING: RiverTuning = {
   deltaConeDeg: 0,
   deltaConePull: 0.1,
   fusedPondMouth: false,
+  // Inter-river repulsion OFF by default (byte-identical world). A positive
+  // `?riverRepel=` turns the pass on; ~0.5 with the 56px radius visibly fans
+  // parallel channels apart without shoving them off-course.
+  riverRepel: 0,
+  riverRepelRadius: 56,
+  riverRepelIters: 12,
 };
 
 /** Per-water-layer stroke width as a function of accumulated flow. Tuned for the
@@ -3135,6 +3220,9 @@ function readRiverTuning(): RiverTuning {
   const dp = num('deltaPull');
   const dc = num('deltaCone');
   const dcp = num('deltaConePull');
+  const rr = num('riverRepel');
+  const rrr = num('riverRepelRadius');
+  const rri = num('riverRepelIters');
   if (tf !== null) out.trunkFrac = Math.max(0, tf);
   if (tw !== null) out.trunkW = Math.max(0, tw);
   if (mi !== null) out.mouthInset = mi;
@@ -3151,6 +3239,10 @@ function readRiverTuning(): RiverTuning {
   if (dc !== null) out.deltaConeDeg = Math.max(0, Math.min(360, dc));
   // Within-sector fork point; clamp to [0, 1]. Only used when clustering is on.
   if (dcp !== null) out.deltaConePull = Math.max(0, Math.min(1, dcp));
+  // Inter-river repulsion: strength ≥ 0 (0 = OFF, byte-identical), radius > 0, iters ≥ 0.
+  if (rr !== null) out.riverRepel = Math.max(0, rr);
+  if (rrr !== null) out.riverRepelRadius = Math.max(1, rrr);
+  if (rri !== null) out.riverRepelIters = Math.max(0, Math.round(rri));
   // `?pondMouth=fused` — opt-in fused river→pond mouth (default OFF, byte-identical).
   out.fusedPondMouth = q.get('pondMouth') === 'fused';
   return out;
