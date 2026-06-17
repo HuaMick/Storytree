@@ -368,6 +368,78 @@ export function routeAround(a: Vec2, b: Vec2, obstacles: Disk[], maxDepth = 6): 
   return route(a, b, maxDepth);
 }
 
+/** The smallest unsigned angle between two bearings, in [0, π]. Wraps correctly
+ *  across ±π, so it's the right "how far off the bay direction is this vertex"
+ *  metric for the crescent-coast Gaussian. Pure, deterministic. */
+export function angularDistance(a: number, b: number): number {
+  let d = Math.abs(a - b) % (Math.PI * 2);
+  if (d > Math.PI) d = Math.PI * 2 - d;
+  return d;
+}
+
+/** The circular MEAN of a set of bearings — `atan2(Σ sinθ, Σ cosθ)`. Used to aim a
+ *  bay at the average direction the island's rivers enter from, robust across the
+ *  ±π wrap where a plain arithmetic mean would point the wrong way. Returns 0 for
+ *  no angles. Pure, deterministic. */
+export function circularMeanAngle(angles: number[]): number {
+  let sx = 0;
+  let sy = 0;
+  for (const a of angles) {
+    sx += Math.cos(a);
+    sy += Math.sin(a);
+  }
+  if (sx === 0 && sy === 0) return 0;
+  return Math.atan2(sy, sx);
+}
+
+/**
+ * How big an island's lake should be for its river `degree` (the number of
+ * connections — in + out — incident on the island). Area reads as proportional to
+ * degree, so the RADIUS grows with `sqrt(degree)`: a degree-9 hub holds a clearly
+ * bigger pool than a leaf without being nine times wider. `base` is the floor (a
+ * degree-0 island still gets a visible pond), `gain` the px per unit √degree, `max`
+ * the cap the land/aesthetics allow. Pure, deterministic.
+ */
+export function pondRadiusForDegree(degree: number, base: number, gain: number, max: number): number {
+  const r = base + gain * Math.sqrt(Math.max(0, degree));
+  return Math.min(max, Math.max(base, r));
+}
+
+/**
+ * Grow a closed coast `loop` into a C of land that WRAPS an island's degree-sized
+ * lake — the "create a c shape coastline / increase the land mass you need" owner
+ * call, robust at any lake size. Every coast vertex nearer than `pondR + beach` to
+ * `pondCenter` is pushed radially OUT (away from the lake centre) to exactly that
+ * distance, so the shore bulges around the lake and holds it with a beach margin —
+ * EXCEPT vertices in the seaward MOUTH sector (within `openHalf` radians of
+ * `thetaBay` as seen from the lake centre), which are left untouched so the lake
+ * stays OPEN to the sea on the side its rivers enter. The result is a crescent of
+ * land hugging the lake with a river-entry mouth — a true C. Vertices already clear
+ * of the lake are untouched, so a lake that fits leaves the coast unchanged. Meant
+ * to be re-smoothed (Chaikin) by the caller. Pure, deterministic — no Math.random.
+ */
+export function embayCoast(
+  loop: Vec2[],
+  pondCenter: Vec2,
+  pondR: number,
+  beach: number,
+  thetaBay: number,
+  openHalf: number,
+): Vec2[] {
+  const want = pondR + beach;
+  if (want <= 0) return loop.map((p) => ({ x: p.x, y: p.y }));
+  return loop.map((p) => {
+    const dx = p.x - pondCenter.x;
+    const dy = p.y - pondCenter.y;
+    const d = Math.hypot(dx, dy);
+    if (d >= want || d < 1e-6) return { x: p.x, y: p.y };
+    const bearing = Math.atan2(dy, dx);
+    if (angularDistance(bearing, thetaBay) < openHalf) return { x: p.x, y: p.y }; // the mouth
+    const s = want / d;
+    return { x: pondCenter.x + dx * s, y: pondCenter.y + dy * s };
+  });
+}
+
 /** A confluence-tree edge: water flows a→b carrying `flow` source tributaries
  *  (== how many of the network's rivers share this edge — which drives its width). */
 export interface ConfluenceEdge {

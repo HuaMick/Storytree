@@ -57,6 +57,9 @@ import {
   routeAround,
   confluenceTree,
   meanderPath,
+  circularMeanAngle,
+  pondRadiusForDegree,
+  embayCoast,
   edgePathBundle,
   segmentKey,
   type Disk,
@@ -765,6 +768,52 @@ const POND_RX_MAX = HEX_R * 1.3;
 /** points around a pond's raw rim before Chaikin-smoothing. */
 const POND_RING_N = 14;
 
+// ---- crescent-coast mode (`?coast=crescent`, owner call 2026-06-17) ----
+// "the island pond should scale with the number of connections … create a c shape
+// coastline." A busy hub's lake grows with its river DEGREE (√degree, so area ∝
+// degree); when the lake outgrows the land we carve a C-shaped BAY into the coast
+// that embraces it (cheaper + better-looking than just growing the landmass).
+/** px the degree-sized lake grows per unit √degree above the floor. */
+const POND_DEGREE_GAIN = HEX_R * 0.55;
+/** the cap a degree-sized lake grows to in crescent mode (bigger than POND_RX_MAX —
+ *  the grown C-headland gives a hub lake room the plain inland placer never had). */
+const POND_RX_MAX_CRESCENT = HEX_R * 2.4;
+/** px of beach the grown C-coast keeps between the lake rim and the new shore. */
+const POND_BEACH = HEX_R * 0.32;
+
+/**
+ * Seat a degree-sized lake on the island's entry shore (crescent mode): a round
+ * lake of radius `rxWant` (capped only so a tiny island doesn't get an absurd
+ * lake), seated near the `thetaBay` shore so it pokes past the original coastline —
+ * the coast is then GROWN around it (embayCoast) into a C that holds the lake with
+ * the river-entry side left open. It's seated to clear the central tree crown
+ * landward, so the wrapping headland grows seaward instead of drowning the tree.
+ * Pure given the territory geometry (hash-seeded rim wobble only). Returns the
+ * smoothed loop + centre + realised radius the caller needs to grow the matching C.
+ */
+function seatCrescentPond(
+  t: Territory,
+  thetaBay: number,
+  rxWant: number,
+): { center: Pt; loop: Pt[]; rx: number; shoreDist: number; cdist: number } {
+  const crownR = crownRadius(t.story.capabilities.length);
+  const dir = { x: Math.cos(thetaBay), y: Math.sin(thetaBay) };
+  const far = rayCoastIntersect(t, {
+    x: t.centroid.x + dir.x * 2000,
+    y: t.centroid.y + dir.y * 2000,
+  });
+  const shoreDist = far ? Math.hypot(far.x - t.centroid.x, far.y - t.centroid.y) : t.radius;
+  // Keep the lake proportionate to the island, but let a hub's lake be genuinely
+  // big — the grown C holds whatever pokes past the shore.
+  const rx = Math.min(rxWant, t.radius * 0.82);
+  // Seat near the shore: enough inland that its landward arc clears the tree crown,
+  // so it pokes seaward (and the coast grows out there), opening toward the rivers.
+  const cdist = Math.max(shoreDist - rx * 0.35, rx + crownR + POND_PLANT_CLEAR);
+  const center = { x: t.centroid.x + dir.x * cdist, y: t.centroid.y + dir.y * cdist };
+  const loop = chaikinClosed(pondRing(center, rx, rx * 0.74, hash(t.story.id)), 2);
+  return { center, loop, rx, shoreDist, cdist };
+}
+
 /**
  * A squashed, hash-jittered closed ring for an inland pond — the raw silhouette
  * fed through the SAME chaikinClosed + smoothLoopPath pipeline as the coastline so
@@ -878,7 +927,7 @@ function unit(a: Pt, b: Pt): Pt {
  */
 function buildBasin(
   territories: Territory[],
-  opts: { mouthInset: number; tuning: RiverTuning; waterMode: WaterMode },
+  opts: { mouthInset: number; tuning: RiverTuning; waterMode: WaterMode; coastMode: CoastMode },
 ): { edges: WorldEdge[]; inland: InlandWater } {
   const edges: WorldEdge[] = [];
   const inland: InlandWater = { ponds: [], channels: [] };
@@ -955,8 +1004,45 @@ function buildBasin(
           : { x: 0, y: 1 };
       let flow = 0;
       for (const fe of flowEdges) if (fe.a === i || fe.b === i) flow += Math.max(1, fe.flow);
-      // Bias the lake toward the stream-entry side so the rivers flow INTO it.
-      const pond = placePond(t, aim, flow, 4);
+      // CRESCENT MODE (`?coast=crescent`): size the lake by the island's river
+      // DEGREE (its incident-stream count) and grow a C of land around it (a bay
+      // open toward the rivers). An island with no rivers keeps the ordinary inland
+      // pond — there's no entry direction to open a bay toward.
+      let pond: { center: Pt; loop: Pt[] } | null;
+      if (opts.coastMode === 'crescent' && ds.length > 0) {
+        const degree = ds.length;
+        const rxWant = pondRadiusForDegree(degree, POND_RX_MIN, POND_DEGREE_GAIN, POND_RX_MAX_CRESCENT);
+        // θ_bay = circular mean of the dock bearings around the island centre, so
+        // the bay opens toward where the rivers actually enter.
+        const thetaBay = circularMeanAngle(
+          ds.map((d) => Math.atan2(d.dock.y - t.centroid.y, d.dock.x - t.centroid.x)),
+        );
+        const seat = seatCrescentPond(t, thetaBay, rxWant);
+        pond = { center: seat.center, loop: seat.loop };
+        // Grow the C into THIS island's coast: bulge the shore out to wrap the lake
+        // (with a beach margin) everywhere except the seaward mouth the rivers enter
+        // through, then re-smooth so it reads hand-drawn. Mutates only this
+        // territory's coast — edges/docks were already built above off the original
+        // shore, and the channels still dock from those original mouths into the
+        // lake.
+        const coast = t.coastLoops[0];
+        if (coast) {
+          // The mouth opens toward θ_bay; its half-angle tracks how far the lake
+          // pokes past the shore (a lake mostly inland needs only a slim mouth).
+          const openHalf = Math.min(0.95, Math.max(0.5, Math.atan2(seat.rx, Math.max(1, seat.cdist)) * 1.05));
+          const grown = chaikinClosed(
+            embayCoast(coast, seat.center, seat.rx, POND_BEACH, thetaBay, openHalf),
+            1,
+          );
+          if (grown.length >= 3) {
+            t.coastLoops = [grown, ...t.coastLoops.slice(1)];
+            t.coastPaths = [smoothLoopPath(grown), ...t.coastPaths.slice(1)];
+          }
+        }
+      } else {
+        // Bias the lake toward the stream-entry side so the rivers flow INTO it.
+        pond = placePond(t, aim, flow, 4);
+      }
       if (!pond) return;
       inland.ponds.push({ story: t.story.id, d: smoothLoopPath(pond.loop), loop: pond.loop });
       for (const dk of ds) {
@@ -1170,6 +1256,7 @@ function buildWorld(
     tuning?: RiverTuning;
     waterMode?: WaterMode;
     plantsScatter?: boolean;
+    coastMode?: CoastMode;
   },
 ): HexWorld {
   const riverMode = opts?.riverMode ?? 'strands';
@@ -1177,6 +1264,7 @@ function buildWorld(
   const tuning = opts?.tuning ?? RIVER_TUNING;
   const waterMode = opts?.waterMode ?? 'off';
   const plantsScatter = opts?.plantsScatter ?? false;
+  const coastMode = opts?.coastMode ?? 'default';
   const mouthInset = moat ? MOUTH_INSET : tuning.mouthInset;
   const quotas = stories.map((s) => Math.max(3, s.capabilities.length + 2));
 
@@ -1489,7 +1577,7 @@ function buildWorld(
   let inland: InlandWater = { ponds: [], channels: [] };
 
   if (riverMode === 'merge') {
-    ({ edges, inland } = buildBasin(territories, { mouthInset, tuning, waterMode }));
+    ({ edges, inland } = buildBasin(territories, { mouthInset, tuning, waterMode, coastMode }));
   } else if (riverMode === 'bundle') {
     ({ edges, inland } = buildBundle(territories, edgeList, {
       mouthInset,
@@ -2483,6 +2571,14 @@ type RiverMode = 'strands' | 'merge' | 'confluence' | 'bundle';
 // there would render bankless — blue on grass).
 type WaterMode = 'off' | 'pond' | 'through';
 
+// Coast shaping (`?coast=`, owner call 2026-06-17 — flag-gated, default OFF so the
+// world stays byte-identical until the owner nods on the hosted site):
+//   `default`  — the procedural inland pond clamped to fit on land (current world).
+//   `crescent` — each island's lake scales with its river DEGREE, and where the lake
+//                outgrows the land a C-shaped BAY is carved into the coast to embrace
+//                it (no river re-layout — pond + coast geometry only).
+type CoastMode = 'default' | 'crescent';
+
 interface RiverTuning {
   /** Trunk length as a fraction of the mean source→mouth distance (clamped). */
   trunkFrac: number;
@@ -2564,6 +2660,15 @@ function readWaterMode(): WaterMode {
   if (raw === 'off' || raw === 'none') return 'off';
   if (raw === 'through') return 'through';
   return 'pond';
+}
+
+/** `?coast=crescent` sizes each island's lake by its river degree and carves a
+ *  C-shaped bay into the coast to hug it. Default OFF (byte-identical world). */
+function readCoastMode(): CoastMode {
+  if (typeof window === 'undefined') return 'default';
+  return new URLSearchParams(window.location.search).get('coast') === 'crescent'
+    ? 'crescent'
+    : 'default';
 }
 
 /** `?plants=scatter` disperses the capability garden off its rigid front arc. */
@@ -2762,6 +2867,7 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
   const moatOn = useMemo(() => readMoat(), []);
   const waterMode = useMemo(() => readWaterMode(), []);
   const plantsScatter = useMemo(() => readPlantsScatter(), []);
+  const coastMode = useMemo(() => readCoastMode(), []);
   const riverTuning = useMemo(() => readRiverTuning(), []);
   const world = useMemo(
     () =>
@@ -2772,9 +2878,10 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
             tuning: riverTuning,
             waterMode,
             plantsScatter,
+            coastMode,
           })
         : null,
-    [stories, riverMode, moatOn, waterMode, plantsScatter, riverTuning],
+    [stories, riverMode, moatOn, waterMode, plantsScatter, coastMode, riverTuning],
   );
 
   /** Merged-trunk stroke width per water layer, or undefined (CSS default). */
