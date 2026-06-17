@@ -431,6 +431,22 @@ describe('distributaryChains', () => {
     }
   });
 
+  it('tells the router each segment’s dock role (leaf → its dest, root → the source)', () => {
+    const dests: Vec2[] = [{ x: -40, y: 160 }, { x: 40, y: 160 }];
+    const calls: { aDestIndex: number; bIsSource: boolean }[] = [];
+    distributaryChains(source, dests, 0.3, (a, b, seg) => {
+      calls.push(seg);
+      return [a, b];
+    });
+    // exactly one segment is the trunk root that reaches the source
+    expect(calls.filter((c) => c.bIsSource).length).toBe(1);
+    // each dest has exactly one leaf segment that names it (so only ITS island is skipped)
+    expect(calls.filter((c) => c.aDestIndex === 0).length).toBe(1);
+    expect(calls.filter((c) => c.aDestIndex === 1).length).toBe(1);
+    // a leaf segment is never also reported as the source root (distinct dock roles)
+    expect(calls.some((c) => c.aDestIndex >= 0 && c.bIsSource)).toBe(false);
+  });
+
   it('honours the injected router (an island detour reaches the dest with a waypoint)', () => {
     const dest: Vec2 = { x: 200, y: 0 };
     const island: Disk[] = [{ x: 100, y: 0, r: 30 }];

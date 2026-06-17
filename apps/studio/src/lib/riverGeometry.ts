@@ -524,6 +524,16 @@ export interface DistributaryTrunk {
   flow: number;
 }
 
+/** The dock role of one confluence segment handed to `distributaryChains`'s router,
+ *  so the caller can keep a river clear of every island EXCEPT the one it docks at. */
+export interface DistributarySegment {
+  /** The dest index this segment terminates AT (its dest-ward end IS that dest
+   *  island), or -1 when its dest-ward end is an interior confluence point. */
+  aDestIndex: number;
+  /** Whether this segment's source-ward end is the source itself (the trunk root). */
+  bIsSource: boolean;
+}
+
 export interface Distributary {
   /** Per dest (same order as `dests`): the routed point chain SOURCE → … → dest,
    *  threading the shared confluence points. `chain[0]` is EXACTLY `source` and
@@ -546,27 +556,39 @@ export interface Distributary {
  * every head's route as a source→dest polyline, so the network reads as a river
  * leaving the source as one fat stem that progressively splits to reach each dest.
  *
- * Island avoidance is INJECTED: each confluence segment is handed to `route(a, b)`
- * (in production `routeAround` against the third-party islands, so the trunk skirts a
- * hub like the central drive-machinery chain instead of plowing through it — the
- * owner's "if the distance is far enough the river should opt to go around"); a test
- * can pass the identity `(a, b) => [a, b]` for straight segments. `route` MUST
- * preserve its endpoints (every router here does) — that's what keeps each chain's
- * ends pinned exactly on the source and the dest. Deterministic when `route` is.
- * Empty dests → empty delta; a lone dest → one source→dest chain.
+ * Island avoidance is INJECTED: each confluence segment is handed to
+ * `route(a, b, seg)` (in production `routeAround` against the third-party islands, so
+ * the trunk skirts a hub like the central drive-machinery chain instead of plowing
+ * through it — the owner's "if the distance is far enough the river should opt to go
+ * around"); a test can pass the identity `(a, b) => [a, b]` for straight segments. The
+ * `seg` metadata names the segment's dock role — its terminal dest (if its dest-ward
+ * end is a real dest island) and whether its source-ward end is the source — so the
+ * caller can keep each segment clear of every island EXCEPT the one it docks at (a
+ * river never cuts across a THIRD island). `route` MUST preserve its endpoints (every
+ * router here does) — that's what keeps each chain's ends pinned exactly on the source
+ * and the dest. Deterministic when `route` is. Empty dests → empty delta; a lone dest
+ * → one source→dest chain.
  */
 export function distributaryChains(
   source: Vec2,
   dests: Vec2[],
   pullFrac: number,
-  route: (a: Vec2, b: Vec2) => Vec2[],
+  route: (a: Vec2, b: Vec2, seg: DistributarySegment) => Vec2[],
 ): Distributary {
   if (dests.length === 0) return { chains: [], trunks: [] };
   const net = confluenceTree(dests, source, pullFrac);
+  // Each dest's OWN leaf tributary is the first edge of its head→sink route, whose
+  // dest-ward end (`a`) IS that dest island — so the caller can skip ONLY that island
+  // on that segment and treat every other island as an obstacle.
+  const leafOf = new Array<number>(net.edges.length).fill(-1);
+  net.routeOf.forEach((eis, di) => {
+    const f = eis[0];
+    if (f !== undefined && f >= 0) leafOf[f] = di;
+  });
   // Route each tree edge ONCE, source-ward (`b`) → dest-ward (`a`), and cache it so
   // the tributary chains and the fat trunks read identical geometry on shared stems.
-  const routed = net.edges.map((e) => {
-    const seg = route(e.b, e.a);
+  const routed = net.edges.map((e, ei) => {
+    const seg = route(e.b, e.a, { aDestIndex: leafOf[ei] ?? -1, bIsSource: e.b === source });
     return seg.length >= 2 ? seg : [e.b, e.a];
   });
   const chains = dests.map((_, di) => {
