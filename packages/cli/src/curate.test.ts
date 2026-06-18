@@ -2,12 +2,19 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { InMemoryStore } from "@storytree/core";
+import type { Store } from "@storytree/core";
+import type { SdkCuratorArgs, SdkCuratorResult } from "@storytree/agent";
 import type { Comment } from "@storytree/store";
 
 import {
   CURATOR_ACTOR,
   ScriptedCuratorRunner,
+  SdkCuratorRunner,
   enactCuration,
+  parseCuratorActions,
+  renderCuratorPrompt,
+  runCurationPass,
+  serializeCurationContext,
   type CommentSink,
   type CurationAction,
   type CurationContext,
@@ -222,4 +229,146 @@ test("ScriptedCuratorRunner returns its fixed actions and the function form sees
   );
   const actions = await dynamic.run(ctx);
   assert.equal(actions[0]?.type, "escalate");
+});
+
+// --- runCurationPass (the pass orchestration) ----------------------------------------------------
+
+test("runCurationPass defers (no-op) when no library store is wired", async () => {
+  const lines = await runCurationPass({
+    runner: new ScriptedCuratorRunner(),
+    library: null,
+    context: { storyId: "s", nodeIds: ["s"], decisions: [], adrs: [] },
+  });
+  assert.ok(lines.some((l) => l.includes("deferred")));
+});
+
+test("runCurationPass loads the OQ neighbourhood, runs the curator, and enacts", async () => {
+  const store = new InMemoryStore();
+  await store.upsertDoc({ id: "oq-old", kind: "open-question", doc: oqDoc("oq-old") });
+  const runner = new ScriptedCuratorRunner((ctx) =>
+    ctx.openQuestions.map((oq) => ({ type: "retire-open-question", id: oq.id, reason: "overtaken" })),
+  );
+  const lines = await runCurationPass({
+    runner,
+    library: store,
+    context: { storyId: "s", nodeIds: ["s"], decisions: [16], adrs: [] },
+  });
+  assert.equal(await store.getDoc("oq-old"), null, "the curator retired the OQ it judged overtaken");
+  assert.ok(lines.some((l) => l.includes("retired open-question oq-old")));
+});
+
+test("runCurationPass never throws — a failing store yields a best-effort skipped line", async () => {
+  const broken = {
+    queryDocs: async () => {
+      throw new Error("db down");
+    },
+  } as unknown as Store;
+  const lines = await runCurationPass({
+    runner: new ScriptedCuratorRunner(),
+    library: broken,
+    context: { storyId: "s", nodeIds: ["s"], decisions: [], adrs: [] },
+  });
+  assert.ok(lines.some((l) => l.includes("skipped")));
+});
+
+// --- the live SDK curator: parse / serialize / runner -------------------------------------------
+
+test("parseCuratorActions extracts a fenced JSON array and drops malformed entries", () => {
+  const text = [
+    "Here are my decisions:",
+    "```json",
+    JSON.stringify([
+      { type: "retire-open-question", id: "oq-1", reason: "overtaken by ADR-9999" },
+      { type: "comment", artifactId: "g1", body: "looks stale" },
+      { type: "retire-open-question" }, // malformed — no id/reason
+      { type: "not-a-real-type", id: "x" }, // unknown type
+    ]),
+    "```",
+  ].join("\n");
+  const actions = parseCuratorActions(text);
+  assert.equal(actions.length, 2, "the two well-formed actions survive; malformed/unknown dropped");
+  assert.equal(actions[0]?.type, "retire-open-question");
+  assert.equal(actions[1]?.type, "comment");
+});
+
+test("parseCuratorActions handles a bare array and returns [] on garbage", () => {
+  assert.equal(parseCuratorActions("[]").length, 0);
+  assert.equal(
+    parseCuratorActions('[{"type":"escalate","artifactId":"a","body":"b"}]').length,
+    1,
+  );
+  assert.equal(parseCuratorActions("the model wrote prose, no json").length, 0);
+  assert.equal(parseCuratorActions("```json\n{not valid}\n```").length, 0);
+});
+
+test("serializeCurationContext surfaces the OQ ids and the deciding-ADR statuses", () => {
+  const store = new InMemoryStore();
+  const ctx: CurationContext = {
+    storyId: "library",
+    nodeIds: ["library", "library-cli"],
+    decisions: [23],
+    openQuestions: [
+      { id: "oq-x", kind: "open-question", doc: oqDoc("oq-x", { stakes: "S-MARKER" }), createdAt: ISO, updatedAt: ISO },
+    ],
+    proposals: [],
+    adrs: [{ number: 23, file: "0023-x.md", status: "proposed", supersedes: [], supersedesInPart: [], amends: [] }],
+  };
+  void store;
+  const prompt = serializeCurationContext(ctx);
+  assert.match(prompt, /Story just built: library/);
+  assert.match(prompt, /ADR-0023: proposed/);
+  assert.match(prompt, /oq-x/);
+  assert.match(prompt, /S-MARKER/);
+});
+
+test("SdkCuratorRunner serializes, runs the (injected) SDK, and parses the output into actions", async () => {
+  const seen: { systemPrompt: string; userPrompt: string }[] = [];
+  let observed: SdkCuratorResult | undefined;
+  const fakeRunSdk = async (args: SdkCuratorArgs): Promise<SdkCuratorResult> => {
+    seen.push({ systemPrompt: args.systemPrompt, userPrompt: args.userPrompt });
+    return {
+      ok: true,
+      text: '```json\n[{"type":"retire-open-question","id":"oq-old","reason":"overtaken"}]\n```',
+      costUsd: 0.0123,
+      turns: 2,
+    };
+  };
+  const runner = new SdkCuratorRunner({
+    systemPrompt: "SYS",
+    runSdk: fakeRunSdk,
+    onResult: (r) => {
+      observed = r;
+    },
+  });
+  const actions = await runner.run({
+    storyId: "s",
+    nodeIds: ["s"],
+    decisions: [],
+    openQuestions: [{ id: "oq-old", kind: "open-question", doc: oqDoc("oq-old"), createdAt: ISO, updatedAt: ISO }],
+    proposals: [],
+    adrs: [],
+  });
+  assert.equal(actions.length, 1);
+  assert.equal(actions[0]?.type, "retire-open-question");
+  assert.equal(seen[0]?.systemPrompt, "SYS", "the rendered system prompt is threaded through");
+  assert.match(seen[0]?.userPrompt ?? "", /oq-old/, "the neighbourhood is serialized into the user prompt");
+  assert.equal(observed?.costUsd, 0.0123, "onResult surfaces the SDK cost for the build report");
+});
+
+test("SdkCuratorRunner yields no actions when the SDK session fails (best-effort)", async () => {
+  const runner = new SdkCuratorRunner({
+    systemPrompt: "SYS",
+    runSdk: async (): Promise<SdkCuratorResult> => ({ ok: false, text: "", costUsd: 0, turns: 0, error: "boom" }),
+  });
+  const actions = await runner.run({ storyId: "s", nodeIds: [], decisions: [], openQuestions: [], proposals: [], adrs: [] });
+  assert.equal(actions.length, 0);
+});
+
+test("renderCuratorPrompt assembles the librarian-curator from the seed with the output contract", async () => {
+  const res = await renderCuratorPrompt();
+  assert.equal(res.ok, true, res.ok ? "" : res.reason);
+  if (res.ok) {
+    assert.match(res.systemPrompt, /retire-open-question/, "the JSON output contract is appended");
+    assert.match(res.systemPrompt, /post-build curation pass/);
+  }
 });

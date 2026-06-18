@@ -1,7 +1,8 @@
 import path from "node:path";
 
 import type { ClaudeAgentAuthor, PhaseAuthor } from "@storytree/agent";
-import { effectiveUatWitness, resolveSignerFromEnv, rollupStatus } from "@storytree/core";
+import { InMemoryStore, effectiveUatWitness, resolveSignerFromEnv, rollupStatus } from "@storytree/core";
+import type { AdrMeta, Store } from "@storytree/core";
 import {
   createBuildWorktree,
   findNodeSpecFile,
@@ -38,6 +39,17 @@ import {
   resolveDbProofEnv,
   resolveVerdictStore,
 } from "./node-build.js";
+import { PgCommentStore, PgLibraryStore, closePool, createPool } from "@storytree/store";
+
+import { loadAdrMetas } from "./adr-health.js";
+import {
+  CURATOR_ACTOR,
+  ScriptedCuratorRunner,
+  SdkCuratorRunner,
+  renderCuratorPrompt,
+  runCurationPass,
+} from "./curate.js";
+import type { CommentSink, CuratorRunner } from "./curate.js";
 import { deriveIdentity } from "./noticeboard.js";
 import type { PresenceStoreLike, SessionIdentity } from "./noticeboard.js";
 import { oqHygieneGate, type OqGateDeps } from "./oq-gate.js";
@@ -103,6 +115,65 @@ function honestFramingStoryReal(persisted: boolean, promotion: PromotionResult |
   );
 }
 
+/**
+ * ADR-0067 — the LIVE curation pass for `--live`/`--real`: spawn the SDK librarian-curator against
+ * the live library + comment stores. Entirely best-effort: it opens its OWN pool (the verdict store
+ * keeps its own), renders the agent from the seed, runs ONE read-only SDK session, enacts kind-fenced
+ * — and any failure (unrenderable agent, unreachable store, SDK error) returns a single `skipped`
+ * line, NEVER a thrown build. Curation runs only after the gate has already signed green.
+ */
+async function runLiveCuration(
+  story: NodeSpec,
+  driveOrder: NodeSpec[],
+  rootDir: string,
+  model: string | undefined,
+): Promise<string[]> {
+  const prompt = await renderCuratorPrompt();
+  if (!prompt.ok) {
+    return [`curation:    skipped — could not render the librarian-curator agent (${prompt.reason})`];
+  }
+  let pool: Awaited<ReturnType<typeof createPool>>["pool"];
+  let connector: Awaited<ReturnType<typeof createPool>>["connector"];
+  try {
+    ({ pool, connector } = await createPool());
+  } catch (e) {
+    return [`curation:    skipped — live store unreachable (${(e as Error).message})`];
+  }
+  try {
+    let curatorCostUsd = 0;
+    const runner = new SdkCuratorRunner({
+      systemPrompt: prompt.systemPrompt,
+      ...(model !== undefined ? { model } : {}),
+      onResult: (r) => {
+        curatorCostUsd += r.costUsd;
+      },
+    });
+    let adrs: AdrMeta[] = [];
+    try {
+      adrs = loadAdrMetas(path.join(rootDir, "docs", "decisions")).adrs;
+    } catch {
+      adrs = [];
+    }
+    const lines = await runCurationPass({
+      runner,
+      library: new PgLibraryStore(pool),
+      comments: new PgCommentStore(pool),
+      context: {
+        storyId: story.id,
+        nodeIds: driveOrder.map((n) => n.id),
+        decisions: story.decisions,
+        adrs,
+      },
+      actor: CURATOR_ACTOR,
+    });
+    return curatorCostUsd > 0
+      ? [...lines, `             curator spend: $${curatorCostUsd.toFixed(4)} SDK-reported`]
+      : lines;
+  } finally {
+    await closePool(pool, connector);
+  }
+}
+
 export interface StoryBuildOpts {
   dryRun: boolean;
   /** `--live` — a real SDK leaf per node, subscription-funded, under the total budget ceiling. */
@@ -150,6 +221,17 @@ export interface StoryBuildOpts {
   promote?: boolean;
   /** Injectable OQ-hygiene row loader for tests (ADR-0037 §5); defaults to the live store. */
   oqGateDeps?: OqGateDeps;
+  /**
+   * ADR-0067 — the post-green curation pass. `curatorRunner` defaults to a no-op
+   * {@link ScriptedCuratorRunner} (the live SDK-spawned librarian-curator lands in a follow-up
+   * slice). `curationStores.library` is what the pass reads OQs/proposals from and enacts against:
+   * absent on a `--dry-run` defaults to a fresh in-memory store (the offline GLUE proof); absent on
+   * `--live`/`--real` defaults to `null` (deferred — the live runner wires the live stores). Tests
+   * inject both to exercise enactment. `decisionsDir` feeds the ADR context (defaults to the repo's).
+   */
+  curatorRunner?: CuratorRunner;
+  curationStores?: { library: Store | null; comments?: CommentSink | null };
+  decisionsDir?: string;
   /**
    * Injectable for tests (ADR-0033 Decision 3). Defaults: `store` = the `--store pg` pool's
    * presence board (null in-memory), `identity` = the enclosing session worktree (null in a
@@ -609,6 +691,49 @@ export async function storyBuild(
         next: [`storytree story build ${story.id} ${real ? "--real" : live ? "--live" : "--dry-run"}`],
       };
     }
+
+    // ADR-0067: the curation pass runs ONLY after a green build (never on a halt) and is advisory —
+    // runCurationPass never throws, so it can never fail or block the build (never-bypass-the-gate
+    // holds: curation happens AFTER the gate signed). Dry-run exercises the GLUE against an in-memory
+    // library store; --live/--real defer to the live SDK curator (follow-up slice) unless stores are
+    // injected. A scoped librarian-curator judges the story's open-questions / proposals.
+    let curationLines: string[];
+    const curationInjected = opts.curationStores !== undefined || opts.curatorRunner !== undefined;
+    if (!curationInjected && (live || real)) {
+      // Live/real default: the SDK-spawned librarian-curator against the live library/comment stores.
+      curationLines = await runLiveCuration(story, driveOrder, rootDir, opts.model);
+    } else {
+      // Dry-run default exercises the GLUE against a fresh in-memory store; tests inject the stores +
+      // a scripted/SDK runner. Load the ADR context only when there is a library (best-effort: a
+      // fixture repo may have no docs/decisions — a missing dir is no ADR context, never a throw).
+      const curationLibrary: Store | null =
+        opts.curationStores?.library !== undefined
+          ? opts.curationStores.library
+          : mode === "dry-run"
+            ? new InMemoryStore()
+            : null;
+      let curationAdrs: AdrMeta[] = [];
+      if (curationLibrary !== null) {
+        try {
+          curationAdrs = loadAdrMetas(opts.decisionsDir ?? path.join(rootDir, "docs", "decisions")).adrs;
+        } catch {
+          curationAdrs = [];
+        }
+      }
+      curationLines = await runCurationPass({
+        runner: opts.curatorRunner ?? new ScriptedCuratorRunner(),
+        library: curationLibrary,
+        comments: opts.curationStores?.comments ?? null,
+        context: {
+          storyId: story.id,
+          nodeIds: driveOrder.map((n) => n.id),
+          decisions: story.decisions,
+          adrs: curationAdrs,
+        },
+        actor: CURATOR_ACTOR,
+      });
+    }
+
     if (storyWithheld) {
       return {
         ok: true,
@@ -618,6 +743,8 @@ export async function storyBuild(
           `             uat_witness is human${story.uatWitness === undefined ? " (the undeclared default)" : ""}, so the gate refuses to drive or sign the story UAT.`,
           `             The story stays unproven until a human witnesses its UAT; declare`,
           `             uat_witness: machine in the story frontmatter to let the gate drive it.`,
+          "",
+          ...curationLines,
           "",
           framing,
         ].join("\n"),
@@ -639,6 +766,8 @@ export async function storyBuild(
       body: [
         ...header,
         `outcome:     PASSED — every node signed (capabilities in dependency order, story last)`,
+        "",
+        ...curationLines,
         "",
         framing,
       ].join("\n"),
