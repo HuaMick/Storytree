@@ -73,6 +73,7 @@ import {
   mergeInletBearings,
   extendEndpoint,
   straightenPath,
+  DIRT_PATH_STRAIGHTEN,
   densityField,
   routeAroundBiased,
   type Disk,
@@ -1206,10 +1207,11 @@ function buildBasin(
   const inland: InlandWater = { ponds: [], channels: [] };
   const n = territories.length;
   if (n === 0) return { edges, inland };
-  // ROADS (`?world=roads`): straighten each routed basin stream toward its chord. A
-  // no-op in the water world, so the off render is byte-identical.
+  // ROADS (`?world=roads`): gently straighten each routed basin stream toward its chord
+  // so it reads as a worn dirt trail (still wandering), not an engineered road. A no-op in
+  // the water world, so the off render is byte-identical.
   const roads = opts.worldMode === 'roads';
-  const roadify = (pts: Pt[]): Pt[] => (roads ? straightenPath(pts, ROAD_STRAIGHTEN) : pts);
+  const roadify = (pts: Pt[]): Pt[] => (roads ? straightenPath(pts, DIRT_PATH_STRAIGHTEN) : pts);
   const centroids = territories.map((t) => t.centroid);
   const mst = euclideanMST(centroids);
   // Root the drainage at the foundation (the lowest island on the map, max y), so
@@ -1440,11 +1442,11 @@ function buildBundle(
   const inland: InlandWater = { ponds: [], channels: [] };
   const n = territories.length;
   if (n === 0) return { edges, inland };
-  // ROADS (`?world=roads`): straighten each routed edge toward its chord so the
-  // network reads as engineered paths. A no-op in the water world (frac 0), so the
-  // off render is byte-identical.
+  // ROADS (`?world=roads`): gently straighten each routed edge toward its chord so the
+  // network reads as worn dirt trails (still wandering), not engineered roads. A no-op in
+  // the water world, so the off render is byte-identical.
   const roads = opts.worldMode === 'roads';
-  const roadify = (pts: Pt[]): Pt[] => (roads ? straightenPath(pts, ROAD_STRAIGHTEN) : pts);
+  const roadify = (pts: Pt[]): Pt[] => (roads ? straightenPath(pts, DIRT_PATH_STRAIGHTEN) : pts);
   const byId = new Map(territories.map((t, i) => [t.story.id, i]));
   const centroids = territories.map((t) => t.centroid);
 
@@ -3491,12 +3493,12 @@ const FLOW_W = {
   glint: { base: 1.2, step: 0, max: 1.2 },
 } as const;
 
-// ROADS world (`?world=roads`): a road runs STRAIGHTER than the meandering river it
-// shares routing with — after each edge is routed (and would meander), pull it toward
-// its start→end chord by this fraction so the network reads as engineered paths, not
-// wandering streams. 0 = unchanged (river), 1 = perfectly straight. Only applied in
-// roads mode, so the water world is byte-identical.
-const ROAD_STRAIGHTEN = 0.55;
+// ROADS world (`?world=roads`): worn DIRT FOOTPATHS, not engineered roads. After each
+// edge is routed (and would meander like a river), pull it GENTLY toward its start→end
+// chord so the trail is tamed from the raw river wander but still curves naturally — a
+// trodden path, not a surveyed road. The amount lives next to straightenPath as
+// DIRT_PATH_STRAIGHTEN (riverGeometry.ts) so it's covered by that file's red-green suite.
+// Only applied in roads mode, so the water world is byte-identical.
 
 // DEFAULT = `bundle` (owner call 2026-06-17 — "flip it"): the DISTANCE-AWARE bundle
 // (real-graph edge-path braiding for short edges + a geometric SOURCE DELTA that routes
