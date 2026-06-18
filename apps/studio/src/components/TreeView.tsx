@@ -72,6 +72,7 @@ import {
   crownDisk,
   mergeInletBearings,
   extendEndpoint,
+  straightenPath,
   densityField,
   routeAroundBiased,
   type Disk,
@@ -1198,12 +1199,17 @@ function buildBasin(
      *  the crescent gates on, so a hub like the library (a leaf in the river MST)
      *  still counts as highly-connected. */
     depDegree: Map<string, number>;
+    worldMode?: WorldMode;
   },
 ): { edges: WorldEdge[]; inland: InlandWater } {
   const edges: WorldEdge[] = [];
   const inland: InlandWater = { ponds: [], channels: [] };
   const n = territories.length;
   if (n === 0) return { edges, inland };
+  // ROADS (`?world=roads`): straighten each routed basin stream toward its chord. A
+  // no-op in the water world, so the off render is byte-identical.
+  const roads = opts.worldMode === 'roads';
+  const roadify = (pts: Pt[]): Pt[] => (roads ? straightenPath(pts, ROAD_STRAIGHTEN) : pts);
   const centroids = territories.map((t) => t.centroid);
   const mst = euclideanMST(centroids);
   // Root the drainage at the foundation (the lowest island on the map, max y), so
@@ -1244,11 +1250,15 @@ function buildBasin(
     // watercourse instead of reading as a routed pipe; seeded per-edge so every
     // river wiggles differently but identically on every render (endpoints pinned,
     // so the dock and mouth stay put). amp 0 ⇒ the old straight-smoothed path.
-    const wander = meanderPath(
-      pts,
-      hash(`${ta.story.id}>${tb.story.id}`),
-      opts.tuning.meanderAmp,
-      opts.tuning.meanderFreq,
+    // ROADS (`?world=roads`): straighten the wandered centreline toward its chord so
+    // a basin road reads as engineered, not a stream; a no-op (byte-identical) off.
+    const wander = roadify(
+      meanderPath(
+        pts,
+        hash(`${ta.story.id}>${tb.story.id}`),
+        opts.tuning.meanderAmp,
+        opts.tuning.meanderFreq,
+      ),
     );
     edges.push({
       from: ta.story.id,
@@ -1423,12 +1433,18 @@ function buildBundle(
     waterMode: WaterMode;
     bundleD: number;
     bundleDMax: number;
+    worldMode?: WorldMode;
   },
 ): { edges: WorldEdge[]; inland: InlandWater } {
   const edges: WorldEdge[] = [];
   const inland: InlandWater = { ponds: [], channels: [] };
   const n = territories.length;
   if (n === 0) return { edges, inland };
+  // ROADS (`?world=roads`): straighten each routed edge toward its chord so the
+  // network reads as engineered paths. A no-op in the water world (frac 0), so the
+  // off render is byte-identical.
+  const roads = opts.worldMode === 'roads';
+  const roadify = (pts: Pt[]): Pt[] => (roads ? straightenPath(pts, ROAD_STRAIGHTEN) : pts);
   const byId = new Map(territories.map((t, i) => [t.story.id, i]));
   const centroids = territories.map((t) => t.centroid);
 
@@ -1557,11 +1573,13 @@ function buildBundle(
       docksByIsland[hi]?.push({ dock: dhi, flow: chFlow });
       const obstacles = disks.filter((_, i) => i !== lo && i !== hi);
       const routed = router(dlo, dhi, obstacles);
-      const wander = meanderPath(
-        routed,
-        hash(`seg:${tlo.story.id}~${thi.story.id}`),
-        opts.tuning.meanderAmp,
-        opts.tuning.meanderFreq,
+      const wander = roadify(
+        meanderPath(
+          routed,
+          hash(`seg:${tlo.story.id}~${thi.story.id}`),
+          opts.tuning.meanderAmp,
+          opts.tuning.meanderFreq,
+        ),
       );
       segGeom.set(key, wander);
       return wander;
@@ -1666,11 +1684,13 @@ function buildBundle(
         }
         const obstacles = disks.filter((_, idx) => !skipIdx.has(idx));
         const routed = router(a, b, obstacles);
-        return meanderPath(
-          routed,
-          hash(`delta:${a.x.toFixed(1)},${a.y.toFixed(1)}~${b.x.toFixed(1)},${b.y.toFixed(1)}`),
-          opts.tuning.meanderAmp,
-          opts.tuning.meanderFreq,
+        return roadify(
+          meanderPath(
+            routed,
+            hash(`delta:${a.x.toFixed(1)},${a.y.toFixed(1)}~${b.x.toFixed(1)},${b.y.toFixed(1)}`),
+            opts.tuning.meanderAmp,
+            opts.tuning.meanderFreq,
+          ),
         );
       };
       const delta = distributaryChains(sourceDock, destDocks, pull, route);
@@ -1878,6 +1898,7 @@ function buildWorld(
     waterMode?: WaterMode;
     plantsScatter?: boolean;
     coastMode?: CoastMode;
+    worldMode?: WorldMode;
   },
 ): HexWorld {
   const riverMode = opts?.riverMode ?? 'strands';
@@ -1886,6 +1907,7 @@ function buildWorld(
   const waterMode = opts?.waterMode ?? 'off';
   const plantsScatter = opts?.plantsScatter ?? false;
   const coastMode = opts?.coastMode ?? 'default';
+  const worldMode = opts?.worldMode ?? 'water';
   const mouthInset = moat ? MOUTH_INSET : tuning.mouthInset;
   const quotas = stories.map((s) => Math.max(3, s.capabilities.length + 2));
 
@@ -2215,6 +2237,7 @@ function buildWorld(
       waterMode,
       coastMode,
       depDegree,
+      worldMode,
     }));
   } else if (riverMode === 'bundle') {
     ({ edges, inland } = buildBundle(territories, edgeList, {
@@ -2223,6 +2246,7 @@ function buildWorld(
       waterMode,
       bundleD: tuning.bundleD,
       bundleDMax: tuning.bundleDMax,
+      worldMode,
     }));
   }
 
@@ -2633,6 +2657,20 @@ function buildWorld(
     }
   }
   } // end comparison-mode (strands / confluence) river construction
+
+  // ROADS (`?world=roads`, ADR-0072): OMIT the inland pond network entirely. The
+  // routing/geometry that produced `edges` is reused; only the water-on-land layer is
+  // dropped. Forcing the RETURNED `inland` empty here is the single ponds-OFF seam —
+  // every pond helper (placePond / placePondAt / placeWeldPond / seatCrescentPond /
+  // pondRing / fusedPondShape / weldPondShape / carvePondInlets / loopGapArcs /
+  // crownDisk / mergeInletBearings / pondRadiusForDegree / embayCoast / crescentApplies
+  // / nearestRimDock / fusedMouthPath / extendEndpoint / weldBothEnds) stays DEFINED and
+  // TESTED, merely unreferenced in roads mode, and the `inland-water` / `weld-pond-above`
+  // render groups (whose guards already test `inland.ponds/channels.length`) naturally
+  // render nothing — ponds are omitted with zero extra render-side branching.
+  if (worldMode === 'roads') {
+    inland = { ponds: [], channels: [] };
+  }
 
   // Scene bounds over every tile (claimed + coast), plus label + tree space.
   const allCenters = [...drawTiles.map((t) => hexCenter(t.h)), ...empties.map(hexCenter)];
@@ -3236,6 +3274,18 @@ function readSubstrateTuning(): Partial<SubstrateTuning> {
 //   `?rivers=strands`    — the oldest one-strand-per-edge / metro-lane look.
 type RiverMode = 'strands' | 'merge' | 'confluence' | 'bundle';
 
+// World selector (`?world=roads`, ADR-0072 — flag-gated, default OFF so the bare
+// `#/tree` water world stays byte-identical until the owner nods on the hosted site):
+//   `water` — the current forest world: dependency edges are RIVERS, with the inland
+//             pond network (the default `?weld` water world).
+//   `roads` — the same dependency edges drawn as paved ROADS/trails (a CSS re-skin of
+//             the `world-trail-*` edge passes under `.world-scene.world-roads`), with
+//             the ponds OMITTED entirely (the inland water network is forced empty).
+//             Roads run STRAIGHTER than rivers (straightenPath over the routed edges).
+// Everything else — islands, trees, plates, coast, the four edge render passes — is
+// shared, so roads is partly a re-skin of the existing river infrastructure.
+type WorldMode = 'water' | 'roads';
+
 // Inland water (VISUAL SPIKE, flag-gated). The default world rings each island in a
 // water MOAT (`?moat=on`). `?water=pond|through` instead carries the dependency
 // rivers INLAND — independent of `?moat`, so the natural combo for review is
@@ -3441,6 +3491,13 @@ const FLOW_W = {
   glint: { base: 1.2, step: 0, max: 1.2 },
 } as const;
 
+// ROADS world (`?world=roads`): a road runs STRAIGHTER than the meandering river it
+// shares routing with — after each edge is routed (and would meander), pull it toward
+// its start→end chord by this fraction so the network reads as engineered paths, not
+// wandering streams. 0 = unchanged (river), 1 = perfectly straight. Only applied in
+// roads mode, so the water world is byte-identical.
+const ROAD_STRAIGHTEN = 0.55;
+
 // DEFAULT = `bundle` (owner call 2026-06-17 — "flip it"): the DISTANCE-AWARE bundle
 // (real-graph edge-path braiding for short edges + a geometric SOURCE DELTA that routes
 // far edges AROUND third-party islands and forks near the dests, with convergence-seated
@@ -3481,6 +3538,19 @@ function readCoastMode(): CoastMode {
   return new URLSearchParams(window.location.search).get('coast') === 'crescent'
     ? 'crescent'
     : 'default';
+}
+
+/** `?world=roads` (primary) — or the convenience alias `?roads` (bare / on/1/true/yes)
+ *  — swaps the river world for the ROADS world: dependency edges drawn as paved roads
+ *  and the inland pond network omitted. Default `'water'` (byte-identical bare `#/tree`).
+ *  SSR-guarded like the other readers. */
+function readWorldMode(): WorldMode {
+  if (typeof window === 'undefined') return 'water';
+  const q = new URLSearchParams(window.location.search);
+  if (q.get('world') === 'roads') return 'roads';
+  const r = q.get('roads');
+  if (r !== null && ['', 'on', '1', 'true', 'yes'].includes(r)) return 'roads';
+  return 'water';
 }
 
 /** `?plants=scatter` disperses the capability garden off its rigid front arc. */
@@ -3715,6 +3785,7 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
   const waterMode = useMemo(() => readWaterMode(), []);
   const plantsScatter = useMemo(() => readPlantsScatter(), []);
   const coastMode = useMemo(() => readCoastMode(), []);
+  const worldMode = useMemo(() => readWorldMode(), []);
   const riverTuning = useMemo(() => readRiverTuning(), []);
   const world = useMemo(
     () =>
@@ -3726,9 +3797,10 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
             waterMode,
             plantsScatter,
             coastMode,
+            worldMode,
           })
         : null,
-    [stories, riverMode, moatOn, waterMode, plantsScatter, coastMode, riverTuning],
+    [stories, riverMode, moatOn, waterMode, plantsScatter, coastMode, worldMode, riverTuning],
   );
 
   /** Merged-trunk stroke width per water layer, or undefined (CSS default). */
@@ -3982,7 +4054,9 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
             ref={svgRef}
             className={`world-scene${
               riverMode === 'merge' || riverMode === 'bundle' ? ' rivers-merge' : ''
-            }${waterMode === 'pond' ? ' water-pond' : ''}${riverTuning.weld ? ' weld-on' : ''}`}
+            }${waterMode === 'pond' ? ' water-pond' : ''}${riverTuning.weld ? ' weld-on' : ''}${
+              worldMode === 'roads' ? ' world-roads' : ''
+            }`}
             viewBox={`0 0 ${world.width} ${world.height}`}
             onClick={(e) => {
               if (e.target === e.currentTarget) clearSelection();

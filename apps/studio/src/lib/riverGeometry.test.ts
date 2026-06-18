@@ -34,6 +34,7 @@ import {
   crownDisk,
   mergeInletBearings,
   extendEndpoint,
+  straightenPath,
   densityField,
   routeAroundBiased,
   type BundleEdge,
@@ -1553,6 +1554,82 @@ describe('extendEndpoint', () => {
       { x: 9, y: 11 },
     ];
     expect(extendEndpoint(pts, 6)).toEqual(extendEndpoint(pts, 6));
+  });
+});
+
+describe('straightenPath', () => {
+  // A meandering polyline whose chord is the straight x-axis from (0,0) to (200,0);
+  // every interior point bulges off the chord, so we can reason about the pull cleanly.
+  const wiggly: Vec2[] = [
+    { x: 0, y: 0 },
+    { x: 50, y: 30 },
+    { x: 100, y: -20 },
+    { x: 150, y: 25 },
+    { x: 200, y: 0 },
+  ];
+
+  /** Max perpendicular distance of any interior point from the start→end chord. */
+  const maxDev = (pts: Vec2[]): number => {
+    const a = pts[0]!;
+    const b = pts[pts.length - 1]!;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    let m = 0;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const p = pts[i]!;
+      // signed distance to the chord line through a with direction (dx,dy)
+      const dev = Math.abs(((p.x - a.x) * dy - (p.y - a.y) * dx) / len);
+      m = Math.max(m, dev);
+    }
+    return m;
+  };
+
+  it('pins both endpoints exactly (a road still starts on its dock, ends on its mouth)', () => {
+    const out = straightenPath(wiggly, 0.5);
+    expect(out[0]).toEqual({ x: 0, y: 0 });
+    const last = out[out.length - 1]!;
+    expect(last.x).toBeCloseTo(200, 6);
+    expect(last.y).toBeCloseTo(0, 6);
+  });
+
+  it('is a no-op for frac <= 0 (returns the input unchanged)', () => {
+    expect(straightenPath(wiggly, 0)).toBe(wiggly);
+    expect(straightenPath(wiggly, -0.5)).toBe(wiggly);
+  });
+
+  it('is a no-op for fewer than three points (nothing interior to pull)', () => {
+    const two: Vec2[] = [
+      { x: 1, y: 2 },
+      { x: 9, y: 4 },
+    ];
+    expect(straightenPath(two, 0.7)).toBe(two);
+    const one: Vec2[] = [{ x: 1, y: 2 }];
+    expect(straightenPath(one, 0.7)).toBe(one);
+  });
+
+  it('reduces deviation from the chord (a road runs straighter than the meandering river)', () => {
+    const before = maxDev(wiggly);
+    const after = maxDev(straightenPath(wiggly, 0.6));
+    expect(after).toBeLessThan(before);
+  });
+
+  it('collapses interior points onto the chord at frac = 1 (fully straight)', () => {
+    const out = straightenPath(wiggly, 1);
+    expect(maxDev(out)).toBeCloseTo(0, 6);
+    // each interior point lands at its even-chord position (x preserved, y → 0 here)
+    expect(out[2]!.x).toBeCloseTo(100, 6);
+    expect(out[2]!.y).toBeCloseTo(0, 6);
+  });
+
+  it('is monotone in frac — more pull means less deviation', () => {
+    const d3 = maxDev(straightenPath(wiggly, 0.3));
+    const d7 = maxDev(straightenPath(wiggly, 0.7));
+    expect(d7).toBeLessThan(d3);
+  });
+
+  it('is deterministic — identical inputs give identical output', () => {
+    expect(straightenPath(wiggly, 0.4)).toEqual(straightenPath(wiggly, 0.4));
   });
 });
 
