@@ -35,6 +35,7 @@ import {
   mergeInletBearings,
   extendEndpoint,
   straightenPath,
+  DIRT_PATH_STRAIGHTEN,
   densityField,
   routeAroundBiased,
   type BundleEdge,
@@ -1630,6 +1631,29 @@ describe('straightenPath', () => {
 
   it('is deterministic — identical inputs give identical output', () => {
     expect(straightenPath(wiggly, 0.4)).toEqual(straightenPath(wiggly, 0.4));
+  });
+
+  describe('DIRT_PATH_STRAIGHTEN', () => {
+    // The `?world=roads` straighten amount (ADR-0072). A worn DIRT FOOTPATH is
+    // tamed from the raw river meander it shares routing with, but — unlike an
+    // engineered road — it KEEPS most of its organic wander. straightenPath(pts,k)
+    // pulls each interior point toward the chord by fraction k, so the retained
+    // deviation ≈ (1-k)·before. The design band: a dirt path keeps 55–80% of the
+    // river's wander — tamer than the raw river, but unmistakably still wandering.
+    // This goes RED if the constant is bumped back toward engineered-road territory
+    // (≥0.45 → <55% retained) or over-flattened.
+    it('keeps 55–80% of the river wander (a trail, not an engineered road)', () => {
+      const before = maxDev(wiggly);
+      const dirt = maxDev(straightenPath(wiggly, DIRT_PATH_STRAIGHTEN));
+      expect(dirt).toBeLessThan(0.8 * before); // tamer than the raw river
+      expect(dirt).toBeGreaterThan(0.55 * before); // still wanders — not an engineered road
+    });
+
+    it('is gentler than an engineered road would be (retains more wander than frac 0.5)', () => {
+      const dirt = maxDev(straightenPath(wiggly, DIRT_PATH_STRAIGHTEN));
+      const road = maxDev(straightenPath(wiggly, 0.5));
+      expect(dirt).toBeGreaterThan(road);
+    });
   });
 });
 
