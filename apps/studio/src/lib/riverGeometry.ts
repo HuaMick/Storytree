@@ -1584,6 +1584,18 @@ export function extendEndpoint(pts: Vec2[], byPx: number): Vec2[] {
 }
 
 /**
+ * The `?world=roads` straighten amount (ADR-0072), fed to straightenPath over each routed
+ * edge in roads mode. A worn DIRT FOOTPATH is tamed from the raw river meander it shares
+ * routing with, but — unlike an engineered road — it KEEPS most of its organic wander, so
+ * the trails read as trodden paths that curve naturally rather than surveyed roads. Because
+ * straightenPath pulls each interior point toward the chord by this fraction, the retained
+ * deviation ≈ (1 - DIRT_PATH_STRAIGHTEN) of the river's, i.e. ~72% of the original wander.
+ * Keep it in the gentle 0.2–0.4 range: higher reads as an engineered road, lower barely
+ * differs from the river. Only applied in roads mode, so the water world is byte-identical.
+ */
+export const DIRT_PATH_STRAIGHTEN = 0.28;
+
+/**
  * Pull a routed polyline toward its straight start→end chord by `frac`, so a ROAD reads
  * as a deliberate engineered path rather than the meandering river it shares routing with
  * — roads run straighter than water. Each INTERIOR point is moved a fraction `frac` of the
