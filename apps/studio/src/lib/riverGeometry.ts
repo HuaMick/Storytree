@@ -1582,3 +1582,33 @@ export function extendEndpoint(pts: Vec2[], byPx: number): Vec2[] {
   out[out.length - 1] = { x: last.x + ux * byPx, y: last.y + uy * byPx };
   return out;
 }
+
+/**
+ * Pull a routed polyline toward its straight start→end chord by `frac`, so a ROAD reads
+ * as a deliberate engineered path rather than the meandering river it shares routing with
+ * — roads run straighter than water. Each INTERIOR point is moved a fraction `frac` of the
+ * way from where it is toward its even-chord position (the point on the straight line at
+ * the same fractional INDEX along the polyline): `frac = 0` leaves it untouched, `frac = 1`
+ * lands it exactly on the chord (a perfectly straight line). BOTH endpoints are pinned
+ * exactly (a road still starts on its dock and ends on its mouth) and the pull is monotone
+ * — more `frac` means less deviation. `frac ≤ 0` (or fewer than three points, nothing
+ * interior to pull) returns the input UNCHANGED, so the off path is a clean no-op. The
+ * result is meant to feed smoothOpenPath. Pure, deterministic — no randomness or clock.
+ */
+export function straightenPath(pts: Vec2[], frac: number): Vec2[] {
+  if (frac <= 0 || pts.length < 3) return pts;
+  const k = Math.min(1, frac);
+  const a = pts[0]!;
+  const b = pts[pts.length - 1]!;
+  const n = pts.length - 1; // last index
+  const out: Vec2[] = [{ x: a.x, y: a.y }];
+  for (let i = 1; i < n; i++) {
+    const p = pts[i]!;
+    const u = i / n; // even position along the chord by index
+    const cx = a.x + (b.x - a.x) * u;
+    const cy = a.y + (b.y - a.y) * u;
+    out.push({ x: p.x + (cx - p.x) * k, y: p.y + (cy - p.y) * k });
+  }
+  out.push({ x: b.x, y: b.y });
+  return out;
+}

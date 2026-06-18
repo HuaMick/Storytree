@@ -64,6 +64,15 @@
   --river: #5aa9d6; /* the one water colour: river bodies AND island moats */
   --river-bank: #cfeaf6; /* pale shallows between the sand bank and the open water */
   --river-glint: #ffffff;
+  /* ROADS world (?world=roads, ADR-0072) — the SAME stacked edge passes restyled
+     as paved roads instead of rivers. NEW vars only; the --river* defaults above are
+     untouched, so the off (water) world is byte-identical. The stack reads
+     bottom-up: a wide earthen ROADBED/shoulder, a lighter packed KERB, a grey paved
+     SURFACE, and a dashed CENTRE-LINE. Tuned to sit on the sand/grass board. */
+  --road-bed: #8a6f4e; /* the widest, bottom stroke — graded earthen shoulder under the road */
+  --road-kerb: #cdb591; /* packed-earth kerb between the shoulder and the paved surface */
+  --road-surface: #b8b0a4; /* the paved roadway — warm grey packed gravel / asphalt */
+  --road-line: #f3e7c4; /* the dashed centre-line painted down the middle of the road */
   --tree-trunk: #7d5f44;
   --conifer-0: #3d7a4d;
   --conifer-1: #4d8a59;
@@ -1867,6 +1876,56 @@ mark.st-hl.flash {
 }
 .world-scene.water-pond .inland-pond-glint {
   display: none;
+}
+
+/* ======================================================================
+   ROADS world (?world=roads, ADR-0072) — a pure CSS RE-SKIN of the same
+   stacked edge passes. The geometry (`world.edges` d-strings) and the
+   `world-trail-*` markup are IDENTICAL to the water world; only the paint
+   changes, scoped under `.world-scene.world-roads`, so the off (water)
+   world is byte-identical. The four layers become a road STACK:
+
+     world-trail-land  → earthen ROADBED / graded shoulder (widest, bottom)
+     world-trail-bank  → packed KERB between shoulder and surface
+     world-trail-water → the paved road SURFACE (warm-grey gravel/asphalt)
+     world-trail-glint → a dashed CENTRE-LINE down the middle (no flow anim)
+
+   Each layer KEEPS its inline flow-scaled width (FLOW_W via `flowStyle`),
+   so a trunk road is wider than a lane — flow accumulation reads as road
+   class. We override only colour / dash / animation / display here; the
+   inland pond network is absent in roads mode (the `inland` seam forces it
+   empty), so no `.inland-pond-*` overrides are needed. ====================== */
+.world-scene.world-roads .world-trail-land {
+  stroke: var(--road-bed);
+  opacity: 1;
+}
+.world-scene.world-roads .world-trail-bank {
+  stroke: var(--road-kerb);
+  opacity: 1;
+}
+.world-scene.world-roads .world-trail-water {
+  stroke: var(--road-surface);
+}
+/* The centre-line: the default merged/bundle world HIDES the glint
+   (`.world-scene.rivers-merge .world-trail-glint { display: none }`); this
+   rule has equal specificity and comes LATER, so in roads mode it wins and
+   the dashed line shows. It's a painted road marking, not a flowing current,
+   so the river-flow animation is disabled and a steady dash sits on the
+   paved surface. */
+.world-scene.world-roads .world-trail-glint {
+  display: block;
+  stroke: var(--road-line);
+  stroke-dasharray: 9 11;
+  opacity: 0.85;
+  animation: none;
+}
+/* A merged TRUNK road carries more flow — give its centre-line a slightly
+   longer dash so a fat trunk still reads distinctly from the lanes it feeds,
+   mirroring the trunk emphasis the water world conveyed via animation. */
+.world-scene.world-roads .world-trail.is-trunk .world-trail-glint {
+  stroke-dasharray: 13 9;
+  opacity: 0.95;
+  animation: none;
 }
 
 /* flora: the per-territory layer of trees, plates and wisps */
