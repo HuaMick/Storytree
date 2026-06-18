@@ -54,10 +54,10 @@ export { OwnedLoopAuthor } from "./owned-loop-author.js";
 
 export type { NodeSpec } from "./node-spec.js";
 export { loadNodeSpec, findNodeSpecFile, mapProofMode } from "./node-spec.js";
-// Re-exported from core so the studio dev server — which lazy-imports ONLY the orchestrator
-// (devApi.ts's raw-TS trap) — resolves the uat_witness default through the same single helper
-// the story-build gate uses (ADR-0040).
-export { effectiveUatWitness, type UatWitness } from "@storytree/core";
+// Re-exported from the library organism (ADR-0068 step 3) so the studio dev server — which
+// lazy-imports ONLY the orchestrator (devApi.ts's raw-TS trap) — resolves the uat_witness default
+// through the same single helper the story-build gate uses (ADR-0040).
+export { effectiveUatWitness, type UatWitness } from "@storytree/library";
 
 export type { NodeBuildConfig, RealProofConfig } from "./test-command-registry.js";
 export {
@@ -116,3 +116,18 @@ export type {
   TopoResult,
 } from "./story-build.js";
 export { runStoryBuild, topoOrderStoryNodes } from "./story-build.js";
+
+// ── The proof machinery (ADR-0068 step 1): the farmer organism's RULER — the compute that
+// constructs/signs/hashes/classifies/derives verdict-DATA, moved out of @storytree/core. The DATA
+// SHAPES it reads/returns live in @storytree/verdict-contract; this is the COMPUTE half. ──────────
+export type { SignerInputs, SignerResult } from "./proof/signer.js";
+export { resolveSigner } from "./proof/signer.js";
+export { resolveSignerFromEnv } from "./proof/signer-env.js";
+export { isProvenStatus } from "./proof/proof-status.js";
+export { verdictLine } from "./proof/verdict-line.js";
+export { normalizeSpan, hashSpan, isDescribed, classifyDrift } from "./proof/anchor-compute.js";
+export { workEvent, rollupStatus } from "./proof/rollup.js";
+export { rollupParitySuite } from "./proof/rollup-parity.js";
+export { deriveAttestations } from "./proof/attestations.js";
+export type { SourceRef, SourceDriftFlag } from "./proof/source-drift.js";
+export { classifySourceDrift } from "./proof/source-drift.js";
