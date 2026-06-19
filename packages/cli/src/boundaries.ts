@@ -24,22 +24,35 @@
  * base `./parity`) are never flagged. Type-only imports (`import type …`) are erased and are not
  * runtime couplings, so rule (b) skips them.
  *
- * **Two classes, ADR-0074 §2 (the hub increment).** The earlier v1 floor exempted the wiring layer
- * (`cli`/`store`) as "composition roots". That exemption is REMOVED: `cli`/`store` are now
- * first-class **hub organisms** — visible and enforced, not trusted — each owning a story + a
- * lightweight UAT (§3) and declaring its full connection set (§4). So there are exactly two package
- * classes: `organism` (owned by one story; the boundary rule applies between organisms) and
- * `substrate` (the shared ports `base`/`verdict-contract`, anyone may depend on, held minimal).
+ * **One class + the foundational subset, ADR-0075 (collapse the substrate class).** Earlier
+ * increments carried a second `substrate` class for the shared ports (`base`/`verdict-contract`):
+ * anyone could depend on them with NO declared edge (an EXEMPTION). ADR-0075 removes that exemption —
+ * the same "visibility over exemption" call ADR-0074 §2 made for the cli/store hubs. There is now
+ * ONE package class: `organism` (every package, the ports included, is owned by exactly one story,
+ * and the boundary rule applies between all of them). The ports are ordinary **root organisms** —
+ * each owns a story with `depends_on: []` (or `[verdict-contract]`), and every consumer DECLARES the
+ * edge exactly like the `library` trunk — so a dependency on a port is a VISIBLE declared+rendered
+ * edge, not an invisible exemption. To keep the ports browser-safe (zod-only, no node/pg) the
+ * manifest still marks them as the `foundational` subset, carrying ONE explicit minimality rule: a
+ * foundational organism may only depend on other foundational organisms — an offline, fast-fail
+ * browser-safety canary, belt-and-suspenders over acyclicity (the ports are bottom sinks, so any
+ * port→organism reach already closes a cycle) and over the studio browser build (the real backstop
+ * for the external node-only npm imports the gate cannot see).
  */
 
-/** The two package classes (ADR-0074 §2). */
-export type PackageClass = "organism" | "substrate";
+/** The single package class (ADR-0075 collapsed the substrate class — the ports are organisms too). */
+export type PackageClass = "organism";
 
 export interface Ownership {
-  /** organism package name → the story id that owns it (the boundary rule applies between these). */
+  /** organism package name → the story id that owns it (the boundary rule applies between all of these). */
   organisms: Record<string, string>;
-  /** shared substrate / port packages (no single owner; anyone may depend on them; held minimal). */
-  substrate: string[];
+  /**
+   * The foundational ROOT organisms — the ports `base`/`verdict-contract` (ADR-0075). A SUBSET of
+   * `organisms`, NOT a separate class: they are depended on like any organism (declared edges), but
+   * carry one extra minimality rule — a foundational organism may only depend on other foundational
+   * organisms — which keeps them zod-only / node+pg-free so the studio's browser bundle works.
+   */
+  foundational: string[];
 }
 
 export interface BoundaryInput {
@@ -85,11 +98,15 @@ export interface BoundaryResult {
   violations: string[];
 }
 
-/** Which class a package is in, or null if it is not classified at all (itself a violation). */
+/** Whether a package is a classified organism, or null if it is unclassified (itself a violation). */
 export function classOf(pkg: string, o: Ownership): PackageClass | null {
   if (Object.prototype.hasOwnProperty.call(o.organisms, pkg)) return "organism";
-  if (o.substrate.includes(pkg)) return "substrate";
   return null;
+}
+
+/** Whether a package is a foundational root port (held minimal so it stays browser-safe, ADR-0075). */
+export function isFoundational(pkg: string, o: Ownership): boolean {
+  return o.foundational.includes(pkg);
 }
 
 /**
@@ -122,40 +139,49 @@ export function checkBoundaries(input: BoundaryInput): BoundaryResult {
   const declared = mergeDeclaredGraph(input.storyGraph, consumedBy);
   const violations: string[] = [];
 
-  // 0. Every @storytree/* package that appears (as a key or an edge target) must be classified
-  //    exactly once — so a new package can't slip in unowned, and a misfile is caught.
+  // 0. Every @storytree/* package that appears (as a key or an edge target) must be a classified
+  //    organism — so a new package can't slip in unowned. (ADR-0075: one class; the ports are
+  //    organisms too.)
   const allPkgs = new Set<string>(Object.keys(packageDeps));
   for (const deps of Object.values(packageDeps)) for (const d of deps) allPkgs.add(d);
   for (const pkg of [...allPkgs].sort()) {
     if (classOf(pkg, ownership) === null) {
       violations.push(
         `unclassified package "${pkg}" — declare it in repo-manifest.json packageOwnership ` +
-          `(organisms / substrate)`,
+          `organisms (and, if it is a browser-safe root port, also in foundational)`,
       );
     }
   }
-  for (const pkg of Object.keys(ownership.organisms)) {
-    if (ownership.substrate.includes(pkg)) {
-      violations.push(`package "${pkg}" is classified in more than one category`);
+  // The foundational subset must be a subset of organisms (ADR-0075): a port is a root ORGANISM, so
+  // a foundational entry that is not an organism is a misconfiguration.
+  for (const pkg of ownership.foundational) {
+    if (classOf(pkg, ownership) === null) {
+      violations.push(
+        `foundational package "${pkg}" is not an organism — every foundational port must also be ` +
+          `listed in repo-manifest.json packageOwnership organisms`,
+      );
     }
   }
 
-  // 1. Edge rules (ADR-0074 §2).
+  // 1. Edge rules (ADR-0075: one class — EVERY cross-organism edge needs a declaration, the ports
+  //    get no exemption; PLUS the foundational-minimality rule, a port may only depend on a port).
   for (const [a, deps] of Object.entries(packageDeps)) {
     const ca = classOf(a, ownership);
     for (const b of deps) {
       const cb = classOf(b, ownership);
       if (ca === null || cb === null) continue; // already reported as unclassified
-      if (cb === "substrate") continue; // anyone may depend on the substrate/ports
-      // cb === "organism" below
-      if (ca === "substrate") {
+
+      // The foundational-minimality rule (ADR-0075): a foundational root port may only depend on
+      // another foundational port — keeps base/verdict-contract zod-only so the browser bundle works.
+      if (isFoundational(a, ownership) && !isFoundational(b, ownership)) {
         violations.push(
-          `substrate "${a}" depends on organism "${b}" — substrate/ports stay minimal ` +
-            `(zod/types only, ADR-0068 §4)`,
+          `foundational port "${a}" depends on non-foundational organism "${b}" — a root port may ` +
+            `only depend on other foundational ports (it stays zod/types-only so the studio browser ` +
+            `bundle works, ADR-0075 / ADR-0068 §4).`,
         );
-        continue;
       }
-      // ca === "organism", cb === "organism"
+
+      // Coverage: every cross-story code edge must be a declared cross-story edge (no port exemption).
       const storyA = ownership.organisms[a];
       const storyB = ownership.organisms[b];
       if (storyA === undefined || storyB === undefined) continue;
@@ -177,7 +203,7 @@ export function checkBoundaries(input: BoundaryInput): BoundaryResult {
 
   // 3. The source-import scan (ADR-0074's v2 hole): relative cross-package escapes (a) and
   //    devDep/undeclared runtime @storytree imports (b). The dep-graph rules above can't see either.
-  checkSourceImports(input.sourceImports ?? [], ownership, packageDeps, violations);
+  checkSourceImports(input.sourceImports ?? [], packageDeps, violations);
 
   return { violations };
 }
@@ -189,7 +215,6 @@ export function checkBoundaries(input: BoundaryInput): BoundaryResult {
  */
 function checkSourceImports(
   sourceImports: SourceImport[],
-  ownership: Ownership,
   packageDeps: Record<string, string[]>,
   violations: string[],
 ): void {
@@ -214,9 +239,10 @@ function checkSourceImports(
 
     if (specifier.startsWith(STORYTREE_PREFIX)) {
       // (b) a runtime value-import of an organism must be backed by a runtime `dependencies` entry.
+      // (ADR-0075: the ports are organisms too — a runtime port import must be a declared dep, no
+      // special skip; every real port importer already declares it, so this stays green.)
       const target = scopePackage(specifier);
       if (target === importer) continue; // same package
-      if (classOf(target, ownership) === "substrate") continue; // ports always allowed
       if (typeOnly) continue; // erased — not a runtime coupling (ADR-0010 §5 spirit)
       if ((packageDeps[importer] ?? []).includes(target)) continue; // declared runtime dep — covered above
       const dir = packageDirOf(file);
