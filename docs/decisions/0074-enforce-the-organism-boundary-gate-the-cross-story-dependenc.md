@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 decided: 2026-06-19
 amends: [10, 68]
 ---
@@ -7,13 +7,15 @@ amends: [10, 68]
 
 ## Status
 
-proposed (2026-06-19) — the model was settled with the owner in conversation on 2026-06-19 (an
-earlier "exempt the wiring layer" recommendation was **rejected** — see Decision §2). Operationalizes
-[ADR-0010](0010-organism-model-story-bounded-context.md) §3/§4 ("hidden cross-story coupling is
-forbidden") and [ADR-0058](0058-cross-story-dependency-direction-the-no-cycle-rule-and-the-b.md) (no
-cross-story cycles) from prose into a machine check, and completes
+accepted (2026-06-19) — the model was settled with the owner in conversation on 2026-06-19 (an
+earlier "exempt the wiring layer" recommendation was **rejected** — see Decision §2), and the owner
+committed to it ("we're going all in on this") once the hub increment (§2–§5) landed (PR #234).
+Operationalizes [ADR-0010](0010-organism-model-story-bounded-context.md) §3/§4 ("hidden cross-story
+coupling is forbidden") and [ADR-0058](0058-cross-story-dependency-direction-the-no-cycle-rule-and-the-b.md)
+(no cross-story cycles) from prose into a machine check, and completes
 [ADR-0068](0068-make-the-organism-model-physical-real-story-isolation-and-th.md) (which made the
-boundary *physical* but left it held by discipline, not a gate). Flip to accepted when ready.
+boundary *physical* but left it held by discipline, not a gate). The radial world (§6) is the one
+remaining increment (the live-library `solar-system-world` proposal + the open forks below).
 
 ## Date
 
