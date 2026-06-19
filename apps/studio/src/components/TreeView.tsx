@@ -3251,22 +3251,11 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
             </defs>
 
             <g transform={`translate(${world.offset.x} ${world.offset.y})`}>
-              {/* SOLAR ORBIT GRID (solar mode) — faint concentric rings the islands sit
-                  on, drawn first so they read as a guide BEHIND the land. The circle grid
-                  the owner asked for; absent in the DAG world. */}
-              {world.solar && (
-                <g className="solar-orbits" aria-hidden="true">
-                  {world.solar.rings.map((rr, i) => (
-                    <circle
-                      key={i}
-                      className="solar-orbit-ring"
-                      cx={world.solar!.center.x}
-                      cy={world.solar!.center.y}
-                      r={rr}
-                    />
-                  ))}
-                </g>
-              )}
+              {/* SOLAR ORBIT GRID — the rings are still COMPUTED (`world.solar.rings` /
+                  `.center`, machinery kept) but NOT DRAWN: the owner's steer (2026-06-20)
+                  is to keep the orbit structure invisible and the islands loosely placed.
+                  Re-enable by mapping `world.solar.rings` to faint `.solar-orbit-ring`
+                  circles centred on `world.solar.center`. */}
 
               {/* the pale coast */}
               <g className="hex-coast">
