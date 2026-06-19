@@ -111,6 +111,7 @@ function gateAsProofSpec(adrFile: string, testFile: string): NodeSpec {
     uatWitness: undefined,
     story: "drive-machinery",
     dependsOn: [],
+    consumedBy: [],
     capabilities: [],
     decisions: [57, 59],
     buildConfig: {

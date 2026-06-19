@@ -37,6 +37,13 @@ const Frontmatter = z
     uat_witness: UatWitness.optional(),
     story: z.string().optional(),
     depends_on: z.array(z.string()).default([]),
+    // The provider-side inbound edge declaration (ADR-0074 §4): the story ids that CONSUME this
+    // organism. Complements `depends_on` (the consumer-side outbound edges) so a hub organism can
+    // be de-noised — a spoke owns its "I am wired into the hub" edge here rather than forcing the
+    // hub to list every spoke — and so each organism's full connection set is declared, not hidden
+    // in package.json. The boundary gate (`check:boundaries`) covers a cross-story code edge A→B
+    // when A declares B in `depends_on` OR B declares A in `consumed_by` (either endpoint).
+    consumed_by: z.array(z.string()).default([]),
     capabilities: z.array(z.string()).default([]),
     decisions: z.array(z.number().int().positive()).default([]),
     // The spec-borne proof config (ADR-0057 keystone). Captured as unknown here and validated by
@@ -62,6 +69,15 @@ export interface NodeSpec {
   uatWitness: z.infer<typeof UatWitness> | undefined;
   story: string | undefined;
   dependsOn: string[];
+  /**
+   * The provider-side inbound edges (ADR-0074 §4): the story ids that CONSUME this organism. The
+   * complement of `dependsOn` — the boundary gate covers a cross-story code edge A→B when A's
+   * `dependsOn` includes B OR B's `consumedBy` includes A. `[]` when unset (the common case; only
+   * organisms that own a provider-side edge — chiefly the spokes feeding the cli/store hubs —
+   * populate it). The studio forest renders `dependsOn` today; the radial world (ADR-0074 §6) will
+   * read `consumedBy` to lay the hubs out centrally.
+   */
+  consumedBy: string[];
   /** A story spec's `capabilities` frontmatter list (empty for capability/contract tiers). */
   capabilities: string[];
   /** A story spec's deciding ADR numbers (ADR-0037 §2; empty for capability/contract tiers). */
@@ -122,6 +138,7 @@ export function loadNodeSpec(file: string): NodeSpec {
     uatWitness: fm.uat_witness,
     story: fm.story,
     dependsOn: fm.depends_on,
+    consumedBy: fm.consumed_by,
     capabilities: fm.capabilities,
     decisions: fm.decisions,
     buildConfig,

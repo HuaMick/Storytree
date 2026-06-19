@@ -12,6 +12,11 @@ capabilities: [halt-aware-sequence, red-green-phase-machine, work-verdict-event-
 # oq-hygiene gate's live loader composes the library's PgLibraryStore + PgCommentStore
 # (packages/cli/src/oq-gate.ts:110-119).
 depends_on: [library]
+# Provider-side inbound edge (ADR-0074 §4): the cli HUB organism imports this story's orchestrator
+# + agent packages (packages/cli/src/node-build.ts drives `node build`/`story build` through the
+# spine; main.ts dispatches them) — declared HERE so the hub stays de-noised and this organism owns
+# its "wired into the CLI" edge.
+consumed_by: [cli]
 # Deciding ADRs (ADR-0037 §2): the spine sequence (5), the gate (20), the SDK leaf (30),
 # promotion (31), leaf feedback tools (35), the OQ hygiene gate on live builds (37), the
 # inner-loop-expansion keystone — node-borne proof config (57) — and gate-as-proof authoring (59).

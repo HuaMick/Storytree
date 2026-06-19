@@ -9,6 +9,11 @@ proof_mode: UAT
 # machine-witnessed — overrides the ADR-0040 fail-closed `human` default, no operator signpost.
 uat_witness: machine
 capabilities: [library-schema-and-write-validation, migrate-on-write-upcaster, event-sourced-store-seam, eager-batch-migrate, seed-corpus-scripts, library-health-gate, library-cli]
+# Provider-side inbound edge (ADR-0074 §4): the cli HUB organism imports @storytree/library
+# (commands.ts validates/upcasts on every write). The store hub also imports it, but that edge is
+# declared consumer-side in stories/store/story.md depends_on; the cli edge is declared here to
+# de-noise the hub and let this organism own its "wired into the CLI" edge.
+consumed_by: [cli]
 # Deciding ADRs (ADR-0037 §2): the tier (17/18/19), the CLI (23), migrations + health (26).
 decisions: [17, 18, 19, 23, 26]
 ---
