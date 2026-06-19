@@ -11,7 +11,9 @@ capabilities: [halt-aware-sequence, red-green-phase-machine, work-verdict-event-
 # packages/cli/src/node-build.ts:36 (events.work_event/verdict are its OWN tables), and the
 # oq-hygiene gate's live loader composes the library's PgLibraryStore + PgCommentStore
 # (packages/cli/src/oq-gate.ts:110-119).
-depends_on: [library]
+# SPIKE (claude/spike-port-vs-root, ADR-0074 B): base + verdict-contract are now ROOT organisms, so
+# orchestrator's runtime imports of them are declared cross-story edges (were exempt substrate under A).
+depends_on: [library, base, verdict-contract]
 # Provider-side inbound edge (ADR-0074 §4): the cli HUB organism imports this story's orchestrator
 # + agent packages (packages/cli/src/node-build.ts drives `node build`/`story build` through the
 # spine; main.ts dispatches them) — declared HERE so the hub stays de-noised and this organism owns

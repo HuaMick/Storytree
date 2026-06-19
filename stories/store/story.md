@@ -14,7 +14,9 @@ capabilities: [keyless-store-connection, shared-events-schema]
 # persistence seams owned by these organisms — the library Store (PgLibraryStore), notice-board's
 # presence store (PgPresenceStore), and studio-members' user store (PgUserStore). See the
 # code-derived graph below.
-depends_on: [library, notice-board, studio-members]
+# SPIKE (claude/spike-port-vs-root, ADR-0074 B): base + verdict-contract are now ROOT organisms, so
+# pg-store's runtime imports of them are declared cross-story edges (were exempt substrate under A).
+depends_on: [library, notice-board, studio-members, base, verdict-contract]
 # Provider-side inbound edge (ADR-0074 §4): the cli HUB imports @storytree/store (buildStore swaps
 # PgLibraryStore in under `--pg`). Declared here so store owns its full connection set in one place.
 consumed_by: [cli]

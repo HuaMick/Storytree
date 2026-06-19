@@ -49,8 +49,11 @@
       "@storytree/notice-board": "notice-board",
       "@storytree/studio-members": "studio-members",
       "@storytree/store": "store",
-      "@storytree/cli": "cli"
+      "@storytree/cli": "cli",
+      "@storytree/base": "base",
+      "@storytree/verdict-contract": "verdict-contract"
     },
-    "substrate": ["@storytree/base", "@storytree/verdict-contract"]
+    "substrate": [],
+    "$spike": "claude/spike-port-vs-root (ADR-0074 A-vs-B): Option B re-classes base/verdict-contract from substrate to root ORGANISMS (own stories stories/base + stories/verdict-contract, depends_on: [] / [verdict-contract]). Every consumer now declares the edge (consumer-side depends_on for domain organisms; provider-side consumed_by: [cli] for the hub). substrate is emptied — the gate's substrate branches go dead. NOT FOR LANDING."
   }
 }

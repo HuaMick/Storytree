@@ -9,6 +9,10 @@ proof_mode: UAT
 # machine-witnessed — overrides the ADR-0040 fail-closed `human` default, no operator signpost.
 uat_witness: machine
 capabilities: [library-schema-and-write-validation, migrate-on-write-upcaster, event-sourced-store-seam, eager-batch-migrate, seed-corpus-scripts, library-health-gate, library-cli]
+# SPIKE (claude/spike-port-vs-root, ADR-0074 B): verdict-contract is now a ROOT organism, so the
+# library's runtime import of it is a declared cross-story edge (was exempt substrate under A). The
+# library is no longer the graph TRUNK — verdict-contract is the bottom root now.
+depends_on: [verdict-contract]
 # Provider-side inbound edge (ADR-0074 §4): the cli HUB organism imports @storytree/library
 # (commands.ts validates/upcasts on every write). The store hub also imports it, but that edge is
 # declared consumer-side in stories/store/story.md depends_on; the cli edge is declared here to
