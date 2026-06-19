@@ -2,14 +2,16 @@
  * `pnpm check:boundaries` — the organism-boundary gate (ADR-0074). Sibling to
  * `scripts/check-manifest.mjs`, wired into `pnpm gate` and the CI `verify` job.
  *
- * It gathers three inputs from disk and hands them to the pure {@link checkBoundaries} judge
+ * It gathers the inputs from disk and hands them to the pure {@link checkBoundaries} judge
  * ({@link file://./boundaries.ts}):
- *   1. the package↔story ownership map (repo-manifest.json `packageOwnership`),
+ *   1. the package↔story ownership map (repo-manifest.json `packageOwnership`: organisms +
+ *      substrate — cli/store are now hub organisms, not exempt, ADR-0074 §2),
  *   2. the real runtime cross-package dependency graph (each `packages/<x>/package.json`
  *      `dependencies`; `devDependencies` are EXCLUDED — a test reusing another organism's parity
  *      suite is scaffolding, never a dependency edge, ADR-0010 §5),
- *   3. the declared cross-story `depends_on` graph (every `stories/<x>/story.md`, via the canonical
- *      `loadNodeSpec`).
+ *   3. the declared cross-story edges of every `stories/<x>/story.md` (via the canonical
+ *      `loadNodeSpec`): the consumer-side `depends_on` AND the provider-side `consumed_by`
+ *      (ADR-0074 §4) — a code edge is covered when EITHER endpoint declares it.
  *
  * Exits non-zero listing every violation, so an undeclared cross-organism coupling (Gap A) — or a
  * cross-story cycle (ADR-0058) — fails the gate. Because the studio forest renders `depends_on`,
@@ -49,18 +51,27 @@ function readPackageDeps(): Record<string, string[]> {
   return graph;
 }
 
-/** The declared `depends_on` edge of every story (id = the stories/<dir> name, matching the forest). */
-function readStoryGraph(): Record<string, string[]> {
+/**
+ * Every story's declared cross-story edges (id = the stories/<dir> name, matching the forest):
+ * the consumer-side `depends_on` and the provider-side `consumed_by` (ADR-0074 §4).
+ */
+function readStoryGraphs(): {
+  storyGraph: Record<string, string[]>;
+  consumedBy: Record<string, string[]>;
+} {
   const storiesDir = join(repoRoot, "stories");
-  const graph: Record<string, string[]> = {};
-  if (!existsSync(storiesDir)) return graph;
+  const storyGraph: Record<string, string[]> = {};
+  const consumedBy: Record<string, string[]> = {};
+  if (!existsSync(storiesDir)) return { storyGraph, consumedBy };
   for (const ent of readdirSync(storiesDir, { withFileTypes: true })) {
     if (!ent.isDirectory()) continue;
     const storyFile = join(storiesDir, ent.name, "story.md");
     if (!existsSync(storyFile)) continue;
-    graph[ent.name] = loadNodeSpec(storyFile).dependsOn;
+    const spec = loadNodeSpec(storyFile);
+    storyGraph[ent.name] = spec.dependsOn;
+    consumedBy[ent.name] = spec.consumedBy;
   }
-  return graph;
+  return { storyGraph, consumedBy };
 }
 
 function readOwnership(): Ownership {
@@ -69,15 +80,16 @@ function readOwnership(): Ownership {
   return {
     organisms: (po.organisms ?? {}) as Record<string, string>,
     substrate: (po.substrate ?? []) as string[],
-    compositionRoots: (po.compositionRoots ?? []) as string[],
   };
 }
 
 function main(): void {
+  const { storyGraph, consumedBy } = readStoryGraphs();
   const { violations } = checkBoundaries({
     ownership: readOwnership(),
     packageDeps: readPackageDeps(),
-    storyGraph: readStoryGraph(),
+    storyGraph,
+    consumedBy,
   });
   if (violations.length > 0) {
     console.error(`✗ organism boundary (ADR-0074): ${violations.length} violation(s)`);

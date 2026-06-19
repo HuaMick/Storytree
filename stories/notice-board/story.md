@@ -8,6 +8,11 @@ proof_mode: UAT
 capabilities: [declare-presence, presence-store, noticeboard-cli, tree-view, ambient-integration, verdict-glyphs]
 # Story-level edges: the "Cross-story boundary" section below, encoded (consumed seams, ADR-0010 §4).
 depends_on: [library, drive-machinery]
+# Provider-side inbound edge (ADR-0074 §4): the cli HUB organism imports @storytree/notice-board
+# (noticeboard.ts staleness bands, the `storytree noticeboard` surface). The store hub also imports
+# it, declared consumer-side in stories/store/story.md depends_on; the cli edge is declared here to
+# de-noise the hub.
+consumed_by: [cli]
 decisions: [33] # deciding ADR (ADR-0037 §2)
 ---
 

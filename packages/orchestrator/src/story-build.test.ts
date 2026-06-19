@@ -22,6 +22,7 @@ function spec(
     uatWitness: undefined,
     story: tier === "story" ? undefined : "s",
     dependsOn,
+    consumedBy: [],
     capabilities,
     decisions: [],
     buildConfig: undefined,

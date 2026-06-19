@@ -56,6 +56,7 @@ function story(decisions: number[]): NodeSpec {
     uatWitness: undefined,
     story: undefined,
     dependsOn: [],
+    consumedBy: [],
     capabilities: [],
     decisions,
     buildConfig: undefined,

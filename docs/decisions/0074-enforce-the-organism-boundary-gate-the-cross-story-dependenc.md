@@ -103,13 +103,30 @@ wholesale reskin vs a hub-centric layout *within* the forest). The per-signal ar
 ([ADR-0062](0062-the-forest-world-is-the-observability-layer-rendered-one-art.md), one-element-per-signal)
 is preserved — the layout and the hub nodes change, not the signal mappings.
 
-### Incremental scope (v1)
+### Incremental scope
 
-[PR #231](https://github.com/HuaMick/Storytree/pull/231) ships the **organism↔organism** floor: it
-enforces that an undeclared cross-organism `depends_on` coupling is red — a correct subset of the
-model above (its `compositionRoots` label is a v1 implementation scaffold, not the end-state class of
-§2). The remaining increments: author `cli`/`store` stories + lightweight UATs (§3), the per-organism
-connection declaration (§4), extend the gate to enforce the hub edges (§5), and the radial world (§6).
+**v1 — the organism↔organism floor ([PR #231](https://github.com/HuaMick/Storytree/pull/231)).**
+Shipped `check:boundaries` enforcing that an undeclared cross-organism `depends_on` coupling is red —
+a correct subset of the model above. It classed `cli`/`store` as exempt "composition roots", a v1
+implementation scaffold, *not* the end-state class of §2.
+
+**v2 — the hub-organism increment (this PR; includes the v1 commits).** Removes the
+`compositionRoots` exemption — there are now exactly **two** package classes, `organism` and
+`substrate` (§2). `cli`/`store` are first-class **hub organisms**: each has a story + a lightweight,
+expandable UAT (§3 — [`stories/cli`](../../stories/cli/story.md), [`stories/store`](../../stories/store/story.md);
+machine-witnessed: cli runs core commands, store pulls live data). The per-organism connection
+declaration (§4) is a new provider-side **`consumed_by`** story-frontmatter field complementing
+`depends_on`; the gate covers a code edge when **either** endpoint declares it (consumer's
+`depends_on` OR provider's `consumed_by`), checks the merged graph for acyclicity (ADR-0058), and now
+enforces every edge **to and from** the hubs (`cli`/`store`), not just between the domain organisms.
+The cli hub is de-noised by declaring its outbound edges provider-side on each spoke
+(`consumed_by: [cli]`), so the hub's own `depends_on` stays empty.
+
+**Remaining — the radial world (§6).** The hub spokes are declared and gate-enforced but, because
+they live on the spokes' `consumed_by`, today's forest (which renders `depends_on`) shows the cli hub
+as an edgeless node; the **radial / solar-system layout** (the live-library `solar-system-world`
+proposal — a separate frontend session) reads `consumed_by` to draw the hubs centrally and de-noised.
+This increment is the **data model** that world depends on; it does not build the UI.
 
 ## Consequences
 

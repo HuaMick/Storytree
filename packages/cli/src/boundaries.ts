@@ -1,25 +1,31 @@
 /**
  * The organism-boundary analyser (ADR-0074). PURE — no I/O. The `check:boundaries` script
  * ({@link file://./check-boundaries.ts}) gathers the inputs from disk (package.json dep graph +
- * story `depends_on` + the ownership map); this module just JUDGES them, so the rule set is
- * exhaustively unit-testable offline.
+ * each story's `depends_on`/`consumed_by` + the ownership map); this module just JUDGES them, so
+ * the rule set is exhaustively unit-testable offline.
  *
- * The invariant it gates (ADR-0010 §3/§4, ADR-0058, ADR-0068): the real cross-organism CODE
- * dependency graph must be a subgraph of the declared cross-story `depends_on` graph — with a small
- * blessed set of shared substrate/ports excepted. Because the studio forest renders `depends_on`,
- * forcing every code edge to be a declared edge also makes it UI-visible (one rule, both gaps).
+ * The invariant it gates (ADR-0010 §3/§4, ADR-0058, ADR-0068, ADR-0074): every real cross-organism
+ * CODE dependency edge must be COVERED by a declaration on one of its endpoints — consumer-side in
+ * the consumer's `depends_on`, OR provider-side in the provider's `consumed_by` — with a small
+ * blessed set of shared substrate/ports always allowed. Because the studio forest renders
+ * `depends_on`, declaring every code edge also makes it UI-visible (one rule, both gaps).
+ *
+ * **Two classes, ADR-0074 §2 (the hub increment).** The earlier v1 floor exempted the wiring layer
+ * (`cli`/`store`) as "composition roots". That exemption is REMOVED: `cli`/`store` are now
+ * first-class **hub organisms** — visible and enforced, not trusted — each owning a story + a
+ * lightweight UAT (§3) and declaring its full connection set (§4). So there are exactly two package
+ * classes: `organism` (owned by one story; the boundary rule applies between organisms) and
+ * `substrate` (the shared ports `base`/`verdict-contract`, anyone may depend on, held minimal).
  */
 
-/** The three package classes (ADR-0074 §2). */
-export type PackageClass = "organism" | "substrate" | "composition-root";
+/** The two package classes (ADR-0074 §2). */
+export type PackageClass = "organism" | "substrate";
 
 export interface Ownership {
   /** organism package name → the story id that owns it (the boundary rule applies between these). */
   organisms: Record<string, string>;
   /** shared substrate / port packages (no single owner; anyone may depend on them; held minimal). */
   substrate: string[];
-  /** the wiring layer (store/cli/…) — may depend on anything; nothing may depend on it. */
-  compositionRoots: string[];
 }
 
 export interface BoundaryInput {
@@ -32,6 +38,13 @@ export interface BoundaryInput {
   packageDeps: Record<string, string[]>;
   /** story id → its declared `depends_on` story ids — EVERY story (the acyclicity check needs all). */
   storyGraph: Record<string, string[]>;
+  /**
+   * story id → its declared `consumed_by` story ids (ADR-0074 §4, provider-side inbound edges): the
+   * stories that consume this one. `B`'s `consumed_by` listing `A` declares the edge `A → B` just as
+   * `A`'s `depends_on` listing `B` would — the gate accepts either endpoint. Optional per story
+   * (default `[]`); only the spokes feeding the cli/store hubs populate it in practice.
+   */
+  consumedBy?: Record<string, string[]>;
 }
 
 export interface BoundaryResult {
@@ -42,13 +55,37 @@ export interface BoundaryResult {
 export function classOf(pkg: string, o: Ownership): PackageClass | null {
   if (Object.prototype.hasOwnProperty.call(o.organisms, pkg)) return "organism";
   if (o.substrate.includes(pkg)) return "substrate";
-  if (o.compositionRoots.includes(pkg)) return "composition-root";
   return null;
+}
+
+/**
+ * Merge the consumer-side (`depends_on`) and provider-side (`consumed_by`) declarations into ONE
+ * directed story graph: `A → B` is present iff `A`'s `depends_on` lists `B` OR `B`'s `consumed_by`
+ * lists `A`. This is both the membership oracle for edge coverage and the graph the acyclicity check
+ * runs over — so a cycle can't be smuggled in through `consumed_by`.
+ */
+export function mergeDeclaredGraph(
+  storyGraph: Record<string, string[]>,
+  consumedBy: Record<string, string[]>,
+): Record<string, string[]> {
+  const merged: Record<string, Set<string>> = {};
+  const add = (a: string, b: string): void => {
+    (merged[a] ??= new Set<string>()).add(b);
+  };
+  // Keep every story as a node even if it has no outbound edge (so findCycle visits it).
+  for (const a of Object.keys(storyGraph)) merged[a] ??= new Set<string>();
+  for (const [a, deps] of Object.entries(storyGraph)) for (const b of deps) add(a, b);
+  for (const [b, consumers] of Object.entries(consumedBy)) for (const a of consumers) add(a, b);
+  const out: Record<string, string[]> = {};
+  for (const [a, set] of Object.entries(merged)) out[a] = [...set].sort();
+  return out;
 }
 
 /** Run every boundary rule over the gathered inputs and return the (possibly empty) violation list. */
 export function checkBoundaries(input: BoundaryInput): BoundaryResult {
-  const { ownership, packageDeps, storyGraph } = input;
+  const { ownership, packageDeps } = input;
+  const consumedBy = input.consumedBy ?? {};
+  const declared = mergeDeclaredGraph(input.storyGraph, consumedBy);
   const violations: string[] = [];
 
   // 0. Every @storytree/* package that appears (as a key or an edge target) must be classified
@@ -59,17 +96,12 @@ export function checkBoundaries(input: BoundaryInput): BoundaryResult {
     if (classOf(pkg, ownership) === null) {
       violations.push(
         `unclassified package "${pkg}" — declare it in repo-manifest.json packageOwnership ` +
-          `(organisms / substrate / compositionRoots)`,
+          `(organisms / substrate)`,
       );
     }
   }
   for (const pkg of Object.keys(ownership.organisms)) {
-    if (ownership.substrate.includes(pkg) || ownership.compositionRoots.includes(pkg)) {
-      violations.push(`package "${pkg}" is classified in more than one category`);
-    }
-  }
-  for (const pkg of ownership.substrate) {
-    if (ownership.compositionRoots.includes(pkg)) {
+    if (ownership.substrate.includes(pkg)) {
       violations.push(`package "${pkg}" is classified in more than one category`);
     }
   }
@@ -80,15 +112,7 @@ export function checkBoundaries(input: BoundaryInput): BoundaryResult {
     for (const b of deps) {
       const cb = classOf(b, ownership);
       if (ca === null || cb === null) continue; // already reported as unclassified
-      if (ca === "composition-root") continue; // the wiring layer may depend on anything
       if (cb === "substrate") continue; // anyone may depend on the substrate/ports
-      if (cb === "composition-root") {
-        violations.push(
-          `${ca} "${a}" depends on composition-root "${b}" — nothing may depend on the wiring ` +
-            `layer (store/cli); invert the dependency`,
-        );
-        continue;
-      }
       // cb === "organism" below
       if (ca === "substrate") {
         violations.push(
@@ -102,19 +126,19 @@ export function checkBoundaries(input: BoundaryInput): BoundaryResult {
       const storyB = ownership.organisms[b];
       if (storyA === undefined || storyB === undefined) continue;
       if (storyA === storyB) continue; // same organism owning multiple packages
-      const declared = storyGraph[storyA] ?? [];
-      if (!declared.includes(storyB)) {
+      if (!(declared[storyA]?.includes(storyB) ?? false)) {
         violations.push(
           `undeclared cross-story coupling: "${a}" (story ${storyA}) → "${b}" (story ${storyB}). ` +
-            `Add "${storyB}" to stories/${storyA}/story.md depends_on (it will then show in the ` +
-            `forest), or drop the dependency.`,
+            `Declare the edge on either endpoint — add "${storyB}" to stories/${storyA}/story.md ` +
+            `depends_on, OR add "${storyA}" to stories/${storyB}/story.md consumed_by — so it shows ` +
+            `in the forest; or drop the dependency.`,
         );
       }
     }
   }
 
-  // 2. The cross-story depends_on graph must be acyclic (ADR-0058).
-  const cycle = findCycle(storyGraph);
+  // 2. The merged (depends_on ∪ consumed_by) cross-story graph must be acyclic (ADR-0058).
+  const cycle = findCycle(declared);
   if (cycle) violations.push(`cross-story dependency cycle: ${cycle.join(" → ")}`);
 
   return { violations };
