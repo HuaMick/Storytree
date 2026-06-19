@@ -12,18 +12,22 @@
  *   3. the declared cross-story edges of every `stories/<x>/story.md` (via the canonical
  *      `loadNodeSpec`): the consumer-side `depends_on` AND the provider-side `consumed_by`
  *      (ADR-0074 §4) — a code edge is covered when EITHER endpoint declares it.
+ *   4. every cross-package import in `packages/<x>/src/**.ts` (the v2 source-import scan, ADR-0074
+ *      §"does NOT decide"): the raw findings, classified by the pure judge into the relative-escape
+ *      (Gap A') and devDep-evasion (Gap B') rules.
  *
  * Exits non-zero listing every violation, so an undeclared cross-organism coupling (Gap A) — or a
- * cross-story cycle (ADR-0058) — fails the gate. Because the studio forest renders `depends_on`,
- * forcing every code edge to be a declared edge also keeps the coupling UI-visible (Gap B).
+ * cross-story cycle (ADR-0058), or a relative-import / devDep escape — fails the gate. Because the
+ * studio forest renders `depends_on`, forcing every code edge to be a declared edge also keeps the
+ * coupling UI-visible (Gap B).
  */
 import { readFileSync, readdirSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { loadNodeSpec } from "@storytree/orchestrator";
 
-import { checkBoundaries, type Ownership } from "./boundaries.js";
+import { checkBoundaries, extractImports, type Ownership, type SourceImport } from "./boundaries.js";
 
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const STORYTREE_SCOPE = "@storytree/";
@@ -74,6 +78,43 @@ function readStoryGraphs(): {
   return { storyGraph, consumedBy };
 }
 
+/** Every `.ts` file under a directory, recursively (repo-relative POSIX paths). */
+function walkTs(dir: string): string[] {
+  const out: string[] = [];
+  for (const ent of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, ent.name);
+    if (ent.isDirectory()) out.push(...walkTs(full));
+    else if (ent.isFile() && ent.name.endsWith(".ts")) out.push(full);
+  }
+  return out;
+}
+
+/**
+ * Every cross-package import found in `packages/<x>/src` (the v2 source-import scan). Emits a record
+ * for EVERY `.ts` file — test files included — so the pure judge owns (and unit-tests) the sanctioned
+ * scaffolding skip ({@link isTestScaffolding}). The judge also ignores same-package and substrate
+ * specifiers, so we keep the gather dumb and total.
+ */
+function readSourceImports(): SourceImport[] {
+  const packagesDir = join(repoRoot, "packages");
+  const imports: SourceImport[] = [];
+  for (const ent of readdirSync(packagesDir, { withFileTypes: true })) {
+    if (!ent.isDirectory()) continue;
+    const pkgFile = join(packagesDir, ent.name, "package.json");
+    const srcDir = join(packagesDir, ent.name, "src");
+    if (!existsSync(pkgFile) || !existsSync(srcDir)) continue;
+    const name = readJson(pkgFile).name;
+    if (typeof name !== "string" || !name.startsWith(STORYTREE_SCOPE)) continue;
+    for (const full of walkTs(srcDir)) {
+      const file = relative(repoRoot, full).split(sep).join("/");
+      for (const { specifier, typeOnly } of extractImports(readFileSync(full, "utf8"))) {
+        imports.push({ importer: name, file, specifier, typeOnly });
+      }
+    }
+  }
+  return imports;
+}
+
 function readOwnership(): Ownership {
   const manifest = readJson(join(repoRoot, "repo-manifest.json"));
   const po = (manifest.packageOwnership ?? {}) as Record<string, unknown>;
@@ -90,6 +131,7 @@ function main(): void {
     packageDeps: readPackageDeps(),
     storyGraph,
     consumedBy,
+    sourceImports: readSourceImports(),
   });
   if (violations.length > 0) {
     console.error(`✗ organism boundary (ADR-0074): ${violations.length} violation(s)`);

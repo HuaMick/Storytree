@@ -10,6 +10,20 @@
  * blessed set of shared substrate/ports always allowed. Because the studio forest renders
  * `depends_on`, declaring every code edge also makes it UI-visible (one rule, both gaps).
  *
+ * **The source-import scan (ADR-0074 §"does NOT decide" → the v2 import scan).** The dep-graph rule
+ * above reads `package.json` `dependencies`, which two couplings slip past:
+ *   - **(a) the cross-package RELATIVE-import escape** — `import … from "../../<other>/src/foo.js"`
+ *     sidesteps BOTH the `package.json` declaration AND the `exports` barrel (which only blocks
+ *     `@storytree/x/src/…` subpath imports, not relative paths). The scan flags any relative import in
+ *     a package's source that escapes its own package dir.
+ *   - **(b) the devDep-evasion** — a RUNTIME (non-test) source file value-importing `@storytree/x`
+ *     where `x` is only a `devDependency` (or undeclared), so it never appears in the runtime dep
+ *     graph yet is a real runtime coupling. The scan flags it.
+ * Test files (`*.test.ts`) and parity suites are sanctioned scaffolding (ADR-0010 §5) and are
+ * skipped, so the existing test-only parity reuses (verdict-contract↔library, store→orchestrator,
+ * base `./parity`) are never flagged. Type-only imports (`import type …`) are erased and are not
+ * runtime couplings, so rule (b) skips them.
+ *
  * **Two classes, ADR-0074 §2 (the hub increment).** The earlier v1 floor exempted the wiring layer
  * (`cli`/`store`) as "composition roots". That exemption is REMOVED: `cli`/`store` are now
  * first-class **hub organisms** — visible and enforced, not trusted — each owning a story + a
@@ -45,6 +59,26 @@ export interface BoundaryInput {
    * (default `[]`); only the spokes feeding the cli/store hubs populate it in practice.
    */
   consumedBy?: Record<string, string[]>;
+  /**
+   * The cross-package source-import findings (ADR-0074 §"does NOT decide", the v2 import scan). One
+   * record per import/export specifier found in a `packages/<x>/src` file. The disk scanner
+   * ({@link file://./check-boundaries.ts}) emits records for EVERY `.ts` file (test files included);
+   * the judge skips the sanctioned scaffolding itself via {@link isTestScaffolding} so the exclusion
+   * is unit-testable here. Optional (default `[]`) so the dep-graph rules run standalone.
+   */
+  sourceImports?: SourceImport[];
+}
+
+/** One import/export specifier found in a package's source file (the input to the v2 scan). */
+export interface SourceImport {
+  /** the `@storytree/*` package that owns the importing file. */
+  importer: string;
+  /** repo-relative POSIX path of the importing file, e.g. `packages/orchestrator/src/foo.ts`. */
+  file: string;
+  /** the raw module specifier, e.g. `@storytree/library`, `../../store/src/foo.js`, `./bar.js`. */
+  specifier: string;
+  /** `true` for `import type …` / `export type …` — erased at compile, not a runtime coupling. */
+  typeOnly: boolean;
 }
 
 export interface BoundaryResult {
@@ -141,7 +175,62 @@ export function checkBoundaries(input: BoundaryInput): BoundaryResult {
   const cycle = findCycle(declared);
   if (cycle) violations.push(`cross-story dependency cycle: ${cycle.join(" → ")}`);
 
+  // 3. The source-import scan (ADR-0074's v2 hole): relative cross-package escapes (a) and
+  //    devDep/undeclared runtime @storytree imports (b). The dep-graph rules above can't see either.
+  checkSourceImports(input.sourceImports ?? [], ownership, packageDeps, violations);
+
   return { violations };
+}
+
+/**
+ * Rules (a) + (b) over the source-import findings. Pure: classifies each non-scaffolding specifier
+ * and appends a fix-pointing violation. Sanctioned scaffolding ({@link isTestScaffolding}) and the
+ * blessed substrate/ports are skipped; same-package imports are ignored.
+ */
+function checkSourceImports(
+  sourceImports: SourceImport[],
+  ownership: Ownership,
+  packageDeps: Record<string, string[]>,
+  violations: string[],
+): void {
+  for (const { importer, file, specifier, typeOnly } of sourceImports) {
+    if (isTestScaffolding(file)) continue; // tests + parity suites are sanctioned (ADR-0010 §5)
+
+    if (isRelativeSpecifier(specifier)) {
+      // (a) a relative import must stay within the importing file's own package dir.
+      const ownDir = packageDirOf(file);
+      if (ownDir === null) continue; // not under packages/<x>/ — out of the boundary surface
+      const resolved = resolveRelative(file, specifier);
+      if (resolved.startsWith(`${ownDir}/`)) continue; // stays in-package — fine
+      const otherDir = resolved.startsWith("packages/") ? resolved.split("/")[1] : undefined;
+      const barrel = otherDir !== undefined ? `@storytree/${otherDir}` : "the package's barrel";
+      violations.push(
+        `cross-package relative import: "${file}" imports "${specifier}" (resolves to "${resolved}"), ` +
+          `escaping its own package — relative imports must stay in-package. Import "${barrel}" through ` +
+          `its package barrel and declare the dependency (ADR-0074 §5; the exports barrel, ADR-0068).`,
+      );
+      continue;
+    }
+
+    if (specifier.startsWith(STORYTREE_PREFIX)) {
+      // (b) a runtime value-import of an organism must be backed by a runtime `dependencies` entry.
+      const target = scopePackage(specifier);
+      if (target === importer) continue; // same package
+      if (classOf(target, ownership) === "substrate") continue; // ports always allowed
+      if (typeOnly) continue; // erased — not a runtime coupling (ADR-0010 §5 spirit)
+      if ((packageDeps[importer] ?? []).includes(target)) continue; // declared runtime dep — covered above
+      const dir = packageDirOf(file);
+      const where = dir !== null ? `${dir}/package.json` : `${importer}'s package.json`;
+      violations.push(
+        `devDep/undeclared runtime import: "${file}" value-imports "${target}", which is NOT a runtime ` +
+          `dependency of "${importer}" (a devDependency or undeclared). devDeps are test-only scaffolding ` +
+          `(ADR-0010 §5), so this runtime coupling is invisible to the gate. Add "${target}" to ` +
+          `${where} "dependencies" and declare the cross-story edge, or make the import type-only / ` +
+          `move it into a *.test.ts.`,
+      );
+    }
+    // a bare external specifier (node:*, zod, …) — out of scope.
+  }
 }
 
 /**
@@ -174,5 +263,110 @@ export function findCycle(graph: Record<string, string[]>): string[] | null {
   for (const n of Object.keys(graph)) {
     if ((color[n] ?? WHITE) === WHITE) visit(n);
   }
+  return found;
+}
+
+// ---------------------------------------------------------------------------------------------------
+// The source-import scan helpers (ADR-0074's v2 import scan) — all pure, all unit-tested.
+// ---------------------------------------------------------------------------------------------------
+
+const STORYTREE_PREFIX = "@storytree/";
+
+/**
+ * `true` for sanctioned test scaffolding — `*.test.ts` files and parity suites — which may reuse
+ * another organism's test surface across the boundary (ADR-0010 §5). Parity suites are matched by
+ * name (`parity.ts` / `*-parity.ts`) and by a `parity/` path segment.
+ */
+export function isTestScaffolding(file: string): boolean {
+  if (/\.test\.tsx?$/.test(file)) return true;
+  const base = file.split("/").pop() ?? file;
+  if (base === "parity.ts" || /-parity\.ts$/.test(base)) return true;
+  return file.split("/").includes("parity");
+}
+
+/** A relative module specifier (`.` / `..` rooted) — the only kind that can escape the package. */
+function isRelativeSpecifier(spec: string): boolean {
+  return spec === "." || spec === ".." || spec.startsWith("./") || spec.startsWith("../");
+}
+
+/** The `packages/<dir>` prefix of a repo-relative POSIX file path, or null if it is not under one. */
+function packageDirOf(file: string): string | null {
+  const parts = file.split("/");
+  if (parts[0] !== "packages" || parts.length < 3) return null;
+  return `${parts[0]}/${parts[1]}`;
+}
+
+/** Resolve a relative specifier against the importing file's dir (pure POSIX path math). */
+function resolveRelative(file: string, spec: string): string {
+  const stack = file.split("/").slice(0, -1); // the importing file's directory
+  for (const seg of spec.split("/")) {
+    if (seg === "" || seg === ".") continue;
+    if (seg === "..") stack.pop();
+    else stack.push(seg);
+  }
+  return stack.join("/");
+}
+
+/** Reduce a `@storytree/x` / `@storytree/x/sub/path` specifier to the bare package name `@storytree/x`. */
+function scopePackage(spec: string): string {
+  return spec.split("/").slice(0, 2).join("/");
+}
+
+/**
+ * Strip line + block comments from TS source while preserving string/template literals intact (so a
+ * commented-out `import … from "x"` never registers as a real import, but a real specifier survives).
+ * Pure; quote-aware. Template-literal interpolations are treated as opaque string content — good
+ * enough for import-statement extraction.
+ */
+export function stripComments(src: string): string {
+  let out = "";
+  let mode: "code" | "line" | "block" | "sq" | "dq" | "tpl" = "code";
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i]!;
+    const c2 = src[i + 1];
+    if (mode === "code") {
+      if (c === "/" && c2 === "/") { mode = "line"; i++; continue; }
+      if (c === "/" && c2 === "*") { mode = "block"; i++; continue; }
+      out += c;
+      if (c === "'") mode = "sq";
+      else if (c === '"') mode = "dq";
+      else if (c === "`") mode = "tpl";
+      continue;
+    }
+    if (mode === "line") {
+      if (c === "\n") { mode = "code"; out += c; }
+      continue;
+    }
+    if (mode === "block") {
+      if (c === "*" && c2 === "/") { mode = "code"; i++; }
+      else if (c === "\n") out += c; // keep newlines so line context is unchanged
+      continue;
+    }
+    // string/template modes — copy verbatim, honour escapes, detect the closing quote.
+    out += c;
+    if (c === "\\") { if (i + 1 < src.length) out += src[++i]; continue; }
+    if (mode === "sq" && c === "'") mode = "code";
+    else if (mode === "dq" && c === '"') mode = "code";
+    else if (mode === "tpl" && c === "`") mode = "code";
+  }
+  return out;
+}
+
+const FROM_RE = /\b(import|export)\b([\w\s{},*]*?)\bfrom\s*(['"])([^'"]+)\3/g;
+const BARE_RE = /\bimport\s*(['"])([^'"]+)\1/g; // side-effect `import "x"`
+const DYN_RE = /\bimport\s*\(\s*(['"])([^'"]+)\1/g; // dynamic `import("x")`
+
+/**
+ * Extract every static/side-effect/dynamic import (+ re-export-from) specifier from TS source, with a
+ * `typeOnly` flag for `import type` / `export type`. Comments are stripped first. Pure.
+ */
+export function extractImports(src: string): { specifier: string; typeOnly: boolean }[] {
+  const code = stripComments(src);
+  const found: { specifier: string; typeOnly: boolean }[] = [];
+  for (const m of code.matchAll(FROM_RE)) {
+    found.push({ specifier: m[4]!, typeOnly: /^\s*type\b/.test(m[2] ?? "") });
+  }
+  for (const m of code.matchAll(BARE_RE)) found.push({ specifier: m[2]!, typeOnly: false });
+  for (const m of code.matchAll(DYN_RE)) found.push({ specifier: m[2]!, typeOnly: false });
   return found;
 }
