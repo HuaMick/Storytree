@@ -4,8 +4,9 @@
  *
  * It gathers the inputs from disk and hands them to the pure {@link checkBoundaries} judge
  * ({@link file://./boundaries.ts}):
- *   1. the package↔story ownership map (repo-manifest.json `packageOwnership`: organisms +
- *      substrate — cli/store are now hub organisms, not exempt, ADR-0074 §2),
+ *   1. the package↔story ownership map (repo-manifest.json `packageOwnership`: organisms + the
+ *      foundational subset — ADR-0075 collapsed the substrate class, so the ports base/verdict-contract
+ *      are now ordinary root organisms held minimal, not an exempt class),
  *   2. the real runtime cross-package dependency graph (each `packages/<x>/package.json`
  *      `dependencies`; `devDependencies` are EXCLUDED — a test reusing another organism's parity
  *      suite is scaffolding, never a dependency edge, ADR-0010 §5),
@@ -120,7 +121,7 @@ function readOwnership(): Ownership {
   const po = (manifest.packageOwnership ?? {}) as Record<string, unknown>;
   return {
     organisms: (po.organisms ?? {}) as Record<string, string>,
-    substrate: (po.substrate ?? []) as string[],
+    foundational: (po.foundational ?? []) as string[],
   };
 }
 
