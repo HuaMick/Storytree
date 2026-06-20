@@ -93,21 +93,21 @@ These are **within-story** edges, **read off the real source** (static analysis 
 - `seed-corpus-scripts` → `migrate-on-write-upcaster`
   - each `loadCorpus` upsert runs `upcastAndValidate` at the boundary, so a lagging seed unit is upcast on the way in.
 - `library-health-gate` → `library-schema-and-write-validation`
-  - `health.ts:2` imports `KIND_SPECS` (the structured-kind set, `health.ts:65`) and the schema-conformance check (`health.ts:84-102`) validates each structured doc — a real consumer of the schema capability.
+  - `health.ts:2` imports `KIND_SPECS` (the structured-kind set, `health.ts:65`) and the schema-conformance check (`health.ts:102-120`) validates each structured doc — a real consumer of the schema capability.
 - `library-health-gate` → `migrate-on-write-upcaster`
-  - `health.ts:2` imports `upcastAndValidate`; schema-conformance literally calls `upcastAndValidate(bodyOf(d))` per structured doc (`health.ts:89`) — forwards-then-validates, which is why a doc that only NEEDS upcasting still PASSes.
+  - `health.ts:2` imports `upcastAndValidate`; schema-conformance literally calls `upcastAndValidate(bodyOf(d))` per structured doc (`health.ts:107`) — forwards-then-validates, which is why a doc that only NEEDS upcasting still PASSes.
 - `library-cli` → `event-sourced-store-seam`
-  - `main.ts:5-11` imports `PgLibraryStore` + `InMemoryStore`; `buildStore` (`main.ts:22-30`) swaps the live `PgLibraryStore` in under `--pg` and otherwise seeds an `InMemoryStore` — every read/write rides the store seam.
+  - `main.ts:5-12` imports `PgLibraryStore` + `InMemoryStore`; `buildStore` (`main.ts:30-59`) swaps the live `PgLibraryStore` in under `--pg` and otherwise seeds an `InMemoryStore` — every read/write rides the store seam.
 - `library-cli` → `eager-batch-migrate`
   - `commands.ts:15` imports `renderStoredDoc` from `@storytree/library/store` (the view path, `viewArtifact` `commands.ts:242`) — the CLI's read corpus is rendered through the eager-migrate capability's render adapter.
 - `library-cli` → `seed-corpus-scripts`
-  - `main.ts:28` seeds the default offline store via `loadCorpus` — the CLI's read corpus is the seeder's output.
+  - `main.ts:56-57` seeds the default offline store via `loadCorpus` — the CLI's read corpus is the seeder's output.
 - `library-cli` → `library-health-gate`
-  - `commands.ts:17-23` imports the health helpers from `./health.js` for the dashboard banner (`commands.ts:113-121`) and the `--check` report (`libraryCheck`, `commands.ts:171-207`).
+  - `commands.ts:25-31` imports the health helpers from `./health.js` for the dashboard banner (`commands.ts:141-149`) and the `--check` report (`libraryCheck`, `commands.ts:203-239`).
 - `library-cli` → `library-schema-and-write-validation`
   - `commands.ts:8-13` imports `groupSources` + `KIND_SPECS` + `CURRENT_SCHEMA_VERSION` from `@storytree/library`; the write commands validate every doc at the boundary.
 - `library-cli` → `migrate-on-write-upcaster`
-  - `newArtifact` (`commands.ts:334`) and `editArtifact` (`commands.ts:429`) both call `upcastAndValidate` on every write — a doc carrying a retired field is upcast, not rejected.
+  - `newArtifact` (`commands.ts:332`) and `editArtifact` (`commands.ts:398`) both call `upcastAndValidate` on every write — a doc carrying a retired field is upcast, not rejected.
 
 ## Story UAT
 
