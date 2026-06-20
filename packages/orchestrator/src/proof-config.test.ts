@@ -380,22 +380,22 @@ test("C — a NET-NEW node may carry a broad source scope with no proofCommand (
 
 // ── ADR-0064: DB-backed proof (real.db) ──────────────────────────────────────────────────────────
 
-/** A db-backed arm: db:true with install+typecheck (the proof imports @storytree/store from node_modules). */
+/** A db-backed arm: db:true with install+typecheck (the proof imports the pg change store from node_modules). */
 const DB_BACKED_BLOCK = {
-  command: { file: "pnpm", args: ["--filter", "@storytree/store", "test"] },
+  command: { file: "pnpm", args: ["--filter", "@storytree/orchestrator", "test"] },
   scope: {
-    testGlobs: ["packages/store/src/**/*.test.ts"],
-    sourceGlobs: ["packages/store/src/**/*.ts"],
+    testGlobs: ["packages/orchestrator/src/store/**/*.test.ts"],
+    sourceGlobs: ["packages/orchestrator/src/store/**/*.ts"],
   },
   real: {
-    testFile: "packages/store/src/change-store.test.ts",
-    sourceFile: "packages/store/src/change-store.ts",
+    testFile: "packages/orchestrator/src/store/pg-change-store.test.ts",
+    sourceFile: "packages/orchestrator/src/store/pg-change-store.ts",
     scope: {
-      testGlobs: ["packages/store/src/change-store.test.ts"],
-      sourceGlobs: ["packages/store/src/change-store.ts"],
+      testGlobs: ["packages/orchestrator/src/store/pg-change-store.test.ts"],
+      sourceGlobs: ["packages/orchestrator/src/store/pg-change-store.ts"],
     },
     install: true,
-    typecheck: { file: "pnpm", args: ["--filter", "@storytree/store", "typecheck"] },
+    typecheck: { file: "pnpm", args: ["--filter", "@storytree/orchestrator", "typecheck"] },
     db: true,
   },
 };

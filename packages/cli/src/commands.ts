@@ -12,7 +12,7 @@ import {
   KIND_SPECS,
 } from "@storytree/library";
 import { resolveSignerFromEnv } from "@storytree/orchestrator";
-import { renderStoredDoc, syncSeedAgents } from "@storytree/store";
+import { renderStoredDoc, syncSeedAgents } from "@storytree/library/store";
 
 import { execFileSync } from "node:child_process";
 

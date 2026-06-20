@@ -372,28 +372,52 @@ function lastAdminError(message: string): Error {
 // ---------------------------------------------------------------------------
 
 // Cross-package, ESM. The runtime values (createPool/closePool/PgLibraryStore/PgCommentStore/
-// renderStoredDoc) are loaded LAZILY via a dynamic import the first time PgBackend is used — NOT a
-// static top-level import. That matters: this module is reached at Vite config-load / `vite build`
-// time (vite.config.ts → devApi.ts → here), where the loader has no tsx transform and cannot resolve
-// @storytree/store's `.js` re-export specifiers (ERR_MODULE_NOT_FOUND on src/connection.js). It is
-// also Node-only (pg / cloud-sql-connector) and has no place in a browser build. Keeping the import
-// dynamic means the store is only touched when STORYTREE_STUDIO_STORE='pg' actually runs the dev API.
+// renderStoredDoc + PgUserStore + PgAttestationStore + PgPresenceStore) are loaded LAZILY via dynamic
+// imports the first time PgBackend is used — NOT a static top-level import. That matters: this module
+// is reached at Vite config-load / `vite build` time (vite.config.ts → devApi.ts → here), where the
+// loader has no tsx transform and cannot resolve the store subpaths' `.js` re-export specifiers
+// (ERR_MODULE_NOT_FOUND on src/connection.js). It is also Node-only (pg / cloud-sql-connector) and has
+// no place in a browser build. Keeping the imports dynamic means the store is only touched when
+// STORYTREE_STUDIO_STORE='pg' actually runs the dev API.
+//
+// ADR-0077: `@storytree/store` was dissolved — the substrate + central drawers moved to
+// `@storytree/library/store`, the presence drawer to `@storytree/notice-board/store`, the user drawer
+// to `@storytree/studio-members/store`, and the attestation drawer to `@storytree/orchestrator/store`.
+// We load each node-only `./store` subpath lazily and merge them into one module-shaped object so the
+// `store.X` call sites below are unchanged.
+//
 // Types are `import type` only (fully erased under verbatimModuleSyntax), so they add no runtime import.
-import type {
-  PoolHandle,
-  PgLibraryStore,
-  PgCommentStore,
-  PgUserStore,
-  PgAttestationStore,
-} from '@storytree/store';
+import type { PoolHandle, PgLibraryStore, PgCommentStore } from '@storytree/library/store';
+import type { PgUserStore } from '@storytree/studio-members/store';
+import type { PgAttestationStore } from '@storytree/orchestrator/store';
 
-type StoreModule = typeof import('@storytree/store');
+// The merged store surface PgBackend uses: the library substrate/central drawers + the organism
+// drawers it instantiates (user / attestation / presence), plus CURRENT_SCHEMA_VERSION from the
+// library main entry (the schema-skew probe compares it against the DB's max version). Intersection of
+// the four `./store` subpaths and the library main module.
+type StoreModule = typeof import('@storytree/library/store') &
+  typeof import('@storytree/studio-members/store') &
+  typeof import('@storytree/orchestrator/store') &
+  typeof import('@storytree/notice-board/store') &
+  Pick<typeof import('@storytree/library'), 'CURRENT_SCHEMA_VERSION'>;
 
 let storeModulePromise: Promise<StoreModule> | null = null;
 
-/** Load @storytree/store once, on first PgBackend use (never at config-load / build time). */
+/** Load the dissolved store's `./store` subpaths once, on first PgBackend use (never at config/build time). */
 function loadStoreModule(): Promise<StoreModule> {
-  return (storeModulePromise ??= import('@storytree/store'));
+  return (storeModulePromise ??= Promise.all([
+    import('@storytree/library/store'),
+    import('@storytree/studio-members/store'),
+    import('@storytree/orchestrator/store'),
+    import('@storytree/notice-board/store'),
+    import('@storytree/library'),
+  ]).then(([lib, members, orch, notice, libMain]) => ({
+    ...lib,
+    ...members,
+    ...orch,
+    ...notice,
+    CURRENT_SCHEMA_VERSION: libMain.CURRENT_SCHEMA_VERSION,
+  })) as Promise<StoreModule>);
 }
 
 // @storytree/studio-members is raw-TS (its `.js` specifiers hit vite's config-load trap) — so the

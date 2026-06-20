@@ -6,8 +6,8 @@ import type { AdrMeta } from "./adr-frontmatter.js";
 import type { Store, StoredDoc } from "@storytree/base";
 import { InMemoryStore } from "@storytree/base";
 import { upcastAndValidate } from "@storytree/library";
-import type { Comment, CommentAnchor } from "@storytree/store";
-import { loadCorpus } from "@storytree/store";
+import type { Comment, CommentAnchor } from "@storytree/library/store";
+import { loadCorpus } from "@storytree/library/store";
 
 import { renderAgentPrompt } from "./agents.js";
 

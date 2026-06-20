@@ -195,7 +195,7 @@ export interface RealResolveOptions extends BaseResolveOptions {
   /**
    * DB-backed proof env (ADR-0064): the spine-supplied env the worktree proof spawns with when the
    * node declares `real.db: true` — at minimum a `STORYTREE_DB_NAME` pointing at a DISPOSABLE test
-   * database (the CLI computes it and asserts non-prod via `@storytree/store`'s `assertTestDatabase`,
+   * database (the CLI computes it and asserts non-prod via `@storytree/library/store`'s `assertTestDatabase`,
    * plus `STORYTREE_DB_USER` for keyless IAM). The resolver FORCES it onto the proof command (so both
    * the spine's CONFIRM observation and the leaf's `run_proof` hit the test DB) and REFUSES a
    * `db:true` node whose env is missing or names production — an independent SECOND honesty wall (the
@@ -325,13 +325,13 @@ export function resolveProveSpec(
 
 /**
  * The production database name a db-backed proof must NEVER reach (ADR-0064/0054). Duplicated as a
- * LITERAL rather than imported from `@storytree/store` (`DEFAULT_DATABASE`) to keep the orchestrator
+ * LITERAL rather than imported from `@storytree/library/store` (`DEFAULT_DATABASE`) to keep the orchestrator
  * store-free; this is the SECOND, independent honesty wall — the store's `assertTestDatabase` is the
  * first. Two unrelated checks must both hold, so a CLI bug alone can never reach prod.
  */
 const PROD_DB_NAME = "storytree";
 
-/** The env var naming the disposable test database (mirrors `@storytree/store`'s `TEST_DB_ENV`). */
+/** The env var naming the disposable test database (mirrors `@storytree/library/store`'s `TEST_DB_ENV`). */
 const DB_NAME_ENV = "STORYTREE_DB_NAME";
 
 /**

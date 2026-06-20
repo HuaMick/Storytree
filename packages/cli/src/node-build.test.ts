@@ -366,7 +366,7 @@ test("resolveDbProofEnv REFUSES production (STORYTREE_DB_NAME=storytree) — fai
 test("workspacePackageForSource derives the workspace package name from a packages/<dir> source file", () => {
   // Reads the real packages/<dir>/package.json name (the honest source, not a path-convention guess).
   assert.equal(workspacePackageForSource("packages/verdict-contract/src/anchor.ts"), "@storytree/verdict-contract");
-  assert.equal(workspacePackageForSource("packages/store/src/change-store.ts"), "@storytree/store");
+  assert.equal(workspacePackageForSource("packages/orchestrator/src/store/pg-change-store.ts"), "@storytree/orchestrator");
   // Not under a workspace package → null (the caller refuses).
   assert.equal(workspacePackageForSource("docs/decisions/x.md"), null);
   assert.equal(workspacePackageForSource("apps/studio/src/x.ts"), null);

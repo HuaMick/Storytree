@@ -19,7 +19,7 @@
       "web": "storytree-web (the public front-door site) vendored as a submodule; wired in .gitmodules (PR #111)."
     },
     "dirs": {
-      "packages": "Workspace packages (verdict-contract / base / library / notice-board / studio-members / agent / orchestrator / store / cli; @storytree/core dissolved per ADR-0068).",
+      "packages": "Workspace packages (verdict-contract / base / library / notice-board / studio-members / agent / orchestrator / cli; @storytree/core dissolved per ADR-0068, @storytree/store dissolved per ADR-0077).",
       "apps": "Workspace apps (studio).",
       "docs": "ADRs + generated glossary + open-questions backlog + research notes (see docs.* below).",
       "stories": "The story-tree seed: the work-hierarchy corpus, schema-validated by packages/library.",
@@ -48,7 +48,6 @@
       "@storytree/agent": "drive-machinery",
       "@storytree/notice-board": "notice-board",
       "@storytree/studio-members": "studio-members",
-      "@storytree/store": "store",
       "@storytree/cli": "cli",
       "@storytree/base": "base",
       "@storytree/verdict-contract": "verdict-contract"

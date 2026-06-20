@@ -1,6 +1,6 @@
 import type { Store } from "@storytree/base";
 import { KIND_SPECS } from "@storytree/library";
-import { renderStoredDoc } from "@storytree/store";
+import { renderStoredDoc } from "@storytree/library/store";
 
 import type { Envelope } from "./envelope.js";
 

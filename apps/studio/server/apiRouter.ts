@@ -658,7 +658,7 @@ export async function handleAttestations(
 // NOT statically: this module is reached at Vite config-load / `vite build` time,
 // where the loader has no tsx transform and cannot resolve the orchestrator's raw-TS
 // `.js` re-export specifiers (ERR_MODULE_NOT_FOUND) — the same trap, and the same
-// fix, as PgBackend's dynamic import of @storytree/store in libraryBackend.ts.
+// fix, as PgBackend's dynamic import of the store `./store` subpaths in libraryBackend.ts.
 
 type OrchestratorModule = typeof import('@storytree/orchestrator');
 type LoadNodeSpec = OrchestratorModule['loadNodeSpec'];

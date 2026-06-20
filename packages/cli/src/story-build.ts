@@ -43,7 +43,7 @@ import {
   resolveDbProofEnv,
   resolveVerdictStore,
 } from "./node-build.js";
-import { PgCommentStore, PgLibraryStore, closePool, createPool } from "@storytree/store";
+import { PgCommentStore, PgLibraryStore, closePool, createPool } from "@storytree/library/store";
 
 import { loadAdrMetas } from "./adr-health.js";
 import {

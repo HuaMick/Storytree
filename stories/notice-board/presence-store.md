@@ -13,20 +13,20 @@ depends_on: [declare-presence]
 proof:
   command:
     file: pnpm
-    args: ["--filter", "@storytree/store", "test"]
+    args: ["--filter", "@storytree/notice-board", "test"]
   scope:
-    testGlobs: ["packages/store/src/**/*.test.ts"]
-    sourceGlobs: ["packages/store/src/**/*.ts"]
+    testGlobs: ["packages/notice-board/src/**/*.test.ts"]
+    sourceGlobs: ["packages/notice-board/src/**/*.ts"]
   real:
-    testFile: "packages/store/src/presence-store.test.ts"
-    sourceFile: "packages/store/src/presence-store.ts"
+    testFile: "packages/notice-board/src/store/presence-store.test.ts"
+    sourceFile: "packages/notice-board/src/store/presence-store.ts"
     scope:
-      testGlobs: ["packages/store/src/presence-store.test.ts"]
-      sourceGlobs: ["packages/store/src/presence-store.ts"]
+      testGlobs: ["packages/notice-board/src/store/presence-store.test.ts"]
+      sourceGlobs: ["packages/notice-board/src/store/presence-store.ts"]
     install: true
     typecheck:
       file: pnpm
-      args: ["--filter", "@storytree/store", "typecheck"]
+      args: ["--filter", "@storytree/notice-board", "typecheck"]
 ---
 
 # Declarations persist as append-only events plus a one-row-per-session projection

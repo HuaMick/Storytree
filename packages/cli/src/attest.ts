@@ -10,7 +10,7 @@
  * and never greens the story (ADR-0044 d.2/d.3). Returns an `Envelope` — testable
  * without a terminal, a store, or a real signing chain (all injected).
  *
- * DO NOT import from @storytree/store — the seam keeps this module offline-testable.
+ * DO NOT import from any organism's `/store` subpath — the seam keeps this module offline-testable.
  */
 
 import type { Attestation } from "@storytree/verdict-contract";

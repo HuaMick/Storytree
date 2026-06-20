@@ -9,8 +9,8 @@ import { rollupStatus, workEvent } from "./rollup.js";
  * The REUSABLE rollup-parity suite (node:test). MOVED here from `@storytree/core` with the rollup
  * compute (ADR-0068 step 1). Mirrors `storeParitySuite`'s discipline: the projection must read
  * identically off ANY {@link Store} implementation — events are appended through the seam and the
- * rollup is computed over `readEvents()`. Run against `InMemoryStore` in core's parity tests;
- * packages/store holds the pg impl to the same bar.
+ * rollup is computed over `readEvents()`. Run against `InMemoryStore` in the parity tests;
+ * the organisms' `./store` pg impls (ADR-0077) are held to the same bar.
  */
 export function rollupParitySuite(
   name: string,

@@ -9,7 +9,7 @@ import { SCHEMA_SQL_PATH } from "./migrate.js";
 
 /**
  * The live DB is STOPPED by default and costs money, so everything that needs a real connection is
- * gated behind STORYTREE_DB_LIVE === '1'. The default `pnpm --filter @storytree/store test` runs
+ * gated behind STORYTREE_DB_LIVE === '1'. The default `pnpm --filter @storytree/library test` runs
  * fully OFFLINE: it exercises the schema DDL, the write-boundary validator, and that the
  * connection/store modules import without throwing.
  */

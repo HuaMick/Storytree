@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { InMemoryStore } from "@storytree/base";
-import { loadCorpus } from "@storytree/store";
+import { loadCorpus } from "@storytree/library/store";
 
 import { run } from "./commands.js";
 import { formatEnvelope } from "./envelope.js";

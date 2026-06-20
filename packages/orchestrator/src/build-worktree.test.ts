@@ -273,7 +273,7 @@ test("platformShellCommand preserves per-command env through the win32 pnpm rewr
   // through, or a db-backed pnpm proof would lose its isolated-DB env on Windows.
   const pnpm = {
     file: "pnpm",
-    args: ["--filter", "@storytree/store", "test"],
+    args: ["--filter", "@storytree/orchestrator", "test"],
     cwd: "/ws",
     env: { STORYTREE_DB_NAME: "storytree_test" },
   };

@@ -51,7 +51,8 @@ async function acquireStore(): Promise<{
   close: () => Promise<void>;
 }> {
   try {
-    const { createPool, closePool, PgPresenceStore } = await import("@storytree/store");
+    const { createPool, closePool } = await import("@storytree/library/store");
+    const { PgPresenceStore } = await import("@storytree/notice-board/store");
     const acquired = await Promise.race([
       createPool().then(({ pool, connector }) => ({
         store: new PgPresenceStore(pool) as PresenceStoreLike,

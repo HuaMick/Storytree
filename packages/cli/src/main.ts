@@ -8,11 +8,10 @@ import {
   createPool,
   closePool,
   PgLibraryStore,
-  PgPresenceStore,
-  PgWorkStore,
-  PgAttestationStore,
   PgAdrStore,
-} from "@storytree/store";
+} from "@storytree/library/store";
+import { PgPresenceStore } from "@storytree/notice-board/store";
+import { PgWorkStore, PgAttestationStore } from "@storytree/orchestrator/store";
 
 import type { AdrAllocatorLike } from "./adr.js";
 import type { AttestationStoreLike } from "./attest.js";

@@ -9,7 +9,7 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { HttpError, sendJson } from './httpUtil';
-import type { CloudSqlAdmin } from '@storytree/store';
+import type { CloudSqlAdmin } from '@storytree/library/store';
 
 export const DB_INSTANCE = 'storytree-pg';
 export const DB_PROJECT = 'storytree-498613';
@@ -19,11 +19,11 @@ export interface DbControlDeps {
   makeAdmin?: () => CloudSqlAdmin | Promise<CloudSqlAdmin>;
 }
 
-// Dynamic import: a STATIC `@storytree/store` import here breaks `vite build` — vite.config.ts loads
-// this module (via server/devApi → apiRouter), and node-ESM can't resolve the store's internal `.js`
-// specifiers during config load (only tsx maps `.js`→`.ts`). Defer it to runtime under tsx.
+// Dynamic import: a STATIC `@storytree/library/store` import here breaks `vite build` — vite.config.ts
+// loads this module (via server/devApi → apiRouter), and node-ESM can't resolve the store subpath's
+// internal `.js` specifiers during config load (only tsx maps `.js`→`.ts`). Defer it to runtime under tsx.
 const defaultMakeAdmin = async (): Promise<CloudSqlAdmin> => {
-  const { createAdcCloudSqlAdmin } = await import('@storytree/store');
+  const { createAdcCloudSqlAdmin } = await import('@storytree/library/store');
   return createAdcCloudSqlAdmin({ project: DB_PROJECT, instance: DB_INSTANCE });
 };
 

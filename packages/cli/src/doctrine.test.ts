@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import type { Store, StoredDoc } from "@storytree/base";
 import { InMemoryStore } from "@storytree/base";
-import { loadCorpus } from "@storytree/store";
+import { loadCorpus } from "@storytree/library/store";
 
 import { renderDoctrine, renderDoctrines } from "./doctrine.js";
 

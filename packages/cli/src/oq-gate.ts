@@ -1,7 +1,7 @@
 import type { StoredDoc } from "@storytree/base";
 import type { NodeSpec } from "@storytree/orchestrator";
-import type { Comment } from "@storytree/store";
-import { PgCommentStore, PgLibraryStore, closePool, createPool } from "@storytree/store";
+import type { Comment } from "@storytree/library/store";
+import { PgCommentStore, PgLibraryStore, closePool, createPool } from "@storytree/library/store";
 
 import type { Envelope } from "./envelope.js";
 

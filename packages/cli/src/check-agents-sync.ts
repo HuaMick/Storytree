@@ -13,7 +13,7 @@
 // than CI because CI's verify job is deliberately DB-free; you do all real work with the DB up, so
 // the local gate is where this catches drift before a push.
 
-import { createPool, closePool, PgLibraryStore, diffSeedAgents, AGENT_KIND } from "@storytree/store";
+import { createPool, closePool, PgLibraryStore, diffSeedAgents, AGENT_KIND } from "@storytree/library/store";
 
 import { loadLocalSecrets } from "./secrets.js";
 

@@ -47,9 +47,11 @@ export const NODE_BUILD_REGISTRY: Readonly<Record<string, NodeBuildConfig>> = {
   // Capabilities, each proven by its host package's suite (stories/library/story.md table).
   "library-schema-and-write-validation": { command: pnpmTest("@storytree/library"), scope: pkgScope("library") },
   "migrate-on-write-upcaster": { command: pnpmTest("@storytree/library"), scope: pkgScope("library") },
-  "event-sourced-store-seam": { command: pnpmTest("@storytree/store"), scope: pkgScope("store") },
-  "eager-batch-migrate": { command: pnpmTest("@storytree/store"), scope: pkgScope("store") },
-  "seed-corpus-scripts": { command: pnpmTest("@storytree/store"), scope: pkgScope("store") },
+  // ADR-0077: the store substrate + central drawers (corpus store / batch migrate / seed scripts)
+  // dissolved into @storytree/library/store, so these capabilities are now proven by library's suite.
+  "event-sourced-store-seam": { command: pnpmTest("@storytree/library"), scope: pkgScope("library") },
+  "eager-batch-migrate": { command: pnpmTest("@storytree/library"), scope: pkgScope("library") },
+  "seed-corpus-scripts": { command: pnpmTest("@storytree/library"), scope: pkgScope("library") },
   "library-health-gate": { command: pnpmTest("@storytree/cli"), scope: pkgScope("cli") },
   "library-cli": { command: pnpmTest("@storytree/cli"), scope: pkgScope("cli") },
   // The first REAL-buildable node (Phase F): a NET-NEW, dependency-free behaviour, so the red is
@@ -89,19 +91,20 @@ export const NODE_BUILD_REGISTRY: Readonly<Record<string, NodeBuildConfig>> = {
   // The notice-board store node (ADR-0033): the pg presence store — event+projection mirroring
   // PgCommentStore, proven OFFLINE against a fake transactional client (the live SQL leg is
   // live-gated/human-verified, never attested by a worktree PASS). `install: true`: the impl
-  // imports @storytree/notice-board (presence merge/validation).
+  // imports @storytree/notice-board (presence merge/validation). ADR-0077: the presence drawer moved
+  // into @storytree/notice-board's node-only ./store subpath, so it is proven by notice-board's suite.
   "presence-store": {
-    command: pnpmTest("@storytree/store"),
-    scope: pkgScope("store"),
+    command: pnpmTest("@storytree/notice-board"),
+    scope: pkgScope("notice-board"),
     real: {
-      testFile: "packages/store/src/presence-store.test.ts",
-      sourceFile: "packages/store/src/presence-store.ts",
+      testFile: "packages/notice-board/src/store/presence-store.test.ts",
+      sourceFile: "packages/notice-board/src/store/presence-store.ts",
       scope: {
-        testGlobs: ["packages/store/src/presence-store.test.ts"],
-        sourceGlobs: ["packages/store/src/presence-store.ts"],
+        testGlobs: ["packages/notice-board/src/store/presence-store.test.ts"],
+        sourceGlobs: ["packages/notice-board/src/store/presence-store.ts"],
       },
       install: true,
-      typecheck: pnpmTypecheck("@storytree/store"),
+      typecheck: pnpmTypecheck("@storytree/notice-board"),
     },
   },
   // The notice-board CLI node (ADR-0033): the `storytree noticeboard` command module — a

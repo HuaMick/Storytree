@@ -8,9 +8,10 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-// Relative, not '@storytree/store': infra/ is not a workspace package, so the
-// package name doesn't resolve from here; the store's own node_modules does.
-import { createPool, closePool } from "../packages/store/src/connection.js";
+// Relative, not '@storytree/library/store': infra/ is not a workspace package, so the
+// package name doesn't resolve from here; the library's own node_modules does. (ADR-0077: the
+// Postgres connection substrate moved into the library organism's node-only ./store subpath.)
+import { createPool, closePool } from "../packages/library/src/store/connection.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const sql = readFileSync(path.join(here, "studio-host-grants.sql"), "utf8");
