@@ -1,18 +1,26 @@
 ---
-status: proposed
-decided: 2026-06-08
+status: accepted
+decided: 2026-06-20
 ---
 
 # ADR-0024: A definition earns its place only if a cold agent can't reconstruct it (the blind-reconstruction test)
 
 ## Status
 
-proposed (2026-06-08) — a pruning discipline for the authored corpus. Sharpens
+accepted (2026-06-20; proposed 2026-06-08) — a pruning discipline for the authored corpus. Accepted
+after its second operational application (the 2026-06-20 keep call below) confirmed the method and §6
+veto in the now-wired corpus; it had been operating as the de-facto rule since the 2026-06-08 glossary
+pass. Sharpens
 [ADR-0018](0018-knowledge-tier-phase1-structured-source.md)'s structured-source tier and the
 authoritative glossary ([ADR-0002](0002-work-hierarchy-story-capability-contract.md)); motivated by
 [ADR-0011](0011-own-the-agent-loop-and-context-engineering.md)'s context engineering (every token an
 agent reads is paid for, so redundant context is a cost, not a courtesy). First applied to
-`docs/glossary.md` on 2026-06-08 (49 terms tested, 11 removed).
+`docs/glossary.md` on 2026-06-08 (49 terms tested, 11 removed). Applied a second time on 2026-06-20 to
+three Library artifacts (`deep-modules`, `recursive-decomposition-patterns`, `exploration-principles`):
+all three are §2-reconstructible generic craft, but all three were **kept** under §6 because the
+now-wired corpus (ADR-0051/0053) inlines each into live agent prompts — they are load-bearing
+cross-references, not shelf items (see §6's added clause). The open question proposing their prune
+(`oq-prune-reconstructible-guidance`) was resolved *keep* and retired.
 
 ## Date
 
@@ -79,6 +87,17 @@ ADR makes it the corpus's pruning rule rather than an ad-hoc instinct.
    `story > capability > contract` triad and leaves `capability` ("composed of **contracts**")
    dangling. The test finds *candidates*; coherence of the document is a veto. Such overrides are noted,
    not silent.
+
+   **A Library artifact that another artifact cites is a load-bearing cross-reference — including one
+   inlined into an agent's prompt.** Once the corpus is a wired pull surface (ADR-0051/0053), an
+   agent's `context`/`rules`/`antiPatterns` list inlines the *full body* of every `asset:` it names,
+   and sibling principles compose against it by name. So a blind-reconstructible artifact that an agent
+   pulls (or another artifact references) is held under this veto exactly as `contract` is: pruning it
+   dangles those refs and breaks the `storytree agents` render / the `check:claude` gate. The raw test
+   (§2) flags such an artifact as a *candidate*; it does **not** mandate the prune. First map the
+   citations — `storytree library tree focus <id>` lists the inbound edges — and prune only if nothing
+   load-bearing depends on it, cleaning every ref in the same change (§7's fold-the-nuance rule applies
+   to the cross-refs too). A blind-reconstruction flag is a prompt to *check*, never a license to delete.
 
 7. **The verdict drives an edit, not an autopilot.** High-confidence "reconstructed" terms are removed;
    borderline (single-condition, low-confidence, or nuance-dropping) results are surfaced for an owner
