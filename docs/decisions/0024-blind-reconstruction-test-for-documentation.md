@@ -1,13 +1,16 @@
 ---
-status: proposed
-decided: 2026-06-08
+status: accepted
+decided: 2026-06-20
 ---
 
 # ADR-0024: A definition earns its place only if a cold agent can't reconstruct it (the blind-reconstruction test)
 
 ## Status
 
-proposed (2026-06-08) — a pruning discipline for the authored corpus. Sharpens
+accepted (2026-06-20; proposed 2026-06-08) — a pruning discipline for the authored corpus. Accepted
+after its second operational application (the 2026-06-20 keep call below) confirmed the method and §6
+veto in the now-wired corpus; it had been operating as the de-facto rule since the 2026-06-08 glossary
+pass. Sharpens
 [ADR-0018](0018-knowledge-tier-phase1-structured-source.md)'s structured-source tier and the
 authoritative glossary ([ADR-0002](0002-work-hierarchy-story-capability-contract.md)); motivated by
 [ADR-0011](0011-own-the-agent-loop-and-context-engineering.md)'s context engineering (every token an
