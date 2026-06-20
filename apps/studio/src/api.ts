@@ -17,6 +17,7 @@ import type {
   PresencePayload,
   StoreHealth,
   TreePayload,
+  UatVerdictResult,
   UserRole,
 } from './types';
 
@@ -100,6 +101,13 @@ export const api = {
     http(`/api/attestations?storyId=${q(storyId)}`),
   recordAttestation: (input: { testId: string; outcome: 'pass' | 'fail'; note?: string }): Promise<AttestationMark> =>
     http('/api/attestations', jsonInit('POST', input)),
+
+  // The "I saw it work" operator-attested VERDICT (ADR-0082) — a REAL events.verdict signature that
+  // greens the story crown, DISTINCT from recordAttestation's lower-rigor events.attestation vouch.
+  // Admin-only; the server stamps the signer from the verified identity (the client cannot forge it)
+  // and refuses a machine-witness test (a click is not a machine proof).
+  signUat: (input: { testId: string; outcome?: 'pass' | 'fail'; note?: string }): Promise<UatVerdictResult> =>
+    http('/api/uat/attest', jsonInit('POST', input)),
 
   listUsers: (): Promise<Member[]> => http('/api/users'),
   // Returns the new row plus `notify` — whether the invite email actually went out (see MembersPanel).
