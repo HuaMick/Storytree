@@ -10,13 +10,13 @@ proof_mode: UAT
 uat_witness: machine
 capabilities: [library-schema-and-write-validation, migrate-on-write-upcaster, event-sourced-store-seam, eager-batch-migrate, seed-corpus-scripts, library-health-gate, library-cli]
 # Consumer-side outbound edge (ADR-0075): the library validates/upcasts every doc against the verdict
-# vocabulary's Tier/Status, so it imports the verdict-contract ROOT port — now a declared edge (was an
+# vocabulary's Tier/Status, so it imports the proof-protocol ROOT port — now a declared edge (was an
 # exempt substrate dependency before ADR-0075 collapsed that class). library is no longer the graph
-# TRUNK; verdict-contract is the bottom root.
+# TRUNK; proof-protocol is the bottom root.
 # Consumer-side outbound edge (ADR-0077): the library absorbed the shared Postgres substrate + the
 # central drawers (now @storytree/library/store, a node-only subpath), whose Store realization imports
-# @storytree/base (InMemoryStore / retiredEventDoc / StoredDoc) — a real code edge, now declared.
-depends_on: [verdict-contract, base]
+# @storytree/storage-protocol (InMemoryStore / retiredEventDoc / StoredDoc) — a real code edge, now declared.
+depends_on: [proof-protocol, storage-protocol]
 # Provider-side inbound edge (ADR-0074 §4): the cli HUB organism imports @storytree/library
 # (commands.ts validates/upcasts on every write). The store hub also imports it, but that edge is
 # declared consumer-side in stories/store/story.md depends_on; the cli edge is declared here to
@@ -76,7 +76,7 @@ Listed roots-first (a capability appears after everything it depends on). The `s
 
 ## Dependency graph (code-derived)
 
-These are **within-story** edges, **read off the real source** (static analysis of the imports / calls between capabilities), never hand-drawn from UAT need (ADR-0010 §3): A → B means A's code actually couples to B's code inside the one organism. The graph is acyclic; `library-schema-and-write-validation` is the lone root. One **cross-story** edge applies: `library → verdict-contract` (the schema validates docs against the verdict vocabulary's `Tier`/`Status`), declared `depends_on: [verdict-contract]` since [ADR-0075](../../docs/decisions/0075-model-the-shared-ports-as-root-organisms-collapse-the-substr.md) made the ports root organisms rather than an exempt substrate class.
+These are **within-story** edges, **read off the real source** (static analysis of the imports / calls between capabilities), never hand-drawn from UAT need (ADR-0010 §3): A → B means A's code actually couples to B's code inside the one organism. The graph is acyclic; `library-schema-and-write-validation` is the lone root. One **cross-story** edge applies: `library → proof-protocol` (the schema validates docs against the verdict vocabulary's `Tier`/`Status`), declared `depends_on: [proof-protocol]` since [ADR-0075](../../docs/decisions/0075-model-the-shared-ports-as-root-organisms-collapse-the-substr.md) made the ports root organisms rather than an exempt substrate class.
 
 - `migrate-on-write-upcaster` → `library-schema-and-write-validation`
   - `migrations.ts:1` imports `KIND_SPECS` from `knowledge.ts` (`isStructuredKnowledge`, `migrations.ts:55-58`, gates on whether the kind is a structured key), and `store.ts:219-221` composes `upcast` INTO the validator: `upcastAndValidate = validateLibraryDoc(upcast(...))` — a genuine code call, not a UAT inference.
