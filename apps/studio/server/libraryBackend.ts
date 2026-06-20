@@ -23,7 +23,7 @@
 import { promises as fs, existsSync } from 'node:fs';
 import path from 'node:path';
 import type { UserDoc } from '@storytree/studio-members';
-import type { Attestation } from '@storytree/proof-protocol';
+import type { Attestation, Verdict } from '@storytree/proof-protocol';
 import {
   BUILD_IN_FLIGHT_TTL_MS,
   type AssetCategory,
@@ -114,6 +114,18 @@ export interface LibraryBackend {
    * backend / a down DB; absent on a partial mock — the handler then skips the crown roll-up.
    */
   verdictEvents?(): Promise<ReadonlyArray<{ kind: string; seq: number; doc: unknown }> | null>;
+
+  /**
+   * Sign an `operator-attested` UAT verdict into `events.verdict` (ADR-0082 — the studio admin's
+   * "I saw it work" in-UI signature, ADR-0044 §4 deferred). A REAL gate verdict (the same kind
+   * `storytree uat attest` / a build signs), NOT the lower-rigor {@link recordAttestation} vouch —
+   * it greens the story crown via `rollupStoryUat`. The CALLER (the HTTP layer) has already built
+   * the {@link Verdict}, stamped its signer from the verified identity, and cleared `checkUatProof`;
+   * this only PERSISTS it (the pg store re-validates the shape at its write boundary, fail-closed).
+   * OPTIONAL: implemented only by the pg backend — the json backend omits it (no `events.verdict`),
+   * so the handler refuses with "needs the live store", mirroring the CLI's `--pg`-only refusal.
+   */
+  signUatVerdict?(verdict: Verdict, actor: string): Promise<Verdict>;
 
   /**
    * Active notice-board sessions (events.session projection, ADR-0033) with the
@@ -402,7 +414,7 @@ function lastAdminError(message: string): Error {
 // Types are `import type` only (fully erased under verbatimModuleSyntax), so they add no runtime import.
 import type { PoolHandle, PgLibraryStore, PgCommentStore } from '@storytree/library/store';
 import type { PgUserStore } from '@storytree/studio-members/store';
-import type { PgAttestationStore } from '@storytree/orchestrator/store';
+import type { PgAttestationStore, PgWorkStore } from '@storytree/orchestrator/store';
 
 // The merged store surface PgBackend uses: the library substrate/central drawers + the organism
 // drawers it instantiates (user / attestation / presence), plus CURRENT_SCHEMA_VERSION from the
@@ -513,6 +525,7 @@ export class PgBackend implements LibraryBackend {
   #comments: PgCommentStore | null = null;
   #users: PgUserStore | null = null;
   #attestations: PgAttestationStore | null = null;
+  #work: PgWorkStore | null = null;
 
   /** Build the pool + stores on first use (the JSON default must never touch pg). */
   async #ready(): Promise<{
@@ -521,13 +534,15 @@ export class PgBackend implements LibraryBackend {
     comments: PgCommentStore;
     users: PgUserStore;
     attestations: PgAttestationStore;
+    work: PgWorkStore;
   }> {
     if (
       this.#store === null ||
       this.#library === null ||
       this.#comments === null ||
       this.#users === null ||
-      this.#attestations === null
+      this.#attestations === null ||
+      this.#work === null
     ) {
       const store = await loadStoreModule();
       const handle = await store.createPool();
@@ -537,6 +552,9 @@ export class PgBackend implements LibraryBackend {
       this.#comments = new store.PgCommentStore(handle.pool);
       this.#users = new store.PgUserStore(handle.pool);
       this.#attestations = new store.PgAttestationStore(handle.pool);
+      // The work-hierarchy event store (events.verdict): the studio's `signUatVerdict` appends a
+      // signed operator-attested verdict through it, the SAME store the CLI `uat attest` writes to.
+      this.#work = new store.PgWorkStore(handle.pool);
     }
     return {
       store: this.#store,
@@ -544,6 +562,7 @@ export class PgBackend implements LibraryBackend {
       comments: this.#comments,
       users: this.#users,
       attestations: this.#attestations,
+      work: this.#work,
     };
   }
 
@@ -710,6 +729,27 @@ export class PgBackend implements LibraryBackend {
     } finally {
       if (timer !== undefined) clearTimeout(timer);
     }
+  }
+
+  /**
+   * Persist a signed `operator-attested` UAT verdict into events.verdict via PgWorkStore — the same
+   * store + signing event kind the CLI `uat attest` and a real build write through (ADR-0082). Unlike
+   * the advisory READS above, this is a real WRITE: it is NOT swallowed or raced — a failure (down
+   * DB, or the store's own fail-closed `Verdict.parse` rejecting a malformed doc) propagates to the
+   * handler, which maps it (503 for a connection failure, 400 for a zod violation). A verdict that
+   * does not persist greens nothing.
+   */
+  async signUatVerdict(verdict: Verdict, actor: string): Promise<Verdict> {
+    const { work } = await this.#ready();
+    const contract = await loadContractModule();
+    await work.appendEvent({
+      id: `${verdict.runId}:${verdict.unitId}`,
+      kind: contract.SIGNING_EVENT_KIND,
+      type: 'created',
+      doc: verdict,
+      actor,
+    });
+    return verdict;
   }
 
   /**
@@ -887,6 +927,7 @@ export class PgBackend implements LibraryBackend {
       this.#comments = null;
       this.#users = null;
       this.#attestations = null;
+      this.#work = null;
       this.#store = null;
     }
   }

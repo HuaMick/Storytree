@@ -1728,7 +1728,10 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
   const [hoverCap, setHoverCap] = useState<string | null>(null);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
 
-  useEffect(() => {
+  // The one-shot tree load, extracted so a per-test UAT verdict signature (UatTestsSection) can
+  // RE-PULL it — the crown greens from the per-test roll-up server-side (ADR-0082), so after a
+  // signature the world must re-fetch to repaint the island.
+  const reloadTree = useCallback((): void => {
     api
       .tree()
       .then((p) => {
@@ -1738,6 +1741,10 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
       })
       .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : String(e)));
   }, []);
+
+  useEffect(() => {
+    reloadTree();
+  }, [reloadTree]);
 
   // Road routing LAYOUT (`?rivers=`, NOT water vs roads — roads is the only world now,
   // ADR-0073): the default `bundle` vs the `merge`/`confluence`/`strands` alternates.
@@ -2233,6 +2240,7 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
             onSelectCap={setSelectedCap}
             onHoverCap={setHoverCap}
             onSelectSession={(id) => setSessionDock({ kind: 'detail', id })}
+            onCrownRefresh={reloadTree}
             onClose={clearSelection}
           />
         )}
@@ -3135,19 +3143,31 @@ function savedPanelWidth(): number {
 }
 
 /**
- * The story detail's "UAT tests" table (ADR-0044 attestation-surface): each addressable UAT test
- * (parsed from the story's `## Story UAT` prose) as a row carrying one click-to-flag-green control.
- * The flag's hue is the per-test attestation state — GREEN for a pass vouch (human or machine),
- * RED for a fail, amber for an un-flagged test an admin may vouch, muted for one awaiting a machine
- * run. Clicking an amber flag records a direct "I saw it work" human attestation (the higher-rigor
- * in-UI signature; d.4). CRUCIAL INVARIANT: this is a VOUCH, not a proof — the green flag lives in
- * this DETAIL row only and NEVER paints the crown/island hue (d.2/d.3); only a signed gate verdict
- * greens a story (ADR-0040). Fetched per-story on open; silently absent when the store is down.
+ * The story detail's "UAT tests" table (ADR-0082 attestation-surface): each addressable UAT test
+ * (parsed from the story's `## Story UAT` prose) as a row carrying TWO deliberately-distinct marks,
+ * mirroring the CLI `uat list` / `storytree tree`:
+ *  - PROVEN (✓/✗/–) — the SIGNED verdict in `events.verdict`, the REAL gate state that greens the
+ *    story crown via the per-test AND-roll-up (ADR-0082 d.3). For a human/`either` test an admin has
+ *    not yet proven, the ✓ is a clickable **"I saw it work"** button that signs an `operator-attested`
+ *    verdict (ADR-0044 §4's in-UI signature, now a real green path) — the server stamps the signer
+ *    from the verified identity and REFUSES a machine-witness test (a click is not a machine proof).
+ *  - the VOUCH flag (⚑/⚐) — the lower-rigor `events.attestation` "I also eyeballed it" mark, kept
+ *    intact; GREEN for a pass vouch, amber when an admin may add one, muted otherwise. A vouch is
+ *    NOT a proof — it never greens the crown (ADR-0044 d.2/d.3).
+ * Signing re-pulls this panel (the proven glyph) AND the world tree (the crown). Fetched per-story
+ * on open; silently absent when the live store is down.
  */
-function UatTestsSection({ storyId }: { storyId: string }): React.JSX.Element | null {
+function UatTestsSection({
+  storyId,
+  onCrownRefresh,
+}: {
+  storyId: string;
+  onCrownRefresh: () => void;
+}): React.JSX.Element | null {
   const { me } = useAppData();
   const isAdmin = me.role === 'admin';
   const [tests, setTests] = useState<UatTestRow[] | null>(null);
+  const [storyUat, setStoryUat] = useState<'healthy' | 'unhealthy' | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -3155,6 +3175,7 @@ function UatTestsSection({ storyId }: { storyId: string }): React.JSX.Element | 
     try {
       const payload = await api.attestations(storyId);
       setTests(payload.tests);
+      setStoryUat(payload.storyUat);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -3166,11 +3187,28 @@ function UatTestsSection({ storyId }: { storyId: string }): React.JSX.Element | 
     void load();
   }, [load]);
 
-  const record = async (testId: string): Promise<void> => {
-    setBusy(testId);
+  // The lower-rigor VOUCH (events.attestation) — kept intact (ADR-0044 d.2): an "I also eyeballed it"
+  // mark that NEVER greens the crown.
+  const recordVouch = async (testId: string): Promise<void> => {
+    setBusy(`vouch:${testId}`);
     try {
       await api.recordAttestation({ testId, outcome: 'pass' });
       await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  // The "I saw it work" operator-attested VERDICT (events.verdict) — the higher-rigor signature that
+  // greens the story crown (ADR-0082). Refreshes the per-test proven glyph AND re-pulls the world.
+  const signVerdict = async (testId: string): Promise<void> => {
+    setBusy(`sign:${testId}`);
+    try {
+      await api.signUat({ testId, outcome: 'pass' });
+      await load();
+      onCrownRefresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -3187,48 +3225,85 @@ function UatTestsSection({ storyId }: { storyId: string }): React.JSX.Element | 
       <table className="uat-table">
         <tbody>
           {tests.map((t) => {
-            const mark = t.human ?? t.machine; // the dominant recorded vouch, if any
-            const state = mark ? mark.outcome : 'none'; // 'pass' | 'fail' | 'none'
-            // An admin may flag an un-vouched test green — but only one the test PERMITS a human to
-            // attest (witness ≠ machine). A machine-only test stays muted until a real run signs it.
-            const canFlag = isAdmin && state === 'none' && t.witness !== 'machine';
+            // PROVEN — the SIGNED verdict (events.verdict): the real gate state that greens the crown.
+            const proven = t.proven; // 'pass' | 'fail' | undefined
+            // An admin signs a human/`either` test not yet proven; a machine test refuses a click.
+            const canSign = isAdmin && proven !== 'pass' && t.witness !== 'machine';
+            const signBusy = busy === `sign:${t.id}`;
+            // A faint ✓ INVITES the signature (signable); a solid ✓ / ✗ is the recorded verdict; – is
+            // an un-provable-by-click (machine) or not-yet-proven test.
+            const provenGlyph =
+              proven === 'pass' ? '✓' : proven === 'fail' ? '✗' : canSign ? '✓' : '–';
+            const provenTitle =
+              proven === 'pass'
+                ? 'PROVEN — a signed operator-attested verdict (greens the story crown when every test passes, ADR-0082)'
+                : proven === 'fail'
+                  ? 'a signed FAIL verdict for this test'
+                  : canSign
+                    ? 'I saw it work — sign an operator-attested verdict (a REAL gate verdict, not a vouch)'
+                    : t.witness === 'machine'
+                      ? 'awaiting a machine proof — a click cannot green a machine-witness test'
+                      : 'not yet proven';
+
+            // VOUCH — the existing lower-rigor events.attestation mark, intact.
+            const mark = t.human ?? t.machine;
+            const vouchState = mark ? mark.outcome : 'none'; // 'pass' | 'fail' | 'none'
+            const canVouch = isAdmin && vouchState === 'none' && t.witness !== 'machine';
+            const vouchBusy = busy === `vouch:${t.id}`;
             const who = mark
               ? mark.relayedBy
                 ? `${mark.signer} · relayed by ${mark.relayedBy}`
                 : mark.signer
               : null;
-            const flagTitle = mark
-              ? `${mark.witness} attestation — ${mark.outcome}${who ? ` · ${who}` : ''}${mark.note ? ` · ${mark.note}` : ''}`
-              : canFlag
-                ? 'flag green — records that you saw this test work (a signed vouch, never a gate verdict)'
+            const vouchTitle = mark
+              ? `${mark.witness} vouch — ${mark.outcome}${who ? ` · ${who}` : ''}${mark.note ? ` · ${mark.note}` : ''}`
+              : canVouch
+                ? 'flag — record that you also eyeballed this (a vouch, NEVER a gate verdict)'
                 : t.witness === 'machine'
-                  ? 'awaiting a machine run — only an automated attestation flags this one'
-                  : 'no attestation yet';
+                  ? 'awaiting a machine run'
+                  : 'no vouch yet';
+
             return (
-              <tr key={t.id} className={`uat-row state-${state}`}>
-                <td className="uat-flag-cell">
+              <tr key={t.id} className="uat-row">
+                {/* PROVEN — the signed verdict; a clickable "I saw it work" button when signable. */}
+                <td className="uat-proven-cell">
                   <button
                     type="button"
-                    className={`uat-flag state-${state}${canFlag ? ' is-clickable' : ''}`}
-                    disabled={!canFlag || busy === t.id}
-                    onClick={canFlag ? () => void record(t.id) : undefined}
-                    title={flagTitle}
+                    className={`uat-proven proven-${proven ?? 'none'}${canSign ? ' is-signable' : ''}`}
+                    disabled={!canSign || signBusy}
+                    onClick={canSign ? () => void signVerdict(t.id) : undefined}
+                    title={provenTitle}
                     aria-label={
-                      mark
-                        ? `${mark.witness} attestation: ${mark.outcome}`
-                        : `flag ${t.title} as seen working`
+                      proven
+                        ? `${t.title}: ${proven === 'pass' ? 'proven' : 'failed'}`
+                        : canSign
+                          ? `I saw ${t.title} work — sign a verdict`
+                          : `${t.title}: not proven`
                     }
                   >
-                    {busy === t.id ? '…' : mark ? '⚑' : '⚐'}
+                    {signBusy ? '…' : provenGlyph}
                   </button>
                 </td>
                 <td className="uat-test-cell">
                   <span className="uat-test-title">{t.title}</span>
                   {who && (
                     <span className="uat-test-who muted">
-                      {mark?.witness} · {who}
+                      vouch: {mark?.witness} · {who}
                     </span>
                   )}
+                </td>
+                {/* VOUCH — the lower-rigor mark, intact. */}
+                <td className="uat-flag-cell">
+                  <button
+                    type="button"
+                    className={`uat-flag state-${vouchState}${canVouch ? ' is-clickable' : ''}`}
+                    disabled={!canVouch || vouchBusy}
+                    onClick={canVouch ? () => void recordVouch(t.id) : undefined}
+                    title={vouchTitle}
+                    aria-label={mark ? `${mark.witness} vouch: ${mark.outcome}` : `vouch ${t.title}`}
+                  >
+                    {vouchBusy ? '…' : mark ? '⚑' : '⚐'}
+                  </button>
                 </td>
                 <td className="uat-witness-cell muted" title="who may attest this test">
                   {t.witness}
@@ -3239,8 +3314,22 @@ function UatTestsSection({ storyId }: { storyId: string }): React.JSX.Element | 
         </tbody>
       </table>
       <p className="muted attest-note">
-        A vouch, not a gate verdict — recorded in <code>events.attestation</code>, never green-ing
-        the story (ADR-0044).
+        <strong>✓/✗/–</strong> = the SIGNED verdict (<code>events.verdict</code>), which greens the
+        crown; <strong>⚑/⚐</strong> = the lower-rigor vouch (<code>events.attestation</code>), which
+        never does (ADR-0082/ADR-0044).
+        {storyUat !== undefined && (
+          <>
+            {' '}
+            <span className={`uat-story-rollup rollup-${storyUat ?? 'none'}`}>
+              Story UAT:{' '}
+              {storyUat === 'healthy'
+                ? 'GREEN — every test proven'
+                : storyUat === 'unhealthy'
+                  ? 'WITHERED — a proven test failed'
+                  : 'unproven — not every test has a signed pass'}
+            </span>
+          </>
+        )}
       </p>
     </div>
   );
@@ -3258,6 +3347,7 @@ function StoryPanel({
   onSelectCap,
   onHoverCap,
   onSelectSession,
+  onCrownRefresh,
   onClose,
 }: {
   story: TreeStory;
@@ -3271,6 +3361,8 @@ function StoryPanel({
   onSelectCap: (id: string | null) => void;
   onHoverCap: (id: string | null) => void;
   onSelectSession: (sessionId: string) => void;
+  /** Re-pull the world tree after a per-test UAT verdict is signed, so the crown repaints. */
+  onCrownRefresh: () => void;
   onClose: () => void;
 }): React.JSX.Element {
   const layout = useMemo(() => layoutSubdag(story), [story]);
@@ -3532,7 +3624,7 @@ function StoryPanel({
       {/* The per-UAT-test attestation table sits at the FOOT of the drill-down (the last thing
           you read once you've taken in the story + its capability DAG) — a vouch surface, never
           the gate-green hue (ADR-0044). */}
-      <UatTestsSection storyId={story.id} />
+      <UatTestsSection storyId={story.id} onCrownRefresh={onCrownRefresh} />
     </aside>
   );
 }

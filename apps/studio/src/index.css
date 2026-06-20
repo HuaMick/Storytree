@@ -1985,6 +1985,50 @@ mark.st-hl.flash {
   margin: 2px 0 0;
 }
 
+/* The PROVEN column (ADR-0082): the SIGNED verdict (events.verdict) — the REAL gate state that greens
+   the crown, deliberately DISTINCT from the lower-rigor ⚑/⚐ vouch. ✓ GREEN a signed pass, ✗ RED a
+   signed fail, – muted un-proven. A faint, clickable ✓ ("I saw it work") on a human/either test an
+   admin may sign — hover previews the green fill. THIS green IS a proof (unlike the vouch flag). */
+.uat-proven-cell {
+  width: 24px;
+  padding: 5px 0;
+  text-align: center;
+  vertical-align: top;
+}
+.uat-proven {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: default;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--border-strong); /* – un-proven (and the default for a non-signable test) */
+}
+.uat-proven.proven-pass {
+  color: var(--good); /* GREEN — a signed operator-attested pass (this DOES green the crown) */
+}
+.uat-proven.proven-fail {
+  color: var(--danger); /* a signed FAIL verdict */
+}
+.uat-proven.is-signable {
+  cursor: pointer;
+  color: var(--warn); /* amber, faint ✓ — un-proven but you MAY sign "I saw it work" */
+  opacity: 0.7;
+}
+.uat-proven.is-signable:hover {
+  color: var(--good); /* hover previews the green proof */
+  opacity: 1;
+}
+.uat-proven:disabled {
+  cursor: default;
+}
+.uat-story-rollup.rollup-healthy {
+  color: var(--good);
+}
+.uat-story-rollup.rollup-unhealthy {
+  color: var(--danger);
+}
+
 /* capability garden flora — leaves/petals carry the status */
 .garden-flora {
   cursor: pointer;

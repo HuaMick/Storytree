@@ -433,12 +433,36 @@ export interface UatTestRow {
   witness: 'human' | 'machine' | 'either';
   human?: AttestationMark;
   machine?: AttestationMark;
+  /**
+   * The per-test PROVEN state (ADR-0082): the latest SIGNED verdict in `events.verdict` for this
+   * test id — `pass` (✓) / `fail` (✗) / absent (–, never proven). This is the real gate verdict
+   * that greens the story crown (`rollupStoryUat`), DELIBERATELY DISTINCT from the lower-rigor
+   * `human`/`machine` vouch marks above (a vouch is not a proof). Silently absent when the live
+   * store can't answer (json backend / down DB), exactly like the CLI tree's proven glyphs.
+   */
+  proven?: 'pass' | 'fail';
 }
 
-/** GET /api/attestations?storyId=… — a story's UAT tests with their per-test marks. */
+/** GET /api/attestations?storyId=… — a story's UAT tests with their per-test marks + proven state. */
 export interface AttestationsPayload {
   storyId: string;
   tests: UatTestRow[];
+  /**
+   * The story's own UAT roll-up (ADR-0082 d.3): the AND over its per-test SIGNED verdicts —
+   * `healthy` iff every declared test has a signed pass, `unhealthy` if any regressed to a signed
+   * fail, `null` (abstain/under-claim) otherwise. Absent when the live store can't answer.
+   */
+  storyUat?: 'healthy' | 'unhealthy' | null;
+}
+
+/**
+ * POST /api/uat/attest — the result of signing an `operator-attested` UAT verdict (ADR-0082): the
+ * real `events.verdict` row minted (NOT the `events.attestation` vouch), echoed back with the
+ * story's fresh UAT roll-up so the UI can confirm whether the signature greened the crown.
+ */
+export interface UatVerdictResult {
+  verdict: { unitId: string; outcome: 'pass' | 'fail'; signer: string; at: string };
+  storyUat?: 'healthy' | 'unhealthy' | null;
 }
 
 /**

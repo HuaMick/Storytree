@@ -25,7 +25,11 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { UatTest } from '@storytree/library';
-import type { Attestation } from '@storytree/proof-protocol';
+import type { Attestation, Verdict } from '@storytree/proof-protocol';
+// Type-only (fully erased under verbatimModuleSyntax — no runtime import, so it never hits the
+// vite config-load trap the lazy `loadOrchestrator()` below avoids): the sign-time trust guard's
+// shapes, so `buildUatVerdict` can take the real `checkUatProof` as a precisely-typed injection.
+import type { UatProofCheck, UatProofResult } from '@storytree/orchestrator';
 import type {
   AssetCategory,
   Comment,
@@ -600,7 +604,10 @@ export async function handleAttestations(
   req: IncomingMessage,
   res: ServerResponse,
   url: URL,
-  ctx: { paths: Paths; backend: Pick<LibraryBackend, 'listAttestations' | 'recordAttestation'> },
+  ctx: {
+    paths: Paths;
+    backend: Pick<LibraryBackend, 'listAttestations' | 'recordAttestation' | 'verdictEvents'>;
+  },
   caller: string | null,
 ): Promise<void> {
   const method = req.method ?? 'GET';
@@ -608,12 +615,33 @@ export async function handleAttestations(
   if (method === 'GET') {
     const storyId = (url.searchParams.get('storyId') ?? '').trim();
     if (!storyId) throw new HttpError(400, 'storyId query param is required');
-    const [tests, marks] = await Promise.all([
+    const [tests, marks, events] = await Promise.all([
       uatTestsForStory(ctx.paths.storiesDir, storyId),
       ctx.backend.listAttestations(storyId),
+      // The per-test SIGNED-verdict stream (ADR-0082) for the PROVEN state — advisory, same contract
+      // as /api/tree's: `null` for the json backend / a down DB (the proven column then silently
+      // absent), absent on a partial mock (the `?.()`).
+      ctx.backend.verdictEvents?.() ?? Promise.resolve(null),
     ]);
-    const rows = tests.map((t) => ({ ...t, ...(marks[t.id] ?? {}) }));
-    return sendJson(res, 200, { storyId, tests: rows });
+    // The PROVEN state (ADR-0082) is the latest SIGNED verdict in events.verdict — a REAL gate
+    // verdict, DELIBERATELY DISTINCT from the vouch marks (`human`/`machine`). It greens the story
+    // crown via the AND-roll-up; the vouch never does. Derived through the SAME `rollupStatus` /
+    // `rollupStoryUat` compute the CLI tree + the crown roll-up use, so the studio can't drift from it.
+    let provenOf: ((id: string) => 'pass' | 'fail' | undefined) | null = null;
+    let storyUat: 'healthy' | 'unhealthy' | null | undefined;
+    if (events) {
+      const { rollupStatus, rollupStoryUat } = await loadOrchestrator();
+      provenOf = (id) => {
+        const status = rollupStatus(id, events);
+        return status === 'healthy' ? 'pass' : status === 'unhealthy' ? 'fail' : undefined;
+      };
+      storyUat = storyUatRollup(rollupStoryUat(tests, events));
+    }
+    const rows = tests.map((t) => {
+      const proven = provenOf?.(t.id);
+      return { ...t, ...(marks[t.id] ?? {}), ...(proven ? { proven } : {}) };
+    });
+    return sendJson(res, 200, { storyId, tests: rows, ...(storyUat !== undefined ? { storyUat } : {}) });
   }
 
   if (method === 'POST') {
@@ -644,6 +672,153 @@ export async function handleAttestations(
   }
 
   throw new HttpError(405, `method ${method} not allowed`);
+}
+
+// ---------- per-UAT-test operator-attested VERDICT (ADR-0082 — the studio "I saw it work" button) ----------
+//
+// POST /api/uat/attest signs a REAL `operator-attested` verdict into events.verdict — the studio
+// admin's in-UI signature (ADR-0044 §4 deferred, generalized by ADR-0082 to a real green path). This
+// is NOT the lower-rigor events.attestation vouch that POST /api/attestations writes: it is the same
+// signed gate verdict the CLI `uat attest` and a build produce, so it greens the story crown via
+// `rollupStoryUat`. Three honesty walls, all enforced here BEFORE the write, none bypassable:
+//  - the signer is the VERIFIED caller (the IAP identity), never a client-supplied field — a verdict's
+//    signer cannot be forged;
+//  - the sign-time trust guard `checkUatProof` (ADR-0082 d.2) refuses a machine-witness test (a click
+//    cannot stand in for a machine proof) and any agent/`sandbox:` self-attestation;
+//  - the verdict pins the commit the studio is SERVING and must PERSIST — a verdict that does not
+//    land in the live store greens nothing (the json backend refuses, like the CLI's `--pg`).
+// Admin-only by the dispatch gate's method rule (POST, not /api/comments).
+
+/** The story id a `<story>#uat-<n>` test belongs to (the `uat.ts` `storyOf` rule). */
+function uatStoryOf(testId: string): string {
+  const hash = testId.indexOf('#');
+  return hash > 0 ? testId.slice(0, hash) : testId;
+}
+
+/**
+ * Narrow `rollupStoryUat`'s broad `Status` return to the wire's 3-state story-UAT roll-up. The
+ * compute only ever yields healthy/unhealthy/null at runtime (ADR-0082 d.3), but its declared type is
+ * the full status enum; mapping anything-not-green-or-withered to `null` also IS the under-claim
+ * default — the world never over-claims a crown the per-test verdicts don't support.
+ */
+function storyUatRollup(rolled: string | null): 'healthy' | 'unhealthy' | null {
+  return rolled === 'healthy' || rolled === 'unhealthy' ? rolled : null;
+}
+
+/** The fields the verdict builder needs about the test + the observation being signed. */
+export interface UatVerdictInput {
+  test: { id: string; witness: UatTest['witness'] };
+  outcome: 'pass' | 'fail';
+  /** The resolved (verified) operator identity — never client-supplied. */
+  signer: string;
+  /** The commit the studio is serving (what the operator observed) — pins the verdict. */
+  commitSha: string;
+  note?: string;
+  /** ISO sign time (injected so the builder is a pure unit). */
+  at: string;
+}
+
+/**
+ * PURE (ADR-0082): run the sign-time trust guard, then build the `operator-attested` {@link Verdict}
+ * for a UAT test. `check` is injected (the real `checkUatProof`, fed by the test so the studio is held
+ * to the SAME honesty compute as the CLI / the spine) — a `machine`-witness test or an agent/`sandbox:`
+ * signer is REFUSED here, before any verdict exists. Returns the verdict to persist, or the refusal
+ * reason. No I/O, no clock, no store — the HTTP handler wraps it with those.
+ */
+export function buildUatVerdict(
+  input: UatVerdictInput,
+  check: (c: UatProofCheck) => UatProofResult,
+): { ok: true; verdict: Verdict } | { ok: false; reason: string } {
+  const signer = input.signer.trim();
+  const guard = check({ witness: input.test.witness, verdict: { proofMode: 'operator-attested', signer } });
+  if (!guard.ok) return { ok: false, reason: guard.reason };
+  const note = input.note?.trim();
+  const verdict: Verdict = {
+    unitId: input.test.id,
+    proofMode: 'operator-attested',
+    outcome: input.outcome,
+    commitSha: input.commitSha,
+    signer,
+    runId: `studio-uat-attest:${input.at}`,
+    outputVersion: 'v1',
+    evidence: [{ kind: 'operator-attested', ref: signer, ...(note ? { note } : {}) }],
+    at: input.at,
+  };
+  return { ok: true, verdict };
+}
+
+/**
+ * POST /api/uat/attest — sign an operator-attested UAT verdict (see the section header for the three
+ * honesty walls). `caller` is the verified IAP identity (the signer; the open dev posture has none →
+ * the conventional `operator`); `commitSha` is the studio's serving commit (refused if unresolvable).
+ */
+export async function handleUatAttest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  ctx: { paths: Paths; backend: Pick<LibraryBackend, 'signUatVerdict' | 'verdictEvents'> },
+  caller: string | null,
+  commitSha: string | null,
+): Promise<void> {
+  if ((req.method ?? 'GET') !== 'POST') throw new HttpError(405, 'method not allowed');
+  const input = await readJsonBody<Record<string, unknown>>(req);
+  const testId = asString(input.testId).trim();
+  if (!testId) throw new HttpError(400, 'testId is required');
+  const outcome = input.outcome === 'fail' ? 'fail' : 'pass';
+  const note = asString(input.note).trim();
+
+  // The test must be a real DECLARED unit — its witness drives the trust guard. A typo'd id never
+  // signs a verdict against nothing (the CLI `uat attest` posture).
+  const storyId = uatStoryOf(testId);
+  const tests = await uatTestsForStory(ctx.paths.storiesDir, storyId);
+  const test = tests.find((t) => t.id === testId);
+  if (!test) {
+    throw new HttpError(
+      400,
+      tests.length === 0
+        ? `no UAT test "${testId}" — story "${storyId}" declares no UAT tests (or its spec did not load)`
+        : `no UAT test "${testId}" in story "${storyId}"; declared: ${tests.map((t) => t.id).join(', ')}`,
+    );
+  }
+
+  // HONESTY WALL: the signer is the VERIFIED caller — NEVER `input.signer` (a verdict's signer is not
+  // forgeable). The open dev posture (no policy → no caller) stamps the conventional local operator,
+  // exactly like handleComments / handleAttestations.
+  const signer = caller ?? 'operator';
+
+  // HONESTY WALL: the verdict pins the commit the studio is serving. Unresolvable (no git HEAD and no
+  // deploy stamp) → refuse — a verdict must pin a real commit (fail-closed).
+  if (!commitSha) {
+    throw new HttpError(
+      422,
+      "could not resolve the studio's serving commit to pin the verdict (no git HEAD / STORYTREE_STUDIO_COMMIT)",
+    );
+  }
+
+  // HONESTY WALL: the sign-time trust guard (checkUatProof) — refuse a machine-witness test / an
+  // agent self-attestation BEFORE any write. The compute is the orchestrator's single source.
+  const { checkUatProof, rollupStoryUat } = await loadOrchestrator();
+  const built = buildUatVerdict(
+    { test, outcome, signer, commitSha, ...(note ? { note } : {}), at: new Date().toISOString() },
+    checkUatProof,
+  );
+  if (!built.ok) throw new HttpError(422, `refused — ${built.reason}`);
+
+  // HONESTY WALL: the write must persist (a verdict that evaporates greens nothing). The json backend
+  // has no events.verdict — refuse, mirroring the CLI's `--pg`-only `uat attest`.
+  if (!ctx.backend.signUatVerdict) {
+    throw new HttpError(503, 'signing a UAT verdict needs the live store (pg) — bring the DB up (pnpm db:up)');
+  }
+  const saved = await ctx.backend.signUatVerdict(built.verdict, signer);
+
+  // Echo the story's fresh UAT roll-up so the UI can confirm whether this signature greened the crown
+  // (ADR-0082 d.3 — the AND over every declared per-test verdict). Best-effort: absent if the backend
+  // has no verdict-event read.
+  const events = (await ctx.backend.verdictEvents?.()) ?? null;
+  const storyUat = events ? storyUatRollup(rollupStoryUat(tests, events)) : undefined;
+  sendJson(res, 201, {
+    verdict: { unitId: saved.unitId, outcome: saved.outcome, signer: saved.signer, at: saved.at },
+    ...(storyUat !== undefined ? { storyUat } : {}),
+  });
 }
 
 // ---------- story tree (read-only, live from <repo>/stories) ----------
@@ -999,6 +1174,14 @@ export async function handleApiRequest(
       // GET is member-readable; POST is admin-only by the gate's method rule. The signer is the
       // verified caller (stamped, can't be forged); the open dev posture has no caller (null).
       await handleAttestations(req, res, url, ctx, ctx.policy?.me.email ?? null);
+    } else if (url.pathname === '/api/uat/attest') {
+      // The studio "I saw it work" in-UI signature (ADR-0082): mints a REAL operator-attested verdict
+      // in events.verdict (NOT the events.attestation vouch). Admin-only by the gate's method rule
+      // (POST, not /api/comments). The signer is the verified caller; the commit is the one the studio
+      // is serving (codeStamp's start HEAD) or a deploy-time STORYTREE_STUDIO_COMMIT — refused if neither.
+      const stamp = await ctx.codeStamp();
+      const commitSha = process.env['STORYTREE_STUDIO_COMMIT'] ?? stamp?.startedAt ?? null;
+      await handleUatAttest(req, res, ctx, ctx.policy?.me.email ?? null, commitSha);
     } else {
       throw new HttpError(404, 'unknown endpoint');
     }
