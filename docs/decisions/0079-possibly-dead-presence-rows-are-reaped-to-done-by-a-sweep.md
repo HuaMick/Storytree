@@ -1,14 +1,15 @@
 ---
-status: proposed
+status: accepted
+decided: 2026-06-20
 amends: [41]
 ---
 # ADR-0079: Possibly-dead presence rows are reaped to done by a sweep
 
 ## Status
 
-proposed (2026-06-20) — a session found 19 `status:active` presence rows that all classify
-`possibly-dead` (oldest 146 h) polluting the `events.session` roster, cleaned them up, and
-proposes this sweep so they stop accumulating. **Amends [ADR-0041](0041-possibly-dead-wisps-park-in-the-dock.md)**:
+accepted (2026-06-20, owner) — a session found 19 `status:active` presence rows that all classify
+`possibly-dead` (oldest 146 h) polluting the `events.session` roster, cleaned them up, and landed
+this sweep so they stop accumulating (PR #264). **Amends [ADR-0041](0041-possibly-dead-wisps-park-in-the-dock.md)**:
 it enacts the data-side janitor ADR-0041 §"Known, accepted limitation" reserved for exactly
 this condition, and narrows ADR-0041 Decision 2 (possibly-dead rows no longer park in the dock
 *forever* — they are retired after the possibly-dead threshold). It *applies* — does not change —
