@@ -15,7 +15,7 @@ depends_on: [library-schema-and-write-validation]
 
 **Depends on —** [`library-schema-and-write-validation`](library-schema-and-write-validation.md)
 
-> **Proof status (honest) — `mapped` (real passing offline tests, observational; NOT `healthy`).** The full suite `packages/library/src/migrations.test.ts` is REAL and passing — I ran it (part of the `@storytree/library` suite, 99 pass + 1 live-gated skip). It observationally verifies the upcaster + the `upcastAndValidate` seam offline. But storytree's prove-it-gate (`packages/orchestrator/src/prove-it-gate.ts`) did NOT drive it red→green, so this is brownfield `mapped`, not `healthy`. One contract (`upcast-skips-already-migrated`) is a **would-be** test: the `m.version > v` skip guard is only exercised transitively (via idempotency), never by an isolated assertion of the skip.
+> **Proof status (honest) — `mapped` (real passing offline tests, observational; NOT `healthy`).** The full suite `packages/library/src/migrations.test.ts` is REAL and passing — I ran it (part of the `@storytree/library` suite, 99 pass + 1 live-gated skip). It observationally verifies the upcaster + the `upcastAndValidate` seam offline. But storytree's prove-it-gate (`packages/orchestrator/src/prove-it-gate.ts`) did NOT drive it red→green, so this is brownfield `mapped`, not `healthy`. One contract (`upcast-skips-already-migrated`) is a **would-be** test: the `m.version > v` skip guard is only exercised transitively (a v1-pinned doc skips migration #1 while #2 applies, but #1 is a no-op on those fixtures), never by an isolated assertion of the skip.
 
 ## Guidance
 
@@ -34,7 +34,7 @@ The integration test exercises this capability against its **real in-story colla
 The test-proven leaf behaviours — each **one isolated automated test** with collaborators stubbed (ADR-0002). Where a REAL passing test exists, a `proven by` line cites it; otherwise the contract is a would-be test.
 
 1. **`upcast-drops-retired-and-stamps`** — Upcasting a v0 structured unit drops the retired field and stamps the version
-   - **asserts —** `upcast` on a v0 `definition` with stray `seeAlso` returns it without `seeAlso`, `schemaVersion === CURRENT_SCHEMA_VERSION` (1), and the result then passes `validateLibraryDoc`.
+   - **asserts —** `upcast` on a v0 `definition` with stray `seeAlso` returns it without `seeAlso`, `schemaVersion === CURRENT_SCHEMA_VERSION` (2), and the result then passes `validateLibraryDoc`.
    - **covers —** `packages/library/src/migrations.ts:52-97,117-128`
    - **proven by —** `packages/library/src/migrations.test.ts:47-55` (REAL, passing)
 2. **`upcast-idempotent`** — Upcast is idempotent
@@ -56,4 +56,4 @@ The test-proven leaf behaviours — each **one isolated automated test** with co
 6. **`upcast-skips-already-migrated`** — A migration whose version <= the doc's pin is not re-applied
    - **asserts —** Given a doc already at version N, `upcast` applies no `up()` for any `m.version <= N` (the `m.version > v` guard), in isolation.
    - **covers —** `packages/library/src/migrations.ts:121-126`
-   - **would-be test —** only transitively exercised today (via idempotency); no isolated assertion of the `m.version <= N` skip exists.
+   - **would-be test —** only transitively exercised today (the idempotency tests re-skip both migrations, and a v1-pinned agent doc skips migration #1 while #2 applies — but #1 is a no-op on those fixtures, so removing the `m.version > v` guard fails no test); no isolated assertion of the `m.version <= N` skip exists.
