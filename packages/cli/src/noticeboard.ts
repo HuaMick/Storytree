@@ -3,7 +3,7 @@
  *
  * Sub-commands: (undefined) = board, "declare", "done".
  * Every handler returns an `Envelope` — testable without a terminal.
- * DO NOT import from @storytree/store — the seam keeps this module offline-testable.
+ * DO NOT import from any organism's `/store` subpath — the seam keeps this module offline-testable.
  */
 import { execFileSync } from "node:child_process";
 

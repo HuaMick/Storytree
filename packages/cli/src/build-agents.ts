@@ -15,7 +15,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { InMemoryStore } from "@storytree/base";
-import { loadCorpus } from "@storytree/store";
+import { loadCorpus } from "@storytree/library/store";
 
 import { delegatableAgentIds, renderAgentFile } from "./agents.js";
 

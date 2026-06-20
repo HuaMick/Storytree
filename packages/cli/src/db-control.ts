@@ -8,8 +8,8 @@
 // The core decision flow `ensureDbUp` takes its effects as INJECTED deps (probe/start/sleep/now), so it
 // is unit-tested with a fake clock and no real DB or REST; `ensureLiveDb` wires the real effects.
 
-import { closePool, createAdcCloudSqlAdmin, createPool } from "@storytree/store";
-import type { InstanceStatus, PoolHandle } from "@storytree/store";
+import { closePool, createAdcCloudSqlAdmin, createPool } from "@storytree/library/store";
+import type { InstanceStatus, PoolHandle } from "@storytree/library/store";
 
 /** The Cloud SQL instance the storytree work tables live on (mirrors `pnpm db:up`, ADR-0015). */
 const DB_INSTANCE = "storytree-pg";

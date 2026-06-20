@@ -18,7 +18,6 @@
     "@storytree/library": "workspace:*",
     "@storytree/notice-board": "workspace:*",
     "@storytree/orchestrator": "workspace:*",
-    "@storytree/store": "workspace:*",
     "@storytree/studio-members": "workspace:*",
     "@storytree/verdict-contract": "workspace:*",
     "react": "^19.1.1",

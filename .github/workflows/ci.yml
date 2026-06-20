@@ -105,7 +105,7 @@ jobs:
 
       # The only buildable target is apps/studio (`vite build`); the packages
       # export raw TS and have no build step. studio's `vite build` used to fail
-      # because its dev API pulled the Node-only @storytree/store into config load;
+      # because its dev API pulled the Node-only store substrate into config load;
       # that store import is now lazy, so the gate verifies the client build too.
       - name: Build
         run: pnpm -r build
@@ -203,9 +203,10 @@ jobs:
           STORYTREE_DB_USER: storytree-ci-presence@storytree-498613.iam
           STORYTREE_MERGED_HEAD_REF: ${{ github.event.pull_request.head.ref }}
           STORYTREE_MERGED_AT: ${{ steps.merge_stamp.outputs.at }}
-        # Package-scoped exec resolves the workspace's pinned tsx (a @storytree/store devDep) —
+        # Package-scoped exec resolves the workspace's pinned tsx (a @storytree/notice-board devDep) —
         # `npx tsx` from root would download tsx fresh (no root .bin in this pnpm workspace).
-        run: pnpm --filter @storytree/store exec tsx src/ingest-merge.ts
+        # ADR-0077: the merge-ingest writer moved into the notice-board organism's ./store subpath.
+        run: pnpm --filter @storytree/notice-board exec tsx src/store/ingest-merge.ts
 
       # -----------------------------------------------------------------------
       # CD trigger for auto-merged studio changes (ADR-0061, amends ADR-0046).

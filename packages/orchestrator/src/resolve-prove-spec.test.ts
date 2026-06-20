@@ -227,21 +227,22 @@ test("the declare-presence entry is REAL-buildable with install (zod import) and
 test("the presence-store entry is REAL-buildable with install (core import) and real walls", () => {
   const real = lookupNodeBuildConfig("presence-store")?.real;
   assert.ok(real !== undefined);
-  assert.equal(real.testFile, "packages/store/src/presence-store.test.ts");
-  assert.equal(real.sourceFile, "packages/store/src/presence-store.ts");
+  // ADR-0077: the presence drawer moved into @storytree/notice-board's node-only ./store subpath.
+  assert.equal(real.testFile, "packages/notice-board/src/store/presence-store.test.ts");
+  assert.equal(real.sourceFile, "packages/notice-board/src/store/presence-store.ts");
   assert.equal(real.install, true);
   assert.deepEqual(real.typecheck, {
     file: "pnpm",
-    args: ["--filter", "@storytree/store", "typecheck"],
+    args: ["--filter", "@storytree/notice-board", "typecheck"],
   });
   const scope = new PathWriteScope(real.scope);
   assert.equal(scope.isWriteAllowed("AUTHOR_TEST", real.testFile), true);
   assert.equal(scope.isWriteAllowed("AUTHOR_TEST", real.sourceFile), false);
   assert.equal(scope.isWriteAllowed("IMPLEMENT", real.sourceFile), true);
   assert.equal(scope.isWriteAllowed("IMPLEMENT", real.testFile), false);
-  // Neither the DDL (spine work, already at HEAD) nor sibling stores are reachable.
-  assert.equal(scope.isWriteAllowed("IMPLEMENT", "packages/store/src/schema.sql"), false);
-  assert.equal(scope.isWriteAllowed("IMPLEMENT", "packages/store/src/pg-comment-store.ts"), false);
+  // Neither sibling notice-board drawers nor unrelated source are reachable.
+  assert.equal(scope.isWriteAllowed("IMPLEMENT", "packages/notice-board/src/store/ingest-merge.ts"), false);
+  assert.equal(scope.isWriteAllowed("IMPLEMENT", "packages/notice-board/src/presence.ts"), false);
 });
 
 test("the noticeboard-cli entry is REAL-buildable with install and walls excluding the dispatch", () => {

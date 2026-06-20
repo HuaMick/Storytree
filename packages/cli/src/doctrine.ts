@@ -1,5 +1,5 @@
 import type { Store } from "@storytree/base";
-import { renderStoredDoc } from "@storytree/store";
+import { renderStoredDoc } from "@storytree/library/store";
 
 /**
  * Render a doctrine POINTER line from a Library artifact — the choose-your-own-adventure CLI

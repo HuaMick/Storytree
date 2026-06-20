@@ -16,7 +16,9 @@ import {
 
 // A miniature world mirroring the real ONE-class ownership (ADR-0075: the substrate class is gone —
 // the ports base/verdict-contract are ordinary ROOT organisms, with `foundational` a SUBSET carrying
-// the minimality rule, not a separate class).
+// the minimality rule, not a separate class). The `@storytree/store` package was DISSOLVED (ADR-0077):
+// its substrate + drawers moved into the owning organisms' node-only `./store` subpaths, so it is no
+// longer a package here. The cli is the sole remaining hub organism.
 const ownership: Ownership = {
   organisms: {
     "@storytree/library": "library",
@@ -24,7 +26,6 @@ const ownership: Ownership = {
     "@storytree/agent": "drive-machinery",
     "@storytree/notice-board": "notice-board",
     "@storytree/studio-members": "studio-members",
-    "@storytree/store": "store",
     "@storytree/cli": "cli",
     "@storytree/base": "base",
     "@storytree/verdict-contract": "verdict-contract",
@@ -41,7 +42,6 @@ const storyGraph: Record<string, string[]> = {
   "drive-machinery": ["library", "base", "verdict-contract"],
   "notice-board": ["library", "drive-machinery"],
   "studio-members": ["library"],
-  store: ["library", "notice-board", "studio-members", "base", "verdict-contract"],
   cli: [],
 };
 
@@ -51,13 +51,15 @@ const consumedBy: Record<string, string[]> = {
   "drive-machinery": ["cli"],
   library: ["cli"],
   "notice-board": ["cli"],
-  store: ["cli"],
   base: ["cli"],
   "verdict-contract": ["cli"],
 };
 
 // The real runtime @storytree/* dependency graph (each package.json `dependencies`; devDeps —
-// e.g. store→orchestrator parity, verdict-contract→library parity — excluded by the caller).
+// e.g. verdict-contract→library parity — excluded by the caller). With the store package dissolved
+// (ADR-0077) its drawers now live with the owning organisms, so the persistence runtime deps it used
+// to carry (base / notice-board / studio-members / verdict-contract) belong to those organisms; the
+// cli consumes the new `./store` subpaths but those are the same packages it already depends on.
 const realPackageDeps: Record<string, string[]> = {
   "@storytree/verdict-contract": [],
   "@storytree/base": ["@storytree/verdict-contract"], // foundational → foundational ✓
@@ -71,28 +73,19 @@ const realPackageDeps: Record<string, string[]> = {
   "@storytree/agent": [],
   "@storytree/notice-board": [],
   "@storytree/studio-members": [],
-  "@storytree/store": [
-    "@storytree/base", // store depends_on base ✓
-    "@storytree/library", // store depends_on library ✓
-    "@storytree/notice-board", // store depends_on notice-board ✓
-    "@storytree/studio-members", // store depends_on studio-members ✓
-    "@storytree/verdict-contract", // store depends_on verdict-contract ✓
-  ],
   "@storytree/cli": [
     "@storytree/agent", // cli → drive-machinery: covered by drive-machinery.consumed_by ✓
     "@storytree/base", // covered by base.consumed_by ✓
     "@storytree/library", // covered by library.consumed_by ✓
     "@storytree/notice-board", // covered by notice-board.consumed_by ✓
     "@storytree/orchestrator", // cli → drive-machinery ✓
-    "@storytree/store", // covered by store.consumed_by ✓
     "@storytree/verdict-contract", // covered by verdict-contract.consumed_by ✓
   ],
 };
 
 test("classOf treats every package (ports included) as an organism; null when unknown", () => {
   assert.equal(classOf("@storytree/library", ownership), "organism");
-  assert.equal(classOf("@storytree/store", ownership), "organism"); // a hub is an organism
-  assert.equal(classOf("@storytree/cli", ownership), "organism");
+  assert.equal(classOf("@storytree/cli", ownership), "organism"); // the hub is an organism
   assert.equal(classOf("@storytree/base", ownership), "organism"); // ADR-0075: a port is an organism too
   assert.equal(classOf("@storytree/verdict-contract", ownership), "organism");
   assert.equal(classOf("@storytree/mystery", ownership), null);
@@ -153,34 +146,34 @@ test("ADR-0075: an organism→PORT edge is allowed only when DECLARED (no port e
   assert.ok(violations.every((v) => /undeclared cross-story coupling/.test(v)), violations.join("\n"));
 });
 
-test("a planted UNDECLARED hub edge — an organism importing @storytree/store — is caught", () => {
-  // library reaches into persistence with no declaration on either endpoint.
+test("a planted UNDECLARED cross-organism edge — library importing notice-board — is caught", () => {
+  // library reaches into another organism with no declaration on either endpoint.
   const packageDeps = {
     ...realPackageDeps,
-    "@storytree/library": ["@storytree/store", "@storytree/verdict-contract"],
+    "@storytree/library": ["@storytree/notice-board", "@storytree/verdict-contract"],
   };
   const { violations } = checkBoundaries({ ownership, packageDeps, storyGraph, consumedBy });
   assert.equal(violations.length, 1, violations.join("\n"));
   assert.match(violations[0]!, /undeclared cross-story coupling/);
-  assert.match(violations[0]!, /library.*store/);
+  assert.match(violations[0]!, /library.*notice-board/);
   // The fix-pointing message names BOTH declaration sites (consumer depends_on / provider consumed_by).
   assert.match(violations[0]!, /depends_on/);
   assert.match(violations[0]!, /consumed_by/);
 });
 
 test("an undeclared edge passes once it is DECLARED on an endpoint", () => {
-  // A fresh top-level consumer `@storytree/report` that store does not reach (so no cycle).
+  // A fresh top-level consumer `@storytree/report` that studio-members does not reach (so no cycle).
   const withReport: Ownership = {
     organisms: { ...ownership.organisms, "@storytree/report": "report" },
     foundational: ownership.foundational,
   };
-  const packageDeps = { "@storytree/report": ["@storytree/store"] };
+  const packageDeps = { "@storytree/report": ["@storytree/studio-members"] };
   // Undeclared → caught.
   const red = checkBoundaries({ ownership: withReport, packageDeps, storyGraph, consumedBy });
   assert.equal(red.violations.length, 1);
   assert.match(red.violations[0]!, /undeclared cross-story coupling/);
-  // Declared consumer-side → green (no cycle: store never reaches report).
-  const declared = { ...storyGraph, report: ["store"] };
+  // Declared consumer-side → green (no cycle: studio-members never reaches report).
+  const declared = { ...storyGraph, report: ["studio-members"] };
   const green = checkBoundaries({
     ownership: withReport,
     packageDeps,
@@ -190,19 +183,18 @@ test("an undeclared edge passes once it is DECLARED on an endpoint", () => {
   assert.deepEqual(green.violations, [], green.violations.join("\n"));
 });
 
-test("a store→organism edge needs a declaration too (the hub is enforced, not exempt)", () => {
-  // store importing studio-members with the declaration removed → caught.
-  const packageDeps = { "@storytree/store": ["@storytree/studio-members"] };
-  const noStoreDecls = { ...storyGraph, store: [] }; // drop store.depends_on: [..., studio-members]
+test("a studio-members→organism edge needs a declaration too (no organism is exempt)", () => {
+  // studio-members importing notice-board with no declaration → caught.
+  const packageDeps = { "@storytree/studio-members": ["@storytree/notice-board"] };
   const { violations } = checkBoundaries({
     ownership,
     packageDeps,
-    storyGraph: noStoreDecls,
+    storyGraph,
     consumedBy,
   });
   assert.equal(violations.length, 1);
   assert.match(violations[0]!, /undeclared cross-story coupling/);
-  assert.match(violations[0]!, /store.*studio-members/);
+  assert.match(violations[0]!, /studio-members.*notice-board/);
 });
 
 test("a foundational port depending on a non-foundational organism is rejected (ADR-0075 minimality)", () => {
@@ -223,10 +215,11 @@ test("a foundational→foundational edge is fine (base → verdict-contract)", (
 });
 
 test("a foundational port reaching a browser-unsafe organism cannot pass: declared ⇒ cycle", () => {
-  // base → store, declared (base.depends_on store). store already depends_on base → a cycle. So the
-  // browser-safety floor holds even via acyclicity, not just the minimality rule.
-  const packageDeps = { "@storytree/base": ["@storytree/store", "@storytree/verdict-contract"] };
-  const declared = { ...storyGraph, base: ["verdict-contract", "store"] };
+  // base → library, declared (base.depends_on library). library already depends_on
+  // verdict-contract... but to force a cycle: declare library → base. base → library + library → base
+  // is a cycle. So the browser-safety floor holds even via acyclicity, not just the minimality rule.
+  const packageDeps = { "@storytree/base": ["@storytree/library", "@storytree/verdict-contract"] };
+  const declared = { ...storyGraph, base: ["verdict-contract", "library"], library: ["verdict-contract", "base"] };
   const { violations } = checkBoundaries({ ownership, packageDeps, storyGraph: declared, consumedBy });
   assert.ok(violations.some((v) => /cycle/.test(v)), violations.join("\n"));
 });
@@ -307,32 +300,32 @@ test("extractImports covers static / type / side-effect / dynamic / re-export, w
   const src = [
     `import { a } from "@storytree/library";`,
     `import type { B } from "@storytree/base";`,
-    `import * as ns from "../../store/src/x.js";`,
+    `import * as ns from "../../orchestrator/src/x.js";`,
     `import "./side-effect.js";`,
     `export { c } from "@storytree/notice-board";`,
     `export type { D } from "@storytree/verdict-contract";`,
     `const m = await import("@storytree/agent");`,
-    `import { value, type T } from "@storytree/store";`,
+    `import { value, type T } from "@storytree/studio-members";`,
   ].join("\n");
   const got = extractImports(src);
   const find = (s: string): { specifier: string; typeOnly: boolean } | undefined =>
     got.find((g) => g.specifier === s);
   assert.equal(find("@storytree/library")?.typeOnly, false);
   assert.equal(find("@storytree/base")?.typeOnly, true);
-  assert.ok(find("../../store/src/x.js"));
+  assert.ok(find("../../orchestrator/src/x.js"));
   assert.ok(find("./side-effect.js"));
   assert.equal(find("@storytree/notice-board")?.typeOnly, false);
   assert.equal(find("@storytree/verdict-contract")?.typeOnly, true);
   assert.ok(find("@storytree/agent")); // dynamic import
-  assert.equal(find("@storytree/store")?.typeOnly, false); // inline `type T` is NOT a type-only import
+  assert.equal(find("@storytree/studio-members")?.typeOnly, false); // inline `type T` is NOT a type-only import
 });
 
 test("isTestScaffolding flags test files + parity suites, not ordinary source", () => {
-  assert.equal(isTestScaffolding("packages/store/src/pg-work-store.test.ts"), true);
-  assert.equal(isTestScaffolding("packages/store/src/pg-change-store.live.test.ts"), true);
+  assert.equal(isTestScaffolding("packages/orchestrator/src/store/pg-work-store.test.ts"), true);
+  assert.equal(isTestScaffolding("packages/orchestrator/src/store/pg-change-store.live.test.ts"), true);
   assert.equal(isTestScaffolding("packages/base/src/store-parity.ts"), true);
   assert.equal(isTestScaffolding("packages/orchestrator/src/proof/rollup-parity.ts"), true);
-  assert.equal(isTestScaffolding("packages/store/src/pg-store.ts"), false);
+  assert.equal(isTestScaffolding("packages/orchestrator/src/store/pg-work-store.ts"), false);
 });
 
 test("Gap A': the scan catches a planted cross-package RELATIVE import", () => {
@@ -340,13 +333,13 @@ test("Gap A': the scan catches a planted cross-package RELATIVE import", () => {
     {
       importer: "@storytree/orchestrator",
       file: "packages/orchestrator/src/sequence.ts",
-      specifier: "../../store/src/pg-store.js", // reaches into another package by path
+      specifier: "../../library/src/store/pg-store.js", // reaches into another package by path
       typeOnly: false,
     },
   ]);
   assert.equal(v.length, 1, v.join("\n"));
   assert.match(v[0]!, /cross-package relative import/);
-  assert.match(v[0]!, /@storytree\/store/); // points at the barrel to use
+  assert.match(v[0]!, /@storytree\/library/); // points at the barrel to use
 });
 
 test("Gap A': a type-only relative escape is still caught (the barrel must be used regardless)", () => {
@@ -377,12 +370,12 @@ test("a relative import that stays in-package is fine (incl. across subdirs)", (
 });
 
 test("Gap B': the scan catches a planted devDep-only RUNTIME @storytree import", () => {
-  // store value-imports orchestrator from a runtime (non-test) file; orchestrator is only store's
-  // devDependency, so the package.json dep-graph rule never sees it.
+  // studio-members value-imports orchestrator from a runtime (non-test) file; orchestrator is only
+  // studio-members's devDependency, so the package.json dep-graph rule never sees it.
   const v = sourceOnly([
     {
-      importer: "@storytree/store",
-      file: "packages/store/src/pg-store.ts",
+      importer: "@storytree/studio-members",
+      file: "packages/studio-members/src/store/pg-user-store.ts",
       specifier: "@storytree/orchestrator",
       typeOnly: false,
     },
@@ -396,8 +389,8 @@ test("Gap B': a type-only cross-package import is NOT flagged (erased, not a run
   assert.deepEqual(
     sourceOnly([
       {
-        importer: "@storytree/store",
-        file: "packages/store/src/pg-store.ts",
+        importer: "@storytree/studio-members",
+        file: "packages/studio-members/src/store/pg-user-store.ts",
         specifier: "@storytree/orchestrator",
         typeOnly: true,
       },
@@ -440,11 +433,11 @@ test("the scan does NOT flag test-file / parity reuse (the real devDep parity sc
   // These are exactly the existing sanctioned reuses (ADR-0010 §5): they MUST stay green.
   assert.deepEqual(
     sourceOnly([
-      // store's test reuses orchestrator's parity suite (the real store→orchestrator devDep).
+      // orchestrator's store test reuses a parity suite across the boundary.
       {
-        importer: "@storytree/store",
-        file: "packages/store/src/pg-work-store.test.ts",
-        specifier: "@storytree/orchestrator",
+        importer: "@storytree/orchestrator",
+        file: "packages/orchestrator/src/store/pg-work-store.test.ts",
+        specifier: "@storytree/base",
         typeOnly: false,
       },
       // verdict-contract's parity test imports library (the real verdict-contract↔library devDep).
@@ -478,38 +471,38 @@ test("the scan ignores type-only, same-package, and bare-external specifiers", (
       },
       // same package.
       {
-        importer: "@storytree/store",
-        file: "packages/store/src/pg-store.ts",
-        specifier: "@storytree/store",
+        importer: "@storytree/library",
+        file: "packages/library/src/store/pg-store.ts",
+        specifier: "@storytree/library",
         typeOnly: false,
       },
       // bare externals.
       {
-        importer: "@storytree/store",
-        file: "packages/store/src/pg-store.ts",
+        importer: "@storytree/library",
+        file: "packages/library/src/store/pg-store.ts",
         specifier: "node:crypto",
         typeOnly: false,
       },
-      { importer: "@storytree/store", file: "packages/store/src/pg-store.ts", specifier: "pg", typeOnly: false },
+      { importer: "@storytree/library", file: "packages/library/src/store/pg-store.ts", specifier: "pg", typeOnly: false },
       // a same-package relative import.
-      { importer: "@storytree/store", file: "packages/store/src/pg-store.ts", specifier: "./connection.js", typeOnly: false },
+      { importer: "@storytree/library", file: "packages/library/src/store/pg-store.ts", specifier: "./connection.js", typeOnly: false },
     ]),
     [],
   );
 });
 
 test("a runtime @storytree import backed by a declared dependency is NOT flagged", () => {
-  // store value-imports library and library IS a runtime dep + a declared cross-story edge.
+  // library value-imports verdict-contract and verdict-contract IS a runtime dep + a declared edge.
   const { violations } = checkBoundaries({
     ownership,
-    packageDeps: { "@storytree/store": ["@storytree/library"] },
-    storyGraph: { store: ["library"] },
+    packageDeps: { "@storytree/library": ["@storytree/verdict-contract"] },
+    storyGraph: { library: ["verdict-contract"] },
     consumedBy: {},
     sourceImports: [
       {
-        importer: "@storytree/store",
-        file: "packages/store/src/pg-store.ts",
-        specifier: "@storytree/library",
+        importer: "@storytree/library",
+        file: "packages/library/src/store/pg-store.ts",
+        specifier: "@storytree/verdict-contract",
         typeOnly: false,
       },
     ],
@@ -520,11 +513,11 @@ test("a runtime @storytree import backed by a declared dependency is NOT flagged
 test("a representative clean set of real source imports adds zero source violations", () => {
   const sourceImports: SourceImport[] = [
     { importer: "@storytree/cli", file: "packages/cli/src/commands.ts", specifier: "@storytree/orchestrator", typeOnly: false }, // cli dep ✓
-    { importer: "@storytree/store", file: "packages/store/src/pg-store.ts", specifier: "@storytree/library", typeOnly: false }, // store dep ✓
+    { importer: "@storytree/library", file: "packages/library/src/store/pg-store.ts", specifier: "@storytree/verdict-contract", typeOnly: false }, // library dep ✓
     { importer: "@storytree/library", file: "packages/library/src/schema.ts", specifier: "@storytree/verdict-contract", typeOnly: false }, // declared port dep ✓
-    { importer: "@storytree/store", file: "packages/store/src/pg-work-store.test.ts", specifier: "@storytree/orchestrator", typeOnly: false }, // test scaffolding ✓
+    { importer: "@storytree/orchestrator", file: "packages/orchestrator/src/store/pg-work-store.test.ts", specifier: "@storytree/base", typeOnly: false }, // test scaffolding ✓
     { importer: "@storytree/orchestrator", file: "packages/orchestrator/src/proof/signer.ts", specifier: "../anchor-compute.js", typeOnly: false }, // in-package ✓
-    { importer: "@storytree/store", file: "packages/store/src/pg-store.ts", specifier: "node:crypto", typeOnly: false }, // external ✓
+    { importer: "@storytree/library", file: "packages/library/src/store/pg-store.ts", specifier: "node:crypto", typeOnly: false }, // external ✓
   ];
   const { violations } = checkBoundaries({
     ownership,

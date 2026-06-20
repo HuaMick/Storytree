@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { InMemoryStore } from "@storytree/base";
 import type { Store } from "@storytree/base";
 import type { SdkCuratorArgs, SdkCuratorResult } from "@storytree/agent";
-import type { Comment } from "@storytree/store";
+import type { Comment } from "@storytree/library/store";
 
 import {
   CURATOR_ACTOR,

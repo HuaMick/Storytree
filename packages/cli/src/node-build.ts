@@ -43,10 +43,10 @@ import {
   closePool,
   createPool,
   loadCorpus,
-  PgPresenceStore,
-  PgWorkStore,
   TEST_DB_ENV,
-} from "@storytree/store";
+} from "@storytree/library/store";
+import { PgPresenceStore } from "@storytree/notice-board/store";
+import { PgWorkStore } from "@storytree/orchestrator/store";
 
 import { renderAgentPrompt } from "./agents.js";
 import { withPresence } from "./ambient-presence.js";
@@ -330,7 +330,7 @@ export const DEFAULT_TEST_DB_NAME = "storytree_test";
 /**
  * Compute the isolated test-DB env a `real.db:true` proof spawns with (ADR-0064). The DB name is
  * `STORYTREE_DB_NAME` (an operator override) or the canonical {@link DEFAULT_TEST_DB_NAME}, and is
- * ASSERTED non-production via `@storytree/store`'s {@link assertTestDatabase} — the FIRST honesty
+ * ASSERTED non-production via `@storytree/library/store`'s {@link assertTestDatabase} — the FIRST honesty
  * wall (the orchestrator's `resolveReal` repeats the check independently as the second). Fail-closed:
  * a prod/blank name refuses the build before any worktree is cut. `STORYTREE_DB_USER` (keyless IAM,
  * hydrated from secrets) is carried through when present so the worktree proof can authenticate.

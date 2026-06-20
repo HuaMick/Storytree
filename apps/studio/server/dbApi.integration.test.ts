@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import type { CloudSqlAdmin } from '@storytree/store';
+import type { CloudSqlAdmin } from '@storytree/library/store';
 import { handleDb } from './dbControl';
 import { HttpError } from './httpUtil';
 

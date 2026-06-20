@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import type { StoredDoc } from "@storytree/base";
 import type { NodeSpec } from "@storytree/orchestrator";
-import type { Comment } from "@storytree/store";
+import type { Comment } from "@storytree/library/store";
 
 import { classifyOpenQuestions, oqHygieneGate } from "./oq-gate.js";
 

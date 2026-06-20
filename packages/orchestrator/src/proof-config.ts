@@ -101,8 +101,8 @@ export interface RealProofConfig {
   /**
    * DB-backed proof (ADR-0064): the node's proof needs a live Postgres connection (a store/pg
    * adapter), so the spine provisions an ISOLATED test-database connection for the worktree proof.
-   * REQUIRES `install: true` — the proof imports `@storytree/store` / `pg` / the Cloud SQL connector
-   * from node_modules, which a bare (no-install) worktree does not have. Honesty wall (reuses
+   * REQUIRES `install: true` — the proof imports a `@storytree/<organism>/store` subpath / `pg` / the
+   * Cloud SQL connector from node_modules, which a bare (no-install) worktree does not have. Honesty wall (reuses
    * ADR-0054): the spine FORCES `STORYTREE_DB_NAME` in the proof's env to a DISPOSABLE test database
    * and refuses a prod/blank name, so a db-backed proof can NEVER touch production — even if the
    * parent env points at it. The leaf still authors ONLY `testFile`->`sourceFile` and can write
@@ -191,12 +191,12 @@ const RealProofConfigSchema = z
       "flags — a leading `-` is refused (the spine controls the `pnpm add` flags, ADR-0064 §2).",
     path: ["addDeps"],
   })
-  // ADR-0064: a db-backed proof imports @storytree/store / pg / the Cloud SQL connector from
-  // node_modules — a bare (no-install) worktree has none, so the proof would crash before it could
-  // connect. db:true therefore requires install:true (which in turn requires real.typecheck).
+  // ADR-0064: a db-backed proof imports a @storytree/*/store subpath / pg / the Cloud SQL connector
+  // from node_modules — a bare (no-install) worktree has none, so the proof would crash before it
+  // could connect. db:true therefore requires install:true (which in turn requires real.typecheck).
   .refine((r) => !(r.db === true && r.install !== true), {
     message:
-      "real.db:true requires real.install:true — a db-backed proof imports @storytree/store / pg / " +
+      "real.db:true requires real.install:true — a db-backed proof imports a @storytree/*/store subpath / pg / " +
       "the Cloud SQL connector from node_modules, which a bare worktree does not have (and " +
       "install:true then requires real.typecheck, ADR-0064).",
     path: ["db"],

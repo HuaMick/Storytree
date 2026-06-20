@@ -14,7 +14,7 @@ import { createPool, DEFAULT_DATABASE, type PoolHandle } from "./connection.js";
  *
  *   gcloud sql databases create storytree_test --instance=storytree-pg   # one-time, owner
  *   STORYTREE_DB_LIVE=1 STORYTREE_DB_NAME=storytree_test STORYTREE_DB_USER=<iam-email> \
- *     pnpm --filter @storytree/store exec node --import tsx --test src/store.test.ts
+ *     pnpm --filter @storytree/library exec node --import tsx --test src/store/store.test.ts
  *
  * Without STORYTREE_DB_NAME (or with it pointed at production) the live suite fails CLOSED — loudly —
  * before any connection is opened, instead of quietly nuking the live tables (ADR-0054).

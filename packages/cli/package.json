@@ -22,7 +22,6 @@
     "@storytree/library": "workspace:*",
     "@storytree/notice-board": "workspace:*",
     "@storytree/orchestrator": "workspace:*",
-    "@storytree/store": "workspace:*",
     "@storytree/verdict-contract": "workspace:*",
     "yaml": "^2.6.1",
     "zod": "^3.24.1"
