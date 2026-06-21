@@ -29,7 +29,7 @@ import { useEffect, useRef, useState } from 'react';
 import { anyInFlight, anyRecentLanding } from '../lib/activity';
 import type { BuildActivity, TreeStory } from '../types';
 
-type RowKey = 'tree' | 'flora' | 'proof' | 'activity' | 'building' | 'decor';
+export type RowKey = 'tree' | 'flora' | 'proof' | 'activity' | 'building' | 'decor';
 
 /**
  * Status fan order: the growth ladder, then the failure state. `building` and
@@ -337,41 +337,32 @@ function countNote(tot: { stories: number; caps: number }): string {
   return parts.join(' · ');
 }
 
-// ---------- the legend ----------
+// ---------- the legend model (shared by the chip bar + the drawer body) ----------
 
-export function WorldLegend({
-  stories,
-  builds = [],
-  now,
-  hidden,
-  onToggleStatus,
-  onResetHidden,
-}: {
-  stories: TreeStory[];
-  builds?: BuildActivity[];
-  now: Date;
-  hidden: ReadonlySet<string>;
-  onToggleStatus: (st: string) => void;
-  onResetHidden: () => void;
-}): React.JSX.Element {
-  const [open, setOpen] = useState<RowKey | null>(null);
-  const dockRef = useRef<HTMLDivElement>(null);
-  // An open drawer covers a lot of map — Escape and any click outside dismiss it.
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') setOpen(null);
-    };
-    const onDown = (e: PointerEvent): void => {
-      if (e.target instanceof Node && !dockRef.current?.contains(e.target)) setOpen(null);
-    };
-    window.addEventListener('keydown', onKey);
-    window.addEventListener('pointerdown', onDown);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('pointerdown', onDown);
-    };
-  }, [open]);
+/** One legend row's chip facts. The drawer body keyed off `key` lives in {@link LegendDrawerBody}. */
+interface LegendRow {
+  key: RowKey;
+  label: string;
+  visible: boolean;
+  icons: React.JSX.Element;
+}
+
+export interface LegendModel {
+  facts: LegendFacts;
+  rows: LegendRow[];
+  totals: (st: string) => { stories: number; caps: number };
+  anyWitnessed: boolean;
+  unknownPresent: boolean;
+}
+
+/** Derive the legend's grounded model from the loaded world — the chip rows + the facts the
+ *  drawer bodies read. Pure (no state); shared by the dock and the Shared Islands panel so the
+ *  two render the SAME legend. Exported as {@link legendModelFor} for the panel's flyout. */
+export function legendModelFor(stories: TreeStory[], builds: BuildActivity[], now: Date): LegendModel {
+  return legendModel(stories, builds, now);
+}
+
+function legendModel(stories: TreeStory[], builds: BuildActivity[], now: Date): LegendModel {
   const facts = legendFacts(stories);
   const totals = (st: string): { stories: number; caps: number } =>
     facts.statusTotals.get(st) ?? { stories: 0, caps: 0 };
@@ -387,19 +378,9 @@ export function WorldLegend({
     : facts.signWitnessedFail
       ? 'fail'
       : 'blank';
-  const unknownPresent = present('unknown');
-  // The activity row appears IFF some unit carries a live bloom right now —
-  // read off the same verdict.at the proof facts use, aged by the same `now`
-  // ticker. The row drops the moment the last bloom ages out, exactly like a
-  // model with no instance (ADR-0045 §6).
   const recentLandings = anyRecentLanding(stories, now);
-  // The building row appears IFF a leaf agent is mechanically building a unit
-  // right now (ADR-0048) — an in-flight build, aged by the same `now` ticker.
-  // It drops the moment the last build lands or times out.
   const building = anyInFlight(builds, now);
-  const toggle = (key: RowKey): void => setOpen((cur) => (cur === key ? null : key));
-
-  const rows: { key: RowKey; label: string; visible: boolean; icons: React.JSX.Element }[] = [
+  const rows: LegendRow[] = [
     {
       key: 'tree',
       label: 'story trees',
@@ -451,8 +432,6 @@ export function WorldLegend({
     {
       // The in-flight harness layer (ADR-0048): a wisp orbits while a leaf agent
       // drives a unit through the red-green gate. Drops out when nothing builds.
-      // This is the world's ONLY orbiting layer now — session presence was
-      // demoted out of orbit (§5) and lives in the toolbar's session dock.
       key: 'building',
       label: 'building',
       visible: building,
@@ -460,12 +439,298 @@ export function WorldLegend({
     },
     { key: 'decor', label: 'decoration', visible: true, icons: <ConiferIcon /> },
   ];
-  const openRow = open ? rows.find((r) => r.key === open && r.visible) : undefined;
+  return { facts, rows, totals, anyWitnessed, unknownPresent: present('unknown') };
+}
+
+/** A row's human label, for the flyout heading / aria. */
+export function legendRowLabel(key: RowKey): string {
+  return (
+    {
+      tree: 'story trees',
+      flora: 'garden plants',
+      proof: 'proof',
+      activity: 'activity',
+      building: 'building',
+      decor: 'decoration',
+    } as const
+  )[key];
+}
+
+/**
+ * One legend row's drawer BODY — the state fan + caption, with NO positioning wrapper. Shared
+ * by the legacy bottom dock and the Shared Islands panel's right-flyout, so the legend content
+ * can never drift between the two surfaces. Keeps the `role="region"` + `legend — <row>` aria
+ * label that the existing tests / a11y rely on.
+ */
+export function LegendDrawerBody({
+  rowKey,
+  model,
+  hidden,
+  onToggleStatus,
+}: {
+  rowKey: RowKey;
+  model: LegendModel;
+  hidden: ReadonlySet<string>;
+  onToggleStatus: (st: string) => void;
+}): React.JSX.Element {
+  const { facts, totals, anyWitnessed, unknownPresent } = model;
+  const region = (label: string, body: React.JSX.Element): React.JSX.Element => (
+    <div className="legend-drawer" role="region" aria-label={`legend — ${label}`}>
+      {body}
+    </div>
+  );
+  if (rowKey === 'tree') {
+    return region(
+      'story trees',
+      <>
+        <div className="legend-fan">
+          {STATUS_ORDER.map((st) => {
+            const tot = totals(st);
+            const here = tot.stories > 0 || tot.caps > 0;
+            const off = hidden.has(st);
+            return (
+              <Tile
+                key={st}
+                icon={<TreeIcon status={st} form={treeForm(st)} />}
+                label={st}
+                note={here ? `${countNote(tot)}${off ? ' — hidden' : ''}` : 'not in world yet'}
+                absent={!here}
+                off={off}
+                {...(here
+                  ? {
+                      onClick: () => onToggleStatus(st),
+                      pressed: off,
+                      title: off ? `show ${st}` : `fade ${st}`,
+                    }
+                  : {})}
+              />
+            );
+          })}
+          {unknownPresent && (
+            <Tile
+              icon={<TreeIcon status="unknown" form="full" />}
+              label="unknown"
+              note={`${countNote(totals('unknown'))}${hidden.has('unknown') ? ' — hidden' : ''}`}
+              off={hidden.has('unknown')}
+              onClick={() => onToggleStatus('unknown')}
+              pressed={hidden.has('unknown')}
+              title="spec missing or failed to parse"
+            />
+          )}
+        </div>
+        <p className="legend-cap">
+          An island is a <strong>story</strong>; the big tree is the story itself — growth and
+          colour carry the lifecycle. A young amber tree = <strong>proposed</strong>, still
+          iterating (a claimed-but-empty story renders here too, and a story under active build —
+          live work shows as session wisps, not a hue); a full brown tree ={' '}
+          <strong>mapped</strong> brownfield — real, not yet proven (an authored “healthy” renders
+          here until the gate signs); deep green = <strong>proven</strong>, a signed pass on the
+          story's own UAT. Retired stories leave the forest. Click a tile to fade that status
+          across the forest.
+        </p>
+      </>,
+    );
+  }
+  if (rowKey === 'flora') {
+    return region(
+      'garden plants',
+      <>
+        <div className="legend-fan">
+          <Tile
+            icon={<PlantIcon status={ALIVE_STATUSES.find((st) => totals(st).caps > 0) ?? 'unknown'} />}
+            label="alive"
+            note="colour = status, same key as the trees"
+          />
+          <Tile
+            icon={<PlantIcon status="unhealthy" dead />}
+            label="withered"
+            note="failed its last signed run, or unhealthy"
+            absent={!facts.anyDeadFlora}
+          />
+        </div>
+        <p className="legend-cap">
+          Garden flora are the story's <strong>capabilities</strong> — click one in the world to
+          inspect it. Species is decorative; colour and withering carry the data: deep green = the
+          last signed run passed (the only green source, ADR-0040), withered = a signed fail or
+          authored unhealthy, every other hue = the authored ladder, unproven.
+        </p>
+      </>,
+    );
+  }
+  if (rowKey === 'proof') {
+    return region(
+      'proof',
+      <>
+        <div className="legend-fan">
+          <Tile
+            icon={<PlantIcon status="healthy" />}
+            label="proven green"
+            note="the last signed run passed"
+            absent={!facts.anyProven}
+          />
+          <Tile
+            icon={<PlantIcon status="unhealthy" dead />}
+            label="withered"
+            note="failed its last signed run, or authored unhealthy"
+            absent={!facts.anyDeadFlora}
+          />
+          <Tile
+            icon={<SignIcon state="blank" />}
+            label="awaiting witness"
+            note="a human must see this story's UAT"
+            absent={!facts.signBlank}
+          />
+          <Tile
+            icon={<SignIcon state={facts.signWitnessedPass ? 'pass' : 'fail'} />}
+            label="witnessed"
+            note="the story's own UAT was signed — never a roll-up"
+            absent={!anyWitnessed}
+          />
+        </div>
+        <p className="legend-cap">
+          Hue only ever reports a <strong>signed</strong> prove-it-gate verdict — authored status
+          can never paint green, and a story's crown answers only to its <strong>own</strong> UAT
+          (“all capabilities pass” and “the story passed UAT” are different claims). Stories with a{' '}
+          <strong>human</strong> witness (the default) carry a signpost — dashed-blank until the
+          operator's ceremony, a filled seal once signed (a signed fail also withers the crown);
+          machine-witnessed stories carry none. With the live store down, verdicts are absent and
+          the world <strong>under-claims</strong>: trees fall back to the authored ladder — the
+          store banner is the signal.
+        </p>
+      </>,
+    );
+  }
+  if (rowKey === 'activity') {
+    return region(
+      'activity',
+      <>
+        <div className="legend-fan">
+          <Tile
+            icon={<BloomIcon />}
+            label="recently landed"
+            note="a signed verdict landed here in the last few hours"
+          />
+        </div>
+        <p className="legend-cap">
+          Activity marks real <strong>signed-verdict</strong> events landing on a territory, not
+          who is online; the bloom <strong>fades as the event ages</strong> and is gone within a
+          few hours. The durable result is the plant <strong>colour</strong> (a signed pass greens
+          it, ADR-0040) — the bloom only announces the moment it landed, so it never re-states what
+          the hue already records. A brand-new verdict blooms on the next world load (the geometry
+          is a one-shot read); aged-out blooms vanish without a refetch.
+        </p>
+      </>,
+    );
+  }
+  if (rowKey === 'building') {
+    return region(
+      'building',
+      <>
+        <div className="legend-fan">
+          <Tile
+            icon={<BuildWispIcon />}
+            label="building"
+            note="a leaf agent is driving this unit through the gate right now"
+          />
+        </div>
+        <p className="legend-cap">
+          A teal wisp orbits a story while the <strong>harness</strong> is mechanically building one
+          of its units — a leaf agent walking the red-green prove-it-gate (ADR-0048). Unlike a
+          session wisp it tracks <strong>work, not who is online</strong>: it appears when a build
+          starts and <strong>self-clears</strong> when the verdict lands (a pass then blooms green)
+          or after a few minutes if the run died — so it can never become a stale false positive.
+        </p>
+      </>,
+    );
+  }
+  return region(
+    'decoration',
+    <>
+      <div className="legend-fan">
+        <Tile icon={<ConiferIcon />} label="conifers" />
+        <Tile icon={<WheatIcon />} label="wheat fields" />
+        <Tile icon={<PlantIcon status="healthy" />} label="plant species & grass shades" wide />
+      </div>
+      <p className="legend-cap">
+        Scenery — hash-grown so the world looks alive yet renders identically every visit. Only
+        colour, withering and glyphs carry data.
+      </p>
+    </>,
+  );
+}
+
+// ---------- the legend ----------
+
+/**
+ * The world legend. Two surfaces share one model:
+ *   • UNCONTROLLED (the legacy bottom dock, `variant` absent): owns its own open state and
+ *     renders the drawer DOWNWARD under the chip bar (Escape / click-outside dismiss).
+ *   • CONTROLLED (the Shared Islands panel, ADR-0088): the panel owns `open`/`onToggle` (the
+ *     shared right-flyout) and renders the {@link LegendDrawerBody} itself, to the RIGHT of the
+ *     panel. WorldLegend then renders ONLY the chip bar (`renderDrawer={false}`), so a chip
+ *     expansion never reflows the panel's vertical content.
+ */
+export function WorldLegend({
+  stories,
+  builds = [],
+  now,
+  hidden,
+  onToggleStatus,
+  onResetHidden,
+  open: openProp,
+  onToggle,
+  renderDrawer = true,
+  barClassName,
+}: {
+  stories: TreeStory[];
+  builds?: BuildActivity[];
+  now: Date;
+  hidden: ReadonlySet<string>;
+  onToggleStatus: (st: string) => void;
+  onResetHidden: () => void;
+  /** Controlled open row (panel mode). When provided, internal open state is not used. */
+  open?: RowKey | null;
+  /** Controlled toggle (panel mode). Receives the next open key or null. */
+  onToggle?: (key: RowKey | null) => void;
+  /** Render the drawer body inline under the bar (default, dock mode). The panel passes false
+   *  and renders {@link LegendDrawerBody} in its right-flyout instead. */
+  renderDrawer?: boolean;
+  /** Extra class on the chip bar (e.g. a vertical-wrap variant in the panel). */
+  barClassName?: string;
+}): React.JSX.Element {
+  const controlled = openProp !== undefined && onToggle !== undefined;
+  const [openState, setOpenState] = useState<RowKey | null>(null);
+  const open = controlled ? (openProp ?? null) : openState;
+  const dockRef = useRef<HTMLDivElement>(null);
+  // Uncontrolled dock: an open drawer covers a lot of map — Escape and any click outside
+  // dismiss it. (Controlled panel mode wires its own dismissal at the flyout level.)
+  useEffect(() => {
+    if (controlled || !open) return;
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setOpenState(null);
+    };
+    const onDown = (e: PointerEvent): void => {
+      if (e.target instanceof Node && !dockRef.current?.contains(e.target)) setOpenState(null);
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('pointerdown', onDown);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('pointerdown', onDown);
+    };
+  }, [open, controlled]);
+
+  const model = legendModel(stories, builds, now);
+  const toggle = (key: RowKey): void => {
+    if (controlled) onToggle?.(open === key ? null : key);
+    else setOpenState((cur) => (cur === key ? null : key));
+  };
+  const openRow = open ? model.rows.find((r) => r.key === open && r.visible) : undefined;
 
   return (
-    <div className="world-legend-dock" ref={dockRef}>
-      <div className="legend-bar" role="group" aria-label="legend">
-        {rows
+    <div className={controlled ? 'world-legend-panel' : 'world-legend-dock'} ref={dockRef}>
+      <div className={`legend-bar${barClassName ? ` ${barClassName}` : ''}`} role="group" aria-label="legend">
+        {model.rows
           .filter((r) => r.visible)
           .map((r) => (
             <button
@@ -486,172 +751,13 @@ export function WorldLegend({
         )}
       </div>
 
-      {openRow?.key === 'tree' && (
-        <div className="legend-drawer" role="region" aria-label="legend — story trees">
-          <div className="legend-fan">
-            {STATUS_ORDER.map((st) => {
-              const tot = totals(st);
-              const here = tot.stories > 0 || tot.caps > 0;
-              const off = hidden.has(st);
-              return (
-                <Tile
-                  key={st}
-                  icon={<TreeIcon status={st} form={treeForm(st)} />}
-                  label={st}
-                  note={here ? `${countNote(tot)}${off ? ' — hidden' : ''}` : 'not in world yet'}
-                  absent={!here}
-                  off={off}
-                  {...(here
-                    ? {
-                        onClick: () => onToggleStatus(st),
-                        pressed: off,
-                        title: off ? `show ${st}` : `fade ${st}`,
-                      }
-                    : {})}
-                />
-              );
-            })}
-            {unknownPresent && (
-              <Tile
-                icon={<TreeIcon status="unknown" form="full" />}
-                label="unknown"
-                note={`${countNote(totals('unknown'))}${hidden.has('unknown') ? ' — hidden' : ''}`}
-                off={hidden.has('unknown')}
-                onClick={() => onToggleStatus('unknown')}
-                pressed={hidden.has('unknown')}
-                title="spec missing or failed to parse"
-              />
-            )}
-          </div>
-          <p className="legend-cap">
-            An island is a <strong>story</strong>; the big tree is the story itself — growth and
-            colour carry the lifecycle. A young amber tree = <strong>proposed</strong>, still
-            iterating (a claimed-but-empty story renders here too, and a story under active build —
-            live work shows as session wisps, not a hue); a full brown tree ={' '}
-            <strong>mapped</strong> brownfield — real, not yet proven (an authored “healthy” renders
-            here until the gate signs); deep green = <strong>proven</strong>, a signed pass on the
-            story's own UAT. Retired stories leave the forest. Click a tile to fade that status
-            across the forest.
-          </p>
-        </div>
-      )}
-
-      {openRow?.key === 'flora' && (
-        <div className="legend-drawer" role="region" aria-label="legend — garden plants">
-          <div className="legend-fan">
-            <Tile
-              icon={<PlantIcon status={ALIVE_STATUSES.find((st) => totals(st).caps > 0) ?? 'unknown'} />}
-              label="alive"
-              note="colour = status, same key as the trees"
-            />
-            <Tile
-              icon={<PlantIcon status="unhealthy" dead />}
-              label="withered"
-              note="failed its last signed run, or unhealthy"
-              absent={!facts.anyDeadFlora}
-            />
-          </div>
-          <p className="legend-cap">
-            Garden flora are the story's <strong>capabilities</strong> — click one in the world to
-            inspect it. Species is decorative; colour and withering carry the data: deep green = the
-            last signed run passed (the only green source, ADR-0040), withered = a signed fail or
-            authored unhealthy, every other hue = the authored ladder, unproven.
-          </p>
-        </div>
-      )}
-
-      {openRow?.key === 'proof' && (
-        <div className="legend-drawer" role="region" aria-label="legend — proof">
-          <div className="legend-fan">
-            <Tile
-              icon={<PlantIcon status="healthy" />}
-              label="proven green"
-              note="the last signed run passed"
-              absent={!facts.anyProven}
-            />
-            <Tile
-              icon={<PlantIcon status="unhealthy" dead />}
-              label="withered"
-              note="failed its last signed run, or authored unhealthy"
-              absent={!facts.anyDeadFlora}
-            />
-            <Tile
-              icon={<SignIcon state="blank" />}
-              label="awaiting witness"
-              note="a human must see this story's UAT"
-              absent={!facts.signBlank}
-            />
-            <Tile
-              icon={<SignIcon state={facts.signWitnessedPass ? 'pass' : 'fail'} />}
-              label="witnessed"
-              note="the story's own UAT was signed — never a roll-up"
-              absent={!anyWitnessed}
-            />
-          </div>
-          <p className="legend-cap">
-            Hue only ever reports a <strong>signed</strong> prove-it-gate verdict — authored status
-            can never paint green, and a story's crown answers only to its <strong>own</strong> UAT
-            (“all capabilities pass” and “the story passed UAT” are different claims). Stories with
-            a <strong>human</strong> witness (the default) carry a signpost — dashed-blank until the
-            operator's ceremony, a filled seal once signed (a signed fail also withers the crown);
-            machine-witnessed stories carry none. With the live store down, verdicts are absent and
-            the world <strong>under-claims</strong>: trees fall back to the authored ladder — the
-            store banner is the signal.
-          </p>
-        </div>
-      )}
-
-      {openRow?.key === 'activity' && (
-        <div className="legend-drawer" role="region" aria-label="legend — activity">
-          <div className="legend-fan">
-            <Tile
-              icon={<BloomIcon />}
-              label="recently landed"
-              note="a signed verdict landed here in the last few hours"
-            />
-          </div>
-          <p className="legend-cap">
-            Activity marks real <strong>signed-verdict</strong> events landing on a territory, not
-            who is online; the bloom <strong>fades as the event ages</strong> and is gone within a
-            few hours. The durable result is the plant <strong>colour</strong> (a signed pass greens
-            it, ADR-0040) — the bloom only announces the moment it landed, so it never re-states what
-            the hue already records. A brand-new verdict blooms on the next world load (the geometry
-            is a one-shot read); aged-out blooms vanish without a refetch.
-          </p>
-        </div>
-      )}
-
-      {openRow?.key === 'building' && (
-        <div className="legend-drawer" role="region" aria-label="legend — building">
-          <div className="legend-fan">
-            <Tile
-              icon={<BuildWispIcon />}
-              label="building"
-              note="a leaf agent is driving this unit through the gate right now"
-            />
-          </div>
-          <p className="legend-cap">
-            A teal wisp orbits a story while the <strong>harness</strong> is mechanically building one
-            of its units — a leaf agent walking the red-green prove-it-gate (ADR-0048). Unlike a
-            session wisp it tracks <strong>work, not who is online</strong>: it appears when a build
-            starts and <strong>self-clears</strong> when the verdict lands (a pass then blooms green)
-            or after a few minutes if the run died — so it can never become a stale false positive.
-          </p>
-        </div>
-      )}
-
-      {openRow?.key === 'decor' && (
-        <div className="legend-drawer" role="region" aria-label="legend — decoration">
-          <div className="legend-fan">
-            <Tile icon={<ConiferIcon />} label="conifers" />
-            <Tile icon={<WheatIcon />} label="wheat fields" />
-            <Tile icon={<PlantIcon status="healthy" />} label="plant species & grass shades" wide />
-          </div>
-          <p className="legend-cap">
-            Scenery — hash-grown so the world looks alive yet renders identically every visit. Only
-            colour, withering and glyphs carry data.
-          </p>
-        </div>
+      {renderDrawer && openRow && (
+        <LegendDrawerBody
+          rowKey={openRow.key}
+          model={model}
+          hidden={hidden}
+          onToggleStatus={onToggleStatus}
+        />
       )}
     </div>
   );

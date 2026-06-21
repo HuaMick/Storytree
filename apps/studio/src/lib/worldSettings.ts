@@ -94,11 +94,6 @@ export type ControlValue = number | boolean | string;
 
 const GROUP_GROUND = 'Ground';
 const GROUP_LAYOUT = 'Layout';
-const GROUP_PANELS = 'Panels';
-
-/** Tokens that READ as OFF for a default-OFF toggle (mirrors the historical
- *  `?buildings=off|0|false` parser spellings). */
-const OFF_READS = ['off', '0', 'false'] as const;
 
 /** substrate aliases, mirroring readSubstrateMode. */
 function normalizeSubstrate(raw: string | null): string {
@@ -156,28 +151,11 @@ export const CONTROLS: readonly ControlSpec[] = [
     normalize: normalizeSubstrate,
   },
 
-  // ---- Panels ----
-  // The building ISLAND (owner pivot 2026-06-21, CONVERGED + DEFAULT ON 2026-06-22):
-  // render each building-tagged story (today just `library`) as a REAL on-map island —
-  // clickable, with a health tree like any island, pinned to the ROOT/foundation row near
-  // `cli` (its layout rank is forced to 0 since its edges are suppressed anyway) — but with
-  // its EDGES suppressed (it's a foundation hub depended on by ~everything, so its inbound
-  // roads would flood the map) and a bookshelf glyph by its nameplate as the marker. Its
-  // consumers still carry the distributed bookshelf STAMP, the "this island uses the library"
-  // marker. The owner committed to this model, so it is the DEFAULT — writing NO param shows
-  // the building-island world; `?buildingIsland=off` returns to a plain connected-island world.
-  // (The earlier building DRAWER mode was removed 2026-06-22 — superseded by this.)
-  {
-    kind: 'toggle',
-    key: 'buildingIsland',
-    label: 'Building islands',
-    group: GROUP_PANELS,
-    hint: 'Show each building (e.g. the library) as a real on-map root island with its edges hidden and a bookshelf icon by its name; consumers keep a bookshelf stamp.',
-    default: true,
-    offToken: 'off',
-    onToken: 'on',
-    offReads: OFF_READS,
-  },
+  // ADR-0088 (Shared Islands panel, amends ADR-0076 §2): the `buildingIsland` gear TOGGLE was
+  // REMOVED. The building-class islands now live in a PERMANENT left "Shared Islands" panel —
+  // there is no on/off to dial, so the gear no longer carries a Panels section. The distributed
+  // consumer stamp is still controlled by the `?buildings=off` URL escape (read by TreeView,
+  // not a gear control).
 ] as const;
 
 const BY_KEY = new Map<string, ControlSpec>(CONTROLS.map((c) => [c.key, c]));

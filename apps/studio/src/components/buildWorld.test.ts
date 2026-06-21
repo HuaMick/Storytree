@@ -1,9 +1,11 @@
 // buildWorld — the world-model→render seam (ADR-0069): a deterministic, pure function of
 // the story data that lays out territories. These tests pin the STANDALONE single-island
-// layout the building drawer relies on (owner ask 2026-06-21): handing buildWorld a single
-// building story (with `buildings: false`, so it is NOT distributed away) yields exactly
-// ONE territory carrying that story's capabilities — the island the drawer scales to fit.
-// Stage-1 red-green of the geometry (ADR-0070); the drawer's APPEARANCE is owner-attested.
+// layout the SHARED ISLANDS PANEL relies on (ADR-0088, the left panel that replaced the
+// on-map building islands): handing buildWorld a single building story with `buildings: false`
+// (so it is NOT distributed/excluded) yields exactly ONE territory carrying that story's
+// capabilities — the one-island Territory the panel renders with TerritoryFlora inside a
+// self-contained <svg>. Stage-1 red-green of the geometry (ADR-0070); the panel's APPEARANCE
+// is owner-attested.
 
 import { describe, it, expect } from 'vitest';
 import { buildWorld } from './TreeView.js';
@@ -31,9 +33,10 @@ const library = (): TreeStory => ({
   capabilities: [cap('library-cli'), cap('seed-corpus'), cap('knowledge-render')],
 });
 
-describe('buildWorld — standalone single-island layout (building drawer)', () => {
+describe('buildWorld — standalone single-island layout (Shared Islands panel)', () => {
   it('lays a single building story as exactly one territory carrying its capabilities', () => {
-    // buildings:false ⇒ the building is NOT distributed away; it lays out as a normal island.
+    // buildings:false ⇒ the building is NOT excluded; it lays out as a normal island (the
+    // one-island Territory the panel renders for each shared island).
     const world = buildWorld([library()], { buildings: false });
     expect(world.territories).toHaveLength(1);
     const t = world.territories[0]!;
