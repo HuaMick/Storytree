@@ -4,13 +4,27 @@
 // (ADR-0070), NOT asserted here.
 
 import { describe, it, expect } from 'vitest';
-import { bookshelfConsumers, shelfBooks, SHELF_TUNING } from './buildingLayout';
+import { bookshelfConsumers, sharedIslandStories, shelfBooks, SHELF_TUNING } from './buildingLayout';
 import type { WiredNode } from './connectionSet';
+import type { TreeStory } from '../types';
 
 const node = (id: string, dependsOn: string[] = [], consumedBy: string[] = []): WiredNode => ({
   id,
   dependsOn,
   consumedBy,
+});
+
+const story = (id: string, building?: boolean): TreeStory => ({
+  id,
+  title: id,
+  outcome: '',
+  status: 'mapped',
+  proofMode: 'red-green',
+  uatWitness: 'machine',
+  dependsOn: [],
+  consumedBy: [],
+  ...(building ? { building: true } : {}),
+  capabilities: [],
 });
 
 describe('bookshelfConsumers — distribute a building onto every island it connects to', () => {
@@ -91,6 +105,31 @@ describe('bookshelfConsumers — distribute a building onto every island it conn
     ];
     const consumers = bookshelfConsumers(nodes, new Set(['library']));
     expect([...consumers].sort()).toEqual([...dependents, 'cli'].sort());
+  });
+});
+
+describe('sharedIslandStories — the building-class roster for the Shared Islands panel', () => {
+  it('selects exactly the stories tagged building === true (generic over the flag)', () => {
+    const stories = [
+      story('library', true),
+      story('cli'),
+      story('store'),
+      story('future-shared', true),
+    ];
+    expect(sharedIslandStories(stories).map((s) => s.id)).toEqual(['library', 'future-shared']);
+  });
+
+  it('is empty when no story is a building (a plain forest)', () => {
+    expect(sharedIslandStories([story('a'), story('b')])).toEqual([]);
+  });
+
+  it('preserves the input order of building stories (stable for the panel render)', () => {
+    const stories = [story('b1', true), story('mid'), story('b2', true), story('b3', true)];
+    expect(sharedIslandStories(stories).map((s) => s.id)).toEqual(['b1', 'b2', 'b3']);
+  });
+
+  it('treats an absent building flag as not-a-building (the common case)', () => {
+    expect(sharedIslandStories([story('plain')])).toEqual([]);
   });
 });
 

@@ -16,6 +16,20 @@
 //     bookshelf, and `shelfBooks` to lay out the icon's spines deterministically.
 
 import { fullConnectionSet, type WiredNode } from './connectionSet.js';
+import type { TreeStory } from '../types';
+
+// ---------- the building-class roster (the Shared Islands panel, ADR-0088) ----------
+
+/**
+ * The building-class stories — every story tagged `building === true` (ADR-0076 §2). These no
+ * longer render on the map (ADR-0088, Shared Islands panel — amends ADR-0076 §2): they are
+ * lifted OFF the forest into a permanent left "Shared Islands" panel, each drawn as its FULL
+ * island. Generic over the flag, so a future building-class story appears automatically; order
+ * follows the input so the panel render is stable. Pure + deterministic.
+ */
+export function sharedIslandStories(stories: readonly TreeStory[]): TreeStory[] {
+  return stories.filter((s) => s.building === true);
+}
 
 // ---------- the distribution: which islands carry a building's icon ----------
 

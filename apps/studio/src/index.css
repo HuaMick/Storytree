@@ -1540,6 +1540,14 @@ mark.st-hl.flash {
    this wrapper) — opening or resizing it never reflows or rescales the world. */
 .tree-layout {
   position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+/* the world fills the row beside the permanent left Shared Islands panel (ADR-0088) */
+.tree-layout > .world-frame {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 /* the world (top-down field; portrait — scrolls from the foundation upward) */
@@ -1807,59 +1815,190 @@ mark.st-hl.flash {
 .story-bookshelf:hover .bookshelf-book {
   filter: brightness(1.08);
 }
+/* a consumer's stamp is now a link into the Shared Islands panel (ADR-0088) */
+.story-bookshelf.is-link {
+  cursor: pointer;
+}
+.story-bookshelf.is-link:hover .bookshelf-book {
+  filter: brightness(1.18);
+}
 
-/* the bottom "building legend" (ADR-0076 §2): on-island building icons → their meaning,
-   docked at the foot of the frame, separate from the top world legend. */
-.building-legend-dock {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
+/* ============================================================================
+   Shared Islands panel (ADR-0088, amends ADR-0076 §2) — the PERMANENT left
+   column. Hosts the relocated world legend + the building-class islands lifted
+   off the map. Every expansion pops to the RIGHT (.panel-flyout) so the panel's
+   vertical content never reflows.
+   ============================================================================ */
+.shared-islands-panel {
+  position: relative;
+  flex: 0 0 240px;
+  width: 240px;
+  align-self: stretch;
+  max-height: 78vh;
+  overflow-y: auto;
+  overflow-x: visible;
   display: flex;
-  pointer-events: none;
-  z-index: 2;
-}
-.building-legend-bar {
-  pointer-events: auto;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 5px 11px 5px 12px;
-  border: 1px solid var(--border-strong);
-  border-radius: 12px;
-  background: var(--surface);
+  flex-direction: column;
+  gap: 14px;
+  padding: 12px 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: linear-gradient(170deg, var(--board-1), var(--board-2));
   box-shadow: var(--shadow);
-  opacity: 0.97;
 }
-.building-legend-head {
+.shared-islands-panel .panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.shared-islands-panel .panel-head {
+  margin: 0;
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--muted);
 }
-.building-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.building-legend-icon svg {
-  height: 34px;
-  width: auto;
+/* the relocated legend renders just its chip bar in the panel (drawer pops right) */
+.world-legend-panel {
   display: block;
 }
-.building-legend-text {
+.legend-bar-panel {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+}
+.legend-bar-panel .legend-chip {
+  justify-content: flex-start;
+  width: 100%;
+  box-shadow: none;
+}
+
+/* one shared island, rendered as its full island (coast + tree + garden + nameplate + glyph) */
+.shared-islands-list {
   display: flex;
   flex-direction: column;
-  line-height: 1.15;
+  gap: 10px;
 }
-.building-legend-title {
-  font-size: 13px;
+.shared-island-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.shared-island-card {
+  display: block;
+  width: 100%;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.2s ease;
+}
+.shared-island-card:hover {
+  border-color: var(--accent);
+}
+.shared-island-card.is-highlighted {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.shared-island-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 200px;
+}
+.shared-island-detail-toggle {
+  align-self: flex-start;
+  padding: 2px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.shared-island-detail-toggle:hover,
+.shared-island-detail-toggle.on {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.panel-empty {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.panel-empty code {
+  font-size: 10.5px;
+}
+
+/* the ONE right-flyout — anchored to the panel's right edge, contained loop, no reflow */
+.panel-flyout {
+  position: absolute;
+  top: 12px;
+  left: calc(100% + 10px);
+  width: 320px;
+  max-height: calc(78vh - 24px);
+  overflow-y: auto;
+  z-index: 4; /* above the floating side panel */
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(16, 24, 40, 0.2);
+  padding: 12px 14px;
+}
+.panel-flyout-head {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+/* the flyout reuses the legend drawer body, but un-positioned (the flyout box positions it) */
+.panel-flyout .legend-drawer {
+  border: none;
+  box-shadow: none;
+  background: none;
+  padding: 0;
+  max-width: none;
+  max-height: none;
+}
+.panel-flyout-title {
+  margin: 0;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
 }
-.building-legend-note {
-  font-size: 11px;
+.panel-flyout-meta {
+  margin: 4px 0 0;
+  font-size: 12px;
   color: var(--muted);
+}
+.panel-flyout-outcome {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text);
+}
+.panel-flyout-open {
+  margin-top: 12px;
+  padding: 4px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+}
+.panel-flyout-open:hover {
+  background: var(--accent);
+  color: var(--surface);
 }
 
 /* the central story tree — the story itself; the crown carries the story status */
@@ -2612,9 +2751,9 @@ button.legend-tile:hover {
   font-size: 10px;
   fill: var(--muted);
 }
-/* buildingIsland mode: the building-class card is a LANDMARK (owner ask 2026-06-22 — bigger
-   cards). A stronger border + larger, weightier id so the root library reads as a landmark on
-   the foundation row. The box itself is enlarged in nameplateLayout(); these are the accents. */
+/* The building-class card is a LANDMARK nameplate (ADR-0088: now rendered in the Shared Islands
+   PANEL, not the map). A stronger border + larger, weightier id so the shared library reads as a
+   landmark. The box itself is enlarged in nameplateLayout(); these are the accents. */
 .world-plate.is-building .world-plate-bg {
   stroke-width: 1.6;
   opacity: 0.97;
@@ -2625,8 +2764,8 @@ button.legend-tile:hover {
 .world-plate.is-building .world-plate-sub {
   font-size: 11px;
 }
-/* buildingIsland mode (owner pivot 2026-06-21): the bookshelf marker beside a building
-   island's nameplate (enlarged 2026-06-22). Decorative — never intercepts the island's click. */
+/* The bookshelf marker beside a building card's nameplate (ADR-0088, panel render). Decorative —
+   never intercepts the island's click. */
 .world-plate-building {
   pointer-events: none;
 }

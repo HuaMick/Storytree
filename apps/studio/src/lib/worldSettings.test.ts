@@ -9,6 +9,11 @@
 // ADR-0073 made roads the one world; ADR-0076 retired the river-trail ROUTING system
 // (connections are now thin perimeter-docked lines with nothing to tune), so the
 // road-routing dials are GONE — only Layout (DAG vs solar) and Ground (tiling) remain.
+//
+// ADR-0088 (Shared Islands panel, amends ADR-0076 §2): the building islands moved OFF the
+// map into a permanent left panel, so the `buildingIsland` GEAR TOGGLE lost its meaning (the
+// panel is permanent, not a flag) and was removed from the gear schema — only Layout and
+// Ground survive in the gear now (Panels is gone).
 
 import { describe, it, expect } from 'vitest';
 import {
@@ -31,14 +36,14 @@ function ctl(key: string): ControlSpec {
 describe('worldSettings — schema (docked-line roads, ADR-0076)', () => {
   it('exposes exactly the surviving dials, each with a key/label/group/kind/hint', () => {
     const keys = CONTROLS.map((c) => c.key);
-    // Layout (DAG vs solar) + Ground (tiling) + the building-island toggle — the dials
-    // left after the road routing system was retired, plus the single Panels switch
-    // (owner ask 2026-06-21: gear switch, not a URL paste). The earlier building-DRAWER
-    // toggle was removed 2026-06-22 (superseded by building islands).
-    const expected = ['layout', 'substrate', 'buildingIsland'];
+    // Layout (DAG vs solar) + Ground (tiling) — the only dials left. The `buildingIsland`
+    // toggle was REMOVED with ADR-0088 (the shared-island panel is permanent, not a gear
+    // flag), so the gear no longer carries a Panels switch.
+    const expected = ['layout', 'substrate'];
     expect([...keys].sort()).toEqual([...expected].sort());
-    // The retired river/pond dials, road-routing dials AND the removed building-DRAWER
-    // toggle must be GONE (genuinely stripped, not shelved — ADR-0073 / ADR-0076).
+    // The retired river/pond dials, road-routing dials AND the removed building toggles
+    // (building-DRAWER, then building-ISLAND) must be GONE (genuinely stripped, not shelved —
+    // ADR-0073 / ADR-0076 / ADR-0088).
     for (const gone of [
       'roads',
       'roadStraighten',
@@ -51,6 +56,7 @@ describe('worldSettings — schema (docked-line roads, ADR-0076)', () => {
       'pondMouth',
       'weld',
       'buildingDrawer',
+      'buildingIsland',
     ]) {
       expect(keys, `retired control still present: ${gone}`).not.toContain(gone);
     }
@@ -64,13 +70,13 @@ describe('worldSettings — schema (docked-line roads, ADR-0076)', () => {
     }
   });
 
-  it('groups controls under Layout, Ground and Panels', () => {
+  it('groups controls under Layout and Ground only (Panels gone with ADR-0088)', () => {
     const groups = new Set(CONTROLS.map((c) => c.group));
     expect(groups.has('Layout')).toBe(true);
     expect(groups.has('Ground')).toBe(true);
-    // The building-island toggle lives in its own Panels section (owner ask 2026-06-21).
-    expect(groups.has('Panels')).toBe(true);
-    expect(groups.size).toBe(3);
+    // The building-island toggle (the only Panels control) was removed — no Panels section.
+    expect(groups.has('Panels')).toBe(false);
+    expect(groups.size).toBe(2);
   });
 
   it('keys are unique', () => {
@@ -116,33 +122,6 @@ describe('worldSettings — substrate control (select)', () => {
   });
 });
 
-describe('worldSettings — buildingIsland toggle (edgeless on-map island, DEFAULT ON 2026-06-22)', () => {
-  it('defaults ON and writing ON REMOVES the param (the converged default world)', () => {
-    // The owner committed to building islands, so the toggle is default-ON: an untouched
-    // world (no param) reads as ON, and re-asserting ON clears any leftover param.
-    expect(readControlValue('', ctl('buildingIsland'))).toBe(true);
-    expect(setControlValue('?buildingIsland=off', ctl('buildingIsland'), true)).toBe('');
-  });
-
-  it('turning it OFF writes buildingIsland=off, and reads back as false (the escape hatch)', () => {
-    // A default-ON toggle writes its OFF token when flipped off; that's the only non-default.
-    expect(setControlValue('', ctl('buildingIsland'), false)).toBe('?buildingIsland=off');
-    expect(readControlValue('?buildingIsland=off', ctl('buildingIsland'))).toBe(false);
-  });
-
-  it('the off-spellings read as OFF', () => {
-    for (const off of ['off', '0', 'false']) {
-      expect(readControlValue(`?buildingIsland=${off}`, ctl('buildingIsland'))).toBe(false);
-    }
-  });
-
-  it('preserves UNRELATED params when toggling OFF', () => {
-    const out = setControlValue('?debug=1', ctl('buildingIsland'), false);
-    expect(out).toContain('debug=1');
-    expect(out).toContain('buildingIsland=off');
-  });
-});
-
 describe('worldSettings — buildShareUrl puts params BEFORE the hash', () => {
   it('orders ?…params before the #/tree hash', () => {
     const url = buildShareUrl('https://x.test/', '?substrate=hex', '#/tree');
@@ -161,7 +140,7 @@ describe('worldSettings — buildShareUrl puts params BEFORE the hash', () => {
 
 describe('worldSettings — resetControls drops every managed param', () => {
   it('returns empty when only managed params were present', () => {
-    expect(resetControls('?substrate=hex&layout=solar&buildingIsland=off')).toBe('');
+    expect(resetControls('?substrate=hex&layout=solar')).toBe('');
   });
 
   it('preserves unmanaged params', () => {
