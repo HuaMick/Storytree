@@ -92,10 +92,16 @@ export interface RealProofConfig {
    * "authoring the test"), and CONFIRM_RED still observes the new test failing against the UNCHANGED
    * source — a forged already-green regression test self-defeats. The one genuinely-new hole (a
    * default single-file proof not exercising edited code in a sibling file) is NARROWED by the refine
-   * below: edit-existing + a source scope broader than `sourceFile` REQUIRES an explicit
-   * `proofCommand` declaration (it forces the author to NAME a proof for the multi-file edit; whether
-   * that command actually exercises every edited file is the same PR-diff-review bound A/B took for
-   * scope/command — surfaced, not structurally verified).
+   * below: edit-existing + a source scope broader than a single literal `sourceFile` — a multi-glob
+   * set, OR a single `*`-wildcard glob (the wildcard tightening, owner call 2026-06-21) — REQUIRES an
+   * explicit `proofCommand` declaration (it forces the author to NAME a proof for the multi-file
+   * edit; whether that command actually exercises every edited file is the same PR-diff-review bound
+   * A/B took for scope/command — surfaced, not structurally verified).
+   *
+   * Edit-existing does NOT force `install:true` (owner call 2026-06-21): a builtins-only
+   * edit-existing node stays legal on a bare worktree; declare `install` yourself when the edited
+   * source imports workspace deps (a missing install then fails LOUD at proof time — module-not-found
+   * — never a silent green, so forcing install is unnecessary over-restriction).
    */
   editsExisting?: boolean;
   /**
@@ -231,22 +237,32 @@ const RealProofConfigSchema = z
   // `real.proofCommand` rather than ride the default single-file proof — forcing the author to NAME a
   // proof for the multi-file edit. (This forces author INTENT; it does NOT structurally verify the
   // declared command exercises every edited file — that residual bound is PR-diff review, the same
-  // control A/B took for scope/command.) Single-file edit-existing (`sourceGlobs === [sourceFile]`)
-  // stays legal on the default command (the one test file imports the one edited file, exactly as a
-  // net-new node does). Scoped to editsExisting:true, so it never fires on a net-new node — the 7
-  // migrated nodes (no `editsExisting`) keep resolving byte-for-byte, parity intact.
+  // control A/B took for scope/command.) The exemption is narrow: a single source glob that is the
+  // LITERAL `sourceFile` AND carries no `*` wildcard (so it matches exactly one file) stays legal on
+  // the default command — the one test file imports the one edited file, exactly as a net-new node
+  // does. A single WILDCARD glob is length-1 yet can match MANY files, so it counts as broad even
+  // when it equals `sourceFile`, and likewise requires a suite (the wildcard-glob tightening, owner
+  // call 2026-06-21 — closes the length-1-but-broad hole the conservative literal-equality predicate
+  // left open). Scoped to editsExisting:true, so it never fires on a net-new node — the 7 migrated
+  // nodes (no `editsExisting`) keep resolving byte-for-byte, parity intact.
   .refine(
     (r) =>
       !(
         r.editsExisting === true &&
         r.proofCommand === undefined &&
-        !(r.scope.sourceGlobs.length === 1 && r.scope.sourceGlobs[0] === r.sourceFile)
+        !(
+          r.scope.sourceGlobs.length === 1 &&
+          r.scope.sourceGlobs[0] === r.sourceFile &&
+          !r.sourceFile.includes("*")
+        )
       ),
     {
       message:
-        "an edits-existing node whose source scope is broader than `sourceFile` must declare " +
-        "real.proofCommand (a suite) — the default node:test on the single test file cannot observe " +
-        "a regression across the other edited source files (the proof must exercise the edited code).",
+        "an edits-existing node whose source scope is broader than a single literal `sourceFile` " +
+        "must declare real.proofCommand (a suite) — the default node:test on the single test file " +
+        "cannot observe a regression across the other edited source files (the proof must exercise " +
+        "the edited code). A single WILDCARD glob (containing `*`) counts as broad even when it " +
+        "equals `sourceFile`, since it can match many files.",
       path: ["proofCommand"],
     },
   );

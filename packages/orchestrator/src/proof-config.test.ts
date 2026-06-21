@@ -343,6 +343,38 @@ test("C — honesty refine: editsExisting + a single BROAD glob (≠ sourceFile)
   );
 });
 
+test("C — honesty refine (wildcard tightening): editsExisting + a single wildcard glob EQUAL to sourceFile + no proofCommand is LOUD", () => {
+  // The hole the literal-equality exemption left open (owner call 2026-06-21): a `sourceFile` that is
+  // ITSELF a `*` wildcard, with `sourceGlobs === [sourceFile]`, is length-1 AND string-equal yet
+  // matches MANY files — the default single-file proof can't observe a regression across them. The
+  // tightened exemption requires the single glob to carry no `*`, so this now demands a suite.
+  assert.throws(
+    () =>
+      parseNodeBuildConfig({
+        ...EDIT_EXISTING_SINGLE,
+        real: {
+          ...EDIT_EXISTING_SINGLE.real,
+          testFile: "packages/core/src/widget.test.ts",
+          sourceFile: "packages/core/src/**/*.ts",
+          scope: {
+            testGlobs: ["packages/core/src/widget.test.ts"],
+            sourceGlobs: ["packages/core/src/**/*.ts"],
+          },
+        },
+      }),
+    /must declare real\.proofCommand/,
+  );
+});
+
+test("C — no-install owner call (2026-06-21): editsExisting WITHOUT install is ACCEPTED (builtins-only edits stay legal)", () => {
+  // Edit-existing intentionally does NOT force install:true — a builtins-only edit-existing node is
+  // legitimate on a bare worktree. Lock the decision so a future "force install for edit-existing"
+  // refactor would break a labeled test, not slip in silently.
+  const cfg = parseNodeBuildConfig(EDIT_EXISTING_SINGLE);
+  assert.equal(cfg.real?.editsExisting, true);
+  assert.equal("install" in (cfg.real ?? {}), false);
+});
+
 test("C — editsExisting + a broader source scope + a declared suite proofCommand is ACCEPTED", () => {
   const cfg = parseNodeBuildConfig({
     ...EDIT_EXISTING_SINGLE,
