@@ -3243,14 +3243,14 @@ function TerritoryFlora({
       <g className="world-plate" transform={`translate(${t.centroid.x - plateW / 2} ${t.labelY})`}>
         <title>{story.error ? `${story.id} — ${story.error}` : story.title}</title>
         <rect className="world-plate-bg" width={plateW} height={30} rx={7} />
-        {/* buildingIsland mode (owner pivot 2026-06-21): a small bookshelf glyph beside the
-            nameplate marks this island AS a building (the library). Seated just left of the
-            plate, its base on the plate's vertical centre, scaled down to a marker. The look
-            (size/placement) is owner-attested (ADR-0070). */}
+        {/* buildingIsland mode (owner pivot 2026-06-21): a small bookshelf glyph WITHIN the
+            nameplate, left of the name, marks this island AS a building (the library) — owner
+            asked for it inside the plate beside the id (either side; left reads as a leading
+            marker). The look (size/placement/side) is owner-attested (ADR-0070). */}
         {t.buildingGlyph && (
           <g
             className="world-plate-building"
-            transform={`translate(-9 22) scale(0.5)`}
+            transform={`translate(9 23) scale(0.5)`}
             aria-hidden="true"
           >
             <BookshelfGlyph seed={hash(`${story.id}:plate-shelf`)} />
