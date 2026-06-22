@@ -7,6 +7,27 @@ outcome: "An agent curates library artifacts through guidance-enveloped, --pg-ga
 status: mapped
 proof_mode: integration-test
 depends_on: [event-sourced-store-seam, eager-batch-migrate, seed-corpus-scripts, library-health-gate, library-schema-and-write-validation, migrate-on-write-upcaster]
+# ADR-0092 (brownfield gate-as-proof affordance): a spec-borne editsExisting `real:` arm against the
+# real packages/cli source (the CLI command dispatch), so `story build library --real` can DRIVE this
+# capability (ADR-0057 C).
+proof:
+  command:
+    file: pnpm
+    args: ["--filter", "@storytree/cli", "test"]
+  scope:
+    testGlobs: ["packages/cli/src/**/*.test.ts"]
+    sourceGlobs: ["packages/cli/src/**/*.ts"]
+  real:
+    testFile: "packages/cli/src/commands.regression.test.ts"
+    sourceFile: "packages/cli/src/commands.ts"
+    scope:
+      testGlobs: ["packages/cli/src/commands.regression.test.ts"]
+      sourceGlobs: ["packages/cli/src/commands.ts"]
+    editsExisting: true
+    install: true
+    typecheck:
+      file: pnpm
+      args: ["--filter", "@storytree/cli", "typecheck"]
 ---
 
 # The choose-your-own-adventure library CLI

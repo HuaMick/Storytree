@@ -311,9 +311,13 @@ test("assemblePrompts builds authorTest/implement briefs from the node's outcome
 // ── the resolver: all 14 fields, fail-closed on an unregistered node ─────────────────────────────
 
 test("resolveProveSpec refuses a node with NEITHER a spec block NOR a registry entry (contract 5)", () => {
-  // library-cli has no spec-borne `proof:` block; re-id it to something the registry doesn't know.
-  const spec = loadNodeSpec(path.join(STORIES_DIR, "library", "library-cli.md"));
-  assert.equal(spec.buildConfig, undefined, "library-cli is registry-only (no spec block)");
+  // browse-library is config-less (no spec-borne `proof:` block, no registry entry); re-id keeps it
+  // unknown. (The library caps gained spec-borne blocks in ADR-0092, so browse-library is now the
+  // corpus's config-less node.)
+  const file = findNodeSpecFile(STORIES_DIR, "browse-library");
+  assert.ok(file !== null, "browse-library spec file exists");
+  const spec = loadNodeSpec(file);
+  assert.equal(spec.buildConfig, undefined, "browse-library has no spec block and no registry entry");
   const result = resolveProveSpec(
     { ...spec, id: "not-registered" },
     {
@@ -404,7 +408,16 @@ test("dry-run glue: real library-cli spec → ProveSpec → proveUnit → signed
 // ── REAL mode (Phase F): fail-closed config gate, briefs, and the offline wiring walk ───────────
 
 test("real mode fails closed on a registered node WITHOUT a real-proof config", () => {
-  const spec = loadNodeSpec(path.join(STORIES_DIR, "library", "library-cli.md"));
+  // No corpus node is config-but-no-real anymore (the library caps gained real arms in ADR-0092), so
+  // build a synthetic one: a proof config with command + scope but NO `real:` arm refuses --real.
+  const base = loadNodeSpec(findNodeSpecFile(STORIES_DIR, "browse-library")!);
+  const spec = {
+    ...base,
+    buildConfig: {
+      command: { file: "node", args: ["--test"] },
+      scope: { testGlobs: ["packages/cli/src/x.test.ts"], sourceGlobs: ["packages/cli/src/x.ts"] },
+    },
+  };
   const result = resolveProveSpec(spec, {
     mode: "real",
     workspace: os.tmpdir(),
@@ -743,8 +756,10 @@ test("contract 2 — real-mode off a spec-borne NO-install config arms run_proof
 
 // Contract 3 — registry-becomes-fallback (+ spec-wins-on-conflict).
 test("contract 3 — a registry-only spec (no proof: block) still resolves via the registry fallback", () => {
-  const spec = loadById("library-cli");
-  assert.equal(spec.buildConfig, undefined, "library-cli has no spec-borne block");
+  // The library caps are now spec-borne (ADR-0092), so re-id a config-less node (browse-library) onto
+  // a registry twin (library-cli) to exercise the fallback: no spec.buildConfig + a registry hit.
+  const spec = { ...loadById("browse-library"), id: "library-cli" };
+  assert.equal(spec.buildConfig, undefined, "browse-library has no spec-borne block");
   const resolved = resolveBuildConfig(spec);
   assert.ok(resolved !== null);
   assert.equal(resolved.source, "registry");

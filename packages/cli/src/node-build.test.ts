@@ -76,8 +76,10 @@ test("node build with --dry-run AND --real is refused; the mode menu names --rea
 });
 
 test("node build --real on a node WITHOUT a real-proof config fails closed before any worktree", async () => {
+  // browse-library is config-less (the library caps gained real arms in ADR-0092), so it is the
+  // corpus's non-REAL-buildable node — --real refuses it before any worktree, naming the real targets.
   const env = await run(
-    ["node", "build", "library-cli", "--real", "--actor", "tester@example.com"],
+    ["node", "build", "browse-library", "--real", "--actor", "tester@example.com"],
     deps,
   );
   assert.equal(env.ok, false);
@@ -122,16 +124,17 @@ test("node build without an id, and bare `node`, are help/guidance", async () =>
   assert.match(bare.body, /node build <id> --dry-run/);
   assert.match(bare.body, /library-cli/);
   assert.match(bare.body, /--real/);
-  // Spec-borne REAL nodes (ADR-0057 A) join the registry reals in this list: node-resolve-report
-  // and cloud-sql-admin-rest, plus the binding-staleness slices (ADR-0016; their proof: blocks
-  // live in stories/binding-staleness/*.md): boundhash-on-verdict, change-event-store,
-  // change-store-pg (the ADR-0064 §1 DB-backed PgChangeStore proof), drift-reads-store,
-  // gate-emits-change, source-drift; and the first three `agent`-story capabilities to carry
-  // spec-borne proof: blocks (their slices live in stories/agent/*.md): leaf-tool-surface,
-  // model-runtime-seam, owned-turn-loop.
+  // and cloud-sql-admin-rest; the binding-staleness slices (ADR-0016; proof: blocks in
+  // stories/binding-staleness/*.md): boundhash-on-verdict, change-event-store, change-store-pg (the
+  // ADR-0064 §1 DB-backed PgChangeStore proof), drift-reads-store, gate-emits-change, source-drift;
+  // the first three `agent`-story capabilities (stories/agent/*.md): leaf-tool-surface,
+  // model-runtime-seam, owned-turn-loop; and the WHOLE library story + its 7 capabilities (ADR-0092:
+  // spec-borne brownfield + gate-as-proof arms): eager-batch-migrate, event-sourced-store-seam,
+  // library, library-cli, library-health-gate, library-schema-and-write-validation,
+  // migrate-on-write-upcaster, seed-corpus-scripts.
   assert.match(
     bare.body,
-    /REAL-buildable nodes: +ambient-integration, boundhash-on-verdict, change-event-store, change-store-pg, cloud-sql-admin-rest, declare-presence, drift-reads-store, gate-emits-change, leaf-tool-surface, model-runtime-seam, node-resolve-report, noticeboard-cli, owned-turn-loop, presence-store, source-drift, tree-view, verdict-glyphs, verdict-line/,
+    /REAL-buildable nodes: +ambient-integration, boundhash-on-verdict, change-event-store, change-store-pg, cloud-sql-admin-rest, declare-presence, drift-reads-store, eager-batch-migrate, event-sourced-store-seam, gate-emits-change, leaf-tool-surface, library, library-cli, library-health-gate, library-schema-and-write-validation, migrate-on-write-upcaster, model-runtime-seam, node-resolve-report, noticeboard-cli, owned-turn-loop, presence-store, seed-corpus-scripts, source-drift, tree-view, verdict-glyphs, verdict-line/,
   );
 
   const noId = await run(["node", "build", "--dry-run"], deps);
@@ -292,11 +295,15 @@ test("node resolve on the dogfood node (node-resolve-report) resolves spec-borne
   assert.match(env.body, /packages\/cli\/src\/resolve-report\.test\.ts/);
 });
 
-test("node resolve on a registry-only node shows source=registry and REAL-buildable=no", async () => {
+test("node resolve on library-cli shows source=spec + a brownfield editsExisting real arm (ADR-0092)", async () => {
+  // The library caps are now spec-borne with brownfield real arms (ADR-0092: editsExisting against the
+  // real packages/cli source), so library-cli resolves source=spec and is REAL-buildable. No corpus
+  // node is registry-only any more — the registry is a pure parity/fallback oracle (resolver unit tests).
   const env = await run(["node", "resolve", "library-cli"], deps);
   assert.equal(env.ok, true, env.body);
-  assert.match(env.body, /buildable: +yes — source: registry/);
-  assert.match(env.body, /REAL-buildable: no/);
+  assert.match(env.body, /buildable: +yes — source: spec/);
+  assert.match(env.body, /REAL-buildable: yes/);
+  assert.match(env.body, /edits source: +true/); // brownfield edit-existing arm, not a net-new pair
 });
 
 test("node resolve on a non-buildable node fails closed, naming BOTH routes out", async () => {

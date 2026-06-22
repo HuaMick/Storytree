@@ -567,16 +567,27 @@ test("ADR-0087 — scopeGlobBoundIssue: a concrete packages/<pkg>/ glob is in bo
   assert.equal(scopeGlobBoundIssue("apps/studio/src/**/*.tsx"), null);
 });
 
+test("ADR-0092 — scopeGlobBoundIssue: a concrete authoring-DOC glob (stories/docs) is in bounds (null)", () => {
+  // A gate-as-proof node's source is a doc outside packages/ (ADR-0092 amends 0087): one CONCRETE
+  // story dir or one concrete ADR, bounded the same way.
+  assert.equal(scopeGlobBoundIssue("stories/library/story.md"), null);
+  assert.equal(scopeGlobBoundIssue("stories/library/**"), null);
+  assert.equal(scopeGlobBoundIssue("docs/decisions/0092-gate-as-proof-story.md"), null);
+});
+
 test("ADR-0087 — scopeGlobBoundIssue: out-of-bounds globs each return a reason", () => {
   // a bare repo-wide glob — the case the owner named explicitly
   assert.match(scopeGlobBoundIssue("**/*") ?? "", /rooted under/);
   assert.match(scopeGlobBoundIssue("**/*.ts") ?? "", /rooted under/);
-  // not anchored to a known code root
+  // not anchored to a known root (code or authoring-doc)
   assert.match(scopeGlobBoundIssue("src/**/*.ts") ?? "", /rooted under/);
-  assert.match(scopeGlobBoundIssue("docs/**/*.md") ?? "", /rooted under/);
   // wildcard package segment — spans the whole monorepo
   assert.match(scopeGlobBoundIssue("packages/*/src/**/*.ts") ?? "", /concrete package/);
   assert.match(scopeGlobBoundIssue("apps/**/*.ts") ?? "", /concrete package/);
+  // ADR-0092: an authoring-doc root with a WILDCARD second segment is still broad — it must name ONE
+  // concrete story/doc dir, so a repo-wide doc glob is refused (the "concrete", not "rooted", reason).
+  assert.match(scopeGlobBoundIssue("docs/**/*.md") ?? "", /concrete story\/doc dir/);
+  assert.match(scopeGlobBoundIssue("stories/*/story.md") ?? "", /concrete story\/doc dir/);
   // upward escape
   assert.match(scopeGlobBoundIssue("../../etc/passwd") ?? "", /escape/);
   assert.match(scopeGlobBoundIssue("packages/core/../store/src/x.ts") ?? "", /escape/);
