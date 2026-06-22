@@ -303,6 +303,59 @@ through the merge gate, refusing every dishonest shortcut along the way.
 End state — a genuine proof earned, signed, persisted, promoted, landed, AND shown to be usable by a
 fresh agent without coaching; every shortcut walled.
 
+## Reliability Gates
+
+The drive machinery is **brownfield** (`status: mapped`): its dominant behaviour is observationally
+verified by real, passing, OFFLINE suites (the counts are in **Honest status**), but storytree's own
+prove-it-gate never DROVE these proofs red→green. The pleasing irony **Honest status** notes — *the
+gate cannot easily prove itself red→green* — is specifically about the **Build** path (driving a
+genuine red→green): a mature machine has no live red to walk. **Adopt** sidesteps it cleanly: observe-
+and-sign (ADR-0085 d.3) RECORDS an out-of-band green over an already-green suite — the suite passes or
+fails on its own merits and the sign step only attests the observed result, so this is NOT the gate
+driving itself red→green. So the spine's honest path off `mapped` is the author-declared **reliability
+gates** below, observe-and-signed to an `adopted` verdict
+([ADR-0085](../../docs/decisions/0085-resolve-adr-0083-fork-b-brownfield-reliability-gates-author.md),
+resolving [ADR-0083](../../docs/decisions/0083-author-defined-story-green-declared-obligations-machine-per.md)
+Fork B). This is the `mapped → healthy` = **Adopt** transition
+[ADR-0094](../../docs/decisions/0094-go-green-is-a-status-transition-proposed-builds-mapped-adopt.md)
+names (d.3 retired the status-blind Build for `mapped` stories).
+
+The machinery spans two packages, so its reliability floor adopts both suites, one observe gate each.
+Distinct from `## Story UAT` above (the part-scripted/part-attested drive-a-node-to-a-landed-proof
+journey): the gates are the author's **expandable floor**, GROWING a `_(gate: build-tests)_` regression
+leg the moment observation proves insufficient (a real spine/gate defect slips through) — and the live-
+attested legs (the SDK leaf, the GitHub push, the live Postgres SQL, the live OQ loader; see **Honest
+status**) join as `build-tests` gates if they ever earn standing offline tests. The bootstrap step
+**Honest status** names — re-running these assertions UNDER the gate red→green to start earning
+`healthy` — remains a separate, later move; adopting the existing green is the honest brownfield floor.
+
+1. **The spine's own suite is green** _(gate: observe)_ `pnpm --filter @storytree/orchestrator test`.
+   The spine runs it at a clean committed HEAD and OBSERVES it green — the halt-aware sequence
+   (halted-is-never-a-pass), the red→green phase machine + per-phase write wall, the shell-test observer,
+   the prove-it-gate's full red→green ladder, the owned-loop PhaseAuthor under the write wall, the REAL
+   worktree/promotion mechanics, prove-spec resolution + spec-borne proof config, the topo story chain,
+   and the work/verdict event-log projection + signer/rollup/verdict-line proof machinery (the offline
+   `InMemoryStore`/`PgChangeStore` parity contract included) all pass offline (no DB, no API key) — then
+   signs an `adopted` verdict (`storytree gate run drive-machinery#gate-1 --pg`). This is the bulk of
+   the machinery (`packages/orchestrator`).
+2. **The build-drive CLI surface is green** _(gate: observe)_ `pnpm --filter @storytree/cli test`. The
+   spine OBSERVES the CLI-resident drive surface green at a clean HEAD — `node build` / `story build`
+   dispatch + the honest dry-run/`--real` framing, the `--store pg` + `--dry-run` refusal (a scripted
+   PASS persisted would be a forged healthy), the OQ-hygiene gate refusing a live build on an unprocessed
+   operator answer, and the gate-as-proof ADR-authoring completeness checker — then signs an `adopted`
+   verdict (`storytree gate run drive-machinery#gate-2 --pg`). This is the build surface of
+   `packages/cli` this story owns (`build-drive-cli` / `oq-hygiene-gate` / `gate-as-proof-authoring`),
+   adopted alongside the CLI hub's own `cli#gate-1` since both observe the one `packages/cli` suite.
+
+Adopting both flips the tier off `mapped`. `healthy` stays non-authorable
+([ADR-0020](../../docs/decisions/0020-red-green-enforcement-on-the-owned-loop.md)) — the authored
+frontmatter `status:` stays `mapped`; the world's crown DERIVES green from the signed verdicts
+([ADR-0040](../../docs/decisions/0040-verdict-derived-green-and-the-human-witness-signpost.md)) and only
+when every capability is `healthy` AND every own-proof obligation (these reliability gates) is signed
+AND the **human-witnessed** Story UAT above is attested (the story node is withheld, ADR-0040;
+[ADR-0082](../../docs/decisions/0082-per-test-uat-tests-earn-green-by-declared-witness-story-uat.md) /
+ADR-0083 Fork A + ADR-0085). No single gate greens the story.
+
 ## Proof
 
 The story carries the UAT above (ADR-0010 §2); it is proven when that walkthrough passes against
