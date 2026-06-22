@@ -559,6 +559,21 @@ code {
   color: inherit;
   font-size: inherit;
 }
+/* ```mermaid fenced blocks render as an SVG diagram (ADR-0096), so they sit on the page
+   background — centred, never inside the dark <pre> code box. */
+.markdown .mermaid-diagram {
+  margin: 0 0 16px;
+  text-align: center;
+  overflow-x: auto;
+}
+.markdown .mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+/* A diagram that fails to parse falls back to its source in a code box with a warning edge. */
+.markdown pre.mermaid-error {
+  border-left: 3px solid #b91c1c;
+}
 .markdown table {
   border-collapse: collapse;
   width: 100%;
