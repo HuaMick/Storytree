@@ -236,6 +236,46 @@ out-of-scope write and never forging a success.
 End state — one seam, two runtimes, every honesty wall (path confinement, fail-closed steps, scoped
 writes, no-self-verdict) held; the spine never named a model.
 
+## Reliability Gates
+
+The agent runtime is **brownfield** (`status: mapped`): its dominant behaviour is observationally
+verified by a real, passing, OFFLINE suite (`pnpm --filter @storytree/agent test`, **70/70** —
+`ScriptedModel` + an injectable `queryFn` keep every decision offline-testable, no DB, no API key, see
+**Honest status**), but storytree's own prove-it-gate never DROVE those proofs red→green. So its honest
+path off `mapped` is **not** a fail-closed `--real` Build over a mature artifact with no genuine live
+red — it is the author-declared **reliability gates** below, observe-and-signed to an `adopted` verdict
+([ADR-0085](../../docs/decisions/0085-resolve-adr-0083-fork-b-brownfield-reliability-gates-author.md),
+resolving [ADR-0083](../../docs/decisions/0083-author-defined-story-green-declared-obligations-machine-per.md)
+Fork B). This is the `mapped → healthy` = **Adopt** transition
+[ADR-0094](../../docs/decisions/0094-go-green-is-a-status-transition-proposed-builds-mapped-adopt.md)
+names (its decision d.3 retired the status-blind Build for `mapped` stories). Distinct from
+`## Story UAT` above (the integrated, part-scripted/part-attested acceptance journey across two
+runtimes): the gates are the author's **expandable reliability floor**, starting by adopting the
+existing green suite and GROWING a `_(gate: build-tests)_` gate (a genuine red→green regression leg)
+the moment observation proves insufficient — a real defect slips through, or the live SDK leg
+(currently operator-attested) finally earns a standing offline test.
+
+1. **The agent runtime's own suite is green** _(gate: observe)_ `pnpm --filter @storytree/agent test`.
+   The spine runs it at a clean committed HEAD and OBSERVES it green — the `Model` seam + `ScriptedModel`
+   (every `@anthropic-ai/sdk` import confined to `model.ts`), the owned turn loop, the fail-closed step
+   runner (malformed result retries then HALTS, never a forged success), the confined file-tool surface
+   (a path escape refused as a tool result, never a thrown crash), and the SDK leaf's `decideWrite`
+   write-scope DECISION function all pass offline (no DB, no API key) — then signs an `adopted` verdict
+   (`storytree gate run agent#gate-1 --pg`). This is the bulk of the leaf organism's mechanics
+   (`packages/agent`). The genuinely live legs — a real subscription `query()`, the inner loop — stay
+   operator-attested in the drive-machinery dogfood history (see **Honest status** and Story UAT leg 5),
+   never a standing test in this package; they become a `build-tests` gate here if one is ever authored.
+
+Adopting this gate flips the runtime off `mapped`. `healthy` stays non-authorable
+([ADR-0020](../../docs/decisions/0020-red-green-enforcement-on-the-owned-loop.md)) — the authored
+frontmatter `status:` stays `mapped`; the world's crown DERIVES green from the signed verdicts
+([ADR-0040](../../docs/decisions/0040-verdict-derived-green-and-the-human-witness-signpost.md)) and only
+when every capability is `healthy` AND this reliability gate is signed AND the **human-witnessed**
+Story UAT above is attested (`agent`'s `uat_witness` is absent → human, the ADR-0040 fail-closed
+default — its story UAT node is withheld from the machine and awaits an operator's "I saw it work";
+[ADR-0082](../../docs/decisions/0082-per-test-uat-tests-earn-green-by-declared-witness-story-uat.md) /
+ADR-0083 Fork A + ADR-0085). No single gate greens the story.
+
 ## Proof
 
 The story carries the UAT above (ADR-0010 §2); it is proven when that walkthrough passes against the

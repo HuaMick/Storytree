@@ -122,6 +122,45 @@ envelope.
 End state — multiple organisms reached through one binary, the envelope/exit-code contract held, and
 the write gate + credential hydration proven.
 
+## Reliability Gates
+
+The CLI hub is **brownfield** (`status: mapped`): `packages/cli` has a real, passing, OFFLINE
+automated suite that observationally verifies the dominant dispatch / envelope / write-gate / corpus-
+guard behaviour (the live `--pg` legs are DB-gated and skipped by default), but storytree's own prove-
+it-gate never DROVE those proofs red→green. So its honest path off `mapped` is **not** a fail-closed
+`--real` Build over a mature artifact with no genuine live red — it is the author-declared
+**reliability gates** below, observe-and-signed to an `adopted` verdict
+([ADR-0085](../../docs/decisions/0085-resolve-adr-0083-fork-b-brownfield-reliability-gates-author.md),
+resolving [ADR-0083](../../docs/decisions/0083-author-defined-story-green-declared-obligations-machine-per.md)
+Fork B). This is the `mapped → healthy` = **Adopt** transition
+[ADR-0094](../../docs/decisions/0094-go-green-is-a-status-transition-proposed-builds-mapped-adopt.md)
+names (d.3 retired the status-blind Build for `mapped` stories). Distinct from `## Story UAT` above
+(the integrated, expandable acceptance journey): the gates are the author's **expandable reliability
+floor**, starting by adopting the existing green suite and GROWING a `_(gate: build-tests)_` gate (a
+genuine red→green regression leg) the moment observation proves insufficient — a real dispatch/envelope
+defect slips through, or the live `--pg` credential-hydration leg earns a standing offline test.
+
+1. **The CLI hub's own suite is green** _(gate: observe)_ `pnpm --filter @storytree/cli test`. The
+   spine runs it at a clean committed HEAD and OBSERVES it green — the `run` verb dispatch + typed
+   `Envelope` contract, the offline-safe `--pg` write gate (a write refused offline with guidance, not
+   a silent no-op), credential hydration (`secrets.ts`), and the genuinely CLI-resident authoring
+   primitives this story owns (the `stories/` YAML corpus guard `scripts/validate-corpus.ts` and the
+   ADR frontmatter parser `adr-frontmatter.ts`) all pass offline (no DB, no API key) — then signs an
+   `adopted` verdict (`storytree gate run cli#gate-1 --pg`). This observes the whole `packages/cli`
+   suite, which is the connective-tissue behaviour this hub owns; the deep per-domain journeys it
+   surfaces are adopted by their own organisms' gates (`library`'s `library-cli`, `drive-machinery`'s
+   `build-drive-cli`). The live `--pg` credential-hydration + pull (Story UAT leg 4) is DB-gated and
+   skipped by default — it becomes a `build-tests` gate here if it ever earns a standing offline test.
+
+Adopting this gate flips the hub off `mapped`. `healthy` stays non-authorable
+([ADR-0020](../../docs/decisions/0020-red-green-enforcement-on-the-owned-loop.md)) — the authored
+frontmatter `status:` stays `mapped`; the world's crown DERIVES green from the signed verdicts
+([ADR-0040](../../docs/decisions/0040-verdict-derived-green-and-the-human-witness-signpost.md)) and only
+when every capability is `healthy` AND every own-proof obligation (the machine-witnessed Story UAT legs
+above AND this reliability gate) is signed
+([ADR-0082](../../docs/decisions/0082-per-test-uat-tests-earn-green-by-declared-witness-story-uat.md) /
+ADR-0083 Fork A + ADR-0085). No single gate greens the story.
+
 ## Proof
 
 **Honest status — `mapped` (brownfield), NOT `healthy`.** `packages/cli` has a real, passing,
