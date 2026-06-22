@@ -126,10 +126,12 @@ test("node build without an id, and bare `node`, are help/guidance", async () =>
   // and cloud-sql-admin-rest, plus the binding-staleness slices (ADR-0016; their proof: blocks
   // live in stories/binding-staleness/*.md): boundhash-on-verdict, change-event-store,
   // change-store-pg (the ADR-0064 §1 DB-backed PgChangeStore proof), drift-reads-store,
-  // gate-emits-change, source-drift.
+  // gate-emits-change, source-drift; and the first three `agent`-story capabilities to carry
+  // spec-borne proof: blocks (their slices live in stories/agent/*.md): leaf-tool-surface,
+  // model-runtime-seam, owned-turn-loop.
   assert.match(
     bare.body,
-    /REAL-buildable nodes: +ambient-integration, boundhash-on-verdict, change-event-store, change-store-pg, cloud-sql-admin-rest, declare-presence, drift-reads-store, gate-emits-change, node-resolve-report, noticeboard-cli, presence-store, source-drift, tree-view, verdict-glyphs, verdict-line/,
+    /REAL-buildable nodes: +ambient-integration, boundhash-on-verdict, change-event-store, change-store-pg, cloud-sql-admin-rest, declare-presence, drift-reads-store, gate-emits-change, leaf-tool-surface, model-runtime-seam, node-resolve-report, noticeboard-cli, owned-turn-loop, presence-store, source-drift, tree-view, verdict-glyphs, verdict-line/,
   );
 
   const noId = await run(["node", "build", "--dry-run"], deps);
