@@ -16,6 +16,7 @@
   "dependencies": {
     "@dagrejs/dagre": "^1.1.4",
     "@storytree/cli": "workspace:*",
+    "@storytree/forest-world": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/notice-board": "workspace:*",
     "@storytree/orchestrator": "workspace:*",

@@ -50,8 +50,9 @@
       "@storytree/studio-members": "studio-members",
       "@storytree/cli": "cli",
       "@storytree/storage-protocol": "storage-protocol",
-      "@storytree/proof-protocol": "proof-protocol"
+      "@storytree/proof-protocol": "proof-protocol",
+      "@storytree/forest-world": "forest-world"
     },
-    "foundational": ["@storytree/storage-protocol", "@storytree/proof-protocol"]
+    "foundational": ["@storytree/storage-protocol", "@storytree/proof-protocol", "@storytree/forest-world"]
   }
 }
