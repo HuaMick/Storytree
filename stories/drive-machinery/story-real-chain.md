@@ -66,6 +66,11 @@ A `--real` story's UAT node has no `real:` arm (its proof is a UAT, not a test-f
 human-witnessed story WITHHOLDS it (the capabilities are still real-built + promoted — the main
 `--real` success shape); a machine-witnessed story whose UAT node lacks a `real:` arm is REFUSED
 before any worktree (a story UAT as a gate-as-proof node is expansion E, ADR-0057 §5).
+**(Expansion E for the STORY node landed in [ADR-0092](../../docs/decisions/0092-gate-as-proof-for-a-machine-witnessed-story-s-own-uat-node.md):** a machine-witnessed
+story's own UAT node now earns a gate-as-proof `real:` arm over its spec — edit-existing against
+`stories/<story>/story.md`, a structural-completeness check as the proof — so its whole chain is
+`--real`-buildable. `library` is the first; the refusal above now fires only for a machine-witnessed
+story that has NOT yet declared that arm.)
 
 > **Open owner calls (surfaced).** (1) RESOLVED 2026-06-21 (owner chose A — stay local-only): a
 > halted chain's green prefix stays parked LOCAL-ONLY, never pushed — D's conservative

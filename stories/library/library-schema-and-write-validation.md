@@ -7,6 +7,28 @@ outcome: "Every library artifact is zod-validated at the write boundary against 
 status: mapped
 proof_mode: integration-test
 depends_on: []
+# ADR-0092 (brownfield gate-as-proof affordance): a spec-borne editsExisting `real:` arm against the
+# real packages/library source, so `story build library --real` can DRIVE this capability — the leaf
+# adds a regression test red→green over the existing source (ADR-0057 keystone + expansion C). It is
+# what makes the node `--real`-buildable; a live red needs a genuine regression to drive (brownfield).
+proof:
+  command:
+    file: pnpm
+    args: ["--filter", "@storytree/library", "test"]
+  scope:
+    testGlobs: ["packages/library/src/**/*.test.ts"]
+    sourceGlobs: ["packages/library/src/**/*.ts"]
+  real:
+    testFile: "packages/library/src/library-doc.regression.test.ts"
+    sourceFile: "packages/library/src/library-doc.ts"
+    scope:
+      testGlobs: ["packages/library/src/library-doc.regression.test.ts"]
+      sourceGlobs: ["packages/library/src/library-doc.ts"]
+    editsExisting: true
+    install: true
+    typecheck:
+      file: pnpm
+      args: ["--filter", "@storytree/library", "typecheck"]
 ---
 
 # Schema-defined library docs, validated at the write boundary

@@ -104,11 +104,13 @@ test("resolveReport on an install-bearing real arm renders typecheck as a displa
 // ── Contract 1 (continued): registry-only node — source="registry", realBuildable=false ─────────
 
 test("resolveReport on a registry-only node reports source=registry with no real arm", () => {
-  // library-cli: no spec-borne proof: block, but in the registry; no real: arm.
-  const file = findNodeSpecFile(STORIES_DIR, "library-cli");
-  assert.ok(file !== null, "library-cli spec file exists");
-  const spec = loadNodeSpec(file);
-  assert.equal(spec.buildConfig, undefined, "library-cli has no spec-borne block");
+  // The library caps are now spec-borne (ADR-0092), so re-id a config-less node (browse-library) onto
+  // a registry twin (library-cli) to exercise the registry-fallback path: no spec.buildConfig + a
+  // registry hit ⇒ source="registry", no real arm.
+  const file = findNodeSpecFile(STORIES_DIR, "browse-library");
+  assert.ok(file !== null, "browse-library spec file exists");
+  const spec = { ...loadNodeSpec(file), id: "library-cli" };
+  assert.equal(spec.buildConfig, undefined, "browse-library has no spec-borne block");
 
   const report = resolveReport(spec);
 

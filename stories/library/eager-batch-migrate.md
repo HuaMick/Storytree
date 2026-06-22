@@ -7,6 +7,27 @@ outcome: "A lagging library doc is bulk forward-migrated in place non-destructiv
 status: mapped
 proof_mode: integration-test
 depends_on: [event-sourced-store-seam, migrate-on-write-upcaster]
+# ADR-0092 (brownfield gate-as-proof affordance): a spec-borne editsExisting `real:` arm against the
+# real packages/library source, so `story build library --real` can DRIVE this capability (ADR-0057 C).
+# batchMigrate is store-agnostic (it runs over the Store seam), so no db is needed offline.
+proof:
+  command:
+    file: pnpm
+    args: ["--filter", "@storytree/library", "test"]
+  scope:
+    testGlobs: ["packages/library/src/**/*.test.ts"]
+    sourceGlobs: ["packages/library/src/**/*.ts"]
+  real:
+    testFile: "packages/library/src/store/batch-migrate.regression.test.ts"
+    sourceFile: "packages/library/src/store/batch-migrate.ts"
+    scope:
+      testGlobs: ["packages/library/src/store/batch-migrate.regression.test.ts"]
+      sourceGlobs: ["packages/library/src/store/batch-migrate.ts"]
+    editsExisting: true
+    install: true
+    typecheck:
+      file: pnpm
+      args: ["--filter", "@storytree/library", "typecheck"]
 ---
 
 # Eagerly drain the version tail and render stored docs for reading

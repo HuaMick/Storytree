@@ -29,6 +29,30 @@ decisions: [17, 18, 19, 23, 26]
 # island) with NO connection lines, rather than a connected organism node. This is the manual,
 # agent-authored building-vs-island tag (set during story writing/review, never derived).
 render: building
+# ADR-0092: the gate-as-proof `real:` arm for this machine-witnessed story's OWN UAT node. Because
+# `uat_witness: machine` DRIVES the story node under `story build --real` (not withheld, ADR-0040), it
+# needs a `real:` arm or the chain is refused (story-real-chain). Gate-as-proof (ADR-0059 expansion E)
+# over THIS spec: the leaf authors a builtins-only story-UAT completeness test (reads this story.md)
+# RED against an incomplete spec, then EDITs the spec complete (GREEN) — edit-existing over a doc,
+# the story analog of ADR-authoring. The node verdict signs "the UAT spec is structurally complete &
+# machine-witnessed" — NOT the story-green CROWN (all caps healthy AND every per-test UAT verdict
+# signed by its witness still owns that, ADR-0082/0083). No install: the completeness test is
+# builtins-only (node:fs/test/assert), run via the worktree's tsx loader. The stories/ source root is
+# permitted by ADR-0092's amendment to ADR-0087's scope bound.
+proof:
+  command:
+    file: pnpm
+    args: ["--filter", "@storytree/cli", "test"]
+  scope:
+    testGlobs: ["packages/cli/src/library-story-completeness.test.ts"]
+    sourceGlobs: ["stories/library/story.md"]
+  real:
+    testFile: "packages/cli/src/library-story-completeness.test.ts"
+    sourceFile: "stories/library/story.md"
+    scope:
+      testGlobs: ["packages/cli/src/library-story-completeness.test.ts"]
+      sourceGlobs: ["stories/library/story.md"]
+    editsExisting: true
 ---
 
 # The library tier

@@ -7,6 +7,28 @@ outcome: "A narrow Store seam appends every write as a history event and updates
 status: mapped
 proof_mode: integration-test
 depends_on: [library-schema-and-write-validation, migrate-on-write-upcaster]
+# ADR-0092 (brownfield gate-as-proof affordance): a spec-borne editsExisting `real:` arm against the
+# real Postgres Store seam. `db: true` (ADR-0064): the proof connects to an ISOLATED test database,
+# never production — the honest shape for the pg-store seam, so `story build library --real` can DRIVE it.
+proof:
+  command:
+    file: pnpm
+    args: ["--filter", "@storytree/library", "test"]
+  scope:
+    testGlobs: ["packages/library/src/**/*.test.ts"]
+    sourceGlobs: ["packages/library/src/**/*.ts"]
+  real:
+    testFile: "packages/library/src/store/pg-store.regression.test.ts"
+    sourceFile: "packages/library/src/store/pg-store.ts"
+    scope:
+      testGlobs: ["packages/library/src/store/pg-store.regression.test.ts"]
+      sourceGlobs: ["packages/library/src/store/pg-store.ts"]
+    editsExisting: true
+    install: true
+    db: true
+    typecheck:
+      file: pnpm
+      args: ["--filter", "@storytree/library", "typecheck"]
 ---
 
 # The narrow event-sourced Store seam over the keyless `events` schema (in-memory + Postgres)

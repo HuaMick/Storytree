@@ -7,6 +7,26 @@ outcome: "A library doc authored against an older schema is forward-migrated and
 status: mapped
 proof_mode: integration-test
 depends_on: [library-schema-and-write-validation]
+# ADR-0092 (brownfield gate-as-proof affordance): a spec-borne editsExisting `real:` arm against the
+# real packages/library source, so `story build library --real` can DRIVE this capability (ADR-0057 C).
+proof:
+  command:
+    file: pnpm
+    args: ["--filter", "@storytree/library", "test"]
+  scope:
+    testGlobs: ["packages/library/src/**/*.test.ts"]
+    sourceGlobs: ["packages/library/src/**/*.ts"]
+  real:
+    testFile: "packages/library/src/migrations.regression.test.ts"
+    sourceFile: "packages/library/src/migrations.ts"
+    scope:
+      testGlobs: ["packages/library/src/migrations.regression.test.ts"]
+      sourceGlobs: ["packages/library/src/migrations.ts"]
+    editsExisting: true
+    install: true
+    typecheck:
+      file: pnpm
+      args: ["--filter", "@storytree/library", "typecheck"]
 ---
 
 # Forward-migrate and version-stamp library docs on write

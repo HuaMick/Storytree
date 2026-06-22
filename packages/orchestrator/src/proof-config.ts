@@ -162,17 +162,34 @@ const ShellCommandSchema = z
   .strict();
 
 /**
- * ADR-0087: the STRUCTURAL bound on one spec-borne write-scope glob. A self-registered node writes
- * its own `sourceGlobs`/`testGlobs` (ADR-0057), so the over-declaration the registry status quo left
- * to **PR-diff review** is instead refused **here, by construction** — a self-registered node can
- * never declare a scope reaching outside a single, concrete package/app.
+ * The code roots a spec-borne write scope may target (ADR-0087): one concrete package or app.
+ */
+const CODE_ROOTS = ["packages", "apps"] as const;
+/**
+ * The AUTHORING-DOC roots a gate-as-proof node may target (ADR-0092 amends ADR-0087): a story's own
+ * spec dir (`stories/<story>/`) and the decision log (`docs/decisions/`). A gate-as-proof authoring
+ * node's "source" is a DOC outside `packages/` — an ADR (`docs/decisions/NNNN-slug.md`) or a story
+ * spec (`stories/<story>/story.md`) it edits to structural completeness (ADR-0059, expansion E). The
+ * SAME structural bound still applies — one CONCRETE doc dir, no wildcard/`..`/absolute escape — so a
+ * gate-as-proof node can no more declare a repo-wide doc scope than a code node can.
+ */
+const AUTHORING_DOC_ROOTS = ["stories", "docs"] as const;
+/** Every root a self-registered scope glob may be anchored under (code + authoring-doc). */
+const ALLOWED_SCOPE_ROOTS: readonly string[] = [...CODE_ROOTS, ...AUTHORING_DOC_ROOTS];
+
+/**
+ * ADR-0087 (amended by ADR-0092): the STRUCTURAL bound on one spec-borne write-scope glob. A
+ * self-registered node writes its own `sourceGlobs`/`testGlobs` (ADR-0057), so the over-declaration
+ * the registry status quo left to **PR-diff review** is instead refused **here, by construction** —
+ * a self-registered node can never declare a scope reaching outside a single, concrete unit.
  *
- * PURE + shape-only (no filesystem): it judges the glob STRING, never whether the package exists, so
- * it is independently unit-testable and never couples the parser to disk (the dissolved `packages/core`
+ * PURE + shape-only (no filesystem): it judges the glob STRING, never whether the unit exists, so it
+ * is independently unit-testable and never couples the parser to disk (the dissolved `packages/core`
  * specs still parse — existence is a separate drift concern). A glob is IN BOUNDS iff it is a
- * repo-relative POSIX path whose first two segments are a concrete code root (`packages` | `apps`)
- * then a concrete package/app name (no glob metacharacter), with no `..` escape. Returns a
- * human-readable reason when the glob is OUT of bounds, else null.
+ * repo-relative POSIX path whose first segment is an allowed root — a concrete CODE root
+ * (`packages` | `apps`) or, for gate-as-proof authoring nodes, an authoring-DOC root
+ * (`stories` | `docs`, ADR-0092) — and whose second segment is a CONCRETE unit name (no glob
+ * metacharacter), with no `..` escape. Returns a human-readable reason when OUT of bounds, else null.
  */
 export function scopeGlobBoundIssue(glob: string): string | null {
   if (glob.startsWith("/") || /^[A-Za-z]:/.test(glob)) {
@@ -180,15 +197,19 @@ export function scopeGlobBoundIssue(glob: string): string | null {
   }
   const segments = glob.split("/");
   if (segments.includes("..")) {
-    return `must not escape its package with a ".." segment ("${glob}")`;
+    return `must not escape its unit with a ".." segment ("${glob}")`;
   }
   const root = segments[0];
-  const pkg = segments[1];
-  if (root !== "packages" && root !== "apps") {
-    return `must be rooted under "packages/" or "apps/" — a bare repo-wide glob like "**/*" is refused ("${glob}")`;
+  const unit = segments[1];
+  if (root === undefined || !ALLOWED_SCOPE_ROOTS.includes(root)) {
+    return (
+      `must be rooted under one of "packages/", "apps/" (code) or "stories/", "docs/" ` +
+      `(gate-as-proof authoring docs) — a bare repo-wide glob like "**/*" is refused ("${glob}")`
+    );
   }
-  if (pkg === undefined || pkg === "" || /[*?[\]{}]/.test(pkg)) {
-    return `must name ONE concrete package/app after "${root}/" — a wildcard package segment spans the whole repo ("${glob}")`;
+  const unitWord = root === "packages" || root === "apps" ? "package/app" : "story/doc dir";
+  if (unit === undefined || unit === "" || /[*?[\]{}]/.test(unit)) {
+    return `must name ONE concrete ${unitWord} after "${root}/" — a wildcard segment spans the whole repo ("${glob}")`;
   }
   return null;
 }
