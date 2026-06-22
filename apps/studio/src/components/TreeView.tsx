@@ -439,6 +439,23 @@ export function nameplateLayout(idLen: number, building: boolean): NameplateLayo
   return { w, h, rx: 7, idY: 14, subY: 27, glyphX: 0, glyphY: 0, glyphScale: 1 };
 }
 
+/**
+ * The panel bookshelf-landmark anchor (ADR-0088 follow-on, owner 2026-06-22): a shared-island
+ * card draws its bookshelf glyph just OUTSIDE the name card, to its RIGHT and bigger — not inside
+ * the plate. Pure geometry: the glyph's centre sits `margin` px past the plate's right edge
+ * (`centroidX + w/2`); its base aligns to the card's bottom (`labelY + h`) so the enlarged glyph
+ * rises beside the card. The caller folds the glyph's half-width into `margin` so its left edge
+ * clears the card. Unit-tested (sharedIslandPanel.test.ts) — the look (scale, gap) is owner-attested.
+ */
+export function bookshelfAnchorRight(
+  plate: NameplateLayout,
+  centroidX: number,
+  labelY: number,
+  margin: number,
+): Pt {
+  return { x: centroidX + plate.w / 2 + margin, y: labelY + plate.h };
+}
+
 /** ADR-0033 d.3 vocabulary — the one source for every verdict phrase. */
 function verdictPhrase(v: TreeVerdict): string {
   return v.outcome === 'pass' ? '✓ proven' : '✗ last run failed';
@@ -639,12 +656,6 @@ export function buildWorld(
      *  When a single building story is passed with `buildings: false`, it lays out as one plain
      *  island — exactly the one-island Territory the Shared Islands panel renders per building. */
     buildings?: boolean;
-    /** ADR-0088: mark every laid-out territory with the building nameplate glyph. The Shared
-     *  Islands PANEL passes a single building story with `buildings: false` + this true to get
-     *  one Territory whose nameplate carries the bookshelf landmark glyph. Never set on the map
-     *  (building-class stories are excluded there), so on the map this is always the default
-     *  false ⇒ no on-map glyph. */
-    panelBuildingGlyph?: boolean;
     /** Ids of the synthetic central hubs in `stories` (solar mode only). */
     hubIds?: ReadonlySet<string>;
   },
@@ -652,7 +663,6 @@ export function buildWorld(
   const plantsScatter = opts?.plantsScatter ?? false;
   const layoutMode = opts?.layoutMode ?? 'dag';
   const buildings = opts?.buildings ?? false;
-  const panelBuildingGlyph = opts?.panelBuildingGlyph ?? false;
   const hubIds = opts?.hubIds ?? EMPTY_ID_SET;
 
   // ADR-0076 §2 (distributed-bookshelf STAMP, owner steer 2026-06-20): a story tagged
@@ -965,11 +975,11 @@ export function buildWorld(
       labelY,
       bookshelf: carriesBookshelf,
       ...(bookshelfSpot ? { bookshelfSpot } : {}),
-      // ADR-0088: building-class stories no longer render on the map (they're in the Shared
-      // Islands panel), so no on-map nameplate carries the building glyph. The glyph machinery
-      // moved to the PANEL render, which builds its one-island Territory with
-      // `panelBuildingGlyph: true` so the nameplate carries the bookshelf landmark.
-      buildingGlyph: panelBuildingGlyph,
+      // ADR-0088 (+ owner 2026-06-22 follow-on): building-class stories never render on the map
+      // (they live in the Shared Islands panel) AND the panel's bookshelf landmark now sits
+      // OUTSIDE the name card (SharedIslandCard draws it), so NO nameplate ever carries the
+      // in-card building glyph — it is always false here.
+      buildingGlyph: false,
     };
   });
 
@@ -1147,7 +1157,7 @@ const HEX_TUNING: SubstrateTuning = { jitter: 0.7, iters: 2, relax: 0.28, wheatS
 // Path B's irregular topology carries the de-hexing, so jitter sits lower than
 // path A (less needed; too much tangles the finer mesh); relax a touch firmer to
 // settle the merged quads into clean Townscaper cells.
-const MESH_TUNING: SubstrateTuning = {
+export const MESH_TUNING: SubstrateTuning = {
   jitter: 0.42,
   iters: 3,
   relax: 0.34,
@@ -1554,7 +1564,7 @@ function buildMeshCells(world: HexWorld, t: SubstrateTuning): RelaxedCell[] {
   });
 }
 
-function buildRelaxedCells(
+export function buildRelaxedCells(
   world: HexWorld,
   mode: SubstrateMode,
   override: Partial<SubstrateTuning>,
@@ -2129,6 +2139,8 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
           now={now}
           hidden={hidden}
           highlightId={highlightShared}
+          substrateMode={substrateMode}
+          substrateTuning={substrateTuning}
           onToggleStatus={toggleStatus}
           onResetHidden={() => setHidden(new Set())}
           onSelectIsland={(id) => selectStory(id, null)}
@@ -2193,60 +2205,17 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
                 ))}
               </g>
 
-              {/* claimed land, back-to-front so extrusions layer */}
-              {relaxedCells ? (
-                // VISUAL SPIKE: irregular relaxed substrate (flat cells, grouped
-                // by territory for hover/focus). Replaces the extruded hex tiles.
-                <g className="relaxed-land">
-                  {world.territories.map((territory, owner) => {
-                    const cells = relaxedCells.filter((c) => c.owner === owner);
-                    if (cells.length === 0) return null;
-                    return (
-                      <g
-                        key={territory.story.id}
-                        className={`relaxed-tile ${territoryClass(territory.story)}`}
-                        onMouseEnter={() => setHoverStory(territory.story.id)}
-                        onMouseLeave={() => setHoverStory(null)}
-                        onClick={() => selectStory(territory.story.id, null)}
-                      >
-                        {cells.map((cell, i) => (
-                          <path
-                            key={i}
-                            className={`relaxed-cell ${cell.wheat ? 'is-wheat' : `v-${cell.variant}`}`}
-                            d={polyPath(cell.poly)}
-                          />
-                        ))}
-                      </g>
-                    );
-                  })}
-                </g>
-              ) : (
-                <g className="hex-land">
-                  {world.drawTiles.map(({ h, owner }) => {
-                    const territory = world.territories[owner];
-                    if (!territory) return null;
-                    const c = hexCenter(h);
-                    const key = axialKey(h);
-                    const variant = hash(`tile:${key}`) % 3;
-                    const wheat = territory.wheatTiles.has(key);
-                    return (
-                      <g
-                        key={key}
-                        className={`hex-tile ${territoryClass(territory.story)}`}
-                        onMouseEnter={() => setHoverStory(territory.story.id)}
-                        onMouseLeave={() => setHoverStory(null)}
-                        onClick={() => selectStory(territory.story.id, null)}
-                      >
-                        <path className="hex-side" d={hexPath(c.x, c.y + TILE_DEPTH, HEX_R)} />
-                        <path
-                          className={`hex-top ${wheat ? 'is-wheat' : `v-${variant}`}`}
-                          d={hexPath(c.x, c.y, HEX_R)}
-                        />
-                      </g>
-                    );
-                  })}
-                </g>
-              )}
+              {/* claimed land, back-to-front so extrusions layer — the shared IslandGround
+                  (the SAME component the Shared Islands panel paints, so map + panel never drift). */}
+              <IslandGround
+                world={world}
+                relaxedCells={relaxedCells}
+                classOf={territoryClass}
+                interactive={{
+                  onHover: (id) => setHoverStory(id),
+                  onSelect: (id) => selectStory(id, null),
+                }}
+              />
 
               {/* SOLAR connections (solar mode) — thin, no-arrow, PERIMETER-DOCKED curves
                   the website-way (web/src/lib/world.ts): spokes first (the de-noised
@@ -2615,14 +2584,104 @@ function StoryBookshelf({
 }
 
 /**
+ * The claimed-land GROUND layer for every territory in `world`, back-to-front so extrusions
+ * layer — the relaxed mesh substrate (the default) or the extruded hex tiles. Shared by the MAP
+ * (interactive: per-territory hover/select) and the Shared Islands panel CARD (non-interactive),
+ * so an island's ground reads identically in both and the two can never drift (ADR-0088 follow-on,
+ * owner 2026-06-22 — the panel islands were missing this layer and looked flat). Pure geometry off
+ * the world model; the handlers are the only difference between the two call sites.
+ */
+function IslandGround({
+  world,
+  relaxedCells,
+  classOf,
+  interactive,
+}: {
+  world: HexWorld;
+  relaxedCells: RelaxedCell[] | null;
+  /** The per-territory ground class. The map passes its focus/hover-aware `territoryClass`; the
+   *  panel card passes a static `hex-territory st-<status>` (no map focus context). */
+  classOf: (story: TreeStory) => string;
+  interactive?: { onHover: (id: string | null) => void; onSelect: (id: string) => void };
+}): React.JSX.Element {
+  const hov = interactive?.onHover;
+  const sel = interactive?.onSelect;
+  if (relaxedCells) {
+    // VISUAL SPIKE substrate: irregular relaxed cells, grouped by territory for hover/focus.
+    return (
+      <g className="relaxed-land">
+        {world.territories.map((territory, owner) => {
+          const cells = relaxedCells.filter((c) => c.owner === owner);
+          if (cells.length === 0) return null;
+          return (
+            <g
+              key={territory.story.id}
+              className={`relaxed-tile ${classOf(territory.story)}`}
+              {...(hov
+                ? { onMouseEnter: () => hov(territory.story.id), onMouseLeave: () => hov(null) }
+                : {})}
+              {...(sel ? { onClick: () => sel(territory.story.id) } : {})}
+            >
+              {cells.map((cell, i) => (
+                <path
+                  key={i}
+                  className={`relaxed-cell ${cell.wheat ? 'is-wheat' : `v-${cell.variant}`}`}
+                  d={polyPath(cell.poly)}
+                />
+              ))}
+            </g>
+          );
+        })}
+      </g>
+    );
+  }
+  return (
+    <g className="hex-land">
+      {world.drawTiles.map(({ h, owner }) => {
+        const territory = world.territories[owner];
+        if (!territory) return null;
+        const c = hexCenter(h);
+        const key = axialKey(h);
+        const variant = hash(`tile:${key}`) % 3;
+        const wheat = territory.wheatTiles.has(key);
+        return (
+          <g
+            key={key}
+            className={`hex-tile ${classOf(territory.story)}`}
+            {...(hov
+              ? { onMouseEnter: () => hov(territory.story.id), onMouseLeave: () => hov(null) }
+              : {})}
+            {...(sel ? { onClick: () => sel(territory.story.id) } : {})}
+          >
+            <path className="hex-side" d={hexPath(c.x, c.y + TILE_DEPTH, HEX_R)} />
+            <path
+              className={`hex-top ${wheat ? 'is-wheat' : `v-${variant}`}`}
+              d={hexPath(c.x, c.y, HEX_R)}
+            />
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/** The panel bookshelf landmark: clearly bigger than the on-map stamp (`scale(1.18)`) and seated
+ *  to the RIGHT of the name card with a small gap. The glyph is centred at its origin, so its
+ *  half-width is folded into the margin → its LEFT edge clears the card's right edge by ~6px.
+ *  Owner-attested look (ADR-0088 follow-on, owner 2026-06-22). */
+const PANEL_SHELF_SCALE = 2;
+const PANEL_SHELF_MARGIN = 6 + (BOOKSHELF.W / 2) * PANEL_SHELF_SCALE;
+
+/**
  * One shared island rendered inside the left panel (ADR-0088). Reuses the world-model→render
- * seam: `buildWorld([story], { buildings:false, panelBuildingGlyph:true })` lays the building
- * out as exactly one Territory (its own sand coastline, central health tree, capability garden,
- * nameplate with the bookshelf landmark glyph) — visually identical to a map island — and we
- * paint that one Territory's coastland + {@link TerritoryFlora} inside a self-contained
- * `<svg viewBox>` sized to the island. No on-map context (no roads, no neighbours): the panel
- * island stands alone. The card is the click target into the side panel; clicking the card title
- * selects the story exactly like clicking its island on the map. Appearance owner-attested.
+ * seam: `buildWorld([story], { buildings:false })` lays the building out as exactly one Territory
+ * (its own sand coastline, the SAME ground substrate the map paints, central health tree,
+ * capability garden, nameplate) — visually identical to a map island — and we paint it inside a
+ * self-contained `<svg viewBox>`. The bookshelf landmark sits OUTSIDE the name card, to its RIGHT
+ * and bigger (owner 2026-06-22 — moved out of the plate), so the viewBox is widened to fit it. No
+ * on-map context (no roads, no neighbours): the panel island stands alone. The card is the click
+ * target into the side panel; clicking it selects the story like clicking its map island.
+ * Appearance owner-attested.
  */
 function SharedIslandCard({
   story,
@@ -2630,6 +2689,8 @@ function SharedIslandCard({
   builds,
   now,
   highlighted,
+  substrateMode,
+  substrateTuning,
   onSelect,
 }: {
   story: TreeStory;
@@ -2637,50 +2698,73 @@ function SharedIslandCard({
   builds: BuildActivity[];
   now: Date;
   highlighted: boolean;
+  /** The map's ground substrate (the default mesh, or null for plain hex tiles), so the panel
+   *  island paints the same ground texture — reactive to the gear like the map. */
+  substrateMode: SubstrateMode | null;
+  substrateTuning: Partial<SubstrateTuning>;
   onSelect: () => void;
 }): React.JSX.Element {
-  // Pure, deterministic per the story data (ADR-0069) → memoise so scrolling / the now-ticker
-  // never re-lays the island.
-  const world = useMemo(
-    () => buildWorld([story], { buildings: false, panelBuildingGlyph: true }),
-    [story],
+  // Pure, deterministic per the story data + substrate (ADR-0069) → memoise so scrolling / the
+  // now-ticker never re-lays the island or its ground.
+  const world = useMemo(() => buildWorld([story], { buildings: false }), [story]);
+  const relaxedCells = useMemo(
+    () => (substrateMode ? buildRelaxedCells(world, substrateMode, substrateTuning) : null),
+    [world, substrateMode, substrateTuning],
   );
   const t = world.territories[0];
   const st = story.status ?? 'unknown';
+  const cls = `shared-island-card st-${st}${highlighted ? ' is-highlighted' : ''}`;
+  const ariaLabel = `shared island ${story.id} — ${story.title}`;
+  if (!t) {
+    return <button type="button" className={cls} onClick={onSelect} aria-label={ariaLabel} />;
+  }
+  const plate = nameplateLayout(story.id.length, false);
+  const anchor = bookshelfAnchorRight(plate, t.centroid.x, t.labelY, PANEL_SHELF_MARGIN);
+  // Widen the viewBox so the right-side glyph isn't clipped — buildWorld's bounds don't know about it.
+  const vbW = Math.max(
+    world.width,
+    world.offset.x + anchor.x + (BOOKSHELF.W / 2 + 2) * PANEL_SHELF_SCALE + 6,
+  );
+  const vbH = Math.max(world.height, world.offset.y + anchor.y + 6);
   return (
-    <button
-      type="button"
-      className={`shared-island-card st-${st}${highlighted ? ' is-highlighted' : ''}`}
-      onClick={onSelect}
-      aria-label={`shared island ${story.id} — ${story.title}`}
-    >
-      {t && (
-        <svg
-          className="shared-island-svg world-roads"
-          viewBox={`0 0 ${world.width} ${world.height}`}
-          aria-hidden="true"
-        >
-          <g transform={`translate(${world.offset.x} ${world.offset.y})`}>
-            {/* the island's sand silhouette (the same smoothed coast the map fills) */}
-            <g className="hex-coastland">
-              <g className={`coast-fill-group hex-territory st-${st}`}>
-                {t.coastPaths.map((d, i) => (
-                  <path key={`cf${i}`} className="coast-fill" d={d} />
-                ))}
-              </g>
+    <button type="button" className={cls} onClick={onSelect} aria-label={ariaLabel}>
+      <svg className="shared-island-svg world-roads" viewBox={`0 0 ${vbW} ${vbH}`} aria-hidden="true">
+        <g transform={`translate(${world.offset.x} ${world.offset.y})`}>
+          {/* the island's sand silhouette (the same smoothed coast the map fills) */}
+          <g className="hex-coastland">
+            <g className={`coast-fill-group hex-territory st-${st}`}>
+              {t.coastPaths.map((d, i) => (
+                <path key={`cf${i}`} className="coast-fill" d={d} />
+              ))}
             </g>
-            <TerritoryFlora
-              territory={t}
-              className={`hex-territory st-${st}`}
-              hidden={hidden}
-              builds={builds}
-              now={now}
-              onHover={() => {}}
-              onSelect={() => onSelect()}
-            />
           </g>
-        </svg>
-      )}
+          {/* the SAME ground substrate the map paints (mesh by default) — so a panel island reads
+              identically to a map island instead of a flat silhouette (owner 2026-06-22). */}
+          <IslandGround
+            world={world}
+            relaxedCells={relaxedCells}
+            classOf={(s) => `hex-territory st-${s.status ?? 'unknown'}`}
+          />
+          <TerritoryFlora
+            territory={t}
+            className={`hex-territory st-${st}`}
+            hidden={hidden}
+            builds={builds}
+            now={now}
+            onHover={() => {}}
+            onSelect={() => onSelect()}
+          />
+          {/* the bookshelf landmark OUTSIDE the name card, to its RIGHT and bigger (owner
+              2026-06-22) — marks this as a shared "building" island; the in-card glyph was retired. */}
+          <g
+            className="shared-island-shelf"
+            transform={`translate(${anchor.x.toFixed(1)} ${anchor.y.toFixed(1)}) scale(${PANEL_SHELF_SCALE})`}
+            aria-hidden="true"
+          >
+            <BookshelfGlyph seed={hash(`${story.id}:shelf`)} />
+          </g>
+        </g>
+      </svg>
     </button>
   );
 }
@@ -2700,6 +2784,8 @@ function SharedIslandsPanel({
   now,
   hidden,
   highlightId,
+  substrateMode,
+  substrateTuning,
   onToggleStatus,
   onResetHidden,
   onSelectIsland,
@@ -2710,6 +2796,8 @@ function SharedIslandsPanel({
   now: Date;
   hidden: ReadonlySet<string>;
   highlightId: string | null;
+  substrateMode: SubstrateMode | null;
+  substrateTuning: Partial<SubstrateTuning>;
   onToggleStatus: (st: string) => void;
   onResetHidden: () => void;
   onSelectIsland: (id: string) => void;
@@ -2798,6 +2886,8 @@ function SharedIslandsPanel({
                   builds={builds}
                   now={now}
                   highlighted={s.id === highlightId}
+                  substrateMode={substrateMode}
+                  substrateTuning={substrateTuning}
                   onSelect={() => onSelectIsland(s.id)}
                 />
                 <button
