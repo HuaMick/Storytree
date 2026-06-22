@@ -292,7 +292,7 @@ export const KIND_SPECS: Readonly<Record<KnowledgeKind, readonly KindFieldSpec[]
       heading: "Diagram",
       required: false,
       placeholder:
-        "_A picture when the subject is a structure, flow, or state machine — an ASCII box/flow diagram in a fenced code block. Omit for a pure value/policy choice._",
+        "_A picture when the subject is a structure, flow, or state machine — a ```mermaid fenced block (rendered as an SVG in the studio, ADR-0096) or an ASCII box/flow diagram in a fenced code block. Omit for a pure value/policy choice._",
     },
     {
       field: "options",

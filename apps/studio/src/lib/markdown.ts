@@ -39,6 +39,39 @@ export function parseHeadings(markdown: string): Heading[] {
   return out;
 }
 
+/**
+ * If a `<pre>`'s child is a ```` ```mermaid ```` fenced code block, return its raw source
+ * (so the renderer can draw it as an SVG diagram instead of a code listing); else `null`.
+ *
+ * Reads the hast `node` react-markdown passes to the `pre` component — the only place the
+ * fenced block's language class (`language-mermaid`) and its verbatim text are both still
+ * available. Pure (no DOM), so the routing it drives is unit-testable; every other fenced
+ * block returns `null` and renders exactly as before.
+ */
+export function mermaidSource(node: unknown): string | null {
+  const pre = node as { children?: unknown[] } | undefined;
+  const code = pre?.children?.find(
+    (c): c is { properties?: { className?: unknown }; children?: unknown[] } =>
+      typeof c === 'object' && c !== null && (c as { tagName?: unknown }).tagName === 'code',
+  );
+  if (!code) return null;
+  const cls = code.properties?.className;
+  const classes = Array.isArray(cls)
+    ? cls.map(String)
+    : typeof cls === 'string'
+      ? cls.split(/\s+/)
+      : [];
+  if (!classes.includes('language-mermaid')) return null;
+  const text = (code.children ?? [])
+    .map((c) =>
+      typeof c === 'object' && c !== null && (c as { type?: unknown }).type === 'text'
+        ? String((c as { value?: unknown }).value ?? '')
+        : '',
+    )
+    .join('');
+  return text.replace(/\n+$/, '');
+}
+
 function normalizePosix(p: string): string {
   const stack: string[] = [];
   for (const part of p.split('/')) {
