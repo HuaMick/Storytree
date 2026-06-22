@@ -1,0 +1,19 @@
+{
+  "name": "@storytree/forest-world",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The shared forest-world RENDER CORE (ADR-0093, strategy C): pure, browser-safe, deterministic geometry — the relaxed Townscaper mesh substrate, the Chaikin-smoothed coastline, longest-path ranking, hex math and sizing — that both the studio (React) and the public website (string-SVG) render FROM. Data-in → geometry-out; no store, no React, no live data, no node: imports. A foundational root organism (ADR-0068 / ADR-0075): owns its own minimal input contract and depends on nothing.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test \"src/**/*.test.ts\""
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "tsx": "^4.19.2",
+    "typescript": "~5.7.3"
+  }
+}

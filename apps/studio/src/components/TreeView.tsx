@@ -72,6 +72,37 @@ import { ConnectionsSection } from './ConnectionsSection.js';
 import { BuildSection } from './BuildSection.js';
 import { WorldSettingsPanel } from './WorldSettingsPanel.js';
 import type { BuildActivity, TreeCapability, TreeSession, TreeStory, TreeVerdict, UatTestRow } from '../types';
+import {
+  hash,
+  rand01,
+  type Pt,
+  type Axial,
+  HEX_R,
+  HEX_W,
+  TILE_DEPTH,
+  axialKey,
+  AXIAL_DIRS,
+  hexCenter,
+  pixelToHex,
+  hexDist,
+  hexCorners,
+  hexPath,
+  polyPath,
+  ringsOf,
+  estRadius,
+  crownRadius,
+  storyTreeReach,
+  storyEdges,
+  rankStories,
+  descendantCounts,
+  smoothCoast,
+  type BoundarySeg,
+  type SubstrateMode,
+  type SubstrateTuning,
+  type RelaxedCell,
+  MESH_TUNING,
+  buildRelaxedCells as buildRelaxedCellsFromTiles,
+} from '@storytree/forest-world';
 
 // The current `?…` search string, SSR-guarded ('' when there is no window). The
 // panel-exposed readers default to this so non-panel call sites (and SSR) keep
@@ -96,106 +127,12 @@ const LAYOUT_CTL = requireControl('layout');
 /** Shared empty id-set (the DAG path passes no hub ids). */
 const EMPTY_ID_SET: ReadonlySet<string> = new Set();
 
-// ---------- deterministic pseudo-random ----------
-
-function hash(s: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
-/** One uniform [0,1) draw from an integer seed (mulberry32 single step). */
-function rand01(seed: number): number {
-  let t = (seed + 0x6d2b79f5) | 0;
-  t = Math.imul(t ^ (t >>> 15), t | 1);
-  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-}
-
-interface Pt {
-  x: number;
-  y: number;
-}
-
-// ---------- hex grid (pointy-top, axial coordinates) ----------
-
-const HEX_R = 27; // centre → corner
-const HEX_W = Math.sqrt(3) * HEX_R;
-const TILE_DEPTH = 8; // extrusion below a claimed tile
-
-interface Axial {
-  q: number;
-  r: number;
-}
-
-const axialKey = (h: Axial): string => `${h.q},${h.r}`;
-
-/** Neighbour directions, indexed so AXIAL_DIRS[i] faces the edge corner i → i+1. */
-const AXIAL_DIRS: Axial[] = [
-  { q: 1, r: -1 }, // NE  (edge between corners 0 and 1)
-  { q: 1, r: 0 }, //  E  (1 → 2)
-  { q: 0, r: 1 }, //  SE (2 → 3)
-  { q: -1, r: 1 }, // SW (3 → 4)
-  { q: -1, r: 0 }, // W  (4 → 5)
-  { q: 0, r: -1 }, // NW (5 → 0)
-];
-
-function hexCenter(h: Axial): Pt {
-  return { x: HEX_W * (h.q + h.r / 2), y: 1.5 * HEX_R * h.r };
-}
-
-function pixelToHex(p: Pt): Axial {
-  const rf = p.y / (1.5 * HEX_R);
-  const qf = p.x / HEX_W - rf / 2;
-  const sf = -qf - rf;
-  let q = Math.round(qf);
-  let r = Math.round(rf);
-  const s = Math.round(sf);
-  const dq = Math.abs(q - qf);
-  const dr = Math.abs(r - rf);
-  const ds = Math.abs(s - sf);
-  if (dq > dr && dq > ds) q = -r - s;
-  else if (dr > ds) r = -q - s;
-  return { q, r };
-}
-
-function hexDist(a: Axial, b: Axial): number {
-  return (
-    (Math.abs(a.q - b.q) + Math.abs(a.q + a.r - b.q - b.r) + Math.abs(a.r - b.r)) / 2
-  );
-}
-
-/** The six corners around (cx, cy), corner 0 at the top, clockwise. */
-function hexCorners(cx: number, cy: number, R: number): Pt[] {
-  const pts: Pt[] = [];
-  for (let i = 0; i < 6; i++) {
-    const a = (Math.PI / 180) * (60 * i - 90);
-    pts.push({ x: cx + R * Math.cos(a), y: cy + R * Math.sin(a) });
-  }
-  return pts;
-}
-
-function hexPath(cx: number, cy: number, R: number): string {
-  return (
-    hexCorners(cx, cy, R)
-      .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
-      .join(' ') + ' Z'
-  );
-}
-
 // ---------- world building ----------
 
 const MARGIN = 60;
 const RANK_GAP = 78; // vertical clearance between grown territories of adjacent ranks (gives rivers room)
 const ISLAND_GAP = 96; // horizontal clearance between territories sharing a rank (gives rivers room)
 const RANK_SWING = 235; // lateral swing for a lone island, so its roads read as diagonals
-const COAST_OUTSET = 7; // px the smoothed coast sits beyond the hex tiles — a thin sandy beach
-const COAST_SMOOTH_ITERS = 2; // Chaikin passes: 2 rounds the hex silhouette into an organic blob
-const COAST_NOISE_AMP = 0.5; // per-vertex outset wobble (fraction of COAST_OUTSET) — non-uniform coasts
-const COAST_NOISE_WAVES = 3; // low-frequency lobes around the shore (gentle bays, not jaggedness)
 const RIVER_FAN_STEP = 0.34; // rad (~19°) of shore between adjacent river mouths leaving one source
 const RIVER_FAN_MAX = 2.5; // rad (~145°) widest arc a source's outgoing delta fans across
 const LANE_GAP = 13; // px centre-to-centre between adjacent metro lanes sharing a corridor (a shared sand braid-bar)
@@ -213,13 +150,6 @@ interface DecorSpot {
   x: number;
   y: number;
   seed: number;
-}
-
-interface BoundarySeg {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
 }
 
 interface Territory {
@@ -289,105 +219,6 @@ interface HexWorld {
   width: number;
   height: number;
   offset: Pt;
-}
-
-/**
- * The story-level edge set the world renders as roads: declared `depends_on`
- * UNION derived cross-story capability deps. Ranking uses the SAME set so a
- * derived-only road can never point downward.
- */
-function storyEdges(stories: TreeStory[]): { from: string; to: string; via: string[] }[] {
-  const ids = new Set(stories.map((s) => s.id));
-  const capOwner = new Map<string, string>();
-  for (const s of stories) for (const c of s.capabilities) capOwner.set(c.id, s.id);
-  const edgeMap = new Map<string, { from: string; to: string; via: string[] }>();
-  for (const s of stories) {
-    for (const dep of s.dependsOn) {
-      if (dep !== s.id && ids.has(dep)) {
-        edgeMap.set(`${dep}->${s.id}`, { from: dep, to: s.id, via: [] });
-      }
-    }
-    for (const c of s.capabilities) {
-      for (const d of c.dependsOn) {
-        const ownerId = capOwner.get(d);
-        if (!ownerId || ownerId === s.id) continue;
-        const key = `${ownerId}->${s.id}`;
-        const cur = edgeMap.get(key) ?? { from: ownerId, to: s.id, via: [] };
-        cur.via.push(`${c.id} → ${d}`);
-        edgeMap.set(key, cur);
-      }
-    }
-  }
-  return [...edgeMap.values()];
-}
-
-/**
- * Longest-path rank over the world's edge set (dep → dependent), cycle-safe.
- * Rank 0 = the most foundational stories; a dependent always ranks strictly
- * above every dependency, so the world reads bottom-up (ADR-0036 d.6a).
- */
-function rankStories(
-  stories: TreeStory[],
-  depsOf: Map<string, string[]>,
-): Map<string, number> {
-  const rank = new Map<string, number>();
-  const visiting = new Set<string>();
-  const visit = (id: string): number => {
-    const known = rank.get(id);
-    if (known !== undefined) return known;
-    if (visiting.has(id)) return 0; // cycle in bad frontmatter — break the edge, stay finite
-    visiting.add(id);
-    let r = 0;
-    for (const d of depsOf.get(id) ?? []) r = Math.max(r, visit(d) + 1);
-    visiting.delete(id);
-    rank.set(id, r);
-    return r;
-  };
-  for (const s of stories) visit(s.id);
-  return rank;
-}
-
-/** Transitive dependent count — how load-bearing a story is (centres the foundation row). */
-function descendantCounts(
-  stories: TreeStory[],
-  dependentsOf: Map<string, string[]>,
-): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const s of stories) {
-    const seen = new Set<string>();
-    const stack = [...(dependentsOf.get(s.id) ?? [])];
-    for (let id = stack.pop(); id !== undefined; id = stack.pop()) {
-      if (seen.has(id)) continue;
-      seen.add(id);
-      stack.push(...(dependentsOf.get(id) ?? []));
-    }
-    counts.set(s.id, seen.size);
-  }
-  return counts;
-}
-
-/** Hex rings a territory of `quota` tiles roughly fills (1 / 7 / 19 / 37 centred counts). */
-function ringsOf(quota: number): number {
-  return quota <= 1 ? 0 : quota <= 7 ? 1 : quota <= 19 ? 2 : 3;
-}
-
-/** Rough px radius a territory will grow to from its tile quota. */
-function estRadius(quota: number): number {
-  return Math.sqrt(quota) * HEX_W * 0.62 + HEX_R;
-}
-
-/** Crown radius of the central story tree — grows with capability count. */
-function crownRadius(capCount: number): number {
-  return Math.min(32, 18 + 2.2 * capCount);
-}
-
-/**
- * How far above its base a story tree reaches, px — the withered bare
- * branches top out at 2.64·R and the canopy at ~2.7·R (StoryTree geometry);
- * +18 covers blob jitter and the signpost. buildWorld uses this for bounds.
- */
-function storyTreeReach(capCount: number): number {
-  return 2.72 * crownRadius(capCount) + 18;
 }
 
 /** A nameplate's resolved box + text/glyph anchors (px, plate-local). */
@@ -460,185 +291,6 @@ export function bookshelfAnchorRight(
 /** ADR-0033 d.3 vocabulary — the one source for every verdict phrase. */
 function verdictPhrase(v: TreeVerdict): string {
   return v.outcome === 'pass' ? '✓ proven' : '✗ last run failed';
-}
-
-/**
- * Chain a territory's per-tile-edge boundary segments into ordered closed point
- * loop(s) — the raw, jagged hex-union silhouette. Endpoints are exact hex
- * corners, so we key on rounded coords and walk edge→edge until each loop
- * closes; territories are contiguous, so it's almost always exactly one loop.
- * The trailing point (== the first) is dropped, so callers get a clean ordered
- * ring ready to smooth into an organic coastline.
- */
-function boundaryRingLoops(segs: BoundarySeg[]): Pt[][] {
-  if (segs.length === 0) return [];
-  const k = (x: number, y: number): string => `${x.toFixed(1)},${y.toFixed(1)}`;
-  const adj = new Map<string, BoundarySeg[]>();
-  const push = (key: string, s: BoundarySeg): void => {
-    const list = adj.get(key);
-    if (list) list.push(s);
-    else adj.set(key, [s]);
-  };
-  for (const s of segs) {
-    push(k(s.x1, s.y1), s);
-    push(k(s.x2, s.y2), s);
-  }
-  const used = new Set<BoundarySeg>();
-  const loops: Pt[][] = [];
-  for (const start of segs) {
-    if (used.has(start)) continue;
-    used.add(start);
-    const startKey = k(start.x1, start.y1);
-    const loop: Pt[] = [
-      { x: start.x1, y: start.y1 },
-      { x: start.x2, y: start.y2 },
-    ];
-    let endKey = k(start.x2, start.y2);
-    for (let guard = 0; guard < segs.length && endKey !== startKey; guard++) {
-      const next = (adj.get(endKey) ?? []).find((s) => !used.has(s));
-      if (!next) break;
-      used.add(next);
-      const continues = k(next.x1, next.y1) === endKey;
-      const nx = continues ? next.x2 : next.x1;
-      const ny = continues ? next.y2 : next.y1;
-      loop.push({ x: nx, y: ny });
-      endKey = k(nx, ny);
-    }
-    const first = loop[0];
-    const last = loop[loop.length - 1];
-    if (first && last && Math.abs(first.x - last.x) < 0.5 && Math.abs(first.y - last.y) < 0.5) {
-      loop.pop();
-    }
-    loops.push(loop);
-  }
-  return loops;
-}
-
-/** Signed area (shoelace); its sign carries the winding of an ordered loop. */
-function loopSignedArea(loop: Pt[]): number {
-  let a = 0;
-  for (let i = 0; i < loop.length; i++) {
-    const p = loop[i];
-    const q = loop[(i + 1) % loop.length];
-    if (p && q) a += p.x * q.y - q.x * p.y;
-  }
-  return a / 2;
-}
-
-/**
- * The per-vertex beach width: COAST_OUTSET modulated by a deterministic, story-
- * seeded wave so each island gets its OWN gentle bays and headlands instead of a
- * uniform blob. A low-frequency sine (COAST_NOISE_WAVES lobes, phase-shifted per
- * story) carries the big shape; a tiny hashed wobble breaks any remaining
- * regularity. Amplitude is capped well inside the inter-island gap, so coasts
- * can never wander into a neighbour — and (perturbing only the outset MAGNITUDE
- * along the normal) the offset can never self-intersect.
- */
-function jitteredOutset(storyId: string, i: number, n: number): number {
-  const theta = (i / Math.max(n, 1)) * Math.PI * 2;
-  const phase = rand01(hash(`${storyId}:coast:phase`)) * Math.PI * 2;
-  const wave = Math.sin(theta * COAST_NOISE_WAVES + phase); // [-1,1], coherent
-  const wobble = (rand01(hash(`${storyId}:coast:${i}`)) - 0.5) * 0.6;
-  return COAST_OUTSET * (1 + COAST_NOISE_AMP * (0.7 * wave + wobble));
-}
-
-/**
- * Push every vertex of a closed loop outward along the average of its two
- * adjacent edge normals by `distOf(i)` px — a thin "beach" margin so the
- * smoothed coast encloses the outermost tiles instead of slicing their corners.
- * Winding-aware (the signed area orients the normal outward), so concave bays
- * stay outward too. The per-vertex distance lets the coast wave (jitteredOutset).
- */
-function outsetLoop(loop: Pt[], distOf: (i: number) => number): Pt[] {
-  const n = loop.length;
-  if (n < 3) return loop;
-  const sign = loopSignedArea(loop) > 0 ? 1 : -1;
-  const edgeNormal = (a: Pt, b: Pt): Pt => {
-    const ex = b.x - a.x;
-    const ey = b.y - a.y;
-    const len = Math.hypot(ex, ey) || 1;
-    return { x: (sign * ey) / len, y: (-sign * ex) / len };
-  };
-  const out: Pt[] = [];
-  for (let i = 0; i < n; i++) {
-    const prev = loop[(i - 1 + n) % n];
-    const cur = loop[i];
-    const nxt = loop[(i + 1) % n];
-    if (!prev || !cur || !nxt) continue;
-    const n1 = edgeNormal(prev, cur);
-    const n2 = edgeNormal(cur, nxt);
-    let mx = n1.x + n2.x;
-    let my = n1.y + n2.y;
-    const len = Math.hypot(mx, my) || 1;
-    mx /= len;
-    my /= len;
-    const dist = distOf(i);
-    out.push({ x: cur.x + mx * dist, y: cur.y + my * dist });
-  }
-  return out;
-}
-
-/**
- * Chaikin corner-cutting on a closed loop: every edge contributes its 1/4 and
- * 3/4 points, so each sharp hex corner is replaced by two gentler ones. Two
- * passes turn the hexagonal silhouette into a smooth, organic, blobby coastline
- * (Stålberg/Townscaper-style rounding). Deterministic — pure geometry.
- */
-function chaikinClosed(loop: Pt[], iterations: number): Pt[] {
-  let cur = loop;
-  for (let it = 0; it < iterations && cur.length >= 3; it++) {
-    const n = cur.length;
-    const next: Pt[] = [];
-    for (let i = 0; i < n; i++) {
-      const a = cur[i];
-      const b = cur[(i + 1) % n];
-      if (!a || !b) continue;
-      next.push({ x: a.x * 0.75 + b.x * 0.25, y: a.y * 0.75 + b.y * 0.25 });
-      next.push({ x: a.x * 0.25 + b.x * 0.75, y: a.y * 0.25 + b.y * 0.75 });
-    }
-    cur = next;
-  }
-  return cur;
-}
-
-/**
- * A closed SVG path through a loop's edge MIDPOINTS, each vertex its quadratic
- * control point — a cusp-free curve that closes watertight with Z. After Chaikin
- * this reads as a soft, hand-drawn coastline. The same `d` serves the island's
- * sand fill and its water moat (fill vs stroke of one curve).
- */
-function smoothLoopPath(loop: Pt[]): string {
-  const n = loop.length;
-  if (n < 3) return '';
-  const mid = (a: Pt, b: Pt): Pt => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
-  const last = loop[n - 1];
-  const first = loop[0];
-  if (!last || !first) return '';
-  const m0 = mid(last, first);
-  let d = `M ${m0.x.toFixed(1)} ${m0.y.toFixed(1)}`;
-  for (let i = 0; i < n; i++) {
-    const c = loop[i];
-    const nxt = loop[(i + 1) % n];
-    if (!c || !nxt) continue;
-    const m = mid(c, nxt);
-    d += ` Q ${c.x.toFixed(1)} ${c.y.toFixed(1)} ${m.x.toFixed(1)} ${m.y.toFixed(1)}`;
-  }
-  return `${d} Z`;
-}
-
-/**
- * Turn a territory's raw hex-edge boundary loops into smooth organic coastlines:
- * outset a beach margin, Chaikin-round the corners, emit cusp-free `d` strings.
- * Returns the smoothed point loop(s) (for river docking) alongside the paths.
- */
-function smoothCoast(segs: BoundarySeg[], storyId: string): { loops: Pt[][]; paths: string[] } {
-  const loops = boundaryRingLoops(segs).map((l) =>
-    chaikinClosed(
-      outsetLoop(l, (i) => jitteredOutset(storyId, i, l.length)),
-      COAST_SMOOTH_ITERS,
-    ),
-  );
-  return { loops, paths: loops.map(smoothLoopPath) };
 }
 
 export function buildWorld(
@@ -1100,494 +752,28 @@ export function buildWorld(
   };
 }
 
-// ---------- relaxed substrate (VISUAL SPIKE, ADR-pending) ----------
+// ---------- relaxed substrate (the island ground) — ADR-0093 shared core ----------
 //
-// Swaps the regular hex-tile interiors for an irregular, relaxed grid (Oskar
-// Stålberg / Townscaper style) so each island reads as one organic landmass
-// instead of a cluster of hexagons. `mesh` (path B) is now the DEFAULT world
-// (owner look-decision 2026-06-16); `?substrate=hex` (aliases `none`/`default`/
-// `classic`) returns the original extruded hex world, and `?substrate=…` selects
-// any of the three relaxed techniques:
-//
-//   `relaxed-hex`  — cheap path: relax the SHARED hex-corner lattice (dedupe each
-//                    unique corner, hash-jitter + Laplacian-relax the interior
-//                    ones, rebuild each tile from its now-displaced shared corners
-//                    so adjacent tiles stay gap-free). Wobbly irregular hexagons.
-//   `relaxed-quad` — path A: subdivide every hex into 6 quads (centre →
-//                    edge-midpoints → corners), then jitter + relax the shared
-//                    vertex mesh. The Townscaper cobble look (`relaxed` aliases it).
-//                    Residual "hexy" read: every hex contributes a fixed 6-quad
-//                    fan meeting at a centre vertex → a pinwheel on a regular
-//                    lattice of hex centres that jitter softens but can't erase.
-//   `mesh`         — path B (`path-b` aliases it): the FAITHFUL Townscaper /
-//                    Stålberg irregular-quad mesh (a port of
-//                    kchapelier/hexagrid-relaxing). Triangulate the land, randomly
-//                    (deterministically) MERGE adjacent triangle PAIRS into quads —
-//                    crucially across hex boundaries — subdivide each quad → 4 /
-//                    leftover tri → 3, then relax. The random cross-hex merge
-//                    dissolves path A's pinwheel and the regular lattice of hex
-//                    centres, so no cell topology survives to read as hexy.
-//
-// All keep the DAG-driven layout and the existing organic coastline; only the
-// interior tile geometry changes. Deterministic throughout (hash/rand01, no
-// Math.random). Boundary vertices (the outer silhouette the coastline was
-// smoothed from) are PINNED so the shore still encloses the relaxed cells.
-
-export type SubstrateMode = 'relaxed-hex' | 'relaxed-quad' | 'mesh';
-
-/**
- * How wild the relaxed substrate is. `jitter` is the per-vertex displacement as
- * a fraction of HEX_R (the main "randomness" knob); `iters`/`relax` are the
- * Laplacian smoothing that untangles the jitter (more smoothing = cleaner but
- * more regular). `wheatScatter` breaks whole-hex wheat patches into a per-cell
- * scatter so the tan fields stop reading as hexagons. All overridable live via
- * the URL: `?substrate=relaxed-quad&jitter=0.8&iters=2&relax=0.28&wheatScatter=1`.
- */
-interface SubstrateTuning {
-  jitter: number;
-  iters: number;
-  relax: number;
-  wheatScatter: boolean;
-  /** mesh-only: extra quad-subdivision passes on the merge result (1 = the
-   *  canonical hexagrid-relaxing density; 2 = finer cobbles). */
-  subdiv?: number;
-}
-
-const QUAD_TUNING: SubstrateTuning = { jitter: 0.78, iters: 2, relax: 0.26, wheatScatter: true };
-const HEX_TUNING: SubstrateTuning = { jitter: 0.7, iters: 2, relax: 0.28, wheatScatter: false };
-// Path B's irregular topology carries the de-hexing, so jitter sits lower than
-// path A (less needed; too much tangles the finer mesh); relax a touch firmer to
-// settle the merged quads into clean Townscaper cells.
-export const MESH_TUNING: SubstrateTuning = {
-  jitter: 0.42,
-  iters: 3,
-  relax: 0.34,
-  wheatScatter: true,
-  subdiv: 1,
-};
-
-/** One filled cell of the relaxed substrate: a polygon owned by a territory. */
-interface RelaxedCell {
-  owner: number;
-  poly: Pt[];
-  variant: number;
-  wheat: boolean;
-}
-
-const VKEY = (p: Pt): string => `${Math.round(p.x * 10)},${Math.round(p.y * 10)}`;
-
-/**
- * Jitter (deterministically) then Laplacian-relax a vertex mesh in place.
- * Interior vertices wobble and smooth into organic cells; pinned (boundary)
- * vertices hold the silhouette. Light relaxation keeps the jittered character
- * — full convergence would regularise a regular-topology mesh back to a grid.
- */
-function relaxVerts(
-  verts: Pt[],
-  adj: Set<number>[],
-  pinned: Set<number>,
-  opts: { jitterMag: number; iters: number; relax: number },
-): void {
-  const orig = verts.map((p) => VKEY(p));
-  for (let i = 0; i < verts.length; i++) {
-    if (pinned.has(i)) continue;
-    const p = verts[i];
-    if (!p) continue;
-    const ang = rand01(hash(`jx:${orig[i]}`)) * Math.PI * 2;
-    const mag = rand01(hash(`jm:${orig[i]}`)) * opts.jitterMag;
-    p.x += Math.cos(ang) * mag;
-    p.y += Math.sin(ang) * mag;
-  }
-  for (let it = 0; it < opts.iters; it++) {
-    const next = verts.map((p) => ({ x: p.x, y: p.y }));
-    for (let i = 0; i < verts.length; i++) {
-      if (pinned.has(i)) continue;
-      const ns = adj[i];
-      const cur = verts[i];
-      const nx = next[i];
-      if (!ns || !cur || !nx || ns.size === 0) continue;
-      let sx = 0;
-      let sy = 0;
-      for (const j of ns) {
-        const q = verts[j];
-        if (q) {
-          sx += q.x;
-          sy += q.y;
-        }
-      }
-      nx.x = cur.x + (sx / ns.size - cur.x) * opts.relax;
-      nx.y = cur.y + (sy / ns.size - cur.y) * opts.relax;
-    }
-    for (let i = 0; i < verts.length; i++) {
-      const cur = verts[i];
-      const nx = next[i];
-      if (cur && nx) {
-        cur.x = nx.x;
-        cur.y = nx.y;
-      }
-    }
-  }
-}
-
-/** Path A — relax the shared hex-corner lattice; rebuild irregular hexagons. */
-function buildRelaxedHexCells(world: HexWorld, t: SubstrateTuning): RelaxedCell[] {
-  const verts: Pt[] = [];
-  const vId = new Map<string, number>();
-  const adj: Set<number>[] = [];
-  const intern = (p: Pt): number => {
-    const k = VKEY(p);
-    let id = vId.get(k);
-    if (id === undefined) {
-      id = verts.length;
-      verts.push({ x: p.x, y: p.y });
-      vId.set(k, id);
-      adj.push(new Set());
-    }
-    return id;
-  };
-  // Each tile → its 6 shared corner ids; track hex-edge usage to find the shore.
-  const tileCorners: { owner: number; key: string; ids: number[] }[] = [];
-  const edgeUse = new Map<string, number>();
-  const eKey = (a: number, b: number): string => (a < b ? `${a}|${b}` : `${b}|${a}`);
-  for (const { h, owner } of world.drawTiles) {
-    const c = hexCenter(h);
-    const ids = hexCorners(c.x, c.y, HEX_R).map(intern);
-    tileCorners.push({ owner, key: axialKey(h), ids });
-    for (let i = 0; i < 6; i++) {
-      const a = ids[i];
-      const b = ids[(i + 1) % 6];
-      if (a === undefined || b === undefined) continue;
-      adj[a]?.add(b);
-      adj[b]?.add(a);
-      const k = eKey(a, b);
-      edgeUse.set(k, (edgeUse.get(k) ?? 0) + 1);
-    }
-  }
-  const pinned = new Set<number>();
-  for (const [k, n] of edgeUse) {
-    if (n === 1) {
-      const [a, b] = k.split('|');
-      pinned.add(Number(a));
-      pinned.add(Number(b));
-    }
-  }
-  relaxVerts(verts, adj, pinned, { jitterMag: HEX_R * t.jitter, iters: t.iters, relax: t.relax });
-  return tileCorners.map(({ owner, key, ids }) => ({
-    owner,
-    poly: ids.map((id) => verts[id] ?? { x: 0, y: 0 }),
-    variant: hash(`tile:${key}`) % 3,
-    wheat: world.territories[owner]?.wheatTiles.has(key) ?? false,
-  }));
-}
-
-/** Path B — subdivide each hex into 6 quads, relax the shared mesh (Townscaper). */
-function buildRelaxedQuadCells(world: HexWorld, t: SubstrateTuning): RelaxedCell[] {
-  const verts: Pt[] = [];
-  const vId = new Map<string, number>();
-  const adj: Set<number>[] = [];
-  const intern = (p: Pt): number => {
-    const k = VKEY(p);
-    let id = vId.get(k);
-    if (id === undefined) {
-      id = verts.length;
-      verts.push({ x: p.x, y: p.y });
-      vId.set(k, id);
-      adj.push(new Set());
-    }
-    return id;
-  };
-  interface Quad {
-    owner: number;
-    ids: number[];
-    variant: number;
-    wheat: boolean;
-  }
-  const quads: Quad[] = [];
-  const edgeUse = new Map<string, number>();
-  const eKey = (a: number, b: number): string => (a < b ? `${a}|${b}` : `${b}|${a}`);
-  const link = (a: number, b: number): void => {
-    adj[a]?.add(b);
-    adj[b]?.add(a);
-    const k = eKey(a, b);
-    edgeUse.set(k, (edgeUse.get(k) ?? 0) + 1);
-  };
-  for (const { h, owner } of world.drawTiles) {
-    const c = hexCenter(h);
-    const corners = hexCorners(c.x, c.y, HEX_R);
-    const oid = intern(c);
-    const key = axialKey(h);
-    const wheat = world.territories[owner]?.wheatTiles.has(key) ?? false;
-    const cornerIds = corners.map(intern);
-    const midIds = corners.map((cor, i) => {
-      const nxt = corners[(i + 1) % 6] ?? cor;
-      return intern({ x: (cor.x + nxt.x) / 2, y: (cor.y + nxt.y) / 2 });
-    });
-    for (let i = 0; i < 6; i++) {
-      const ci = cornerIds[i];
-      const mPrev = midIds[(i + 5) % 6];
-      const mNext = midIds[i];
-      if (ci === undefined || mPrev === undefined || mNext === undefined) continue;
-      const ids = [oid, mPrev, ci, mNext];
-      // wheatScatter: a wheat hex normally tints all 6 sub-cells — which reads as
-      // a tan hexagon. Scatter it per-cell instead so the field stops being hexy
-      // (grass cells mixed back in; ~70% of a wheat hex's cells stay wheat).
-      const cellWheat = wheat && (!t.wheatScatter || rand01(hash(`wheat:${key}:${i}`)) < 0.7);
-      quads.push({ owner, ids, variant: hash(`cell:${key}:${i}`) % 3, wheat: cellWheat });
-      link(ids[0]!, ids[1]!);
-      link(ids[1]!, ids[2]!);
-      link(ids[2]!, ids[3]!);
-      link(ids[3]!, ids[0]!);
-    }
-  }
-  const pinned = new Set<number>();
-  for (const [k, n] of edgeUse) {
-    if (n === 1) {
-      const [a, b] = k.split('|');
-      pinned.add(Number(a));
-      pinned.add(Number(b));
-    }
-  }
-  relaxVerts(verts, adj, pinned, { jitterMag: HEX_R * t.jitter, iters: t.iters, relax: t.relax });
-  return quads.map((q) => ({
-    owner: q.owner,
-    poly: q.ids.map((id) => verts[id] ?? { x: 0, y: 0 }),
-    variant: q.variant,
-    wheat: q.wheat,
-  }));
-}
-
-/**
- * Path B — the faithful Townscaper / Stålberg irregular-quad mesh (a port of
- * kchapelier/hexagrid-relaxing), in four steps over ONE shared, watertight
- * vertex pool:
- *   1. Triangulate: every claimed hex → 6 triangles (centre, corner_i,
- *      corner_{i+1}). Centres/corners are interned, so triangles of adjacent
- *      hexes share the rim edge between them.
- *   2. Merge adjacent triangle PAIRS into quads — greedily, ordered by a hash so
- *      it is identical every render, each triangle matched at most once. Pairs
- *      form ACROSS hex boundaries as readily as within a hex: this is what
- *      dissolves path A's fixed 6-quad fan (the residual pinwheel) and the
- *      regular lattice of hex centres.
- *   3. Subdivide: each merged quad → 4 sub-quads, each LEFTOVER triangle → 3
- *      sub-quads (the canonical "make it all quads" step). Midpoints/centroids
- *      are interned so neighbouring cells share them.
- *   4. Relax the shared mesh (reusing `relaxVerts`), boundary vertices pinned.
- *
- * Ownership is the source hex's territory — ISLAND_GAP keeps territories
- * non-adjacent, so a merge never spans two stories; the coastline is the
- * existing hex-silhouette one (outer vertices pinned), which still encloses the
- * relaxed cells and keeps river docking intact. Deterministic (hash/rand01).
- */
-function buildMeshCells(world: HexWorld, t: SubstrateTuning): RelaxedCell[] {
-  const verts: Pt[] = [];
-  const vId = new Map<string, number>();
-  const adj: Set<number>[] = [];
-  const intern = (p: Pt): number => {
-    const k = VKEY(p);
-    let id = vId.get(k);
-    if (id === undefined) {
-      id = verts.length;
-      verts.push({ x: p.x, y: p.y });
-      vId.set(k, id);
-      adj.push(new Set());
-    }
-    return id;
-  };
-  const eKey = (a: number, b: number): string => (a < b ? `${a}|${b}` : `${b}|${a}`);
-
-  // 1. Triangulate every hex into 6 triangles over the shared vertex pool, and
-  //    index each undirected edge → the triangles touching it (≤2).
-  interface Tri {
-    v: [number, number, number];
-    owner: number;
-  }
-  const tris: Tri[] = [];
-  const triEdges = new Map<string, number[]>();
-  for (const { h, owner } of world.drawTiles) {
-    const c = hexCenter(h);
-    const oid = intern(c);
-    const cornerIds = hexCorners(c.x, c.y, HEX_R).map(intern);
-    for (let i = 0; i < 6; i++) {
-      const a = cornerIds[i] ?? 0;
-      const b = cornerIds[(i + 1) % 6] ?? 0;
-      const ti = tris.length;
-      tris.push({ v: [oid, a, b], owner });
-      for (const [x, y] of [
-        [oid, a],
-        [a, b],
-        [b, oid],
-      ] as const) {
-        const k = eKey(x, y);
-        let arr = triEdges.get(k);
-        if (!arr) {
-          arr = [];
-          triEdges.set(k, arr);
-        }
-        arr.push(ti);
-      }
-    }
-  }
-
-  // 2. Greedy deterministic pairing: every interior edge shared by two same-owner
-  //    triangles is a merge candidate, ordered by a hash; match each triangle once.
-  const partner = new Int32Array(tris.length).fill(-1);
-  interface Cand {
-    ti: number;
-    tj: number;
-    rank: number;
-  }
-  const cands: Cand[] = [];
-  for (const [k, arr] of triEdges) {
-    if (arr.length !== 2) continue;
-    const ti = arr[0] ?? 0;
-    const tj = arr[1] ?? 0;
-    if ((tris[ti]?.owner ?? -1) !== (tris[tj]?.owner ?? -2)) continue;
-    cands.push({ ti, tj, rank: hash(`merge:${k}`) });
-  }
-  cands.sort((p, q) => p.rank - q.rank || p.ti - q.ti || p.tj - q.tj);
-  for (const cd of cands) {
-    if (partner[cd.ti] === -1 && partner[cd.tj] === -1) {
-      partner[cd.ti] = cd.tj;
-      partner[cd.tj] = cd.ti;
-    }
-  }
-
-  // 3. Subdivide into all-quads. Midpoints/centroids interned (shared → watertight);
-  //    build the relax adjacency + boundary edge-use as each final cell is emitted.
-  const levels = Math.max(1, Math.round(t.subdiv ?? 1));
-  const edgeUse = new Map<string, number>();
-  const link = (a: number, b: number): void => {
-    adj[a]?.add(b);
-    adj[b]?.add(a);
-    const k = eKey(a, b);
-    edgeUse.set(k, (edgeUse.get(k) ?? 0) + 1);
-  };
-  interface Cell {
-    ids: number[];
-    owner: number;
-    hkey: string;
-  }
-  const cells: Cell[] = [];
-  const mid = (a: number, b: number): number => {
-    const pa = verts[a] ?? { x: 0, y: 0 };
-    const pb = verts[b] ?? { x: 0, y: 0 };
-    return intern({ x: (pa.x + pb.x) / 2, y: (pa.y + pb.y) / 2 });
-  };
-  const centroidId = (ids: number[]): number => {
-    let x = 0;
-    let y = 0;
-    for (const id of ids) {
-      const p = verts[id] ?? { x: 0, y: 0 };
-      x += p.x;
-      y += p.y;
-    }
-    return intern({ x: x / ids.length, y: y / ids.length });
-  };
-  const emit = (ids: number[], owner: number): void => {
-    let cx = 0;
-    let cy = 0;
-    for (const id of ids) {
-      const p = verts[id] ?? { x: 0, y: 0 };
-      cx += p.x;
-      cy += p.y;
-    }
-    const hkey = axialKey(pixelToHex({ x: cx / ids.length, y: cy / ids.length }));
-    cells.push({ ids, owner, hkey });
-    for (let i = 0; i < ids.length; i++) link(ids[i] ?? 0, ids[(i + 1) % ids.length] ?? 0);
-  };
-  const subdivQuad = (q: number[], owner: number, lv: number): void => {
-    if (lv <= 0) {
-      emit(q, owner);
-      return;
-    }
-    const [p0, p1, p2, p3] = q as [number, number, number, number];
-    const g = centroidId(q);
-    const m01 = mid(p0, p1);
-    const m12 = mid(p1, p2);
-    const m23 = mid(p2, p3);
-    const m30 = mid(p3, p0);
-    subdivQuad([p0, m01, g, m30], owner, lv - 1);
-    subdivQuad([m01, p1, m12, g], owner, lv - 1);
-    subdivQuad([g, m12, p2, m23], owner, lv - 1);
-    subdivQuad([m30, g, m23, p3], owner, lv - 1);
-  };
-  const subdivTri = (tri: number[], owner: number, lv: number): void => {
-    const [a, b, c] = tri as [number, number, number];
-    const g = centroidId(tri);
-    const mab = mid(a, b);
-    const mbc = mid(b, c);
-    const mca = mid(c, a);
-    subdivQuad([a, mab, g, mca], owner, lv - 1);
-    subdivQuad([b, mbc, g, mab], owner, lv - 1);
-    subdivQuad([c, mca, g, mbc], owner, lv - 1);
-  };
-  for (let ti = 0; ti < tris.length; ti++) {
-    const tA = tris[ti];
-    if (!tA) continue;
-    const pj = partner[ti] ?? -1;
-    if (pj === -1) {
-      subdivTri(tA.v, tA.owner, levels); // leftover triangle → 3 quads
-    } else if (ti < pj) {
-      // emit each merged pair once, as the quad p→a→q→b (a,b = shared edge).
-      const tB = tris[pj];
-      if (!tB) continue;
-      const shared = tA.v.filter((x) => tB.v.includes(x));
-      const a = shared[0] ?? 0;
-      const b = shared[1] ?? 0;
-      const p = tA.v.find((x) => x !== a && x !== b) ?? a;
-      const q = tB.v.find((x) => x !== a && x !== b) ?? b;
-      subdivQuad([p, a, q, b], tA.owner, levels);
-    }
-  }
-
-  // 4. Pin the silhouette (edges used once), then jitter + relax the interior.
-  const pinned = new Set<number>();
-  for (const [k, n] of edgeUse) {
-    if (n === 1) {
-      const [a, b] = k.split('|');
-      pinned.add(Number(a));
-      pinned.add(Number(b));
-    }
-  }
-  relaxVerts(verts, adj, pinned, { jitterMag: HEX_R * t.jitter, iters: t.iters, relax: t.relax });
-
-  return cells.map((cell) => {
-    const isWheatHex = world.territories[cell.owner]?.wheatTiles.has(cell.hkey) ?? false;
-    const cellKey = cell.ids.join(',');
-    const wheat =
-      isWheatHex && (!t.wheatScatter || rand01(hash(`mesh-wheat:${cell.hkey}:${cellKey}`)) < 0.72);
-    return {
-      owner: cell.owner,
-      poly: cell.ids.map((id) => verts[id] ?? { x: 0, y: 0 }),
-      variant: hash(`mesh-cell:${cellKey}`) % 3,
-      wheat,
-    };
-  });
-}
+// The relaxed Townscaper mesh + the organic coastline are the shared render core now
+// (@storytree/forest-world): the studio and the public website render the SAME
+// substrate from it. This thin adapter is all that stays studio-side — it hands the
+// core's pure builder the layout-agnostic (drawTiles, wheatSets) pair it wants, so the
+// studio's call sites + tests keep passing a `HexWorld`. The substrate MODE + tuning
+// are still read from the URL below (studio chrome). `MESH_TUNING` / `SubstrateMode`
+// are re-exported so importers that resolved them from TreeView (sharedIslandPanel.test.ts)
+// keep working while the geometry lives in the core.
 
 export function buildRelaxedCells(
   world: HexWorld,
   mode: SubstrateMode,
   override: Partial<SubstrateTuning>,
 ): RelaxedCell[] {
-  if (mode === 'relaxed-hex') {
-    return buildRelaxedHexCells(world, { ...HEX_TUNING, ...override });
-  }
-  if (mode === 'mesh') {
-    return buildMeshCells(world, { ...MESH_TUNING, ...override });
-  }
-  return buildRelaxedQuadCells(world, { ...QUAD_TUNING, ...override });
+  const wheatSets = world.territories.map((t) => t.wheatTiles);
+  return buildRelaxedCellsFromTiles(world.drawTiles, wheatSets, mode, override);
 }
 
-/** A closed polygon `d` string. */
-function polyPath(pts: Pt[]): string {
-  if (pts.length === 0) return '';
-  return (
-    pts
-      .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
-      .join(' ') + ' Z'
-  );
-}
+export { MESH_TUNING };
+export type { SubstrateMode };
 
 /**
  * Which substrate the forest map renders. The irregular Townscaper `mesh` is the
@@ -4052,18 +3238,21 @@ function StoryPanel({
           the gate-green hue (ADR-0044). */}
       <UatTestsSection storyId={story.id} onCrownRefresh={onCrownRefresh} />
 
-      {/* The UI-driven Build control (ADR-0090) is the LAST thing in the panel (owner placement,
-          2026-06-22): a single Build affordance at the foot. A drilled-in capability targets a
-          single-node `--live` build (its `buildable`); a story with no cap drilled targets a
-          whole-story `--real` build (its `storyBuildable` — the honest "really build this story").
-          So the control stays in the SAME spot whether you're viewing a story or a capability, and
-          a non-buildable selection shows WHY in place rather than vanishing (the owner's "it
-          disappears as I click around" was the single-node model showing through — most stories
-          carry no single buildable node, but many are whole-story buildable). */}
+      {/* The UI-driven go-green control (ADR-0090 / ADR-0094) is the LAST thing in the panel (owner
+          placement, 2026-06-22): a single affordance at the foot. A drilled-in capability targets a
+          single-node `--live` build (its `buildable`). A story shows a STATUS-AWARE go-green
+          affordance (ADR-0094): `proposed → Build` (whole-story `--real` drive), `mapped → Adopt`
+          (observe-and-sign its `## Reliability Gates`, ADR-0085), or a reason when neither applies —
+          never a fail-closed Build over a mature brownfield artifact. The control stays in the SAME
+          spot whether you're viewing a story or a capability, and a no-affordance selection shows WHY
+          in place rather than vanishing. */}
       <BuildSection
         unitId={cap ? cap.id : story.id}
         buildable={cap ? cap.buildable : story.storyBuildable}
         scope={cap ? 'node' : 'story'}
+        goGreen={cap ? undefined : story.goGreen}
+        adoptGates={cap ? undefined : story.adoptGates}
+        status={cap ? undefined : story.status}
       />
     </aside>
   );
