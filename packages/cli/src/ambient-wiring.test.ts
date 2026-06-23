@@ -154,32 +154,18 @@ test("a null presence identity (plain checkout) is a silent no-op, not an error"
   assert.deepEqual(presence.calls, [], "no identity → nothing declared (never guessed)");
 });
 
-// ── ADR-0060: the live/real DB-preflight wiring (default --store pg + ensureDb) ──
-
-test("a live build whose DB preflight fails refuses fail-closed, pointing at the DB (ADR-0060/0081)", async () => {
-  // --live defaults the store to pg, so the preflight runs; an injected ensureDb reporting the DB
-  // could not be brought up must REFUSE the build (no silent in-memory fallback) before the leaf runs.
-  const env = await nodeBuild("library-cli", {
-    dryRun: false,
-    live: true,
-    actor: "tester@example.com",
-    ensureDb: async () => ({ ok: false, reason: "instance unreachable (test stub)" }),
-    presence: { store: null, identity: null },
-  });
-  assert.equal(env.ok, false, env.body);
-  assert.match(env.body, /could not be brought up/);
-  assert.match(env.body, /instance unreachable \(test stub\)/);
-  // ADR-0081 removed the --store memory escape: the only remedy is to bring the DB up. The refusal
-  // must point at the DB and must NOT offer the deleted opt-out.
-  assert.ok(
-    (env.next ?? []).some((n) => n.includes("pnpm db:status")),
-    `the refusal must point at the DB, got: ${JSON.stringify(env.next)}`,
-  );
-  assert.ok(
-    !(env.next ?? []).some((n) => n.includes("--store memory")),
-    `the removed --store memory opt-out must NOT be offered, got: ${JSON.stringify(env.next)}`,
-  );
-});
+// ── ADR-0060/0081, narrowed by ADR-0099-B: the DB-preflight wiring is REAL-only now ──
+//
+// Pre-0099-B a --live build defaulted to `pg` and ran the DB preflight (refusing fail-closed on a down
+// DB). ADR-0099-B makes a synthetic --live smoke NON-persisting (in-memory), so it never brings the DB
+// up — `needsDb = (effectiveStore === "pg" && mode === "real")` is false for a live smoke (its
+// effectiveStore is in-memory). That enforcement is proven deterministically and OFFLINE (no worktree,
+// no SDK, no flake) by the seam unit tests rather than by driving a real --live build here:
+//   - db-control.test.ts — effectiveVerdictStore: a --live smoke (synthetic) no longer defaults to pg;
+//     only a REAL driven proof does.
+//   - node-build.test.ts — resolveVerdictStore: --store pg is refused for a synthetic walk (the forged
+//     healthy guard), and the in-memory stores still resolve.
+// The fail-closed-on-down-DB refusal is unchanged for the path that still persists (`--real`).
 
 test("a --dry-run build never runs the DB preflight — it stays in-memory (ADR-0060/0020)", async () => {
   // The preflight is gated to live/real; a scripted dry-run must reach its in-memory walk without ever

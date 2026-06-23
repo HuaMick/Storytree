@@ -494,16 +494,16 @@ export async function storyBuild(
     }
   }
 
-  // ADR-0060/0081: a live/real story chain OWNS the database and ALWAYS persists — `--store` resolves
-  // to `pg` (the `--store memory` opt-out was removed, ADR-0081), and the preflight ENSURES the
-  // instance is up (probe → `db:up` + wait if down) BEFORE anything that touches it: the oq-hygiene
-  // gate's live loader composes the PgLibraryStore, and the verdict store is pg. `--dry-run` is
-  // untouched (in-memory, never the DB).
+  // ADR-0060/0081, narrowed by ADR-0099-B: only a REAL driven chain OWNS the database and persists —
+  // `--store` resolves to `pg` for `--real`, and the preflight ENSURES the instance is up (probe →
+  // `db:up` + wait if down) BEFORE anything that touches it: the oq-hygiene gate's live loader composes
+  // the PgLibraryStore, and the verdict store is pg. A SYNTHETIC chain (`--dry-run`, or a `--live`
+  // add(2,3) smoke) is untouched (in-memory, never the DB) — a synthetic PASS must never persist a green.
   const retryCmd = `storytree story build ${story.id} ${real ? "--real" : "--live"}`;
-  const effectiveStore = effectiveVerdictStore(opts.verdictStore, mode === "dry-run");
+  const effectiveStore = effectiveVerdictStore(opts.verdictStore, mode !== "real");
   // The instance must be up to PERSIST verdicts AND to run any db-backed proof in the chain
   // (ADR-0064: the proof connects to the test DB on this instance), so ensure it for either reason.
-  const needsDb = (effectiveStore === "pg" && mode !== "dry-run") || anyDb;
+  const needsDb = (effectiveStore === "pg" && mode === "real") || anyDb;
   if (needsDb) {
     const ensureDb = opts.ensureDb ?? ensureLiveDb;
     const ready = await ensureDb((m) => console.error(`[db] ${m}`));
@@ -536,7 +536,7 @@ export async function storyBuild(
     phasePrompts = rendered.prompts;
   }
 
-  const storeChoice = await resolveVerdictStore(effectiveStore, mode === "dry-run", retryCmd);
+  const storeChoice = await resolveVerdictStore(effectiveStore, mode !== "real", retryCmd);
   if (!storeChoice.ok) return storeChoice.refusal;
   const { store, persisted } = storeChoice;
 

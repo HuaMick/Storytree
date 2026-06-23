@@ -16,6 +16,7 @@ import {
   renderLeafPhasePrompts,
   resolveAddDepsGroup,
   resolveDbProofEnv,
+  resolveVerdictStore,
   workspacePackageForSource,
 } from "./node-build.js";
 import type { WispSmokeStore } from "./wisp-smoke.js";
@@ -28,6 +29,31 @@ import type { WispSmokeStore } from "./wisp-smoke.js";
 
 /** The node area never touches the library store; an empty InMemoryStore keeps the tests fast. */
 const deps = { store: new InMemoryStore() };
+
+// ── ADR-0099-B: a SYNTHETIC walk may never persist to pg (the owed guard test) ───────────────────
+
+test("resolveVerdictStore: ADR-0099-B refuses --store pg for a SYNTHETIC walk (dry-run OR live smoke)", async () => {
+  const synthetic = true; // a --dry-run scripted walk OR a --live add(2,3) smoke
+  const res = await resolveVerdictStore("pg", synthetic, "storytree node build x --live");
+  assert.equal(res.ok, false);
+  assert.match(res.refusal.body, /SYNTHETIC walk/);
+  assert.match(res.refusal.body, /forged `healthy`/);
+  assert.match(res.refusal.body, /Only --real/);
+  // The retry nudge points at --real, never --live (a live smoke can never earn pg).
+  assert.ok(res.refusal.next?.some((n) => /--real --store pg/.test(n)));
+});
+
+test("resolveVerdictStore: a synthetic walk still resolves the in-memory stores (undefined / the memory seam)", async () => {
+  for (const flag of [undefined, "memory"]) {
+    const res = await resolveVerdictStore(flag, true, "retry");
+    assert.equal(res.ok, true, `flag=${String(flag)}`);
+    assert.equal(res.persisted, false);
+  }
+  // An unknown store is still its own (non-pg) refusal, not the synthetic-pg one.
+  const bogus = await resolveVerdictStore("bogus", true, "retry");
+  assert.equal(bogus.ok, false);
+  assert.match(bogus.refusal.body, /unknown --store/);
+});
 
 test("node build <id> --dry-run walks the gate and reports trail + verdict + rollup", async () => {
   const env = await run(
