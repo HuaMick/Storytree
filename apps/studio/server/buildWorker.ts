@@ -3,11 +3,11 @@
 // returns 202; this module does the actual driving.
 //
 // THE WORKER IS THE SINGLE ORCHESTRATOR BOUNDARY (ADR-0090 d.2 / ADR-0004 / ADR-0091): it invokes
-// the EXISTING public build entry — `nodeBuild(unitId, { live: true, verdictStore: 'pg' })`, the same
-// thing `pnpm storytree node build <id> --live` runs — and reaches inside NOTHING (not the gate, not
-// the spine, not the SDK leaf). The verdict it persists is the gate's, signed by the spine; the
-// worker never produces or hands in a verdict. It only: feed the build's COARSE progress into the
-// run's transcript, then terminalise the run with the envelope.
+// the EXISTING public build entry — `nodeBuild(unitId, { live: true })`, the same thing
+// `pnpm storytree node build <id> --live` runs — and reaches inside NOTHING (not the gate, not the
+// spine, not the SDK leaf). A `--live` smoke is NON-persisting (ADR-0099-B: a synthetic smoke must
+// never persist a forged green); the worker never produces or persists a verdict. It only: feed the
+// build's COARSE progress into the run's transcript, then terminalise the run with the envelope.
 //
 // The runner is INJECTED so this module is fully offline-testable: the registry/API tests drive it
 // with a fake runner (no SDK spend); production wires `buildRunnerFromNodeBuild` over the real
@@ -38,7 +38,8 @@ export type BuildRunner = (unitId: string, sink: (line: string) => void) => Prom
 /** The Phase-1 options the worker passes to `nodeBuild` — single node, live mode, pg verdict store. */
 export interface NodeBuildLikeOpts {
   live: boolean;
-  verdictStore: string;
+  /** ADR-0099-B: optional — a `--live` smoke must NOT persist, so the node runner omits it (in-memory). */
+  verdictStore?: string;
   real?: boolean;
   dryRun?: boolean;
   actor?: string;
@@ -88,17 +89,22 @@ function failureReason(body: string): string {
 
 /**
  * Adapt the existing `nodeBuild` entry into a {@link BuildRunner} with the Phase-1 options pinned:
- * single-node `--live` (a real SDK leaf authors through the real gate), `--store pg` (the gate's
- * signed verdict persists to events.verdict, lighting the wisp + updating the hue the world reads).
- * `nodeBuild` returns only its final envelope — it does not stream — so the `sink` is unused here;
- * the live "watch it run" signal in Phase 1 is the in-flight wisp (ADR-0048) plus the start marker
- * and the final envelope. (Turn-by-turn streaming is a noted follow-on.)
+ * single-node `--live` (a real SDK leaf authors through the real gate), NON-persisting.
+ *
+ * **ADR-0099-B: a `--live` smoke must not persist a (forged) green.** A single-node `--live` build runs
+ * a synthetic `add(2,3)` task — it proves the GLUE, not the node's real feature — so its PASS may NEVER
+ * land in `events.verdict` (that is the back-door ADR-0099 closes). The pinned `--store pg` is therefore
+ * dropped: the smoke runs in-memory and persists nothing. The legitimate go-green stays the STATUS-AWARE
+ * story-level affordance ADR-0094 already built — **Build** (`story build --real`, a real red→green) for
+ * a `proposed` story, **Adopt** (reliability gates) for a `mapped` one — never a node smoke. `nodeBuild`
+ * returns only its final envelope (it does not stream), so the `sink` is unused here; the "watch it run"
+ * signal is the start marker + the final envelope. (Restoring a transient non-greening node wisp, or
+ * routing node-Build to a real `--real` drive, are clean follow-ons, not honesty-wall work.)
  */
 export function buildRunnerFromNodeBuild(nodeBuild: NodeBuildLike, actor?: string): BuildRunner {
   return async (unitId) =>
     nodeBuild(unitId, {
       live: true,
-      verdictStore: 'pg',
       ...(actor !== undefined ? { actor } : {}),
     });
 }

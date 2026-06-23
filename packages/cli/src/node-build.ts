@@ -251,8 +251,10 @@ export type VerdictStoreChoice =
 /**
  * Resolve the verdict store for a build: in-memory by default; `pg` swaps in the {@link PgWorkStore}
  * over the live Cloud SQL tables. Fail-closed twice over: any value other than `pg` is refused, and
- * `pg` is refused for SCRIPTED walks — a dry-run's PASS is synthetic by construction, and persisting
- * it would plant a forged `healthy` in the shared event log (exactly what ADR-0020 exists to prevent).
+ * `pg` is refused for SYNTHETIC walks — a `--dry-run` scripted walk OR a `--live` `add(2,3)` smoke.
+ * Neither proves a real feature, so persisting its PASS would plant a forged `healthy` in the shared
+ * event log (exactly what ADR-0020 exists to prevent, extended to the `--live` path by ADR-0099-B).
+ * Only a REAL driven proof (`--real`, a genuine red→green) is `--store pg`-eligible.
  *
  * `flag === "memory"` still maps to the in-memory store here, but it is NOT a user-facing build
  * option (ADR-0081 removed `--store memory` at the CLI dispatch, `refuseMemoryStore`). It survives
@@ -261,7 +263,7 @@ export type VerdictStoreChoice =
  */
 export async function resolveVerdictStore(
   flag: string | undefined,
-  scripted: boolean,
+  synthetic: boolean,
   retryCmd: string,
 ): Promise<VerdictStoreChoice> {
   if (flag === undefined || flag === "memory") {
@@ -286,16 +288,17 @@ export async function resolveVerdictStore(
       },
     };
   }
-  if (scripted) {
+  if (synthetic) {
     return {
       ok: false,
       refusal: {
         ok: false,
         body:
-          "--store pg is refused for a scripted (dry-run) walk: its PASS is synthetic by construction,\n" +
-          "and persisting it would plant a forged `healthy` in the shared event log (ADR-0020 — proof is\n" +
-          "non-authorable). Persist verdicts only from --live or --real builds.",
-        next: [`${retryCmd} --store pg`],
+          "--store pg is refused for a SYNTHETIC walk (a --dry-run scripted walk OR a --live add(2,3)\n" +
+          "smoke): its PASS does not come from a real driven red→green, so persisting it would plant a\n" +
+          "forged `healthy` in the shared event log (ADR-0020/0099-B — a synthetic smoke must never green\n" +
+          "a unit). Only --real (a genuine red→green) persists to pg.",
+        next: [`${retryCmd.replace(/--live\b/, "--real")} --store pg`],
       },
     };
   }
@@ -884,14 +887,15 @@ export async function nodeBuild(
 
   const modeFlag = real ? "--real" : live ? "--live" : "--dry-run";
   const retryCmd = `storytree node build ${spec.id} ${modeFlag}`;
-  // ADR-0060/0081: a live/real build OWNS the database and ALWAYS persists — `--store` resolves to
-  // `pg` for live/real (so real work feeds the studio's wisp/bloom; the `--store memory` opt-out was
-  // removed, ADR-0081), and the preflight ENSURES the instance is up before we connect — probing it,
-  // and starting it (`db:up`) + waiting if it is down. `--dry-run` is untouched (in-memory, never the DB).
-  const effectiveStore = effectiveVerdictStore(opts.verdictStore, mode === "dry-run");
+  // ADR-0060/0081, narrowed by ADR-0099-B: only a REAL driven proof OWNS the database and persists —
+  // `--store` resolves to `pg` for `--real` (so real work feeds the studio's wisp/bloom), and the
+  // preflight ENSURES the instance is up before we connect (probe → `db:up` + wait if down). A
+  // SYNTHETIC walk (`--dry-run` scripted OR a `--live` add(2,3) smoke) is untouched (in-memory, never
+  // the DB) — a synthetic PASS must never persist a greening verdict.
+  const effectiveStore = effectiveVerdictStore(opts.verdictStore, mode !== "real");
   // The instance must be up to PERSIST verdicts AND to run a db-backed proof (ADR-0064: the proof
   // connects to the test DB on this instance), so ensure it for either reason.
-  const needsDb = (effectiveStore === "pg" && mode !== "dry-run") || dbBacked;
+  const needsDb = (effectiveStore === "pg" && mode === "real") || dbBacked;
   if (needsDb) {
     const ensureDb = opts.ensureDb ?? ensureLiveDb;
     const ready = await ensureDb((m) => console.error(`[db] ${m}`));
@@ -908,7 +912,7 @@ export async function nodeBuild(
       };
     }
   }
-  const storeChoice = await resolveVerdictStore(effectiveStore, mode === "dry-run", retryCmd);
+  const storeChoice = await resolveVerdictStore(effectiveStore, mode !== "real", retryCmd);
   if (!storeChoice.ok) return storeChoice.refusal;
   const { store, persisted } = storeChoice;
 

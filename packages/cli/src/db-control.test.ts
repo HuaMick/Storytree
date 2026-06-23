@@ -108,14 +108,22 @@ test("ensureDbUp emits a periodic progress line while waiting for a slow start",
   assert.match(progress[0] ?? "", /\b\d+s elapsed\b/, "the progress line reports elapsed seconds");
 });
 
-test("effectiveVerdictStore: a scripted (dry-run) walk passes its flag through unchanged", () => {
+test("effectiveVerdictStore: a SYNTHETIC walk (dry-run OR live smoke) passes its flag through unchanged", () => {
+  // synthetic = true covers BOTH a --dry-run scripted walk AND a --live add(2,3) smoke (ADR-0099-B).
   assert.equal(effectiveVerdictStore(undefined, true), undefined); // → in-memory
   assert.equal(effectiveVerdictStore("pg", true), "pg"); // → refused downstream (forged healthy)
   assert.equal(effectiveVerdictStore("memory", true), "memory");
 });
 
-test("effectiveVerdictStore: a live/real build defaults an unset --store to pg, keeps explicit values", () => {
-  assert.equal(effectiveVerdictStore(undefined, false), "pg", "the build owns the DB (ADR-0060)");
+test("effectiveVerdictStore: ADR-0099-B — a --live smoke no longer defaults an unset --store to pg", () => {
+  // The crux of ADR-0099-B: a synthetic --live smoke (synthetic=true) must NOT default to pg, where
+  // ADR-0081 used to make EVERY live/real build persist. A synthetic PASS never reaches the shared log.
+  assert.equal(effectiveVerdictStore(undefined, true), undefined, "a --live smoke persists nothing by default");
+});
+
+test("effectiveVerdictStore: only a REAL driven proof defaults an unset --store to pg", () => {
+  // synthetic = false is the REAL driven proof (--real, a genuine red→green); it owns the DB (ADR-0060).
+  assert.equal(effectiveVerdictStore(undefined, false), "pg", "a real build owns the DB (ADR-0060)");
   // "memory" still passes through here — it is NOT a CLI option (ADR-0081 refuses it at dispatch),
   // only the internal test seam reaches this function with it, and it must still map to in-memory.
   assert.equal(effectiveVerdictStore("memory", false), "memory", "internal test seam still maps to in-memory");

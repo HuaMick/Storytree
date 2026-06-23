@@ -88,7 +88,7 @@ describe('runBuildJob', () => {
 
 describe('buildRunnerFromNodeBuild', () => {
   // ubt-worker-spawns-real-build-entry
-  it('invokes the existing nodeBuild entry with the Phase-1 options (single node, live, pg)', async () => {
+  it('invokes the existing nodeBuild entry with the Phase-1 options (single node, live, NON-persisting)', async () => {
     const nodeBuild = vi.fn<NodeBuildLike>(async () => ({ ok: true, body: 'verdict: PASS' }));
     const runner = buildRunnerFromNodeBuild(nodeBuild);
 
@@ -97,7 +97,10 @@ describe('buildRunnerFromNodeBuild', () => {
     expect(nodeBuild).toHaveBeenCalledTimes(1);
     const [unitId, opts] = nodeBuild.mock.calls[0]!;
     expect(unitId).toBe('library-cli');
-    expect(opts).toMatchObject({ live: true, verdictStore: 'pg' });
+    expect(opts).toMatchObject({ live: true });
+    // ADR-0099-B: a --live smoke must NOT persist a forged green — the pinned `--store pg` is dropped,
+    // so the smoke runs in-memory and `verdictStore` is never set to 'pg'.
+    expect(opts.verdictStore).toBeUndefined();
     // Phase-1 scope walls: NOT a real build, NOT a dry-run.
     expect(opts.real).toBeFalsy();
     expect(opts.dryRun).toBeFalsy();

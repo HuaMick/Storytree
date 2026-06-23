@@ -1,20 +1,41 @@
 ---
-status: proposed
+status: accepted
 decided: 2026-06-23
+supersedes_in_part: [81]
 amends: [7, 20]
+load_bearing: true
 ---
 # ADR-0099: Synthetic smoke verdicts must not derive a green unit
 
 ## Status
 
-proposed — surfaced 2026-06-23 by the session that resolved the `library` false-green crown (the
-story-author reliability assessment + the synthetic-verdict retirement). The owner directed this be
-drafted as a proposed ADR (escalated, not silently decided): the **principle** below — a synthetic
-smoke must never derive a green unit — is the owner's stated intent, but the **enforcement mechanism**
-(options A/B in the Decision) is left for owner ratification + build-time choice. It **amends
-[ADR-0007](0007-proof-model.md)** (the proof-mode vocabulary gains a synthetic/real distinction) and
-**[ADR-0020](0020-red-green-enforcement-on-the-owned-loop.md)** (the no-forged-healthy enforcement
-extends to the `--live` persistence path). It overturns no honesty wall — it CLOSES a hole in one.
+accepted (2026-06-23) — **the owner ratified Option B** this session (the recommended minimal
+enforcement) and it is **BUILT**. Surfaced 2026-06-23 by the session that resolved the `library`
+false-green crown (the story-author reliability assessment + the synthetic-verdict retirement); the
+**principle** below — a synthetic smoke must never derive a green unit — was the owner's stated intent,
+and the **enforcement mechanism** is now decided: Option B.
+
+What was built (the `--store pg` refusal extended from dry-runs to `--live`): the persistence
+discriminator was renamed `scripted → synthetic`, so **only `--real` (a real driven red→green) persists
+to `pg`** — a synthetic walk (a `--dry-run` scripted walk OR a `--live` `add(2,3)` smoke) never
+persists (runs in-memory) and `--store pg` is refused for it (`packages/cli/src/db-control.ts`
+`effectiveVerdictStore`, `packages/cli/src/node-build.ts` `resolveVerdictStore`; the four caller sites
+in `node-build.ts` / `story-build.ts` pass `mode !== "real"`, `gate-build-driver.ts` / `adopt.ts` pass
+`false`). The studio node-Build smoke was made non-persisting too —
+`apps/studio/server/buildWorker.ts` dropped its pinned `verdictStore: 'pg'` (aligning with ADR-0094:
+the legitimate go-green is the status-aware story-level Build(`--real`) / Adopt, never a node smoke).
+The owed guard test landed (a `--store pg` synthetic walk is refused).
+
+This ADR **amends [ADR-0007](0007-proof-model.md)** (the proof-mode vocabulary gains a synthetic/real
+distinction) and **[ADR-0020](0020-red-green-enforcement-on-the-owned-loop.md)** (the no-forged-healthy
+enforcement extends to the `--live` persistence path). It **supersedes in part
+[ADR-0081](0081-remove-the-store-memory-opt-out-live-and-real-builds-always.md)**: ADR-0081's invariant
+that **a `--live` build always persists** is overtaken (a `--live` smoke now runs in-memory and is
+`--store pg`-refused, exactly as a `--dry-run` already was), while ADR-0081's other half — **no
+`--store memory` CLI opt-out** (`refuseMemoryStore`) — is **preserved**: there is still no user-facing
+persist-nothing flag; `--live` simply no longer persists by construction. ADR-0081 stays `accepted`;
+the partial-reversal edge is visible in `adr list --current`. It overturns no honesty wall — it CLOSES
+a hole in one.
 
 ## Context
 
@@ -107,15 +128,18 @@ verdict again.
   are untouched.
 
 **Bad / costs / follow-on.**
-- A behaviour change to `--live` (Option B refuses a flag combination that works today; Option A
-  changes the verdict shape). Either touches the spine and its tests; Option A also touches every
-  verdict reader.
-- The model is the decision; the **enforcement mechanism is unbuilt** pending the owner's A/B choice.
+- A behaviour change to `--live` (Option B refuses a flag combination that worked before; Option A
+  would have changed the verdict shape). Option B touched the spine and its tests only; Option A would
+  also have touched every verdict reader.
+- **Resolved (2026-06-23): the owner ratified Option B and it is BUILT** (see `## Status`). Option A
+  stays the recorded not-taken alternative — adopt it later only if a real need to RECORD live-smoke
+  activity as a non-greening signal emerges.
 - **Surfaced, not decided here:** whether ALREADY-persisted synthetic verdicts in OTHER stories
   (beyond `library`'s now-retired 22) should be swept. A live query + targeted retirement is the same
   one-time cleanup; out of scope for this model decision.
-- A guard test is owed (a synthetic `pass` verdict must NOT derive `healthy` in `rollupStatus`) — the
-  red→green that earns whichever option is chosen.
+- A guard test was owed and **landed** (Option B's red→green): a `--store pg` synthetic walk is now
+  refused (`node-build.test.ts`); `db-control.test.ts` / `ambient-wiring.test.ts` / `buildWorker.test.ts`
+  were updated to match.
 
 ## References
 
@@ -124,6 +148,11 @@ verdict again.
 - [ADR-0020](0020-red-green-enforcement-on-the-owned-loop.md) — red-green enforcement, "a scripted /
   synthetic PASS persisted would be a forged healthy" (**amended**: the no-forged-healthy enforcement
   extends to the `--live` persistence path, not just dry-runs).
+- [ADR-0081](0081-remove-the-store-memory-opt-out-live-and-real-builds-always.md) — **superseded in
+  part**: its "a live/real build always persists" invariant is overtaken for `--live` (a synthetic
+  `--live` smoke now runs in-memory and is `--store pg`-refused, like a `--dry-run`); its "no
+  `--store memory` CLI opt-out" (`refuseMemoryStore`) is **preserved** — there is still no persist-
+  nothing flag, the smoke just no longer persists by construction. ADR-0081 stays `accepted`.
 - [ADR-0094](0094-go-green-is-a-status-transition-proposed-builds-mapped-adopt.md) — disowned the
   library's synthetic live arms as an authoring guideline; this ADR makes it a spine-enforced wall.
 - [ADR-0097](0097-brownfield-go-green-is-a-proving-process-adopt-enters-brown.md) — the coverage
