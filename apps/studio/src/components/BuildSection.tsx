@@ -273,18 +273,13 @@ function BuildRun({ status }: { status: BuildStatus }): React.JSX.Element {
  * (api.adopt → POST /api/adopt) that drives the spine to flip the story `mapped → proposed` and
  * observe-and-sign each `observe` gate's already-green suite to an `adopted` verdict — the MACHINE
  * (spine principal) witnesses the green at a clean committed HEAD; the operator who clicked is the
- * approver, not the signer (ADR-0097 §4). No faked red, no rubber-stamp.
+ * approver, not the signer (ADR-0097 §4).
  *
  * The mechanics mirror Build EXACTLY (usePollableRun): the adoption runs fire-and-forget in the SAME
- * build registry, so the run is polled via api.buildStatus on BUILD_POLL_MS, the coarse transcript
- * accumulates, and a terminal status (passed/failed) is rendered by the shared BuildRun. The gates are
- * now CONTEXT framing the action (what gets adopted, what still owes real work), not commands the
- * operator runs by hand.
- *
- * Crucially honest (ADR-0097 §1/§3/§5): Adopt ENTERS the process — it flips `proposed` and adopts the
- * `observe` gates, but it does NOT necessarily green the crown. An uncovered capability (a
- * `build-tests` pocket the suite only smoke-imports) holds the crown at `proposed` until its real
- * red→green work lands. A stalled adoption honestly reads `proposed` (amber), never green.
+ * build registry, so the run is polled via api.buildStatus, the coarse transcript accumulates, and a
+ * terminal status is rendered by the shared BuildRun. The surface is deliberately LEAN (owner steer):
+ * just the Adopt button with a one-line description beside it — the per-gate detail lives in the tree /
+ * `storytree gate list`, not in this panel.
  */
 function AdoptPanel({
   unitId,
@@ -303,30 +298,34 @@ function AdoptPanel({
 
   const busy = phase.kind === 'starting';
   const showButton = phase.kind === 'idle' || phase.kind === 'starting' || phase.kind === 'error';
-  const hasGates = gates.length > 0;
+
+  // No declared gates → no Adopt action yet (author `## Reliability Gates` first, ADR-0085).
+  if (gates.length === 0) {
+    return (
+      <div className="tree-build tree-adopt">
+        <h4 className="tree-subdag-title">Adopt</h4>
+        <p className="muted small">
+          This brownfield (<code>mapped</code>) story declares no <code>## Reliability Gates</code> yet —
+          author them to enable Adopt (ADR-0085).
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="tree-build tree-adopt">
       <h4 className="tree-subdag-title">Adopt</h4>
-      <p className="muted small build-hint">
-        This is a brownfield (<code>mapped</code>) story: it comes into the fold by <strong>Adopt</strong>,
-        not Build. The spine observes each <code>observe</code> gate&apos;s suite green at a clean
-        committed HEAD and signs an <code>adopted</code> verdict — the machine witnesses the green, no
-        faked red (ADR-0085/ADR-0097).
-      </p>
 
-      {hasGates && showButton && (
-        <>
+      {showButton && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <button type="button" className="btn build-btn" onClick={() => void trigger()} disabled={busy}>
             {busy ? 'Starting…' : 'Adopt'}
           </button>
-          <p className="muted small build-hint">
-            Adopt <strong>enters a proving process</strong> (ADR-0097): it flips this story to{' '}
-            <code>proposed</code> and adopts the <code>observe</code> gates — but it does not necessarily
-            green the crown. An uncovered capability (a <code>build-tests</code> pocket) holds the crown
-            at <code>proposed</code> until its real red→green work lands.
+          <p className="muted small build-hint" style={{ margin: 0 }}>
+            Observe-and-sign this brownfield story&apos;s gates and enter the proving process (→{' '}
+            <code>proposed</code>) — doesn&apos;t green the crown on its own (ADR-0097).
           </p>
-        </>
+        </div>
       )}
 
       {phase.kind === 'error' && (
@@ -337,41 +336,15 @@ function AdoptPanel({
         <BuildRun status={phase.kind === 'building' ? phase.status : phase.status} />
       )}
 
-      {/* The gates as CONTEXT (ADR-0097): what Adopt observe-and-signs, and what still owes real work. */}
-      {hasGates ? (
-        <ul className="adopt-gates small">
-          {gates.map((g) => (
-            <li key={g.id} className="adopt-gate">
-              <code>{g.id}</code>{' '}
-              {g.kind === 'observe' ? (
-                <>
-                  — observe &amp; sign:{' '}
-                  <code className="adopt-gate-cmd">storytree gate run {g.id} --pg</code>
-                  {g.command && <span className="muted"> ({g.command})</span>}
-                </>
-              ) : g.kind === 'build-tests' ? (
-                <span className="muted">— earned by a genuine red→green build, not observe-and-sign</span>
-              ) : (
-                <span className="muted">— earned when the capability it folds under greens</span>
-              )}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="muted small">
-          This story declares no <code>## Reliability Gates</code> yet — author them to enable Adopt
-          (ADR-0085).
-        </p>
-      )}
-
       {/* ADR-0097 Layer 2: the covered/uncovered classification — what Adopt greens vs what still owes
-          real `build-tests` work. Computed server-side (the classifyAdoption covers-diff); absent for a
-          story with no capabilities. */}
+          real `build-tests` work (the structural covers-diff, computed server-side). Kept LEAN to match
+          the panel's owner steer — the per-gate detail lives in the tree / `storytree gate list`, this
+          adds only the actionable cap summary. Absent for a capless story. */}
       {adoption && adoption.capabilities.length > 0 && (
         <div className="adopt-coverage">
           <p className="muted small">
-            <strong>What still owes real work</strong> ({adoption.covered.length} covered,{' '}
-            {adoption.uncovered.length} uncovered) — the structural covers-diff (ADR-0097 Layer 2):
+            <strong>What still owes real work</strong> — {adoption.covered.length} covered,{' '}
+            {adoption.uncovered.length} uncovered (ADR-0097 Layer 2):
           </p>
           <ul className="adopt-coverage-caps small">
             {adoption.capabilities.map((c) => (
@@ -388,27 +361,14 @@ function AdoptPanel({
               </li>
             ))}
           </ul>
-          {adoption.uncovered.length === 0 ? (
+          {adoption.uncovered.length > 0 && (
             <p className="muted small">
-              Every capability is covered by a declared gate — adopting them greens all caps (the crown
-              still needs every own-proof obligation signed).
-            </p>
-          ) : (
-            <p className="muted small">
-              The uncovered capabilities hold the crown at <code>proposed</code> until their real
-              red→green work lands. The finer call (characterize / behavioural-red / refactor) is the
-              story-author&apos;s analysis — see <code>storytree story adopt-plan {unitId}</code>.
+              The uncovered caps hold the crown at <code>proposed</code> until their real red→green
+              lands — see <code>storytree story adopt-plan {unitId}</code>.
             </p>
           )}
         </div>
       )}
-
-      <p className="muted small">
-        Adopting every <code>observe</code> gate flips the story off <code>mapped</code>; the
-        world&apos;s crown derives green only once every capability AND every own-proof obligation (UAT
-        legs + reliability gates) is signed (ADR-0082/0083 + ADR-0085/0097). No single gate greens the
-        story.
-      </p>
     </div>
   );
 }
