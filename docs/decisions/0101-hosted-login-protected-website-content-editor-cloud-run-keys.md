@@ -2,7 +2,7 @@
 status: accepted
 decided: 2026-06-24
 ---
-# ADR-0100: Hosted login-protected website content editor — Cloud Run + Keystatic GitHub mode
+# ADR-0101: Hosted login-protected website content editor — Cloud Run + Keystatic GitHub mode
 
 ## Status
 
