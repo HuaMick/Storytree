@@ -12,6 +12,26 @@ depends_on: [library-schema-and-write-validation, migrate-on-write-upcaster]
 # `db: true`, ADR-0064 — an ISOLATED test database, never production) was REMOVED (ADR-0094
 # supersedes_in_part 92 d.5): the library is `mapped`, so its green path is Adopt (the story's
 # `## Reliability Gates`, ADR-0085), not a fail-closed `--real` Build.
+# ADR-0098 (the Pg-pocket live pilot, story gate 5) RE-ADDS a `real:` arm — but, exactly like the one on
+# `seed-corpus-scripts` for gate 4, it does NOT re-light a fail-closed blanket Build. It is borrowed by
+# the story's `library#gate-5` `(build:)` annotation and driven via `storytree gate run library#gate-5
+# --real --pg`. The verdict signs FOR the gate id (the driver renames the spec id), so this arm NEVER
+# greens this capability — gate 1 already covers it honestly (observe); gate 5 is the story-level
+# own-proof obligation over the genuinely-untested Pg pocket. The OTHER caps carry no `real:` arm, so the
+# story is not blanket real-buildable (ADR-0094 stands); only the two build-tests gates drive a red→green.
+#
+# RED MODE — R1 behavioural (`editsExisting: true`), NOT R2: the honest red is a should-behaviour the
+# code does not yet meet. `createPool` (`connection.ts:43-71`) documents `STORYTREE_DB_USER` as
+# "REQUIRED for a live connection" (`connection.ts:38`) but the code does `user ?? process.env[…]` and
+# spreads `user` only when defined — so a MISSING IAM principal silently builds a password-less,
+# user-less pool that then connects-or-fails ambiguously, rather than failing closed loudly. The leaf
+# adds a regression test that FAILS against current behaviour (no fail-closed guard exists) then EDITS
+# `connection.ts` to enforce the documented contract: refuse to build a pool when no IAM principal
+# resolves, with an instructional error — never a forged/ambiguous success. `db: true` (owner D3) makes
+# the proof ALSO run the live-gated parity pull over a disposable `storytree_test` DB (ADR-0054
+# `createTestPool`, never prod), turning the default-skipped `store.test.ts:101` placeholder into a
+# genuinely-driven leg: a live pull returns data; a down DB fails closed with a connection error. The
+# whole `@storytree/library` suite is the regression wall (`proofCommand`). install:true (db requires it).
 proof:
   command:
     file: pnpm
@@ -19,6 +39,21 @@ proof:
   scope:
     testGlobs: ["packages/library/src/**/*.test.ts"]
     sourceGlobs: ["packages/library/src/**/*.ts"]
+  real:
+    testFile: "packages/library/src/store/connection.test.ts"
+    sourceFile: "packages/library/src/store/connection.ts"
+    scope:
+      testGlobs: ["packages/library/src/store/connection.test.ts"]
+      sourceGlobs: ["packages/library/src/store/connection.ts"]
+    install: true
+    editsExisting: true
+    db: true
+    typecheck:
+      file: pnpm
+      args: ["--filter", "@storytree/library", "typecheck"]
+    proofCommand:
+      file: pnpm
+      args: ["--filter", "@storytree/library", "test"]
 ---
 
 # The narrow event-sourced Store seam over the keyless `events` schema (in-memory + Postgres)
@@ -44,6 +79,16 @@ proof:
 The persistence seam (ADR-0017: history = events, current = projection; relationships are ID refs inside docs, NEVER foreign keys). The `Store` interface (`packages/storage-protocol/src/store.ts:60-72`) is intentionally narrow; `InMemoryStore` (`packages/storage-protocol/src/store.ts:116`) is the offline reference impl whose `upsertDoc` atomically appends a `created`/`updated` event AND updates the projection (`store.ts:122-148`), with a monotonic `seq` (`appendEvent`, `store.ts:173`). `storeParitySuite` (`packages/storage-protocol/src/store-parity.ts:60`) is EXPORTED on purpose (consumed via the `@storytree/storage-protocol/parity` subpath): it registers the behavioural contracts so ANY impl is held to the same bar.
 
 **v1 lineage —** the exported `storeParitySuite()` is the v2 form of V1's **trait-parity testing** (`legacy/Agentic/stories/4.yml` ↔ `5.yml`): V1 authored story 4's Store-trait harness against `dyn Store` and re-ran the *same* harness against story 5's `SurrealStore` — the reuse, not a copy, is what proved the trait was a real abstraction rather than a 1-impl stub. Here the same contract suite runs against both `InMemoryStore` and `PgLibraryStore`, which is exactly what makes the Store seam real and not a single-impl façade. This is also why open call #2 (don't split the seam into two capabilities) is the lineage-consistent choice: one exported parity contract deliberately shared across both impls is the whole proof, and splitting it would sever the parity claim the way V1 was careful never to.
+
+### Build-tests R1 target (ADR-0098 — the Pg-pocket live pilot, story gate 5)
+
+The `library#gate-5` build-tests gate `(build:)`s this node and drives an **R1 behavioural** red→green over the keyless connection (`connection.ts`) — borrowed exactly as gate 4 borrows `seed-corpus-scripts`. The verdict signs FOR the gate id (the driver renames the spec id), so this drive NEVER greens this capability: gate 1 already covers `event-sourced-store-seam`'s dominant behaviour honestly (observe), and gate 5 carries no `(covers:)`. The drive is purely the story-level own-proof obligation over the genuinely-untested-offline Pg pocket (real live-write code, proven today only by the default-**skipped** `store.test.ts:101`).
+
+**Why R1, not R2 (the honest red — read this before the drive).** The `PgLibraryStore` transactional behaviour is CORRECT and already proven by the live-gated parity suite; live-gating an already-green suite against already-correct code would be the green-on-arrival characterization theater ADR-0085/0097 ban. So the red does NOT live in the Pg parity behaviour. It lives in a **should-behaviour the code does not yet meet**: `createPool` (`connection.ts:43-71`) documents `STORYTREE_DB_USER` as "REQUIRED for a live connection" (`connection.ts:38`), but the implementation does `opts?.user ?? process.env["STORYTREE_DB_USER"]` and then spreads `user` into the `Pool` only when defined — so a MISSING IAM principal silently builds a user-less, password-less pool rather than failing closed loudly. That gap between the documented contract and the code is a genuine behavioural red (R1 / `editsExisting`, a runtime-assertion red against current behaviour), not a structural seam red (R2).
+
+**The work (behaviour-CHANGING, the R1 brief).** The leaf adds a regression test (`connection.test.ts`) that asserts `createPool` FAILS CLOSED — a loud, instructional throw, before any socket is opened — when no IAM principal resolves (no `user` opt and `STORYTREE_DB_USER` unset). It FAILS against current behaviour (today `createPool` builds the pool anyway). Then it EDITS `connection.ts` to enforce the documented contract: resolve the IAM principal, and if none is present refuse to build the pool with an error that points at setting `STORYTREE_DB_USER` (mirroring `test-db.ts`'s fail-closed posture) — never a forged/ambiguous success. The fail-closed assertion is offline-testable (it throws before connecting), so the structural red is observable without a DB.
+
+**The live-gated leg (owner D3 — why `db: true`).** The arm carries `db: true`, so the spine provisions an ISOLATED disposable `storytree_test` connection (ADR-0064 + ADR-0054 `createTestPool`, fail-closed against prod) and the proof ALSO exercises the real Pg path: the leaf turns the default-skipped `store.test.ts:101` parity placeholder into a genuinely-driven leg AND asserts the keyless wiring end-to-end — a live pull returns data over the IAM connection; a down DB fails closed with a connection error, never a partial/forged success. The whole `@storytree/library` suite is the regression wall (`proofCommand`): CONFIRM_GREEN = the new fail-closed test passes, the live-gated parity + keyless-pull leg passes, AND nothing else regressed. The Pg transactional internals themselves stay observed-via-parity (no R2 refactor) — gate 5 proves the connection's fail-closed contract + the live write path, exactly the pocket `## Proof` flags as `proposed`.
 
 The code edge for the `depends_on`: the Postgres impl `PgLibraryStore.upsertDoc` (`packages/library/src/store/pg-store.ts:75-126`) calls `upcastAndValidate` (`pg-store.ts:84`) at the write boundary BEFORE its `BEGIN`/`COMMIT` and PERSISTS THE UPCAST OUTPUT — a real call into both the schema-validation and migrate-on-write capabilities. `PgLibraryStore` mirrors the same event+projection-in-one-transaction shape against `events.library_event` + `events.library_artifact` (`packages/library/src/store/schema.sql:8-25`).
 
@@ -95,11 +140,11 @@ The test-proven leaf behaviours — each **one isolated leaf behaviour** under o
 7. **`pg-upsert-transactional-event-projection`** — PgLibraryStore upserts event + projection in one transaction at the migrate-on-write boundary
    - **asserts —** `PgLibraryStore.upsertDoc` `upcastAndValidate`s the doc, then in one `BEGIN`/`COMMIT` appends a `created`/`updated` event and upserts the projection, preserving `createdAt` and bumping `updatedAt` on same-id replace.
    - **covers —** `packages/library/src/store/pg-store.ts:75-126`
-   - **would-be test —** proven only by the live-gated parity run (`packages/library/src/store/store.test.ts:101` under `STORYTREE_DB_LIVE=1`), which is **skipped by default**; no offline assertion touches the Pg impl.
-8. **`pg-createpool-iam-no-password`** *(re-homed `keyless-store-connection`)* — createPool builds a pg Pool over the Cloud SQL connector with keyless IAM auth and no password
-   - **asserts —** `createPool` wires a `pg` `Pool` from the connector's `getOptions` with `AuthTypes.IAM`, the operator IAM user (`STORYTREE_DB_USER`), and no password/key material (ADR-0021 keyless); a live pull returns data while a down DB fails closed with a connection error (no partial/forged success).
+   - **would-be test —** proven only by the live-gated parity run (`packages/library/src/store/store.test.ts:101` under `STORYTREE_DB_LIVE=1`), which is **skipped by default**; no offline assertion touches the Pg impl. **Earned by story gate 5** (`build-tests`, `(build: event-sourced-store-seam)`): the `db: true` drive turns this default-skipped placeholder into a genuinely-driven leg against a disposable `storytree_test` DB.
+8. **`pg-createpool-iam-no-password`** *(re-homed `keyless-store-connection`)* — createPool builds a pg Pool over the Cloud SQL connector with keyless IAM auth and no password, and FAILS CLOSED when no IAM principal resolves
+   - **asserts —** `createPool` wires a `pg` `Pool` from the connector's `getOptions` with `AuthTypes.IAM`, the operator IAM user (`STORYTREE_DB_USER`), and no password/key material (ADR-0021 keyless); when NO IAM principal resolves (no `user` opt and `STORYTREE_DB_USER` unset) it FAILS CLOSED with a loud, instructional error BEFORE opening any socket (the documented "REQUIRED for a live connection" contract, `connection.ts:38`), never a silent user-less pool; a live pull returns data while a down DB fails closed with a connection error (no partial/forged success).
    - **covers —** `packages/library/src/store/connection.ts:43-71`
-   - **would-be test —** only the import-smoke test (`store.test.ts:65-77`) touches `createPool`'s existence + the ADR-0015 instance/database constants; its IAM/no-password wiring + pull-or-fail-closed behaviour are exercised only behind the live-DB gate.
+   - **would-be test —** only the import-smoke test (`store.test.ts:65-77`) touches `createPool`'s existence + the ADR-0015 instance/database constants; its fail-closed-on-missing-principal contract is NOT enforced today (the code silently builds a user-less pool — the honest R1 red), and its IAM/no-password wiring + pull-or-fail-closed behaviour are exercised only behind the live-DB gate. **Earned by story gate 5** (`build-tests`, R1 `editsExisting` over `connection.ts`): the leaf adds the fail-closed regression test (offline-observable red), edits `connection.ts` to enforce the contract, and the `db: true` leg proves the keyless pull end-to-end.
 9. **`schema-shape-stable`** *(re-homed `shared-events-schema`)* — the `events` DDL declares the append-only history + projection tables every organism reads, with no foreign keys
    - **asserts —** `schema.sql` declares `CREATE SCHEMA events` and the per-organism history/projection tables (`library_event`/`library_artifact`/`comment*`/`work_event`/`verdict`/`adr_number`), constrains the event `type` to `created`/`updated`/`deleted`, and declares NO foreign keys / cross-table `REFERENCES` (relationships are in-doc ID pointers, ADR-0017).
    - **covers —** `packages/library/src/store/schema.sql:1-25`
