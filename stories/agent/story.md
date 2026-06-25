@@ -200,34 +200,40 @@ deliverable each time, with every honesty wall held.
 > this package: proving a live runtime needs the paid leaf, so the offline path scripts the seam +
 > the write-scope decision only. This UAT is therefore part-scripted, part-attested — exactly the
 > drive-machinery honesty pattern.
+>
+> **Per-leg witness (ADR-0106).** The adopt pass resolves each leg's witness, never defaulting it onto
+> the human: legs 1–4 and 6 are `witness: machine` — the package's own offline suite (`agent#gate-1`,
+> `pnpm --filter @storytree/agent test`) demonstrably covers them, so Adopt observe-and-signs them. Leg
+> 5 is `witness: human` — the live `query()` is experiential/operator-attested, with no standing offline
+> test, so it (and it alone) awaits the operator's "I saw it work" (ADR-0082). No leg rests `either`.
 
 **Goal —** Behind one `PhaseAuthor` seam, two runtimes each author a slice on demand, refusing every
 out-of-scope write and never forging a success.
 
-1. **The seam is runtime-agnostic.** A consumer holds a `PhaseAuthor` and calls
+1. **The seam is runtime-agnostic.** _(witness: machine)_ A consumer holds a `PhaseAuthor` and calls
    `author("AUTHOR_TEST", prompt)`. **Success —** it returns `{ ok: true }` on a completed slice or
    `{ ok: false, error }` fail-closed, and the consumer never had to know which runtime answered.
    *(proven offline: `sdk-author.test.ts` exercises `ClaudeAgentAuthor.author` over an injected
    `queryFn`; the owned-loop side is `OwnedLoopAuthor`, mapped in drive-machinery.)*
-2. **The model is swappable.** Drive the owned loop with a `ScriptedModel` (zero live calls);
+2. **The model is swappable.** _(witness: machine)_ Drive the owned loop with a `ScriptedModel` (zero live calls);
    running past the scripted end is a LOUD error, never silent. **Success —** a turn runs to a
    natural stop with all `@anthropic-ai/sdk` imports confined to `model.ts`. *(proven:
    `model.test.ts`, `run-turn.test.ts`)*
-3. **The tool surface is confined.** A leaf's file tool addresses a path outside the workspace.
+3. **The tool surface is confined.** _(witness: machine)_ A leaf's file tool addresses a path outside the workspace.
    **Success —** the executor refuses with a `PathEscapeError` and the refusal returns as a tool
    result, never a thrown crash. *(proven: `fs-tools.test.ts` — path-escape + error-as-result;
    `tool-executor.test.ts` — unknown tool / throwing handler captured as `is_error`)*
-4. **A step fails closed.** The model returns malformed or wrong-shape JSON. **Success —**
+4. **A step fails closed.** _(witness: machine)_ The model returns malformed or wrong-shape JSON. **Success —**
    `runStepValidated` retries, then HALTS to `ValidationFailed` — never reports a forged success.
    *(proven: `step.test.ts`)*
-5. **The live runtime authors a real slice.** `ClaudeAgentAuthor` runs one `query()`: write scope is
+5. **The live runtime authors a real slice.** _(witness: human)_ `ClaudeAgentAuthor` runs one `query()`: write scope is
    enforced fail-closed by a PreToolUse hook BEFORE any write lands, Bash is absent from the tool
    surface (a shell write would bypass the scope hook), and red/green is never this runtime's to
    report. **Success —** the slice's deliverable is authored under scope, out-of-scope writes are
    recorded violations, and no verdict is claimed. *(write-scope DECISION proven offline:
    `sdk-author.test.ts` (`decideWrite`); the live `query()` leg is operator-attested — drive-machinery
    dogfood history, the SDK leaf authored real units red→green.)*
-6. **Feedback is a doorbell, not a shell.** The spine exposes its proof/typecheck commands as
+6. **Feedback is a doorbell, not a shell.** _(witness: machine)_ The spine exposes its proof/typecheck commands as
    bounded in-process MCP tools (`mcp__spine__run_proof` …). **Success —** the leaf can iterate
    write→run→fix, but it controls ZERO arguments (fixed commands), the output is feedback only, and
    the attested red/green stays the spine's own out-of-band runs after the leaf stops. *(proven:
@@ -270,10 +276,12 @@ Adopting this gate flips the runtime off `mapped`. `healthy` stays non-authorabl
 ([ADR-0020](../../docs/decisions/0020-red-green-enforcement-on-the-owned-loop.md)) — the authored
 frontmatter `status:` stays `mapped`; the world's crown DERIVES green from the signed verdicts
 ([ADR-0040](../../docs/decisions/0040-verdict-derived-green-and-the-human-witness-signpost.md)) and only
-when every capability is `healthy` AND this reliability gate is signed AND the **human-witnessed**
-Story UAT above is attested (`agent`'s `uat_witness` is absent → human, the ADR-0040 fail-closed
-default — its story UAT node is withheld from the machine and awaits an operator's "I saw it work";
-[ADR-0082](../../docs/decisions/0082-per-test-uat-tests-earn-green-by-declared-witness-story-uat.md) /
+when every capability is `healthy` AND this reliability gate is signed AND the Story UAT above is
+attested — per-leg now (ADR-0106): Adopt observe-and-signs the five `machine` legs (1–4, 6) against
+this same suite, and only leg 5 (`witness: human`) awaits the operator's "I saw it work" (ADR-0082).
+The story-level `uat_witness` is absent → human (the ADR-0040 fail-closed signpost), so the machine-
+driven whole-story UAT node stays withheld; the crown derives from the per-leg roll-up
+([ADR-0082](../../docs/decisions/0082-per-test-uat-tests-earn-green-by-declared-witness-story-uat.md) /
 ADR-0083 Fork A + ADR-0085). No single gate greens the story.
 
 ## Proof

@@ -14,7 +14,13 @@ UI** (a leg either shows a flag to click or it doesn't), machine-witnessable-but
 to Build**, and **agents may raise open questions via the Library throughout the process and gate the
 proving process on them**. Left `proposed` for owner ratification (it is "current thinking", not yet a
 ratified wall); the `status:` will flip per [ADR-0084](0084-agents-may-flip-an-adr-green.md) once
-ratified. **Largely NOT BUILT** — see Consequences.
+ratified. **Build state (2026-06-25):** the witness-resolution flow — decisions 1, 2, 3, 5 — is now
+BUILT and green (the asymmetric classifier `packages/library/src/witness-resolution.ts`, the adopt
+pass `packages/cli/src/adopt.ts`, and the binary studio surface `apps/studio`'s `UatTestsSection`);
+decision 4 (OQ-gating the proving process) was extracted to **[ADR-0107](0107-an-open-question-attached-to-a-proving-process-gates-its-gre.md)** and is built there.
+Building the flow does not ratify the model — the `status:` stays `proposed` pending owner
+ratification. The original "largely not built" framing in Consequences is superseded by this note;
+the residual follow-on (real coverage measurement, raise-side ergonomics) stands.
 
 It **amends [ADR-0044](0044-per-uat-test-human-attestation.md)** (the per-test `witness`
 `either` default becomes a *pre-adopt, undecided* state the adopt pass RESOLVES, never the resting
@@ -124,18 +130,24 @@ never the resting state of an adopted leg.
 - `machine` is safe by construction: it is only ever chosen with a real test behind it, so it cannot
   green a leg the system never actually checked.
 
-**Bad / costs / follow-on (surfaced, not buried) — the model is the owner's current thinking; the
-infrastructure is largely NOT BUILT.**
-- **The classification pass does not exist.** A new `story-author` step that judges each UAT leg
-  (experiential → `human`; machine-coverable → `machine`, split into observe-existing vs
-  author-a-test) is net-new. Today the adopt pass is purely the structural `classifyAdoption`
-  covers-diff over capabilities — it makes no witness judgement.
-- **OQ-gating of the proving process is not wired.** ADR-0037 gates LIVE BUILDS on OQ hygiene; gating
-  the adopt/build proving process on process-attached OQs (raise-and-block, then resume on resolve) is
-  new orchestration.
-- **The studio surface must drop `either`.** The AdoptPanel + the per-test UAT surface must render the
-  binary (a button only for `human` legs) and stop showing the permission word; a guard must forbid an
-  adopted story from carrying an `either` leg at rest.
+**Bad / costs / follow-on (surfaced, not buried) — the model is the owner's current thinking, awaiting
+ratification; the infrastructure of decisions 1/2/3/5 is now BUILT (see the Build-state note in
+§Status), with the follow-on below.**
+- ~~**The classification pass does not exist.**~~ **BUILT (2026-06-25).** The asymmetric classifier
+  (`packages/library/src/witness-resolution.ts`: `resolveWitness` / `resolvedWitnessOf` /
+  `unresolvedUatLegs`) resolves each leg to `human` or `machine` (routed observe / build-tests); the
+  adopt pass (`packages/cli/src/adopt.ts`, `runAdopt`) observe-signs the machine legs and defers the
+  uncovered ones to build-tests. **Residual follow-on:** the `machine`-coverage judgement trusts the
+  author's positive assertion (as ADR-0097's `(covers:)` is trusted) — real coverage MEASUREMENT is
+  named follow-on, not built.
+- ~~**OQ-gating of the proving process is not wired.**~~ **BUILT as
+  [ADR-0107](0107-an-open-question-attached-to-a-proving-process-gates-its-gre.md)** (decision 4's
+  general mechanism, extracted): `oq-gating.ts` + the read-time `gateStoryGreenOnOpenQuestions` fold.
+  **Residual follow-on (in ADR-0107):** the terminal CLI `story green:` line is not yet gated (the
+  studio crown is authoritative); no `storytree oq raise --node <id>` ergonomics yet.
+- ~~**The studio surface must drop `either`.**~~ **BUILT (2026-06-25).** `apps/studio`'s
+  `UatTestsSection` shows the operator a confirm affordance only for a resolved-`human` leg, never
+  renders `either`, and a guard forbids an adopted story carrying an `either` leg at rest.
 - **Mis-classification is the standing risk.** A pass that wrongly calls a `human` leg `machine`
   silently drops a check the owner wanted. Mitigated by: the asymmetric rule (decision 2 — `machine`
   needs positive test evidence), the gating OQ (decision 4 — raise rather than guess), and the
