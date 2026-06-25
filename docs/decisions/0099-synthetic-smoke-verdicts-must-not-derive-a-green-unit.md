@@ -99,6 +99,9 @@ they trade recorded-visibility against simplicity):
   the `Verdict` — and `rollupStatus` treats it like a `building` activity mark: visible in the log and
   the world, but it NEVER sets `healthy`. This mirrors how `adopted` is "first-class but weaker, never
   silently equated with a driven pass" ([ADR-0085](0085-resolve-adr-0083-fork-b-brownfield-reliability-gates-author.md)).
+  *(Reframed 2026-06-25 by [ADR-0105](0105-drive-and-adopt-are-peer-best-efforts-every-green-is-provisi.md):
+  `adopted` records a different BASIS, not a "weaker" green — it is never silently equated with a driven
+  pass, but the two are value-neutral peer provenances, not a ladder.)*
   Cost: a verdict-shape + rollup change threaded through proof-protocol → orchestrator → the readers.
 - **Option B — refuse `--store pg` for `--live` (minimal; the smoke simply does not persist).** Extend
   the existing dry-run pg refusal to the `--live` smoke: a synthetic PASS is never written to the
