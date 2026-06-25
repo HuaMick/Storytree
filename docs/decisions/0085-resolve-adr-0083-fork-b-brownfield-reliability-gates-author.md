@@ -88,7 +88,7 @@ in the gate prose) at a **clean committed HEAD**, observes the exit code **out-o
 spine watched, never a model claim), and on green signs a verdict whose `proofMode` is **`adopted`** — a
 new first-class proof mode ([proof-protocol](../../packages/proof-protocol/src/enums.ts) `ProofMode`),
 distinct from a gate-driven tier pass *and* from `operator-attested`, so the weaker basis is first-class
-and renderable. The verdict is pinned to the commit + a resolved signer and persists to `events.verdict`
+and renderable. *(Reframed 2026-06-25 by [ADR-0105](0105-drive-and-adopt-are-peer-best-efforts-every-green-is-provisi.md): the `adopted` basis is value-neutral peer provenance, not a "weaker" basis — drive and adopt are peer best-efforts and every green is provisional; the `ProofMode` mechanism here is unchanged.)* The verdict is pinned to the commit + a resolved signer and persists to `events.verdict`
 or it greens nothing. **Every honesty wall of the gate holds except the prior-red requirement** (job 2);
 for a reviewed existing suite, review supplies it, and the `adopted` mode records that it was *adopted*,
 not *driven*. Fail-closed: a dirty tree, a non-zero exit, or a missing/unparseable command refuses and
@@ -131,7 +131,7 @@ observe-and-signs each, and the port flips off `mapped` to a signed-`adopted` gr
 **Bad / costs / follow-on (surfaced, not buried).**
 - **`observe` trades away "the test provably failed once"** (job 2). Recorded as `adopted` provenance;
   the author supplies job 2 by review, and the gate may be *strengthened* into a `build-tests` red→green
-  later. This is the deliberate, transparent weakening — not a hidden one.
+  later. This is the deliberate, transparent weakening — not a hidden one. *(Reframed 2026-06-25 by [ADR-0105](0105-drive-and-adopt-are-peer-best-efforts-every-green-is-provisi.md): read this as a difference of BASIS, not rank — `observe` and `build-tests` are peer best-efforts, and the expandable floor below grows over driven pockets too, not only adopted ones.)*
 - **BUILT with this ADR:** `ProofMode` `adopted` (proof-protocol); `ReliabilityGate` + the
   `## Reliability Gates` parser (`@storytree/library`); the gate parse onto `NodeSpec`
   (`node-spec.ts`); the `observeAndSign` compute (`@storytree/orchestrator`, red→green tested); the

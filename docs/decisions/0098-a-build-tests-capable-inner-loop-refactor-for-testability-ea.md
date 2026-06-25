@@ -138,7 +138,10 @@ what it proves) — the same a node earns. Only `observe` earns the weaker `adop
 ([proof-protocol `ProofMode`](../../packages/proof-protocol/src/enums.ts) is unchanged; **no new
 mode**). This is the whole point of the observe↔build-tests split: a build-tests green carries the
 strong driven provenance, distinguishing the pockets that got *real* coverage from those merely
-*observed*.
+*observed*. *(Reframed 2026-06-25 by [ADR-0105](0105-drive-and-adopt-are-peer-best-efforts-every-green-is-provisi.md):
+this is a difference of BASIS, not rank — drive and adopt are peer best-efforts and every green is
+provisional. "Driven vs observed" records how the green was established, not a higher standing; the
+`adopted` mode stays as value-neutral provenance and the verdict mechanism here is unchanged.)*
 
 **5. Key design decisions are escalated UP-FRONT (a batch sweep), never guessed (the owner's Q3
 call).** Before driving an R2 refactor, a **pre-build decision sweep** analyses the pocket + the gate

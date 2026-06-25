@@ -50,7 +50,10 @@ objection through the conversation surfaced, in order:
    gap, not just CLI friction.
 
 3. **Brownfield→green must require REAL WORK where the code is genuinely untested** — *"this is what I
-   imagined would be the requirement of turning brownfield to green."* The `library` honestly flags
+   imagined would be the requirement of turning brownfield to green."* *(Reframed 2026-06-25 by
+   [ADR-0105](0105-drive-and-adopt-are-peer-best-efforts-every-green-is-provisi.md): adopt and drive are
+   peer best-efforts to bring code under the TDD umbrella, both earning a provisional green — not "REAL
+   WORK" ranked above a "cheap first step". The honest split below is one of basis, not rank.)* The `library` honestly flags
    `proposed` pockets with no real tests (`seed-corpus-scripts`, the Postgres transaction path, several
    CLI branches). These cannot be honestly adopted — observing a suite that only smoke-imports the code
    proves nothing about it; adopting it would be exactly the rubber-stamp
@@ -93,7 +96,9 @@ over code with real passing tests is the inverse theater it also bans.
 **3. Adopt ENTERS the process and produces an adoption PROPOSAL; it does not green.** The human adoption
 decision (the studio Adopt action / the CLI) means *"I want this in the fold."* It (a) flips the story to
 `proposed`; (b) adopts the already-tested `observe` gates as the cheap first step — machine-witnessed,
-`signer` = the spine principal, `approvedBy` = the operator who decided; and (c) triggers the spine to
+`signer` = the spine principal, `approvedBy` = the operator who decided; *(per
+[ADR-0105](0105-drive-and-adopt-are-peer-best-efforts-every-green-is-provisi.md), "cheap first step"
+reads as a peer best-effort, not a lesser green — the adopted and driven paths are provisional peers)* and (c) triggers the spine to
 produce an **adoption proposal** surfacing what remains: the untested capabilities / pockets that need
 `build-tests` work, and the **key decisions it needs the human to make** (escalated through the existing
 open-question / ADR-fork flow). The story does NOT reach `healthy` from the Adopt act whenever any
