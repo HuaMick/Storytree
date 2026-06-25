@@ -22,7 +22,8 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import type { ReliabilityGate } from "@storytree/library";
+import type { ReliabilityGate, UatTest } from "@storytree/library";
+import { resolveWitness } from "@storytree/library";
 import {
   findNodeSpecFile,
   loadNodeSpec,
@@ -76,10 +77,17 @@ export function flipFrontmatterStatus(raw: string, from: string, to: string): Fl
 // Pure-by-injection core
 // ---------------------------------------------------------------------------
 
-/** A story's adoptable facts: its authored status + its declared reliability gates. */
+/** A story's adoptable facts: its authored status, declared reliability gates, and UAT legs. */
 export interface AdoptStory {
   status: string;
   reliabilityGates: ReliabilityGate[];
+  /**
+   * The story's per-test UAT legs (ADR-0044). ADR-0106: the adopt pass classifies each via
+   * {@link resolveWitness} — observe-and-signs the `machine` legs an existing suite covers, records
+   * the uncovered `machine` legs as `build-tests` obligations for Build, and leaves `human` legs for
+   * the operator's "I saw it work" attestation. Aspirational `wouldBe` legs (ADR-0097) are skipped.
+   */
+  uatTests: UatTest[];
 }
 
 /** Every seam {@link runAdopt} touches, injected for determinism (offline-testable). */
@@ -176,26 +184,79 @@ export async function runAdopt(
     };
   }
 
-  // Observe-and-sign each observe gate (the tree stays clean — we edit nothing until after).
+  // Observe-and-sign each obligation (the tree stays clean — we edit nothing until after). One CLEAN
+  // observation per DISTINCT command (memoized): the observe gate's suite is shared by the machine UAT
+  // legs it covers, so it runs ONCE, not once per obligation.
   const store = deps.store;
   const runId = `studio-adopt:${deps.now().toISOString()}`;
-  const lines: string[] = [];
-  let signed = 0;
+  const observe = memoizeObserve(deps.observe);
+  const gitState = async (): Promise<{ commitSha: string; clean: boolean }> => ({
+    commitSha: git.commitSha,
+    clean: git.clean,
+  });
+  const now = (): string => deps.now().toISOString();
+  const approverInputs = { flag: approver.signer };
+
+  const gateLines: string[] = [];
+  let signedGates = 0;
   for (const gate of observeGates) {
+    const res = await observeAndSign({ gate, gitState, observe, approverInputs, store, runId, now });
+    if (res.ok) {
+      signedGates += 1;
+      gateLines.push(`  ✓ ${gate.id} adopted — \`${gate.proofCommand}\` observed green${gate.covers.length > 0 ? ` (covers: ${gate.covers.join(", ")})` : ""}`);
+    } else {
+      gateLines.push(`  ✗ ${gate.id} — ${res.reason}`);
+    }
+  }
+
+  // ADR-0106: classify each UAT leg's witness and ROUTE it (the adopt story-writer pass). A `machine`
+  // leg an existing observe suite covers is observe-and-signed NOW (the cheap step — reusing the SAME
+  // observation as its covering gate, memoized above); an uncovered `machine` leg is recorded as a
+  // `build-tests` obligation Build authors red→green later (ADR-0098); a `human` leg is left for the
+  // operator's "I saw it work" attestation (ADR-0082). Adopt STAYS CHEAP — it classifies and
+  // observe-signs, it never authors a new test. Aspirational `wouldBe` legs (ADR-0097) are not
+  // obligations, so they are skipped (mirroring the crown roll-up's `!wouldBe` filter).
+  const realLegs = story.uatTests.filter((t) => !t.wouldBe);
+  const machineObserveLegs = realLegs.filter((t) => {
+    const r = resolveWitness(t, story.reliabilityGates);
+    return r.witness === "machine" && r.coverage === "observe";
+  });
+  const legLines: string[] = [];
+  let signedLegs = 0;
+  let humanLegs = 0;
+  let buildTestsLegs = 0;
+  for (const leg of realLegs) {
+    const r = resolveWitness(leg, story.reliabilityGates);
+    if (r.witness === "human") {
+      humanLegs += 1;
+      legLines.push(`  ◻ ${leg.id} (human) — awaits your "I saw it work" verdict (ADR-0082)`);
+      continue;
+    }
+    if (r.coverage === "build-tests") {
+      buildTestsLegs += 1;
+      legLines.push(`  ⋯ ${leg.id} (machine) — no existing suite covers it; deferred to Build as a build-tests obligation (ADR-0098)`);
+      continue;
+    }
+    // machine / observe: observe-and-sign the leg against its covering gate's command (the suite).
+    const coverCmd = observeGates.find((g) => g.id === r.observedBy)?.proofCommand;
+    if (coverCmd === undefined) {
+      legLines.push(`  ✗ ${leg.id} (machine) — covering gate ${r.observedBy} declares no command to observe`);
+      continue;
+    }
     const res = await observeAndSign({
-      gate,
-      gitState: async () => ({ commitSha: git.commitSha, clean: git.clean }),
-      observe: deps.observe,
-      approverInputs: { flag: approver.signer },
+      gate: { id: leg.id, kind: "observe", proofCommand: coverCmd },
+      gitState,
+      observe,
+      approverInputs,
       store,
       runId,
-      now: () => deps.now().toISOString(),
+      now,
     });
     if (res.ok) {
-      signed += 1;
-      lines.push(`  ✓ ${gate.id} adopted — \`${gate.proofCommand}\` observed green${gate.covers.length > 0 ? ` (covers: ${gate.covers.join(", ")})` : ""}`);
+      signedLegs += 1;
+      legLines.push(`  ✓ ${leg.id} (machine) adopted — observed via ${r.observedBy} (\`${coverCmd}\`)`);
     } else {
-      lines.push(`  ✗ ${gate.id} — ${res.reason}`);
+      legLines.push(`  ✗ ${leg.id} (machine) — ${res.reason}`);
     }
   }
 
@@ -208,25 +269,51 @@ export async function runAdopt(
       : "  → status already proposed (adoption underway)"
     : `  → status NOT flipped — ${flip.reason}`;
 
-  const allSigned = signed === observeGates.length;
+  const allSigned = signedGates === observeGates.length && signedLegs === machineObserveLegs.length;
   const body = [
-    `Adopt "${id}": ${signed}/${observeGates.length} observe gate(s) signed an \`adopted\` verdict.`,
+    `Adopt "${id}": ${signedGates}/${observeGates.length} observe gate(s) signed an \`adopted\` verdict.`,
     `  signer:     ${SPINE_PRINCIPAL} (the spine principal — the machine that witnessed the green)`,
     `  approvedBy: ${approver.signer} (who decided to adopt it)`,
     `  commit:     ${git.commitSha.slice(0, 7)}`,
     "",
-    ...lines,
+    ...gateLines,
+    ...(realLegs.length > 0
+      ? [
+          "",
+          `UAT legs (ADR-0106): ${signedLegs}/${machineObserveLegs.length} machine observe-signed · ${humanLegs} await your witness · ${buildTestsLegs} deferred to Build.`,
+          ...legLines,
+        ]
+      : []),
     flipLine,
     "",
     allSigned
-      ? "Adopt ENTERED the proving process (ADR-0097): the covered capabilities green via coverage; any\ncapability covered by no honest gate (a build-tests pocket) holds the crown at `proposed` until it is\ngenuinely driven red→green. No single gate greens the story — `healthy` stays non-authorable (ADR-0020)."
-      : "Some observe gates were NOT adopted (see above). The story still ENTERED the proving process\n(proposed); resolve the failing gate before its capabilities can green.",
+      ? "Adopt ENTERED the proving process (ADR-0097): the covered capabilities green via coverage and the\nmachine UAT legs are signed; any capability covered by no honest gate, or a leg deferred to Build,\nholds the crown at `proposed` until it is genuinely driven. No single gate greens the story — `healthy`\nstays non-authorable (ADR-0020); the `human` legs await your \"I saw it work\" (ADR-0082)."
+      : "Some obligations were NOT adopted (see above). The story still ENTERED the proving process\n(proposed); resolve the failing obligation before its capabilities can green.",
   ].join("\n");
 
   return {
     ok: allSigned && flip.ok,
     body,
     next: [`storytree tree ${id} --pg`, `storytree gate list ${id} --pg`],
+  };
+}
+
+/**
+ * Wrap an `observe` runner so each DISTINCT command runs at most ONCE per adopt (the promise is cached).
+ * A story's machine UAT legs are observed against the SAME suite their covering observe gate runs, so
+ * without this the agent suite would re-run per leg; with it, one clean observation greens the gate AND
+ * every leg it covers. Sound because adopt observes a single clean HEAD — the command is deterministic.
+ */
+function memoizeObserve(
+  observe: (command: string) => Promise<{ code: number | null }>,
+): (command: string) => Promise<{ code: number | null }> {
+  const cache = new Map<string, Promise<{ code: number | null }>>();
+  return (command) => {
+    const hit = cache.get(command);
+    if (hit !== undefined) return hit;
+    const pending = observe(command);
+    cache.set(command, pending);
+    return pending;
   };
 }
 
@@ -241,7 +328,7 @@ function loadAdoptStory(storiesDir: string, storyId: string): AdoptStory | null 
   try {
     const spec = loadNodeSpec(file);
     if (spec.tier !== "story") return null;
-    return { status: spec.status, reliabilityGates: spec.reliabilityGates };
+    return { status: spec.status, reliabilityGates: spec.reliabilityGates, uatTests: spec.uatTests };
   } catch {
     return null;
   }
