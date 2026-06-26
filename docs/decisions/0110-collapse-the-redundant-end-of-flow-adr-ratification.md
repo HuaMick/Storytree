@@ -2,7 +2,7 @@
 status: proposed
 amends: [84]
 ---
-# ADR-0108: Collapse the redundant end-of-flow ADR ratification — record the owner's design-time decision once
+# ADR-0110: Collapse the redundant end-of-flow ADR ratification — record the owner's design-time decision once
 
 ## Status
 
