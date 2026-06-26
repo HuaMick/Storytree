@@ -55,7 +55,10 @@ test(
 
     let capturedSystemPrompt: string | undefined;
     const capturingQuery: SdkQueryFn = ({ options }) => {
-      capturedSystemPrompt = options.systemPrompt;
+      // options.systemPrompt is a union (string | string[] | preset); orchestrate passes a string —
+      // narrow to it (a non-string would leave capturedSystemPrompt undefined and fail the assert below).
+      capturedSystemPrompt =
+        typeof options.systemPrompt === "string" ? options.systemPrompt : undefined;
       return (async function* () {
         yield OK_RESULT;
       })();
