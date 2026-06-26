@@ -10,10 +10,15 @@ capabilities: [dev-server-persistence-backbone, seed-library-corpus, read-corpus
 # ADR-0010 §4; code-import-evidenced — see that section for file:line). ADR-0036. As of ADR-0100
 # the studio app is a consuming SURFACE in the boundary scan (check:boundaries now walks apps/*),
 # so EVERY @storytree/* runtime dep is a declared + forest-rendered edge — not just the first three.
-depends_on: [library, drive-machinery, notice-board, forest-world, studio-members, proof-protocol, cli]
+# ADR-0112: the studio server now lazy-imports @storytree/drive (the build/orchestrate drivers carved
+# out of cli) for its db-control / build surfaces and DROPPED its @storytree/cli dependency — so the
+# `cli` edge is gone. The drive surface is owned by drive-machinery, already in depends_on below, so
+# this is a re-pointing of the same code edge to a narrower package, not a graph change.
+depends_on: [library, drive-machinery, notice-board, forest-world, studio-members, proof-protocol]
 # Deciding ADRs (ADR-0037 §2): UI-drives-agents (8), the story world (36, recalibrated by 38),
-# the app brought into the boundary scan as a consuming surface (100).
-decisions: [8, 36, 38, 100]
+# the app brought into the boundary scan as a consuming surface (100), and the drive-package
+# extraction that re-pointed the build/secrets seam off cli onto @storytree/drive (112).
+decisions: [8, 36, 38, 100, 112]
 ---
 
 # The studio
@@ -43,7 +48,8 @@ interface** (ADR-0010 §4): the **comment substrate**
 surface** (ADR-0100 — `apps/studio` is a sink the boundary scan now walks) it also **declares
 every cross-story seam it rides**: the original three (the pg/library backend, the
 drive-machinery node-spec + verdict stream, the notice-board presence surface) plus the
-render-core, access-control, verdict-shape and CLI seams that arrived later — see
+render-core, access-control, verdict-shape and build/secrets seams that arrived later (the
+build/secrets seam re-pointed off `cli` onto `@storytree/drive` by ADR-0112) — see
 §"Cross-story boundary" below.
 
 See [`../README.md`](../README.md) for the representation and how every field maps to
@@ -125,9 +131,14 @@ now declared + forest-rendered edges too, each read off real imports:
 - **`proof-protocol`** — the **verdict-shape port**: the server `.safeParse`s the published verdict DATA
   shapes across the seam (`server/libraryBackend.ts:26`, `server/apiRouter.ts:28`) — the browser-safe
   message format, never the proof machinery (ADR-0068 / ADR-0078).
-- **`cli`** — the **build + secrets seam**: the db-control / build surfaces lazy-import
-  `@storytree/cli/build` and `@storytree/cli/secrets` (`server/devApi.ts:106`) — the hub the studio rides
-  for orchestration plumbing.
+- **`drive-machinery`** (the **build + secrets seam**, re-pointed off `cli` by ADR-0112) — the
+  db-control / build surfaces lazy-import `@storytree/drive/build` and `@storytree/drive/secrets`
+  (`server/devApi.ts`) — the build/orchestrate runtime the studio rides for orchestration plumbing.
+  This is a SECOND seam onto `drive-machinery` (the node-spec + verdict-stream bullet above is the
+  first), not a new story edge: before ADR-0112 the drivers lived in `packages/cli` and the studio
+  declared a `cli` edge to reach them; the move carved them into `@storytree/drive` (owned by
+  `drive-machinery`), so the studio now imports the narrower package and dropped its `@storytree/cli`
+  dependency. The `cli` edge is gone from `depends_on`.
 
 ## Story UAT
 

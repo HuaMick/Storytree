@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { resolveWitness } from "@storytree/library";
 import { findNodeSpecFile, loadNodeSpec } from "@storytree/orchestrator";
 
-import { runAdopt, type AdoptDeps, type AdoptStory } from "./adopt.js";
+import { runAdopt, type AdoptDeps, type AdoptStory } from "@storytree/drive";
 
 /**
  * ADR-0106 against the CONCRETE INSTANCE — the live `stories/agent/story.md`. Its six UAT legs read

@@ -18,8 +18,8 @@ import {
   resolveDbProofEnv,
   resolveVerdictStore,
   workspacePackageForSource,
-} from "./node-build.js";
-import type { WispSmokeStore } from "./wisp-smoke.js";
+} from "@storytree/drive";
+import type { WispSmokeStore } from "@storytree/drive";
 
 /**
  * `storytree node build <id> --dry-run` (drive-machinery Phase C), driven through `run` exactly as
@@ -328,7 +328,7 @@ test("node resolve on the dogfood node (node-resolve-report) resolves spec-borne
   assert.equal(env.ok, true, env.body);
   assert.match(env.body, /buildable: +yes — source: spec/);
   assert.match(env.body, /REAL-buildable: yes/);
-  assert.match(env.body, /packages\/cli\/src\/resolve-report\.test\.ts/);
+  assert.match(env.body, /packages\/drive\/src\/resolve-report\.test\.ts/);
 });
 
 test("node resolve on library-cli shows source=spec but NOT real-buildable (the ADR-0092 real arm removed, ADR-0094)", async () => {

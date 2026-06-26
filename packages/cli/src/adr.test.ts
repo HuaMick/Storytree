@@ -16,7 +16,7 @@ import {
   type AdrAllocatorLike,
   type AdrCommandDeps,
 } from "./adr.js";
-import type { AdrMeta } from "./adr-frontmatter.js";
+import type { AdrMeta } from "@storytree/drive";
 
 // ---- pure helpers --------------------------------------------------------------------------
 

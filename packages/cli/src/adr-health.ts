@@ -1,7 +1,7 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 
-import { parseAdrFrontmatter, type AdrMeta } from "./adr-frontmatter.js";
+import { type AdrMeta } from "@storytree/drive";
 import { loadNodeSpec } from "@storytree/orchestrator";
 
 import type { CheckResult } from "./health.js";
@@ -220,21 +220,9 @@ function pad(n: number): string {
 // ---------------------------------------------------------------------------
 // fs-backed loaders (the thin shell around the pure core)
 // ---------------------------------------------------------------------------
-
-/** Parse every `NNNN-*.md` under a decisions dir; parse failures become check-1 lines, not throws. */
-export function loadAdrMetas(decisionsDir: string): { adrs: AdrMeta[]; parseErrors: string[] } {
-  const adrs: AdrMeta[] = [];
-  const parseErrors: string[] = [];
-  for (const file of readdirSync(decisionsDir).sort()) {
-    if (!/^\d{4}-.*\.md$/.test(file)) continue;
-    try {
-      adrs.push(parseAdrFrontmatter(file, readFileSync(path.join(decisionsDir, file), "utf8")));
-    } catch (err) {
-      parseErrors.push(err instanceof Error ? err.message : String(err));
-    }
-  }
-  return { adrs, parseErrors };
-}
+// NOTE: `loadAdrMetas` moved to `@storytree/drive` (the drive extraction) so the build drivers
+// can consume it without pulling cli's `adr-health` (and its `health.ts` `CheckResult` dep). Import
+// it from `@storytree/drive` if you need it here.
 
 /** Load every story's decision view from `stories/<id>/story.md` (the node-spec light loader). */
 export function loadStoryDecisions(storiesDir: string): StoryDecisionsView[] {

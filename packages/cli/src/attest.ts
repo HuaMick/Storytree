@@ -17,7 +17,7 @@ import type { Attestation } from "@storytree/proof-protocol";
 import { resolveSignerFromEnv, type SignerResult } from "@storytree/orchestrator";
 
 import type { Envelope } from "./envelope.js";
-import type { SessionIdentity } from "./noticeboard.js";
+import type { SessionIdentity } from "@storytree/drive";
 
 // ---------------------------------------------------------------------------
 // Seams

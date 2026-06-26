@@ -28,6 +28,24 @@ export { batchMigrate } from "./batch-migrate.js";
 export type { BatchMigrateResult } from "./batch-migrate.js";
 export { renderStoredDoc, buildLibraryDoc, isStructuredKind } from "./render-doc.js";
 export type { RenderedAsset, AssetWriteInput } from "./render-doc.js";
+// The agent renderer (ADR-0051): assemble a Library `agent` artifact into a system prompt by
+// injecting its typed `asset:` refs. Lives with the schema it reads (the drive extraction moved it
+// out of `@storytree/cli`); the CLI commands, the build drivers, and the generators all consume it.
+export {
+  renderAgentPrompt,
+  renderAgentDigest,
+  renderAgentFile,
+  delegatableAgentIds,
+  DEDICATED_SURFACE_AGENTS,
+  GENERATED_AGENT_MARKER,
+} from "./render-agent.js";
+export type {
+  AgentPrompt,
+  RenderAgentResult,
+  AgentDigest,
+  RenderDigestResult,
+  RenderAgentFileResult,
+} from "./render-agent.js";
 export { PgCommentStore, mergeCommentPatch } from "./pg-comment-store.js";
 export type {
   Comment,

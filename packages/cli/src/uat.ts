@@ -37,7 +37,7 @@ import {
 import { SIGNING_EVENT_KIND, type Verdict } from "@storytree/proof-protocol";
 
 import type { Envelope } from "./envelope.js";
-import type { SessionIdentity } from "./noticeboard.js";
+import type { SessionIdentity } from "@storytree/drive";
 
 // ---------------------------------------------------------------------------
 // Seams

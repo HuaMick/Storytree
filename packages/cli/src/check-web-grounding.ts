@@ -17,7 +17,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { loadAdrMetas } from "./adr-health.js";
+import { loadAdrMetas } from "@storytree/drive";
 
 export interface GroundingRef {
   /** web-relative path, e.g. "src/pages/index.astro". */

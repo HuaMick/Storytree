@@ -17,20 +17,20 @@ depends_on: []
 proof:
   command:
     file: pnpm
-    args: ["--filter", "@storytree/cli", "test"]
+    args: ["--filter", "@storytree/drive", "test"]
   scope:
-    testGlobs: ["packages/cli/src/**/*.test.ts"]
-    sourceGlobs: ["packages/cli/src/**/*.ts"]
+    testGlobs: ["packages/drive/src/**/*.test.ts"]
+    sourceGlobs: ["packages/drive/src/**/*.ts"]
   real:
-    testFile: "packages/cli/src/resolve-report.test.ts"
-    sourceFile: "packages/cli/src/resolve-report.ts"
+    testFile: "packages/drive/src/resolve-report.test.ts"
+    sourceFile: "packages/drive/src/resolve-report.ts"
     scope:
-      testGlobs: ["packages/cli/src/resolve-report.test.ts"]
-      sourceGlobs: ["packages/cli/src/resolve-report.ts"]
+      testGlobs: ["packages/drive/src/resolve-report.test.ts"]
+      sourceGlobs: ["packages/drive/src/resolve-report.ts"]
     install: true
     typecheck:
       file: pnpm
-      args: ["--filter", "@storytree/cli", "typecheck"]
+      args: ["--filter", "@storytree/drive", "typecheck"]
 ---
 
 # Resolve a node spec into a structured resolution report
@@ -51,7 +51,7 @@ spending anything**.
 
 ## Guidance
 
-ONE pure function (no I/O, no spawning, no filesystem) in `packages/cli/src/resolve-report.ts`:
+ONE pure function (no I/O, no spawning, no filesystem) in `packages/drive/src/resolve-report.ts`:
 
 ```ts
 import { resolveBuildConfig, mapProofMode, realProofCommand } from "@storytree/orchestrator";
@@ -153,5 +153,5 @@ report never aliases the spec's internal arrays.
        `source: null`, `command: null`, `scope: null`, `real: null`, `realBuildable: false`;
      - `proofMode` is the mapped core mode (`mapProofMode(spec.proofMode)`), distinct from
        `proofModeWord` (the raw frontmatter word).
-   - **proven by —** `packages/cli/src/resolve-report.test.ts` (authored by the leaf inside the
+   - **proven by —** `packages/drive/src/resolve-report.test.ts` (authored by the leaf inside the
      gate's AUTHOR_TEST phase; the red is observed by the spine before `resolve-report.ts` exists).

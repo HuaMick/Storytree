@@ -13,9 +13,9 @@ importers:
       '@dagrejs/dagre':
         specifier: ^1.1.4
         version: 1.1.8
-      '@storytree/cli':
+      '@storytree/drive':
         specifier: workspace:*
-        version: link:../../packages/cli
+        version: link:../../packages/drive
       '@storytree/forest-world':
         specifier: workspace:*
         version: link:../../packages/forest-world
@@ -110,6 +110,46 @@ importers:
         version: 5.7.3
 
   packages/cli:
+    dependencies:
+      '@storytree/agent':
+        specifier: workspace:*
+        version: link:../agent
+      '@storytree/drive':
+        specifier: workspace:*
+        version: link:../drive
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
+      '@storytree/notice-board':
+        specifier: workspace:*
+        version: link:../notice-board
+      '@storytree/orchestrator':
+        specifier: workspace:*
+        version: link:../orchestrator
+      '@storytree/proof-protocol':
+        specifier: workspace:*
+        version: link:../proof-protocol
+      '@storytree/storage-protocol':
+        specifier: workspace:*
+        version: link:../storage-protocol
+      yaml:
+        specifier: ^2.6.1
+        version: 2.9.0
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.7
+        version: 22.19.19
+      tsx:
+        specifier: ^4.19.2
+        version: 4.22.4
+      typescript:
+        specifier: ~5.7.3
+        version: 5.7.3
+
+  packages/drive:
     dependencies:
       '@storytree/agent':
         specifier: workspace:*

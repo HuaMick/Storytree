@@ -9,7 +9,7 @@ import { upcastAndValidate } from "@storytree/library";
 import type { Comment, CommentAnchor } from "@storytree/library/store";
 import { loadCorpus } from "@storytree/library/store";
 
-import { renderAgentPrompt } from "./agents.js";
+import { renderAgentPrompt } from "@storytree/library/store";
 
 /**
  * The curation pass that runs at the END of a green story build (ADR-0065): a librarian-curator,

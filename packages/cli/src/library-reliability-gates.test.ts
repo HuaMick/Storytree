@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { parseReliabilityGates } from "@storytree/library";
 import { findNodeSpecFile, loadNodeSpec, resolveBuildConfig } from "@storytree/orchestrator";
 
-import { realConfigRefusal } from "./node-build.js";
+import { realConfigRefusal } from "@storytree/drive";
 
 /**
  * ADR-0094 (go-green is a status transition: `mapped → healthy` = Adopt) declared `## Reliability

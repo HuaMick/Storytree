@@ -18,7 +18,7 @@ import type { BuildRegistry } from './buildRegistry.js';
 
 /**
  * The build result the worker consumes — structurally the CLI's `Envelope` ({ ok, body, next? }),
- * declared locally so this module needs no import of `@storytree/cli` (which would pull the agent
+ * declared locally so this module needs no import of `@storytree/drive` (which would pull the agent
  * into the studio module graph). The production adapter coerces the real `Envelope` to this shape.
  */
 export interface BuildEnvelope {

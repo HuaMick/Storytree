@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 import { InMemoryStore } from "@storytree/storage-protocol";
 import { loadCorpus } from "@storytree/library/store";
 
-import { delegatableAgentIds, renderAgentFile } from "./agents.js";
+import { delegatableAgentIds, renderAgentFile } from "@storytree/library/store";
 
 /** Repo root: packages/cli/src/build-agents.ts → four dirs up (the build-claude-md.ts pattern). */
 const repoRoot = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..", "..");
