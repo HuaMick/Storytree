@@ -290,8 +290,9 @@ through the merge gate, refusing every dishonest shortcut along the way.
    commit is reachable from `main`. *(attested: commit `0e8f4ba` is in this branch's ancestry)*
 5. **Chain a story:** `pnpm storytree story build library --dry-run`. **Success —** capabilities
    topo-ordered from `depends_on`, the story's UAT node last, every node signed over ONE event
-   log, halt-is-never-a-pass. *(proven: `packages/drive/src/story-build.test.ts:17` — since ADR-0112
-   resident in `@storytree/drive`; the live chain attested: library 8/8 signed passes, $0.48)*
+   log, halt-is-never-a-pass. *(proven: `packages/cli/src/story-build.test.ts:17` — the integration test stays cli-resident;
+   ADR-0112 moved only the `story build` driver it exercises into `@storytree/drive`; the live chain
+   attested: library 8/8 signed passes, $0.48)*
 6. **Refuse the dishonest paths:** `--store pg` with `--dry-run` is refused (a scripted PASS
    persisted would be a forged healthy); a live story build with an unprocessed operator answer on
    a deciding ADR's OQ is refused with the three paths out. *(proven:

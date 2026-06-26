@@ -30,36 +30,36 @@ depends_on: [prove-spec-resolution, prove-it-gate, real-build-worktree, story-to
 The operator surface over the whole machinery — two commands, one honest-envelope discipline
 (every body ends in an explicit "honest framing" naming exactly what was and was not proven):
 
-- **`node build <id>`** (`packages/drive/src/node-build.ts:299-585`): pick EXACTLY one of
+- **`node build <id>`** (`packages/drive/src/node-build.ts:754-1096`): pick EXACTLY one of
   `--dry-run` (offline scripted glue walk), `--live` (ADR-0030 SDK smoke over the synthetic pair),
   `--real` (Phase F — fresh worktree, the node's REAL files and proof command, spine commit,
   ADR-0031 promotion with the typecheck/regression pre-checks and push-withhold on red). Before
   any work: a resolvable signer (a verdict must be attributable), the spec file, and — for
   `--real` — the registry's real-proof config and the install⇒typecheck invariant, each a cheap
-  fail-closed refusal. `driveNode` (`node-build.ts:216-260`) is the shared single-node walk:
+  fail-closed refusal. `driveNode` (`node-build.ts:461-516`) is the shared single-node walk:
   building mark → resolve → `proveUnit` → cleanup, with the store/runId/signer owned by the
   CALLER — exactly what lets `story build` chain nodes over one event log.
-- **`story build <story-id>`** (`packages/drive/src/story-build.ts:75-292`): loads the story + its
+- **`story build <story-id>`** (`packages/drive/src/story-build.ts:320-920`): loads the story + its
   listed capabilities, topo-orders them ([`story-topo-build`](story-topo-build.md)), prechecks
   EVERY node's registry entry before any node runs (and before any spend), runs the
   [`oq-hygiene-gate`](oq-hygiene-gate.md) (live only), then chains `driveNode` per node over ONE
   store and runId under the total budget ceiling (default $10, each slice capped at $1). The
   report derives per-node rollups off the one shared event log.
-- **The verdict store seam** (`resolveVerdictStore`, `node-build.ts:128-187`): in-memory by
+- **The verdict store seam** (`resolveVerdictStore`, `node-build.ts:264-328`): in-memory by
   default; `--store pg` swaps in [`work-verdict-event-log`](work-verdict-event-log.md)'s
   `PgWorkStore` over the live tables — and is REFUSED for scripted dry-runs, because persisting a
   synthetic PASS would plant a forged `healthy` in the shared event log (exactly what ADR-0020
   exists to prevent).
 
-Code edges for the `depends_on`: `node-build.ts:15-28` (the resolver/gate/worktree surface:
+Code edges for the `depends_on`: `node-build.ts:11-25` (the resolver/gate/worktree surface:
 `resolveProveSpec`, `proveUnit`, `createBuildWorktree`, `promoteRealPass`, `runRegressionSuite`,
 `runWorktreeTypecheck`, `loadNodeSpec`, `findNodeSpecFile`, registry lookups);
-`story-build.ts:5-12` (`runStoryBuild`, `topoOrderStoryNodes`); `story-build.ts:17`
-(`oqHygieneGate`); `node-build.ts:8-14` (`workEvent`, `rollupStatus`, `verdictLine`) and `:36`
-(`PgWorkStore`). **Cross-story (the story-level `library` edge):** `node-build.ts:36` also pulls
+`story-build.ts:20-22` (`runStoryBuild`, `topoOrderStoryNodes`); `story-build.ts:61`
+(`oqHygieneGate`); `node-build.ts:23-27` (`workEvent`, `rollupStatus`, `verdictLine`) and `:49`
+(`PgWorkStore`). **Cross-story (the story-level `library` edge):** `node-build.ts:41-44` also pulls
 `createPool`/`closePool`/`applySchema` — the library story's store-connection seam. The
-`ClaudeAgentAuthor` import (`node-build.ts:6`) is type-only — the consumed executor seam's
-reporting surface (cost, scope walls, feedback runs — `liveLeafLines`, `node-build.ts:263-274`).
+`ClaudeAgentAuthor` import (`node-build.ts:7`) is type-only — the consumed executor seam's
+reporting surface (cost, scope walls, feedback runs — `liveLeafLines`, `node-build.ts:519-530`).
 
 ## Integration test
 
@@ -73,37 +73,37 @@ event log (`packages/cli/src/story-build.test.ts:17`).
 
 1. **`dry-run-walks-and-reports-honestly`** — the envelope carries the phase trail, the verdict line, the derived rollup, and the honest framing
    - **asserts —** trail `AUTHOR_TEST → … → GATE`, a signed verdict, rollup derived from the event log, the dry-run framing.
-   - **covers —** `packages/drive/src/node-build.ts:483-585`
+   - **covers —** `packages/drive/src/node-build.ts:1003-1092`
    - **proven by —** `packages/cli/src/node-build.test.ts:17` (REAL, passing)
 2. **`exactly-one-mode`** — no mode, both modes, and `--dry-run`+`--real` are all refused with the mode menu
    - **asserts —** the xor wall across all three flags.
-   - **covers —** `node-build.ts:310-331`
+   - **covers —** `node-build.ts:767-787`
    - **proven by —** `node-build.test.ts:39`, `:48`, `:54` (REAL, passing)
 3. **`real-prechecks-are-cheap`** — `--real` without a real-proof config fails closed BEFORE any worktree is cut
    - **asserts —** the refusal names the REAL-buildable ids; no worktree side effects.
-   - **covers —** `node-build.ts:366-393`
+   - **covers —** `node-build.ts:541-571`
    - **proven by —** `node-build.test.ts:63` (REAL, passing)
 4. **`registered-buildable-specs-drive`** — the verdict-line spec (the REAL target) and the library story spec (UAT proof-mode mapping) both dry-run
    - **asserts —** contract and story tiers walk the same glue.
-   - **covers —** `node-build.ts:346-364`, `:483-502`
+   - **covers —** `node-build.ts:980-1001`, `:1007-1008`
    - **proven by —** `node-build.test.ts:74` and `:118` (REAL, passing)
 5. **`misses-are-guidance`** — an unknown id, an unregistered spec, and a bare `node` are guidance envelopes, never throws
    - **asserts —** each lists the buildable ids / help.
-   - **covers —** `node-build.ts:303-309`, `:347-354`, `:493-498`
+   - **covers —** `node-build.ts:758-764`, `:803-809`, `:992-998`
    - **proven by —** `node-build.test.ts:85`, `:92`, `:102` (REAL, passing)
 6. **`story-chain-dry-runs-end-to-end`** — `story build library --dry-run` drives every node topo-ordered, story last, all signed
    - **asserts —** the order line, per-node PASS rows with rollups, the chain outcome.
-   - **covers —** `packages/drive/src/story-build.ts:75-292`
+   - **covers —** `packages/drive/src/story-build.ts:320-920`
    - **proven by —** `packages/cli/src/story-build.test.ts:17` (REAL, passing)
 7. **`story-prechecks-fail-closed`** — unregistered nodes refuse BEFORE any node runs; an unknown story and a capability id refuse with guidance
    - **asserts —** the three story-grain refusals.
-   - **covers —** `story-build.ts:119-170`
+   - **covers —** `story-build.ts:371-377`, `:447-459`
    - **proven by —** `story-build.test.ts:64`, `:76`, `:82` (REAL, passing)
 8. **`forged-healthy-store-wall`** — `--store pg` is refused for dry-runs at BOTH grains; an unknown `--store` value is refused
    - **asserts —** a scripted PASS can never persist to the shared event log.
-   - **covers —** `node-build.ts:128-164`
+   - **covers —** `node-build.ts:281-304`
    - **proven by —** `story-build.test.ts:90`, `:100`, `:124` (REAL, passing)
 9. **`store-label-is-honest`** — the envelope header names the verdict store (in-memory vs persisted)
    - **asserts —** the dry-run header reports the in-memory store.
-   - **covers —** `node-build.ts:396-402`, `:506-512`
+   - **covers —** `node-build.ts:272-279`, `:308-315`
    - **proven by —** `story-build.test.ts:133` (REAL, passing)

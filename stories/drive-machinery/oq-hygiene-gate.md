@@ -42,7 +42,7 @@ Pure classification over injected rows; the live loader is a thin composition of
 story's stores. The code edge for the `depends_on`: `oq-gate.ts:2` imports the `NodeSpec` type
 from `@storytree/orchestrator` — the gate's input is the resolver's loaded story spec (its
 `decisions` field). Consumed by [`build-drive-cli`](build-drive-cli.md)'s `story build`
-(`packages/drive/src/story-build.ts:174-175`).
+(`packages/drive/src/story-build.ts:526-527`).
 
 ## Integration test
 
