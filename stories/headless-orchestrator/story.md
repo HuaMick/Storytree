@@ -27,21 +27,23 @@ capabilities: [orientation-tool-surface, headless-session-runner, orchestrator-c
 #                    import lives in packages/agent; a new package importing the SDK would break it).
 #                    This is the studio-build precedent: own code physically hosted in another story's
 #                    package while declaring the depends_on edge.
-#   - drive-machinery — the host of the Phase-1 composition: orchestrate.ts
-#                    (packages/drive/src/orchestrate.ts, owned by drive-machinery since ADR-0112) renders
-#                    the SAME session-orchestrator prompt the terminal session uses (renderAgentPrompt,
-#                    now @storytree/library/store — ADR-0051 / ADR-0112 §4) and drives the headless
-#                    runner. This story's code physically lives in @storytree/agent (the runner core) +
-#                    @storytree/drive (the composition) — the studio-build precedent (own code hosted in
-#                    another story's package while declaring the depends_on edge). The terminal
-#                    `orchestrate` command stays in packages/cli/src/commands.ts but is a DOWNSTREAM
-#                    caller — it imports drive's orchestrate() and INJECTS run() as the read-only
-#                    OrientationRunner (commands.ts ~L1450), so the real edge is cli → drive (ADR-0112:
-#                    drive imports nothing from cli), NOT a cli dependency of this story.
+#   - drive-machinery — the composition's PHYSICAL HOST. The Phase-1 composition + programmatic entry
+#                    (orchestrate.ts) physically live in packages/drive (owned by drive-machinery) since
+#                    ADR-0112 — the same "own code hosted in another story's package" precedent as the
+#                    `agent` edge. The orchestrator-composition capability already cites
+#                    packages/drive/src/orchestrate.ts as its sourceFile. NB: `cli` is NOT an upstream —
+#                    it is the composition ROOT that DRIVES this runtime (cli → drive → agent) and INJECTS
+#                    its own run() read-dispatch through the OrientationRunner seam (IoC): the
+#                    `orchestrate` command in packages/cli/src/commands.ts calls run(argv, deps) with
+#                    writable:false as the injected runner, so the runtime imports nothing from cli.
 #   - library      — the knowledge surface the agent orients on: `library` (dashboard) +
 #                    `library artifact <id>` read off the store (the in-memory seed offline,
 #                    packages/cli/src/commands.ts), and the seed corpus the agent reads is library's
-#                    work-hierarchy + knowledge schema (loadCorpus over @storytree/library).
+#                    work-hierarchy + knowledge schema (loadCorpus over @storytree/library). Also the
+#                    home of renderAgentPrompt(store, "session-orchestrator")
+#                    (packages/library/src/store/render-agent.ts, a @storytree/library/store seam since
+#                    ADR-0112 §4), which assembles the SAME session-orchestrator system prompt the
+#                    terminal session uses (ADR-0051 — one loop definition).
 #   - notice-board — the session-presence surface the agent orients on AND declares on like any session
 #                    (ADR-0033): `noticeboard` reads the live presence store
 #                    (packages/drive/src/noticeboard.ts). Phase 1's PROOF is orientation+proposal, not
@@ -109,12 +111,14 @@ composes already exist (encoded here, not re-designed):
   assembles the SAME system prompt the terminal session embodies (ADR-0051). The runtime RUNS that
   prompt; it does NOT fork the loop definition (ADR-0108 decision 2 — edit the library artifact,
   regenerate, and both the terminal and the studio runtime move together).
-- **The Phase-1 entry is a programmatic intent; the composition lives in `@storytree/drive`.** Since
-  ADR-0112 the composition (`orchestrate.ts`) lives in `packages/drive` (owned by `drive-machinery`);
-  `packages/cli` keeps only the thin `orchestrate` command that imports it and injects the read-only
-  runner (`run()` closed over `writable: false`). The entry is a programmatic intent (a thin CLI
-  command), NOT an HTTP/chat endpoint. Phase 2's studio chat worker REUSES this same package-level core
-  (`@storytree/drive`), so the core is kept reusable, not CLI-private glue.
+- **The Phase-1 entry is a programmatic intent; the composition lives in `@storytree/drive`, the
+  terminal entry in `packages/cli`.** Since ADR-0112 the composition (`orchestrate.ts`) lives in
+  `@storytree/drive`; the thin `orchestrate` CLI command in `packages/cli` is the terminal entry that
+  calls it, injecting the `run()` read-dispatch (built `writable: false`) as the orientation runner.
+  `renderAgentPrompt` is rendered from `@storytree/library/store` (ADR-0112 §4), not cli. The entry is
+  a programmatic intent (a thin CLI command), NOT an HTTP/chat endpoint. Phase 2's studio chat worker
+  REUSES the same `@storytree/drive` core rather than re-implementing — a shared package, not
+  CLI-private glue.
 
 ## Honest proof posture — `proposed`, read/propose only
 
@@ -194,7 +198,9 @@ acyclic; `orientation-tool-surface` is the root (the read-tool leaf, no in-story
 Authored from the intended consumed seams (re-verify against real imports when built). All four are
 CONSUMED, not absorbed — this story owns the runtime composition (the read-only driver, the read-tool
 surface, the Phase-1 entry, the single-session guard), never the SDK seam, the agent renderer, the
-CLI dispatch, the library schema, or the presence store.
+drive surface, the library schema, or the presence store. (`cli` is NOT an upstream — it is the
+composition ROOT that drives this runtime and injects the read dispatch through a seam; see the
+`drive-machinery` bullet.)
 
 - **`agent`** — the **SDK headless-session organism**. The runtime CORE physically lives in
   `packages/agent` (a new module, sibling to `sdk-curator.ts` / `sdk-author.ts`) — FORCED by
@@ -206,26 +212,33 @@ CLI dispatch, the library schema, or the presence store.
   (`packages/agent/src/sdk-curator.ts`). This is the **studio-build precedent** — a story owning code
   physically hosted in another story's package while declaring the `depends_on` edge (studio-build owns
   its worker in `apps/studio/server` while `depends_on studio`).
-- **`drive-machinery`** — the **host of the Phase-1 composition**. The programmatic composition
-  `orchestrate.ts` lives in `packages/drive/src/orchestrate.ts` (owned by `drive-machinery` since
-  ADR-0112, which carved the build/orchestrate drivers out of `cli`); it renders the
-  `session-orchestrator` prompt via `renderAgentPrompt(store, "session-orchestrator")` (now
-  `@storytree/library/store`, ADR-0112 §4 — one loop definition, the runtime does not fork it) and
-  drives the headless runner. Together with the runner CORE in `@storytree/agent`, this story's code
-  physically lives in `packages/agent` + `packages/drive` — the studio-build precedent. The agent
-  orients through an INJECTED read-only `OrientationRunner`: the terminal `orchestrate` command
-  (`packages/cli/src/commands.ts`) closes the real `run(argv, deps)` dispatch over `writable: false`
-  and injects it (`commands.ts` ~L1450), so the read tools wrap `run()` — refused every write verb by
-  the `notWritable` guard (`artifact new`/`edit`/`retire`, `sync-agents`/`sync-corpus`, `noticeboard
-  declare`, `uat attest`, `adr new`) — WITHOUT this package importing `cli`. So the real edge is
-  `cli → drive` (the command is a downstream caller), NOT a `cli` dependency of this story (ADR-0112's
-  hard invariant: `drive` imports nothing from `cli`); this story owns the composition, never the
-  CLI's per-domain journeys.
-- **`library`** — the **knowledge surface**. The agent orients on `library` (dashboard) + `library
-  artifact <id>`, which read off the `store` (the in-memory seed offline, `loadCorpus` over
-  `@storytree/library`, `packages/cli/src/commands.ts`). The corpus the agent reads — the
-  work-hierarchy spec (`Tier`/`Status`/`Unit`) and the knowledge documents — is library's schema. The
-  runtime REUSES the existing in-memory seed read path; it owns no knowledge schema.
+- **`drive-machinery`** — the **composition's physical host**. The Phase-1 composition + programmatic
+  entry (`orchestrate.ts`) physically live in `packages/drive` (owned by `drive-machinery`) since
+  ADR-0112 — the same precedent as the `agent` edge: a story owning code physically hosted in another
+  story's package while declaring the `depends_on` edge. `orchestrate.ts`
+  (`packages/drive/src/orchestrate.ts`, this story's `orchestrator-composition` `sourceFile`) imports
+  the runner seam from `@storytree/agent` and `renderAgentPrompt` from `@storytree/library/store` — and
+  imports NOTHING from `@storytree/cli` (ADR-0112's hard invariant: the dependency runs `cli → drive`,
+  never back). **`cli` is the composition ROOT / source-hub that DRIVES this runtime, not an upstream.**
+  The terminal `orchestrate` command (`packages/cli/src/commands.ts`) calls the drive composition and
+  INJECTS its own `run(argv, deps)` read-dispatch (with `writable: false`) as the `OrientationRunner` —
+  the seam the runtime couples to. This is dependency-via-injection where the IMPORTER is `cli` (the
+  caller), so the runtime stays cli-free: ADR-0004's single-import-site rule is exactly WHY a runtime
+  module cannot import `cli` (cli depends on `agent`, so the reverse would cycle), making the injected
+  `OrientationRunner` seam the correct boundary, not a workaround. Writes stay structurally impossible:
+  the injected runner is built `writable: false`, so the CLI's `notWritable` guard
+  (`packages/cli/src/commands.ts`, fronting `artifact new`/`edit`/`retire`, `sync-agents`/`sync-corpus`,
+  `noticeboard declare`, `uat attest`, `adr new`) refuses every write verb by construction.
+- **`library`** — the **knowledge surface AND the prompt-render seam**. The agent orients on `library`
+  (dashboard) + `library artifact <id>`, which read off the `store` (the in-memory seed offline,
+  `loadCorpus` over `@storytree/library`, `packages/cli/src/commands.ts`). The corpus the agent reads —
+  the work-hierarchy spec (`Tier`/`Status`/`Unit`) and the knowledge documents — is library's schema.
+  The runtime also consumes `renderAgentPrompt(store, "session-orchestrator")`
+  (`packages/library/src/store/render-agent.ts`, a `@storytree/library/store` seam since ADR-0112 §4 —
+  prompt assembly is a library/store concern, it reads the knowledge corpus), which assembles the SAME
+  session-orchestrator system prompt the terminal session uses (ADR-0051 — one loop definition, the
+  runtime does not fork it). The runtime REUSES the existing in-memory seed read path; it owns no
+  knowledge schema and no prompt assembly.
 - **`notice-board`** — the **session-presence surface**. The agent orients on `noticeboard` (the live
   presence store, `packages/drive/src/noticeboard.ts`) AND declares presence like any session (ADR-0033)
   — the orchestration is a session on the board. Phase 1 REUSES the existing board; its PROOF is
@@ -332,14 +345,13 @@ owner-fork bar):
    `@anthropic-ai/*` import lives in `packages/agent`, so a new package importing the SDK would break
    it; `packages/agent` already hosts the leaf + the curator, so a third SDK-driven role is the
    established pattern. Surfaced (not re-opened) so the boundary is visible.
-2. **The composition moved to `@storytree/drive`; the thin `orchestrate` entry stays in `packages/cli`
-   (initially placed in `cli`, moved by ADR-0112).** Phase 1 first placed the composition + entry in
-   `packages/cli` (which hosts `run()` and binds `ClaudeAgentAuthor`); ADR-0112 then carved the
-   composition (`orchestrate.ts`) out into `packages/drive` (owned by `drive-machinery`) and moved
-   `renderAgentPrompt` to `@storytree/library`, so Phase 2's studio chat worker REUSES the shared drive
-   core without importing the command hub (see the resolution paragraph below). `packages/cli` keeps
-   only the thin `orchestrate` command that imports drive's composition and injects the read-only
-   runner. Surfaced (not re-opened).
+2. **The composition + Phase-1 entry were placed in `packages/cli` (Phase-1 decision) — the
+   composition has SINCE MOVED to `@storytree/drive` per ADR-0112 (see below); the terminal entry
+   stays in `packages/cli`.** As originally decided, the orchestrator composition and the programmatic
+   intent (a thin CLI command, NOT an HTTP/chat endpoint) were authored in `packages/cli`. The core was
+   kept reusable at the package level so Phase 2's studio chat worker REUSES it rather than
+   re-implementing — which is exactly what ADR-0112 then formalised by carving the composition into the
+   shared `@storytree/drive` package. Surfaced (not re-opened).
 
 The future-fork this section flagged — when the chat surface arrives, does the server-side runtime
 move to the ADR-0090 studio WORKER process (`apps/studio/server`), or stay a CLI-hosted core the
@@ -355,3 +367,10 @@ worker now calls a shared `drive` core rather than importing the command hub or 
 — a move, not a rewrite; the terminal `orchestrate` command stays in `packages/cli` (`commands.ts`),
 importing the drive composition across the seam. This story's `orchestrator-composition` capability
 cites `packages/drive/src/orchestrate.ts` as its `sourceFile`.
+
+This story's `depends_on` is now reconciled to that move: `cli` is dropped (it is the composition root
+that DRIVES the runtime and injects the `run()` read-dispatch through the `OrientationRunner` seam — a
+caller, not an upstream; `cli -> drive`, never back, per ADR-0112's hard invariant) and
+`drive-machinery` is added (the composition's physical home, the same "code hosted in another story's
+package -> declare the edge" precedent as the `agent` edge). `headless-orchestrator` stays a pure
+source node — nothing depends on it — so the new edge introduces no cycle (ADR-0058).
