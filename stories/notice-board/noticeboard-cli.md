@@ -14,20 +14,20 @@ depends_on: [declare-presence, presence-store]
 proof:
   command:
     file: pnpm
-    args: ["--filter", "@storytree/cli", "test"]
+    args: ["--filter", "@storytree/drive", "test"]
   scope:
-    testGlobs: ["packages/cli/src/**/*.test.ts"]
-    sourceGlobs: ["packages/cli/src/**/*.ts"]
+    testGlobs: ["packages/drive/src/**/*.test.ts"]
+    sourceGlobs: ["packages/drive/src/**/*.ts"]
   real:
-    testFile: "packages/cli/src/noticeboard.test.ts"
-    sourceFile: "packages/cli/src/noticeboard.ts"
+    testFile: "packages/drive/src/noticeboard.test.ts"
+    sourceFile: "packages/drive/src/noticeboard.ts"
     scope:
-      testGlobs: ["packages/cli/src/noticeboard.test.ts"]
-      sourceGlobs: ["packages/cli/src/noticeboard.ts"]
+      testGlobs: ["packages/drive/src/noticeboard.test.ts"]
+      sourceGlobs: ["packages/drive/src/noticeboard.ts"]
     install: true
     typecheck:
       file: pnpm
-      args: ["--filter", "@storytree/cli", "typecheck"]
+      args: ["--filter", "@storytree/drive", "typecheck"]
 ---
 
 # The noticeboard command family — the board, declare, done
@@ -36,7 +36,7 @@ proof:
 `declare`/`done` write with worktree-derived identity.
 
 > **Proof status (honest) — since PROVEN and PROMOTED (ADR-0031).** The gated leaf authored
-> `packages/cli/src/noticeboard.ts` + its test in a fresh worktree; the spine observed the real
+> `packages/drive/src/noticeboard.ts` + its test in a fresh worktree; the spine observed the real
 > red→green and signed a PASS (run `real-mq8o0n7p`, commit `eee848b`, persisted to
 > `events.verdict`); the spine wired the `commands.ts` dispatch after promotion
 > (`noticeboard-dispatch.test.ts`). The authored status stays `proposed` forever: `healthy` is
@@ -46,7 +46,7 @@ proof:
 
 ## Guidance
 
-The implementation is `packages/cli/src/noticeboard.ts` — a SELF-CONTAINED command module beside
+The implementation is `packages/drive/src/noticeboard.ts` — a SELF-CONTAINED command module beside
 `library` and `node`/`story` (ADR-0023 choose-your-own-adventure: every handler returns the
 `Envelope` from `./envelope.js` — `{ ok, body, next?, doctrine? }`). Do NOT touch `commands.ts`
 or `main.ts` (outside your write scope) — the spine wires the dispatch afterwards; the handlers
@@ -91,7 +91,7 @@ take already-parsed inputs and injected deps, so everything is testable without 
 - **`done`:** needs store + identity; calls `store.done(identity.sessionId, deps.now().toISOString())`;
   a null result is `ok: false` ("no active declaration for this session"); success confirms and
   points back to the board.
-- **The test (`packages/cli/src/noticeboard.test.ts`, the registered REAL proof — offline only):**
+- **The test (`packages/drive/src/noticeboard.test.ts`, the registered REAL proof — offline only):**
   drive `noticeboardCommand` + `deriveIdentity` directly with a tiny in-memory
   `PresenceStoreLike` fake (a Map of docs + an event array), fake `runGit` functions, and a fixed
   `now`. Cover: deriveIdentity recognises `.claude/worktrees/<name>` toplevels (both separator
@@ -122,17 +122,17 @@ and assert the active board shrinks while the session's events remain readable v
 1. **`identity-derived-not-typed`** — declare resolves identity from the worktree, never a flag
    - **asserts —** `declare` derives `sessionId` (worktree name) and `branch` from git; no flag
      exists to supply an identity; outside a recognisable worktree it refuses with guidance.
-   - **proven by —** `packages/cli/src/noticeboard.test.ts` (real at HEAD)
+   - **proven by —** `packages/drive/src/noticeboard.test.ts` (real at HEAD)
 2. **`writes-need-pg`** — declare/done are refused without `--pg`
    - **asserts —** `declare` and `done` without `--pg` are refused (matching library artifact
      writes), with `pnpm db:up` guidance in the envelope's `next`; nothing is written.
-   - **proven by —** `packages/cli/src/noticeboard.test.ts` (real at HEAD)
+   - **proven by —** `packages/drive/src/noticeboard.test.ts` (real at HEAD)
 3. **`board-groups-and-ages`** — the board groups by declared node and renders staleness
    - **asserts —** active sessions group under their declared story node, prose-only sessions
      under a no-node group, each row showing its derived staleness band; the default view is
      active-only.
-   - **proven by —** `packages/cli/src/noticeboard.test.ts` (real at HEAD)
+   - **proven by —** `packages/drive/src/noticeboard.test.ts` (real at HEAD)
 4. **`done-drops-active-keeps-history`** — done leaves the board, history survives
    - **asserts —** after `done`, the session no longer appears on the active board, while its
      full event history remains readable via the store seam.
-   - **proven by —** `packages/cli/src/noticeboard.test.ts` (real at HEAD)
+   - **proven by —** `packages/drive/src/noticeboard.test.ts` (real at HEAD)

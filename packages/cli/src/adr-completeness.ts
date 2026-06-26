@@ -1,4 +1,4 @@
-import { parseAdrFrontmatter } from "./adr-frontmatter.js";
+import { parseAdrFrontmatter } from "@storytree/drive";
 
 /**
  * ADR-0059 (gate-as-proof for authoring): the per-artifact STRUCTURAL-COMPLETENESS check that lets

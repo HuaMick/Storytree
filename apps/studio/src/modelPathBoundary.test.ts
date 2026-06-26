@@ -14,9 +14,11 @@ const SRC_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 // The forbidden module roots — the model-invocation / build-engine path. `@storytree/orchestrator`
 // (the spine) is included because it can reach the agent; the frontend reads build state over the
-// API, never the spine. (The browser-safe organisms `@storytree/library/*` / `@storytree/notice-board`
+// API, never the spine. `@storytree/drive` (the build/orchestrate runtime, the new model-path
+// carrier after the drive extraction) is forbidden for the same reason — only the server worker
+// imports it, lazily. (The browser-safe organisms `@storytree/library/*` / `@storytree/notice-board`
 // stay allowed — they are pure zod.)
-const FORBIDDEN = ['@storytree/agent', '@storytree/cli', '@storytree/orchestrator'];
+const FORBIDDEN = ['@storytree/agent', '@storytree/cli', '@storytree/drive', '@storytree/orchestrator'];
 
 function tsFiles(dir: string): string[] {
   const out: string[] = [];

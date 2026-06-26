@@ -22,7 +22,7 @@ import { tmpdir } from "node:os";
 import type { PresenceDeclarationDoc } from "@storytree/notice-board";
 import { SIGNING_EVENT_KIND } from "@storytree/proof-protocol";
 
-import type { PresenceStoreLike } from "./noticeboard.js";
+import type { PresenceStoreLike } from "@storytree/drive";
 import { treeCommand, type TreeDeps } from "./tree.js";
 
 /** A signed-verdict event for a per-test UAT id, shaped for the verdict reader seam. */

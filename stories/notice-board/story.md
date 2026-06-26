@@ -11,7 +11,21 @@ capabilities: [declare-presence, presence-store, noticeboard-cli, tree-view, amb
 # + merge-retire backstop moved in from the dissolving @storytree/store), so it deps @storytree/library
 # (createPool/closePool via @storytree/library/store) ONLY — it rolls its OWN duck-typed pool/Store seam
 # (PgPresenceStore), not the @storytree/storage-protocol port (ADR-0078 phantom-dep cleanup).
-depends_on: [library, drive-machinery]
+# The drive extraction (ADR-0112 — the build/orchestrate drivers carved out of cli into
+# @storytree/drive) gave the drive a REAL code edge ON this organism: ambient-presence + the
+# noticeboard surface + PgPresenceStore moved into @storytree/drive, which now imports
+# @storytree/notice-board. So the genuine direction is `drive-machinery -> notice-board` (declared in
+# stories/drive-machinery/story.md depends_on). Run the ADR-0058 test the other way and it fails:
+# notice-board does NOT need the drive's delivered outcome to pass its OWN UAT — @storytree/notice-board
+# imports @storytree/library ONLY (verified: package deps + source; the schema + classifyPresence are
+# pure, the Pg drawer rides @storytree/library/store), and UAT step 5 ("spine presence") is the DRIVE
+# calling this board's surface, i.e. drive consuming notice-board, never the reverse. The old narrative
+# `depends_on: drive-machinery` here was therefore UNBACKED by any code edge and, paired with the new
+# real reverse edge, formed a forbidden cross-story cycle (ADR-0058); dropped — the cheapest rung of the
+# no-cycle ladder (remove the spurious edge, no structural change). The node-spec + verdict-log reads the
+# "Cross-story boundary" section below describes are done by CLI-resident code (tree.ts / tree-verdicts.ts
+# in packages/cli), declared on the cli/drive organisms — NOT by @storytree/notice-board itself.
+depends_on: [library]
 # Provider-side inbound edge (ADR-0074 §4): the cli HUB organism imports @storytree/notice-board
 # (noticeboard.ts staleness bands, the `storytree noticeboard` surface). The store hub also imports
 # it, declared consumer-side in stories/store/story.md depends_on; the cli edge is declared here to

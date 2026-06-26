@@ -184,12 +184,12 @@ test("the verdict-line entry carries a REAL proof config whose write walls reall
 test("the ambient-integration entry is REAL-buildable with install and exact-file walls", () => {
   const real = lookupNodeBuildConfig("ambient-integration")?.real;
   assert.ok(real !== undefined);
-  assert.equal(real.testFile, "packages/cli/src/ambient-presence.test.ts");
-  assert.equal(real.sourceFile, "packages/cli/src/ambient-presence.ts");
+  assert.equal(real.testFile, "packages/drive/src/ambient-presence.test.ts");
+  assert.equal(real.sourceFile, "packages/drive/src/ambient-presence.ts");
   assert.equal(real.install, true);
   assert.deepEqual(real.typecheck, {
     file: "pnpm",
-    args: ["--filter", "@storytree/cli", "typecheck"],
+    args: ["--filter", "@storytree/drive", "typecheck"],
   });
   const scope = new PathWriteScope(real.scope);
   assert.equal(scope.isWriteAllowed("AUTHOR_TEST", real.testFile), true);
@@ -248,12 +248,12 @@ test("the presence-store entry is REAL-buildable with install (core import) and 
 test("the noticeboard-cli entry is REAL-buildable with install and walls excluding the dispatch", () => {
   const real = lookupNodeBuildConfig("noticeboard-cli")?.real;
   assert.ok(real !== undefined);
-  assert.equal(real.testFile, "packages/cli/src/noticeboard.test.ts");
-  assert.equal(real.sourceFile, "packages/cli/src/noticeboard.ts");
+  assert.equal(real.testFile, "packages/drive/src/noticeboard.test.ts");
+  assert.equal(real.sourceFile, "packages/drive/src/noticeboard.ts");
   assert.equal(real.install, true);
   assert.deepEqual(real.typecheck, {
     file: "pnpm",
-    args: ["--filter", "@storytree/cli", "typecheck"],
+    args: ["--filter", "@storytree/drive", "typecheck"],
   });
   const scope = new PathWriteScope(real.scope);
   assert.equal(scope.isWriteAllowed("AUTHOR_TEST", real.testFile), true);

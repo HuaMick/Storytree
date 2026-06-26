@@ -16,7 +16,7 @@ import {
 } from "@storytree/orchestrator";
 import type { NodeSpec } from "@storytree/orchestrator";
 
-import { storyBuild } from "./story-build.js";
+import { storyBuild } from "@storytree/drive";
 
 /**
  * ADR-0057 §3 expansion D — `story build --real` (the whole-story REAL chain). All OFFLINE: a

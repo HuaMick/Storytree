@@ -20,7 +20,7 @@ import {
   rollupStoryUat,
 } from "@storytree/orchestrator";
 
-import type { PresenceStoreLike } from "./noticeboard.js";
+import type { PresenceStoreLike } from "@storytree/drive";
 import type { Envelope } from "./envelope.js";
 import {
   deriveVerdictGlyphs,

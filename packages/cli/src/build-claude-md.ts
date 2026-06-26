@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 import { InMemoryStore } from "@storytree/storage-protocol";
 import { loadCorpus } from "@storytree/library/store";
 
-import { renderAgentDigest } from "./agents.js";
+import { renderAgentDigest } from "@storytree/library/store";
 import { syncClaudeRegion } from "./claude-region.js";
 
 const AGENT = "session-orchestrator";

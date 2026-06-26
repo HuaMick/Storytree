@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { AdrMeta } from "./adr-frontmatter.js";
+import { type AdrMeta, loadAdrMetas } from "@storytree/drive";
 import { InMemoryStore } from "@storytree/storage-protocol";
 import { loadCorpus } from "@storytree/library/store";
 
@@ -12,7 +12,6 @@ import {
   adrHealth,
   adrGateFailures,
   extractPathTokens,
-  loadAdrMetas,
   loadStoryDecisions,
   type AdrHealthInputs,
   type GuardrailView,

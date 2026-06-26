@@ -48,7 +48,7 @@ import {
 import { PgPresenceStore } from "@storytree/notice-board/store";
 import { PgWorkStore } from "@storytree/orchestrator/store";
 
-import { renderAgentPrompt } from "./agents.js";
+import { renderAgentPrompt } from "@storytree/library/store";
 import { withPresence } from "./ambient-presence.js";
 import type { AmbientDeps } from "./ambient-presence.js";
 import { effectiveVerdictStore, ensureLiveDb } from "./db-control.js";

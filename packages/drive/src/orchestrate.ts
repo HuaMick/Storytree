@@ -18,7 +18,7 @@ import type {
 } from "@storytree/agent";
 import { runHeadlessOrchestrator } from "@storytree/agent";
 
-import { renderAgentPrompt } from "./agents.js";
+import { renderAgentPrompt } from "@storytree/library/store";
 
 // ---------------------------------------------------------------------------
 // Types

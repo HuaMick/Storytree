@@ -47,7 +47,7 @@ import {
 } from "./node-build.js";
 import { PgCommentStore, PgLibraryStore, closePool, createPool } from "@storytree/library/store";
 
-import { loadAdrMetas } from "./adr-health.js";
+import { loadAdrMetas } from "./adr-metas.js";
 import {
   CURATOR_ACTOR,
   ScriptedCuratorRunner,

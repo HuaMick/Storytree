@@ -39,9 +39,11 @@ depends_on: [agent, cli, library, notice-board]
 # Deciding ADRs (ADR-0037 §2): chat-driven orchestration / the phased server-side runtime — Phase 1
 # (108, this); human owns the outer loop, amended in degree by a server-side runtime (30); the agent
 # renderer / one loop definition the runtime runs (51); the orchestrator/agent boundary the runtime
-# respects (4); session presence the orchestration declares (33); and the UI-driven build worker (90)
-# + its proof-off-tether sanction (91) whose worker investment + integrity argument this runtime reuses.
-decisions: [108, 30, 51, 4, 33, 90, 91]
+# respects (4); session presence the orchestration declares (33); the UI-driven build worker (90)
+# + its proof-off-tether sanction (91) whose worker investment + integrity argument this runtime reuses;
+# and the drive-package extraction (112) that RESOLVES this story's Phase-2 placement fork — the
+# runtime is a shared @storytree/drive core the worker calls (see "Open modeling calls" below).
+decisions: [108, 30, 51, 4, 33, 90, 91, 112]
 ---
 
 # The headless orchestrator runtime — the session-orchestrator agent, run server-side, that orients and proposes
@@ -300,8 +302,18 @@ owner-fork bar):
    path, and depends on `@storytree/agent`. The core is kept reusable at the package level so Phase 2's
    studio chat worker REUSES it rather than re-implementing. Surfaced (not re-opened).
 
-A genuine future fork (Phase 2+, NOT decided here): when the chat surface arrives, does the
-server-side runtime move to the ADR-0090 studio WORKER process (`apps/studio/server`) — the studio's
-single agent boundary — or stay a CLI-hosted core the worker calls? ADR-0108 decision 1 says the
-runtime runs ON the ADR-0090 worker; Phase 1 keeps the core package-level and CLI-driven precisely so
-that move is a re-composition, not a rewrite. Flagged for the owner at the Phase-2 boundary.
+The future-fork this section flagged — when the chat surface arrives, does the server-side runtime
+move to the ADR-0090 studio WORKER process (`apps/studio/server`), or stay a CLI-hosted core the
+worker calls? — is **RESOLVED by [ADR-0112](../../docs/decisions/0112-extract-the-build-orchestrate-drivers-into-packages-drive.md)**
+in favour of **a shared `@storytree/drive` core the worker calls**. ADR-0112 carved the
+build/orchestrate drivers (including this story's `orchestrate.ts` composition) out of `packages/cli`
+into `@storytree/drive` — a package owned by `drive-machinery` that BOTH the terminal `cli` and the
+studio worker import. So the Phase-2 runtime is neither buried in `cli` nor duplicated in the studio:
+it is a re-composition over the shared core, exactly as Phase 1's "keep the core package-level and
+CLI-driven" intended (ADR-0108 decision 1 — the runtime runs ON the ADR-0090 worker — still holds; the
+worker now calls a shared `drive` core rather than importing the command hub or re-implementing). The
+Phase-1 `orchestrate.ts` entry stays in `packages/cli` for now (the cli back-compat re-export keeps the
+terminal command intact); Phase 2 lifts the reusable composition into `@storytree/drive` beside the
+other drivers — a move, not a rewrite. NOTE: this story's `orchestrator-composition` capability still
+cites `packages/cli/src/orchestrate.ts` as its `sourceFile` (the Phase-1 home, provisional); when
+Phase 2 lifts it into `@storytree/drive`, that proof-block path is re-pointed.

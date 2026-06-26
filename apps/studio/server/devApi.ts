@@ -96,23 +96,23 @@ export function storytreeDataApi(): Plugin {
         registry: buildRegistry,
         // The worker routes by tier (ADR-0090): a story id → `story build --real` (the honest
         // whole-story chain — authors each capability for real, promotes a branch to land); a node
-        // id → `node build --live` (the single-node synthetic-pipeline build). cli + orchestrator are
+        // id → `node build --live` (the single-node synthetic-pipeline build). drive + orchestrator are
         // imported LAZILY inside the closures.
         runner: routedBuildRunner({
           classify: async (unitId) =>
             (await loadUnit(unitId))?.kind === 'story' ? 'story' : 'node',
           nodeBuild: async (unitId, opts) => {
             const [{ nodeBuild }, { loadLocalSecrets }] = await Promise.all([
-              import('@storytree/cli/build'),
-              import('@storytree/cli/secrets'),
+              import('@storytree/drive/build'),
+              import('@storytree/drive/secrets'),
             ]);
             loadLocalSecrets();
             return nodeBuild(unitId, { dryRun: false, real: false, ...opts });
           },
           storyBuild: async (unitId, opts) => {
             const [{ storyBuild }, { loadLocalSecrets }] = await Promise.all([
-              import('@storytree/cli/build'),
-              import('@storytree/cli/secrets'),
+              import('@storytree/drive/build'),
+              import('@storytree/drive/secrets'),
             ]);
             loadLocalSecrets();
             return storyBuild(unitId, opts);
@@ -131,7 +131,7 @@ export function storytreeDataApi(): Plugin {
       };
       // UI-driven ADOPT (ADR-0097): enter the brownfield proving process. SHARES the build registry
       // (one in-flight run; the client polls GET /api/build?runId), and drives the EXISTING `adoptStory`
-      // CLI entry — observe-and-sign the story's `observe` reliability gates + flip mapped → proposed —
+      // drive entry — observe-and-sign the story's `observe` reliability gates + flip mapped → proposed —
       // lazily imported inside the closure (the raw-TS `.js` re-export trap). isAdoptable reuses the
       // SAME `storyGoGreen === 'adopt'` predicate the studio's go-green affordance is computed from, so
       // the worker never adopts a story the panel would not offer.
@@ -139,8 +139,8 @@ export function storytreeDataApi(): Plugin {
         registry: buildRegistry,
         runner: adoptRunnerFromAdoptStory(async (storyId, opts) => {
           const [{ adoptStory }, { loadLocalSecrets }] = await Promise.all([
-            import('@storytree/cli/build'),
-            import('@storytree/cli/secrets'),
+            import('@storytree/drive/build'),
+            import('@storytree/drive/secrets'),
           ]);
           loadLocalSecrets();
           return adoptStory(storyId, opts);
