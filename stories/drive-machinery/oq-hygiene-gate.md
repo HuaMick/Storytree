@@ -17,7 +17,7 @@ depends_on: [prove-spec-resolution]
 
 > **Proof status (honest) — `mapped`, with the live loader as the `proposed` pocket.** The
 > classification and every gate disposition are covered by a real, passing, offline suite over
-> injected rows (`packages/cli/src/oq-gate.test.ts`, part of `@storytree/cli` 110/110 — I ran it
+> injected rows (`packages/drive/src/oq-gate.test.ts`, part of `@storytree/cli` 110/110 — I ran it
 > 2026-06-13). The pocket: `loadLive` — the thin loader composing the library tier's live
 > `PgLibraryStore` + `PgCommentStore` (`oq-gate.ts:110-119`) — has no offline assertion; it is the
 > cross-story leg (the story-level `library` edge), exercised only against the live DB.
@@ -42,7 +42,7 @@ Pure classification over injected rows; the live loader is a thin composition of
 story's stores. The code edge for the `depends_on`: `oq-gate.ts:2` imports the `NodeSpec` type
 from `@storytree/orchestrator` — the gate's input is the resolver's loaded story spec (its
 `decisions` field). Consumed by [`build-drive-cli`](build-drive-cli.md)'s `story build`
-(`packages/drive/src/story-build.ts:174-175`).
+(`packages/drive/src/story-build.ts:526-527`).
 
 ## Integration test
 
