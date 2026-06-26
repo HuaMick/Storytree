@@ -4,11 +4,12 @@
   "private": true,
   "type": "module",
   "description": "storytree desktop — a thin Electron credential-host client (ADR-0109 Step 1): loads the COMPILED studio bundle and keeps the member's Claude credential in the OS keychain. Carries no source, no build engine, no stories; never imports the agent.",
-  "main": "electron/main.ts",
+  "main": "dist/main.cjs",
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
-    "start": "electron --import tsx ."
+    "build:electron": "esbuild electron/main.ts electron/preload.ts --bundle --platform=node --format=cjs --external:electron --external:@napi-rs/keyring --outdir=dist --out-extension:.js=.cjs",
+    "start": "pnpm run build:electron && electron ."
   },
   "dependencies": {
     "@napi-rs/keyring": "^1.1.6"
@@ -16,6 +17,7 @@
   "devDependencies": {
     "@types/node": "^22.10.7",
     "electron": "^33.4.11",
+    "esbuild": "^0.24.2",
     "tsx": "^4.19.2",
     "typescript": "~5.7.3"
   }
