@@ -111,17 +111,17 @@ export const NODE_BUILD_REGISTRY: Readonly<Record<string, NodeBuildConfig>> = {
   // self-contained handler file (the spine wires commands.ts dispatch AFTER promotion; the leaf's
   // walls deliberately exclude it). `install: true`: imports @storytree/notice-board + ./envelope.js.
   "noticeboard-cli": {
-    command: pnpmTest("@storytree/cli"),
-    scope: pkgScope("cli"),
+    command: pnpmTest("@storytree/drive"),
+    scope: pkgScope("drive"),
     real: {
-      testFile: "packages/cli/src/noticeboard.test.ts",
-      sourceFile: "packages/cli/src/noticeboard.ts",
+      testFile: "packages/drive/src/noticeboard.test.ts",
+      sourceFile: "packages/drive/src/noticeboard.ts",
       scope: {
-        testGlobs: ["packages/cli/src/noticeboard.test.ts"],
-        sourceGlobs: ["packages/cli/src/noticeboard.ts"],
+        testGlobs: ["packages/drive/src/noticeboard.test.ts"],
+        sourceGlobs: ["packages/drive/src/noticeboard.ts"],
       },
       install: true,
-      typecheck: pnpmTypecheck("@storytree/cli"),
+      typecheck: pnpmTypecheck("@storytree/drive"),
     },
   },
   // The notice-board orientation surface (ADR-0033): `storytree tree` — offline hierarchy with
@@ -147,17 +147,17 @@ export const NODE_BUILD_REGISTRY: Readonly<Record<string, NodeBuildConfig>> = {
   // `.claude/settings.json` hooks, and the statusline AFTER promotion. `install: true`: imports
   // @storytree/notice-board + ./noticeboard.js seams.
   "ambient-integration": {
-    command: pnpmTest("@storytree/cli"),
-    scope: pkgScope("cli"),
+    command: pnpmTest("@storytree/drive"),
+    scope: pkgScope("drive"),
     real: {
-      testFile: "packages/cli/src/ambient-presence.test.ts",
-      sourceFile: "packages/cli/src/ambient-presence.ts",
+      testFile: "packages/drive/src/ambient-presence.test.ts",
+      sourceFile: "packages/drive/src/ambient-presence.ts",
       scope: {
-        testGlobs: ["packages/cli/src/ambient-presence.test.ts"],
-        sourceGlobs: ["packages/cli/src/ambient-presence.ts"],
+        testGlobs: ["packages/drive/src/ambient-presence.test.ts"],
+        sourceGlobs: ["packages/drive/src/ambient-presence.ts"],
       },
       install: true,
-      typecheck: pnpmTypecheck("@storytree/cli"),
+      typecheck: pnpmTypecheck("@storytree/drive"),
     },
   },
   // The notice-board verdict-glyph follow-up (ADR-0033 owner decision 4): the pure glyph module —
