@@ -1,31 +1,25 @@
 {
-  "name": "@storytree/cli",
+  "name": "@storytree/drive",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "storytree CLI (ADR-0023): the agent's exploratory, just-in-time interface to the Library. Choose-your-own-adventure — every command emits a result + doctrine + next envelope.",
+  "description": "storytree drive: the build/orchestrate runtime — the drivers that compose the orchestrator spine + the agent leaf + the live stores into node/story builds, adoption, and the headless orchestrator, returning the CLI Envelope. Consumed by the terminal CLI and the studio server; NEVER depends on @storytree/cli (ADR: the drive extraction).",
   "exports": {
     ".": "./src/index.ts",
     "./build": "./src/build.ts",
     "./secrets": "./src/secrets.ts"
   },
-  "bin": {
-    "storytree": "./src/main.ts"
-  },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "tsx scripts/validate-corpus.ts && node --import tsx --test \"src/**/*.test.ts\"",
-    "storytree": "tsx src/main.ts",
-    "db": "tsx src/db-cli.ts"
+    "test": "node --import tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@storytree/agent": "workspace:*",
-    "@storytree/drive": "workspace:*",
-    "@storytree/storage-protocol": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/notice-board": "workspace:*",
     "@storytree/orchestrator": "workspace:*",
     "@storytree/proof-protocol": "workspace:*",
+    "@storytree/storage-protocol": "workspace:*",
     "yaml": "^2.6.1",
     "zod": "^3.24.1"
   },

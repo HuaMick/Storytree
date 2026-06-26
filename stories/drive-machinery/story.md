@@ -8,9 +8,11 @@ proof_mode: UAT
 capabilities: [halt-aware-sequence, red-green-phase-machine, work-verdict-event-log, phase-scoped-write-wall, shell-test-observer, prove-it-gate, owned-loop-phase-author, real-build-worktree, prove-spec-resolution, spec-borne-proof-config, proof-command-vocabulary, story-topo-build, story-real-chain, multi-file-existing-source, gate-as-proof-authoring, oq-hygiene-gate, build-drive-cli]
 # Story-level edge (ADR-0010 §4, code-import-evidenced; ADR-0036): the drive consumes the
 # library story's store connection seam — createPool/closePool/applySchema in
-# packages/cli/src/node-build.ts:36 (events.work_event/verdict are its OWN tables), and the
+# packages/drive/src/node-build.ts:36 (events.work_event/verdict are its OWN tables), and the
 # oq-hygiene gate's live loader composes the library's PgLibraryStore + PgCommentStore
-# (packages/cli/src/oq-gate.ts:110-119).
+# (packages/drive/src/oq-gate.ts:110-119). The drive surface now lives in its own package
+# @storytree/drive (ADR-0112 — carved out of packages/cli/src), re-exported through cli's
+# ./build subpath for back-compat; cli depends_on drive and dispatches it from commands.ts.
 # ADR-0075: the spine (orchestrator) imports the base + proof-protocol ROOT ports (the proof
 # machinery reads/returns verdict-DATA via the verdict vocabulary and the base Store seam), so those
 # are now declared cross-story edges — they were exempt substrate dependencies before ADR-0075.
@@ -19,16 +21,20 @@ capabilities: [halt-aware-sequence, red-green-phase-machine, work-verdict-event-
 # binds ClaudeAgentAuthor) — the cross-story edge the "PhaseAuthor seam is CONSUMED, not owned"
 # section below predicted this frontmatter would gain once the leaf organism was authored. Declared
 # CONSUMER-side here; the agent root organism is depends_on [] (it imports no @storytree/* package).
-depends_on: [library, storage-protocol, proof-protocol, agent]
-# Provider-side inbound edge (ADR-0074 §4): the cli HUB organism imports this story's orchestrator
-# + agent packages (packages/cli/src/node-build.ts drives `node build`/`story build` through the
-# spine; main.ts dispatches them) — declared HERE so the hub stays de-noised and this organism owns
-# its "wired into the CLI" edge.
+depends_on: [library, storage-protocol, proof-protocol, agent, notice-board]
+# Provider-side inbound edge (ADR-0074 §4): the cli HUB organism imports this story's drive
+# package (packages/drive/src/node-build.ts drives `node build`/`story build` through the
+# spine + the agent leaf; cli's commands.ts dispatches them, re-exporting the build seam via its
+# ./build subpath, ADR-0112) — declared HERE so the hub stays de-noised and this organism owns
+# its "wired into the CLI" edge. The studio app also consumes the drive surface directly now
+# (lazy-imports @storytree/drive, dropping its cli dep, ADR-0112) — but via the studio→drive-machinery
+# edge already declared in stories/studio/story.md, so no new graph edge appears here.
 consumed_by: [cli]
 # Deciding ADRs (ADR-0037 §2): the spine sequence (5), the gate (20), the SDK leaf (30),
 # promotion (31), leaf feedback tools (35), the OQ hygiene gate on live builds (37), the
-# inner-loop-expansion keystone — node-borne proof config (57) — and gate-as-proof authoring (59).
-decisions: [5, 20, 30, 31, 35, 37, 57, 59, 60]
+# inner-loop-expansion keystone — node-borne proof config (57) — gate-as-proof authoring (59),
+# and the drive-package extraction that gave this story its own @storytree/drive home (112).
+decisions: [5, 20, 30, 31, 35, 37, 57, 59, 60, 112]
 ---
 
 # The drive machinery
@@ -42,16 +48,17 @@ promotion (ADR-0031), the leaf's bounded feedback tools (ADR-0035), and the OQ-h
 live story builds (ADR-0037 §5). Per the V1 lesson recorded in ADR-0031 §3, **machinery is
 ordinary work in the ordinary tree** — it gets a normal story, not a special meta-corner. It spans
 three packages — `packages/orchestrator` (the spine), the work/verdict halves of `packages/core` +
-`packages/store`, and the build surface of `packages/cli` — the same multi-package organism shape
-as `library`.
+`packages/store`, and the build/orchestrate drivers in `packages/drive` (carved out of
+`packages/cli` per ADR-0112, re-exported through cli's `./build` subpath for back-compat) — the same
+multi-package organism shape as `library`.
 
 ## Honest status
 
 **`mapped` (brownfield), NOT `healthy`, no longer thinly mapped.** The machinery's dominant
 behaviour is observationally verified by real, passing, OFFLINE suites I ran on 2026-06-13:
-`@storytree/orchestrator` **99/99**, the drive's CLI tests inside `@storytree/cli` **110/110**,
-the rollup/work-store halves inside `@storytree/core` **124/124** and `@storytree/store` **40
-pass + 2 live-gated skips**. Per `docs/glossary.md` that observational green is exactly brownfield
+`@storytree/orchestrator` **99/99**, the drive's tests (since ADR-0112 resident in
+`@storytree/drive`, moved verbatim from `@storytree/cli`) **110/110**, the rollup/work-store halves
+inside `@storytree/core` **124/124** and `@storytree/store` **40 pass + 2 live-gated skips**. Per `docs/glossary.md` that observational green is exactly brownfield
 `mapped` — storytree's own prove-it-gate did not drive these proofs red→green (the pleasing irony:
 the gate cannot easily prove itself; re-running these assertions UNDER the gate is the bootstrap
 step that would start earning `healthy`). The `proposed` pockets are pinned per capability; the
@@ -238,7 +245,8 @@ owned" section above for the now-settled modeling call.
   pure core of the FREE, read-only `storytree node resolve <id>` command (the gap the blind dogfood
   test surfaced, 2026-06-15: agents had no dry way to confirm a self-registered node resolved before
   a paid `--real` build). REAL-built through the inner loop: the live leaf authored
-  `packages/cli/src/resolve-report.{ts,test.ts}` in a worktree, the spine observed the genuine
+  `resolve-report.{ts,test.ts}` in a worktree (then at `packages/cli/src/`; since ADR-0112 the file
+  lives at `packages/drive/src/resolve-report.{ts,test.ts}`), the spine observed the genuine
   red→green and signed a PASS (run `real-mqelrhoj`, commit `47c9e43`, persisted to `events.verdict`);
   the `nodeResolve` CLI dispatch was wired spine-side AFTER promotion (the leaf's walls exclude
   `commands.ts`).
@@ -282,8 +290,8 @@ through the merge gate, refusing every dishonest shortcut along the way.
    commit is reachable from `main`. *(attested: commit `0e8f4ba` is in this branch's ancestry)*
 5. **Chain a story:** `pnpm storytree story build library --dry-run`. **Success —** capabilities
    topo-ordered from `depends_on`, the story's UAT node last, every node signed over ONE event
-   log, halt-is-never-a-pass. *(proven: `packages/cli/src/story-build.test.ts:17`; the live chain
-   attested: library 8/8 signed passes, $0.48)*
+   log, halt-is-never-a-pass. *(proven: `packages/drive/src/story-build.test.ts:17` — since ADR-0112
+   resident in `@storytree/drive`; the live chain attested: library 8/8 signed passes, $0.48)*
 6. **Refuse the dishonest paths:** `--store pg` with `--dry-run` is refused (a scripted PASS
    persisted would be a forged healthy); a live story build with an unprocessed operator answer on
    a deciding ADR's OQ is refused with the three paths out. *(proven:
@@ -338,14 +346,19 @@ status**) join as `build-tests` gates if they ever earn standing offline tests. 
    `InMemoryStore`/`PgChangeStore` parity contract included) all pass offline (no DB, no API key) — then
    signs an `adopted` verdict (`storytree gate run drive-machinery#gate-1 --pg`). This is the bulk of
    the machinery (`packages/orchestrator`).
-2. **The build-drive CLI surface is green** _(gate: observe)_ `pnpm --filter @storytree/cli test`. The
-   spine OBSERVES the CLI-resident drive surface green at a clean HEAD — `node build` / `story build`
-   dispatch + the honest dry-run/`--real` framing, the `--store pg` + `--dry-run` refusal (a scripted
-   PASS persisted would be a forged healthy), the OQ-hygiene gate refusing a live build on an unprocessed
-   operator answer, and the gate-as-proof ADR-authoring completeness checker — then signs an `adopted`
-   verdict (`storytree gate run drive-machinery#gate-2 --pg`). This is the build surface of
-   `packages/cli` this story owns (`build-drive-cli` / `oq-hygiene-gate` / `gate-as-proof-authoring`),
-   adopted alongside the CLI hub's own `cli#gate-1` since both observe the one `packages/cli` suite.
+2. **The build-drive surface is green** _(gate: observe)_ `pnpm --filter @storytree/drive test`. The
+   spine OBSERVES the drive surface green at a clean HEAD — `node build` / `story build` dispatch + the
+   honest dry-run/`--real` framing, the `--store pg` + `--dry-run` refusal (a scripted PASS persisted
+   would be a forged healthy), and the OQ-hygiene gate refusing a live build on an unprocessed operator
+   answer — then signs an `adopted` verdict (`storytree gate run drive-machinery#gate-2 --pg`). Since
+   ADR-0112 these drivers live in `@storytree/drive` (carved out of `packages/cli`), so this gate
+   observes the `@storytree/drive` suite — `build-drive-cli` / `oq-hygiene-gate`, this story's
+   build-drive surface. The one capability that did NOT move is **`gate-as-proof-authoring`** (the
+   ADR-authoring completeness checker `adr-completeness.ts` / `gate-as-proof.ts` is genuinely
+   CLI-resident, beside the corpus/ADR primitives `cli` owns), so it is observed by the CLI suite —
+   `pnpm --filter @storytree/cli test`, the same suite `cli#gate-1` adopts. Two suites, two observe
+   legs; the drive extraction split what was once one `packages/cli` suite into the drive surface here
+   and the residual CLI-resident authoring checker.
 
 Adopting both flips the tier off `mapped`. `healthy` stays non-authorable
 ([ADR-0020](../../docs/decisions/0020-red-green-enforcement-on-the-owned-loop.md)) — the authored

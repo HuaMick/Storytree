@@ -6,9 +6,9 @@ import path from "node:path";
 
 import type { PresenceDeclarationDoc } from "@storytree/notice-board";
 
-import { auditHookConfig } from "./ambient-presence.js";
-import { nodeBuild, repoRoot } from "./node-build.js";
-import type { PresenceStoreLike } from "./noticeboard.js";
+import { auditHookConfig } from "@storytree/drive";
+import { nodeBuild, repoRoot } from "@storytree/drive";
+import type { PresenceStoreLike } from "@storytree/drive";
 
 /**
  * The SPINE wiring of ambient-integration (post-promotion, per the capability spec): the shared

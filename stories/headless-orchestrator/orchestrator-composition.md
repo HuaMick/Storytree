@@ -15,26 +15,26 @@ depends_on: [headless-session-runner]
 # typecheck wall because the new module lives in @storytree/cli and imports renderAgentPrompt + the
 # runner from @storytree/agent + @storytree/library (the proof runs in a fresh worktree — tsx + tsc need
 # the lockfile-only install, ADR-0031 §2). Single LITERAL source file (no `*`), so the default node:test
-# proof on the one test file is legal — no `proofCommand`. The scope stays within packages/cli (ADR-0087:
+# proof on the one test file is legal — no `proofCommand`. The scope stays within packages/drive (ADR-0087:
 # one concrete package per write scope) — the agent-side runner it calls is a CONSUMED dependency, not a
 # co-edited file.
 proof:
   command:
     file: pnpm
-    args: ["--filter", "@storytree/cli", "test"]
+    args: ["--filter", "@storytree/drive", "test"]
   scope:
-    testGlobs: ["packages/cli/src/**/*.test.ts"]
-    sourceGlobs: ["packages/cli/src/**/*.ts"]
+    testGlobs: ["packages/drive/src/**/*.test.ts"]
+    sourceGlobs: ["packages/drive/src/**/*.ts"]
   real:
-    testFile: "packages/cli/src/orchestrate.test.ts"
-    sourceFile: "packages/cli/src/orchestrate.ts"
+    testFile: "packages/drive/src/orchestrate.test.ts"
+    sourceFile: "packages/drive/src/orchestrate.ts"
     scope:
-      testGlobs: ["packages/cli/src/orchestrate.test.ts"]
-      sourceGlobs: ["packages/cli/src/orchestrate.ts"]
+      testGlobs: ["packages/drive/src/orchestrate.test.ts"]
+      sourceGlobs: ["packages/drive/src/orchestrate.ts"]
     install: true
     typecheck:
       file: pnpm
-      args: ["--filter", "@storytree/cli", "typecheck"]
+      args: ["--filter", "@storytree/drive", "typecheck"]
 ---
 
 # The Phase-1 composition + programmatic entry
@@ -132,28 +132,28 @@ WILL prove against the real composition code once authored (provisional path —
      "session-orchestrator")` and passes THAT to the runner — a non-empty prompt carrying the
      orchestrator role; it does NOT hard-code a bespoke orchestrator prompt. (A stubbed `renderAgentPrompt`
      is asserted to have been called with `"session-orchestrator"`.)
-   - **covers —** `packages/cli/src/orchestrate.ts` (the render call) *(provisional path)*
+   - **covers —** `packages/drive/src/orchestrate.ts` (the render call) *(provisional path)*
 2. **`oc-feeds-intent-as-user-prompt`** — the programmatic intent drives the session
    - **asserts —** the composition feeds the caller's programmatic intent to the runner as the
      `userPrompt` — the intent steers the orientation, and the entry is a plain function arg / CLI arg,
      not an HTTP body.
-   - **covers —** `packages/cli/src/orchestrate.ts` (the intent plumbing)
+   - **covers —** `packages/drive/src/orchestrate.ts` (the intent plumbing)
 3. **`oc-surfaces-proposal-read-only`** — a proposal is surfaced with no act side effect
    - **asserts —** on a successful scripted session the entry returns `{ ok: true, proposal: … }`, and
      no build/PR/verdict path is invoked (the entry holds no signing key, no build runner) — read/propose
      only (ADR-0091).
-   - **covers —** `packages/cli/src/orchestrate.ts` (the return path)
+   - **covers —** `packages/drive/src/orchestrate.ts` (the return path)
 4. **`oc-fails-closed-on-dead-session`** — a failed session is an honest failure
    - **asserts —** when the runner reports `{ ok: false, error }`, the entry surfaces that failure
      (never a forged proposal), and the single-session slot is released for the next intent.
-   - **covers —** `packages/cli/src/orchestrate.ts` (the fail-closed path)
+   - **covers —** `packages/drive/src/orchestrate.ts` (the fail-closed path)
 
 ## Guidance — the net-new slice that earns the signed verdict
 
 The brownfield bootstrap rung toward `healthy` (ADR-0057 §3, NET-NEW): author the Phase-1 composition
 as a new module in `packages/cli`, test-first.
 
-- **The new test —** `packages/cli/src/orchestrate.test.ts` (`node:test` + `node:assert/strict`).
+- **The new test —** `packages/drive/src/orchestrate.test.ts` (`node:test` + `node:assert/strict`).
   Import `{ orchestrate }` (or the chosen entry name) from `"./orchestrate.js"`. Build an
   `InMemoryStore` + `loadCorpus` for the real seed, and an injected `queryFn` scripted double passed
   through to the runner.
@@ -161,7 +161,7 @@ as a new module in `packages/cli`, test-first.
   does not exist at HEAD, so the test fails module-not-found (the net-new missing-symbol red). Assert
   the entry renders the real `session-orchestrator` prompt, drives the runner against the real seed +
   `stories/`, and surfaces the scripted proposal read/propose-only.
-- **The GREEN —** write `packages/cli/src/orchestrate.ts`: a plain async `orchestrate(args)` that
+- **The GREEN —** write `packages/drive/src/orchestrate.ts`: a plain async `orchestrate(args)` that
   (1) renders the prompt via `renderAgentPrompt(store, "session-orchestrator")` (fail-closed if the
   agent is missing — never a silent stub), (2) builds the orientation deps (the `store` + `storiesDir`),
   (3) calls `runHeadlessOrchestrator` (the `@storytree/agent` runner) with the rendered prompt, the

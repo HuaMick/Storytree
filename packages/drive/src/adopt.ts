@@ -10,8 +10,8 @@
 // signs verdicts, it never writes `status: healthy`.
 //
 // The studio's UI-driven Adopt button drives THIS entry (the server-process worker calls it, the same
-// way the build worker calls `nodeBuild`/`storyBuild`) — re-exported from `@storytree/cli/build`.
-// The frontend imports none of it (ADR-0004).
+// way the build worker calls `nodeBuild`/`storyBuild`) — re-exported from `@storytree/drive/build`
+// (and from `@storytree/cli/build` for back-compat). The frontend imports none of it (ADR-0004).
 //
 // Two layers, like the build entries: a PURE-by-injection {@link runAdopt} core (every seam injected,
 // offline-testable with no DB / git / subprocess) and a self-wiring {@link adoptStory} that resolves

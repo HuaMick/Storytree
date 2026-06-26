@@ -5,7 +5,7 @@ import { InMemoryStore } from "@storytree/storage-protocol";
 import type { PresenceDeclarationDoc } from "@storytree/notice-board";
 
 import { run } from "./commands.js";
-import type { PresenceStoreLike } from "./noticeboard.js";
+import type { PresenceStoreLike } from "@storytree/drive";
 
 /**
  * The noticeboard DISPATCH wiring (spine-side, ADR-0033): `run` routes the `noticeboard` area to

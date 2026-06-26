@@ -14,20 +14,20 @@ depends_on: [noticeboard-cli, tree-view]
 proof:
   command:
     file: pnpm
-    args: ["--filter", "@storytree/cli", "test"]
+    args: ["--filter", "@storytree/drive", "test"]
   scope:
-    testGlobs: ["packages/cli/src/**/*.test.ts"]
-    sourceGlobs: ["packages/cli/src/**/*.ts"]
+    testGlobs: ["packages/drive/src/**/*.test.ts"]
+    sourceGlobs: ["packages/drive/src/**/*.ts"]
   real:
-    testFile: "packages/cli/src/ambient-presence.test.ts"
-    sourceFile: "packages/cli/src/ambient-presence.ts"
+    testFile: "packages/drive/src/ambient-presence.test.ts"
+    sourceFile: "packages/drive/src/ambient-presence.ts"
     scope:
-      testGlobs: ["packages/cli/src/ambient-presence.test.ts"]
-      sourceGlobs: ["packages/cli/src/ambient-presence.ts"]
+      testGlobs: ["packages/drive/src/ambient-presence.test.ts"]
+      sourceGlobs: ["packages/drive/src/ambient-presence.ts"]
     install: true
     typecheck:
       file: pnpm
-      args: ["--filter", "@storytree/cli", "typecheck"]
+      args: ["--filter", "@storytree/drive", "typecheck"]
 ---
 
 # Presence declares itself — spine-side, fail-silent hooks, a statusline glance
@@ -36,7 +36,7 @@ proof:
 statusline glance — never via a blocking-capable hook.
 
 > **Proof status (honest) — `proposed`, registered for REAL build.** The registered proof
-> (`packages/cli/src/ambient-presence.test.ts`) covers the MODULE legs offline — the build
+> (`packages/drive/src/ambient-presence.test.ts`) covers the MODULE legs offline — the build
 > wrapper, the fail-silent hook handler, the statusline glance/heartbeat, the config audit — all
 > against fakes. The spine wiring (calling `withPresence` from `node build`, the
 > `.claude/settings.json` hook/statusline entries) lands spine-side AFTER promotion, the
@@ -50,7 +50,7 @@ This is the automation rung of the board: presence appears without anyone typing
 path here is **advisory by construction** (ADR-0033 Decision 3) — a presence failure never fails,
 blocks, or even speaks into the enclosing action.
 
-The implementation is `packages/cli/src/ambient-presence.ts` — a SELF-CONTAINED module of plain
+The implementation is `packages/drive/src/ambient-presence.ts` — a SELF-CONTAINED module of plain
 functions (no Envelope: these are automation surfaces, not choose-your-own-adventure commands).
 Do NOT touch `commands.ts`, `main.ts`, `node-build.ts`, or `.claude/settings.json` (all outside
 your write scope) — the spine wires the callers afterwards. Reuse the existing seams: import
@@ -88,7 +88,7 @@ store), and `classifyPresence`/`mergeDeclaration`/`PresenceDeclarationDoc` from
     under `Stop`, `PreToolUse`, or `UserPromptSubmit` whose command mentions `noticeboard` or
     `ambient-presence`; `[]` when clean. Hooks on those events that are NOT notice-board-shaped
     are NOT violations — other automation legitimately lives there.
-- **The test (`packages/cli/src/ambient-presence.test.ts`, the registered REAL proof — offline
+- **The test (`packages/drive/src/ambient-presence.test.ts`, the registered REAL proof — offline
   only):** drive all four functions directly with a tiny in-memory `PresenceStoreLike` fake (one
   that records calls, one that throws on every call), fake identities, and a fixed `now`. Cover:
   `withPresence` declares before `fn` and marks done in a `finally` even when `fn` throws (assert
@@ -120,21 +120,21 @@ time. Audit `.claude/settings.json` for forbidden hook events.
    - **asserts —** `node build`/`story build` (`--live`/`--real`, `--store pg`) declare (node id,
      run id prose) before the leaf runs and mark done in a `finally`; with a presence store that
      throws on every call, the build result is unchanged.
-   - **proven by —** would-be `packages/cli/src/ambient-presence.test.ts`
+   - **proven by —** would-be `packages/drive/src/ambient-presence.test.ts`
 2. **`session-hooks-fail-silent`** — the SessionStart/SessionEnd wrappers cannot hurt a session
    - **asserts —** (offline legs) the declare/done wrapper scripts exit 0 on DB-down and bad
      input, complete within their timeout bound, and emit nothing when the DB is down; the
      successful pass-through is asserted against a faked store. The real DB-up pass-through is
      live-gated/human-verified, outside the registered proof.
-   - **proven by —** would-be `packages/cli/src/ambient-presence.test.ts` (offline; DB-up leg
+   - **proven by —** would-be `packages/drive/src/ambient-presence.test.ts` (offline; DB-up leg
      live-gated)
 3. **`statusline-glance`** — the statusline renders a one-line board summary or nothing
    - **asserts —** with a reachable projection the command prints one line (active count, own
      node, overlap warning) and bumps the session's `lastSeenAt` (debounced — repeated renders
      inside the debounce window write once); on any failure it prints the empty string, writes
      nothing, and exits 0.
-   - **proven by —** would-be `packages/cli/src/ambient-presence.test.ts`
+   - **proven by —** would-be `packages/drive/src/ambient-presence.test.ts`
 4. **`never-blocking-hooks`** — no notice-board hook on a blocking-capable event
    - **asserts —** a config audit of `.claude/settings.json` finds no notice-board hook registered
      on `Stop`, `PreToolUse`, or `UserPromptSubmit`.
-   - **proven by —** would-be `packages/cli/src/ambient-presence.test.ts`
+   - **proven by —** would-be `packages/drive/src/ambient-presence.test.ts`

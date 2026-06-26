@@ -25,9 +25,10 @@ consumed_by: []
 # (depends_on / consumed_by above stay as-is). Build behind `?buildings`; appearance owner-attested.
 render: building
 # Deciding ADRs (ADR-0037 §2): the choose-your-own-adventure CLI (23), the atomic ADR-number
-# allocator the CLI hosts (50), CLI-as-a-first-class-hub-organism (74), and the shared-island
-# per-island-icon-stamp render (102).
-decisions: [23, 50, 74, 102]
+# allocator the CLI hosts (50), CLI-as-a-first-class-hub-organism (74), the shared-island
+# per-island-icon-stamp render (102), and the drive-package extraction that moved the build/orchestrate
+# drivers out of cli into @storytree/drive (cli now depends on + re-exports them, 112).
+decisions: [23, 50, 74, 102, 112]
 ---
 
 # The CLI — one agent-facing command surface that wires every organism together
@@ -40,8 +41,11 @@ This is storytree's **command hub** ([ADR-0023](../../docs/decisions/0023-librar
 the choose-your-own-adventure surface). `packages/cli` is the thin shim every agent talks to:
 `main.ts` parses args, hydrates credentials (`secrets.ts`), dispatches by verb, and maps the result
 to a typed `Envelope` + exit code. It imports **every** organism to surface it — library explore/edit,
-the node/story build drive, the notice board, the tree, db control — which is exactly why it is the
-wiring hub.
+the node/story build drive (since ADR-0112 the drivers live in `@storytree/drive`, which `cli` depends
+on and dispatches from `commands.ts`), the notice board, the tree, db control — which is exactly why it
+is the wiring hub. `cli`'s `secrets.ts` / `build.ts` / `envelope.ts` are now thin back-compat shims
+re-exporting `@storytree/drive` (so `@storytree/cli/build` and `@storytree/cli/secrets` are unchanged
+for any existing importer).
 
 **Why this is its own (hub) story now ([ADR-0074](../../docs/decisions/0074-enforce-the-organism-boundary-gate-the-cross-story-dependenc.md) §2).**
 The CLI is the single most-connected package in the workspace. The v1 boundary gate classed it a
@@ -53,7 +57,9 @@ connection set (§4).
 **The shim owns the wiring, not the journeys.** The deep per-domain journeys the CLI surfaces are
 owned by their organism stories — the library CYOA is `library`'s [`library-cli`](../library/library-cli.md);
 the board is `notice-board`'s [`noticeboard-cli`](../notice-board/noticeboard-cli.md) + tree-view;
-the build drive is `drive-machinery`'s [`build-drive-cli`](../drive-machinery/build-drive-cli.md).
+the build drive is `drive-machinery`'s [`build-drive-cli`](../drive-machinery/build-drive-cli.md)
+(since ADR-0112 a separate package, `@storytree/drive`, that `cli` depends on and re-exports — the
+journey is `drive-machinery`'s either way, now behind a package boundary too).
 This story owns the **connective tissue** that makes them one tool, plus the genuinely CLI-resident
 authoring primitives (the corpus guard, the ADR frontmatter parser).
 
@@ -86,8 +92,11 @@ case per real defect (`uat-proves-the-goal-not-the-surface`).
 
 The CLI's real `@storytree/*` runtime imports (ADR-0010 §3) — all **cross-story** (it is the hub):
 
-- `cli → drive-machinery` — `node-build.ts` drives `node build`/`story build` through the spine
-  (`@storytree/orchestrator`) and the leaf (`@storytree/agent`).
+- `cli → drive-machinery` — since ADR-0112 the build/orchestrate drivers (`node-build.ts` /
+  `story-build.ts` etc.) live in `@storytree/drive` (owned by `drive-machinery`); `cli` `depends_on`
+  `@storytree/drive`, dispatches the drivers from `commands.ts`, and re-exports the build seam through
+  its own `./build` (and `./secrets`) subpath for back-compat. The drivers drive `node build`/`story
+  build` through the spine (`@storytree/orchestrator`) and the leaf (`@storytree/agent`).
 - `cli → library` — `commands.ts` validates/upcasts library docs on every write.
 - `cli → notice-board` — `noticeboard.ts` classifies presence staleness for the board surface.
 - `cli → store` — `main.ts`'s `buildStore` swaps `PgLibraryStore` in under `--pg`.

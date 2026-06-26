@@ -49,12 +49,12 @@ import type {
   PromotionResult,
 } from "@storytree/orchestrator";
 
-import type { AmbientDeps } from "./ambient-presence.js";
-import { effectiveVerdictStore, ensureLiveDb } from "./db-control.js";
-import type { EnsureDbResult } from "./db-control.js";
+import type { AmbientDeps } from "@storytree/drive";
+import { effectiveVerdictStore, ensureLiveDb } from "@storytree/drive";
+import type { EnsureDbResult } from "@storytree/drive";
 import type { Envelope } from "./envelope.js";
-import { deriveIdentity } from "./noticeboard.js";
-import type { PresenceStoreLike, SessionIdentity } from "./noticeboard.js";
+import { deriveIdentity } from "@storytree/drive";
+import type { PresenceStoreLike, SessionIdentity } from "@storytree/drive";
 import {
   buildNodeReal,
   realConfigRefusal,
@@ -63,7 +63,7 @@ import {
   resolveAddDepsGroup,
   resolveDbProofEnv,
   resolveVerdictStore,
-} from "./node-build.js";
+} from "@storytree/drive";
 
 /** Seams a real build-tests-gate drive needs, all injectable so the R2 walk is offline-testable. */
 export interface GateBuildDriverDeps {

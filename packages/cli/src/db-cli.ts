@@ -3,7 +3,7 @@
 // REST effects. Thin I/O shell — the decisions it calls are unit-tested in db-control.ts; this is
 // just argv → effect → stdout.
 
-import { ensureLiveDb, statusLiveDbViaRest, stopLiveDbViaRest } from "./db-control.js";
+import { ensureLiveDb, statusLiveDbViaRest, stopLiveDbViaRest } from "@storytree/drive";
 
 async function main(): Promise<void> {
   // Root scripts delegate via `pnpm --filter @storytree/cli db -- <action>` (the storytree-script

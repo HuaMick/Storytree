@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { parseAdrFrontmatter, type AdrMeta, type AdrStatus } from "./adr-frontmatter.js";
+import { parseAdrFrontmatter, type AdrMeta, type AdrStatus } from "@storytree/drive";
 import type { Envelope } from "./envelope.js";
 
 /**

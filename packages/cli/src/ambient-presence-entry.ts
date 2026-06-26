@@ -4,10 +4,10 @@ import * as os from "node:os";
 import path from "node:path";
 import process from "node:process";
 
-import { sessionHook, statuslineGlance } from "./ambient-presence.js";
-import type { AmbientDeps, HeartbeatState } from "./ambient-presence.js";
-import { deriveIdentity } from "./noticeboard.js";
-import type { PresenceStoreLike } from "./noticeboard.js";
+import { sessionHook, statuslineGlance } from "@storytree/drive";
+import type { AmbientDeps, HeartbeatState } from "@storytree/drive";
+import { deriveIdentity } from "@storytree/drive";
+import type { PresenceStoreLike } from "@storytree/drive";
 import { loadLocalSecrets } from "./secrets.js";
 
 /**

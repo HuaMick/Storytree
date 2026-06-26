@@ -17,7 +17,7 @@ import type { AdrAllocatorLike } from "./adr.js";
 import type { AttestationStoreLike } from "./attest.js";
 import { run } from "./commands.js";
 import { formatEnvelope } from "./envelope.js";
-import type { PresenceStoreLike } from "./noticeboard.js";
+import type { PresenceStoreLike } from "@storytree/drive";
 import { loadLocalSecrets } from "./secrets.js";
 import type { VerdictReaderLike } from "./tree-verdicts.js";
 import type { UatVerdictStoreLike } from "./uat.js";
