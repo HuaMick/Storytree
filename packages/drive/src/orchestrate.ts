@@ -112,7 +112,7 @@ export async function orchestrate({
       refused: true,
       reason: "single-session",
       error:
-        "A composition orchestration session is already in flight — one session at a time (ADR-0108 decision 6).",
+        "A composition orchestration session is already in-flight — one session at a time (ADR-0108 decision 6).",
     };
   }
   compositionInFlight = true;
