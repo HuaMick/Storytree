@@ -68,8 +68,11 @@ orient/propose agent inside the desktop. **Read/propose only** (ADR-0091): no si
 > desktop sidecar (`apps/desktop/electron/backend-entry.ts`) explicitly names this as the gap: *"READ
 > loop only (ADR-0119 §2): no build-trigger / adopt / chat-SSE — those are later increments."* This
 > capability adds the chat-SSE mount that increment deferred. The renderer chat PANEL (the thin client
-> that POSTs the intake and renders the SSE stream) is a SEPARATE follow-on owned by the `studio` story
-> (see "Renderer chat panel placement" below); its appearance is this story's operator-attested UAT leg 7.
+> that POSTs the intake and renders the SSE stream) is a SEPARATE follow-on owned by the `studio` story —
+> now authored as [`chat-panel`](../studio/chat-panel.md) (the story's first forward-built capability, a
+> vitest component test with `fetch` mocked to a scripted SSE stream; see the desktop story's Open
+> modeling call #1 for the three-layer placement + the sidecar cap-vs-glue decision); its appearance is
+> this story's operator-attested UAT leg 7.
 
 ## Guidance
 

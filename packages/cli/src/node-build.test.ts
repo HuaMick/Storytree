@@ -163,6 +163,10 @@ test("node build without an id, and bare `node`, are help/guidance", async () =>
   // two more desktop `real:` caps beyond that original ADR-0113 trio: boot-read-routes (ADR-0119, the boot
   // read set) and chat-sse-mount (ADR-0108 Phase 2 — the consumed startChatStream mounted at POST /api/chat
   // and streamed as SSE);
+  // the `studio` story's first FORWARD-BUILT capability (stories/studio/chat-panel.md — a NET-NEW `real:`
+  // arm proof-wired for the studio's VITEST runner, `real.proofCommand: pnpm --filter studio test`):
+  // chat-panel (ADR-0108 — the renderer chat panel that POSTs /api/chat and renders the streamed
+  // done/error/refused SSE events; a thin client, no @storytree/agent / @storytree/drive import);
   // the two ADR-0117 broker units: builder-role (stories/studio-members/builder-role.md — an
   // EDITS-EXISTING `real:` arm adding the third role to users.ts) and write-broker
   // (stories/studio-cloud/write-broker.md — a NET-NEW `real:` arm: the members-gated write endpoint);
@@ -183,7 +187,7 @@ test("node build without an id, and bare `node`, are help/guidance", async () =>
   // story is not real-buildable.
   assert.match(
     bare.body,
-    /REAL-buildable nodes: +ambient-integration, boot-read-routes, boundhash-on-verdict, builder-role, change-event-store, change-store-pg, chat-session-stream, chat-sse-mount, cloud-sql-admin-rest, declare-presence, declared-edge-drift-report, drift-reads-store, event-sourced-store-seam, gate-emits-change, headless-session-runner, leaf-tool-surface, local-backend-boot, local-credential-wiring, model-runtime-seam, node-resolve-report, noticeboard-cli, orchestrator-composition, orientation-tool-surface, owned-turn-loop, presence-store, seed-corpus-scripts, shared-forest-connection, source-drift, tree-view, verdict-glyphs, verdict-line, write-broker/,
+    /REAL-buildable nodes: +ambient-integration, boot-read-routes, boundhash-on-verdict, builder-role, change-event-store, change-store-pg, chat-panel, chat-session-stream, chat-sse-mount, cloud-sql-admin-rest, declare-presence, declared-edge-drift-report, drift-reads-store, event-sourced-store-seam, gate-emits-change, headless-session-runner, leaf-tool-surface, local-backend-boot, local-credential-wiring, model-runtime-seam, node-resolve-report, noticeboard-cli, orchestrator-composition, orientation-tool-surface, owned-turn-loop, presence-store, seed-corpus-scripts, shared-forest-connection, source-drift, tree-view, verdict-glyphs, verdict-line, write-broker/,
   );
 
   const noId = await run(["node", "build", "--dry-run"], deps);

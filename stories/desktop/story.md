@@ -429,13 +429,35 @@ owner-fork bar):
      glue chat-session-stream's Guidance assigns to "the consuming surface" lands HERE, proven.
    - The renderer chat **panel** (the thin client that POSTs the intake and renders the SSE stream) is a
      `studio` frontend component (`apps/studio/src`) — the desktop renders the COMPILED studio dist, so a
-     renderer panel is studio's surface, not the desktop's. Its provable geometry/behaviour (POSTs
-     intake; renders the streamed `done`/`error`/`refused`; shows busy/error/refused states) is a
-     `studio`-story contract (frontend-builder two-stage, ADR-0070); its *appearance inside the native
-     shell* is THIS story's already-declared operator-attested UAT leg 7 (the look is witnessed, never a
-     machine visual verdict). The panel is a follow-on owned by `studio` — deliberately NOT pulled into
-     this story (slow growth: the desktop's net-new is the mount; the panel rides studio's frontend
-     discipline next).
+     renderer panel is studio's surface, not the desktop's. It is now AUTHORED as the `studio` story's
+     first forward-built capability ([`chat-panel`](../studio/chat-panel.md), 2026-06-27): its provable
+     geometry/behaviour (POSTs `{ intent }`; reads the SSE stream; renders the streamed
+     `done`/`error`/`refused`; shows busy + error + a distinct "busy/try-again" refused state; a blank
+     intent never POSTs) is a `studio`-story contract proven by a **vitest** component test with `fetch`
+     mocked to a scripted SSE `ReadableStream` (frontend-builder two-stage, ADR-0070 — the offline
+     geometry/behaviour here, the appearance attested). It is a THIN CLIENT: it imports NO
+     `@storytree/agent` and NO `@storytree/drive` (the studio src model-path boundary), parsing the wire
+     events into its OWN local structural type, so it adds no new package edge. Its *appearance inside the
+     native shell* is THIS story's already-declared operator-attested UAT leg 7 (the look is witnessed,
+     never a machine visual verdict). The panel is owned by `studio` — deliberately NOT pulled into this
+     story (slow growth: the desktop's net-new is the mount; the panel rides studio's frontend discipline).
+   - **The SIDECAR WIRING that binds the mount live is operator-attested GLUE, not a provable capability
+     (decided here — the story-author's cap-vs-glue call).** Mounting `createChatSseMount` (the proven
+     `chat-sse-mount` dispatcher) into `apps/desktop/electron/backend-entry.ts` — with the LIVE SDK
+     `queryFn`, the brokered keychain credential (`loadLocalSecrets`), an orientation `runner`, and a real
+     corpus `store` (the Cloud SQL `createPool`) — is **operator-attested glue**, witnessed under UAT leg 7
+     / the live-chat leg, never machine-proven in CI. The CI-provable, electron-free slice of the chat
+     surface is ALREADY carved out and separately proven: the dispatcher's route + SSE-serialisation +
+     terminal-state + fall-through logic is the `chat-sse-mount` capability (proven with an *injected
+     scripted* `queryFn`, zero live SDK), and the renderer half is `chat-panel` (proven with a *mocked*
+     `fetch`). What remains in `backend-entry.ts` is PURELY the live binding — an entry-guarded `main()`
+     with a raw `Pool`, the real SDK, and the real credential, which CI cannot drive offline (a real
+     `query()` is subscription-billed and the live DB pool cannot connect in CI). There is **no further
+     CI-provable electron-free slice distinct from that live binding** to extract — so it is recorded as
+     glue, matching the corpus's existing framing (`chat-sse-mount.md`: "the Electron sidecar
+     (`backend-entry.ts`) is the thin operator-attested binding"). `backend-entry.ts`'s current
+     *"no … chat-SSE — those are later increments"* note (ADR-0119 §2) is the gap this binding closes,
+     as glue under leg 7, once both `chat-sse-mount` and `chat-panel` are green.
 2. **The desktop serves the studio's BOOT read set; verbatim full route-table sharing stays deferred
    (decided, ADR-0119 §2).** The desktop mounts the studio's BOOT read routes
    (`me`/`health`/`docs`/`tree`/`assets`/`comments`) — composed from the organism drivers and a read-only

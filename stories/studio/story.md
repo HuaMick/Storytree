@@ -5,7 +5,7 @@ title: "The studio"
 outcome: "An operator reviews the project record through one browsable forum studio."
 status: proposed
 proof_mode: UAT
-capabilities: [dev-server-persistence-backbone, seed-library-corpus, read-corpus, resolve-comment, annotate-topic, browse-library, author-library-artifact]
+capabilities: [dev-server-persistence-backbone, seed-library-corpus, read-corpus, resolve-comment, annotate-topic, browse-library, author-library-artifact, chat-panel]
 # Story-level edges: the "Cross-story boundary" section below, encoded (consumed seams,
 # ADR-0010 §4; code-import-evidenced — see that section for file:line). ADR-0036. As of ADR-0100
 # the studio app is a consuming SURFACE in the boundary scan (check:boundaries now walks apps/*),
@@ -16,16 +16,19 @@ capabilities: [dev-server-persistence-backbone, seed-library-corpus, read-corpus
 # this is a re-pointing of the same code edge to a narrower package, not a graph change.
 depends_on: [library, drive-machinery, notice-board, forest-world, studio-members, proof-protocol]
 # Deciding ADRs (ADR-0037 §2): UI-drives-agents (8), the story world (36, recalibrated by 38),
-# the app brought into the boundary scan as a consuming surface (100), and the drive-package
-# extraction that re-pointed the build/secrets seam off cli onto @storytree/drive (112).
-decisions: [8, 36, 38, 100, 112]
+# the app brought into the boundary scan as a consuming surface (100), the drive-package
+# extraction that re-pointed the build/secrets seam off cli onto @storytree/drive (112), and the
+# chat surface (108) whose renderer PANEL is THIS story's first forward-built capability
+# (`chat-panel`), placed here by the thick-local desktop step (113) — the desktop renders studio's
+# compiled dist, so the panel is a studio frontend component (desktop story Open modeling call #1).
+decisions: [8, 36, 38, 100, 112, 108, 113]
 ---
 
 # The studio
 
 **Outcome —** An operator reviews the project record through one browsable forum studio.
 
-apps/studio is a hand-built, single-process Vite dev app (run with `pnpm --filter studio dev`) that turns the repo's own docs/ corpus and a synthesised guidance Library into a reviewable forum: read rendered ADRs/glossary, anchor comments onto exact text spans / sections / whole topics and resolve them, and browse-author-seed a categorised Library of injectable guidance artifacts. The whole 'backend' is one Vite middleware file (server/devApi.ts) serving docs read-only from <repo>/docs and persisting comments + assets to git-tracked JSON stores under apps/studio/data. HONESTY: every unit below is a RETROSPECTIVE spec over already-working code: each contract describes the isolated unit test that WOULD prove a leaf (citing real code at file:line), each capability describes the integration test that WOULD prove it against its real in-story collaborators (no stubs within the organism), and the single story-level UAT below describes the acceptance walkthrough that WOULD prove the whole organism against the real running app. As of 2026-06-12 the package carries test tooling (a vitest suite in `pnpm -r test` scope, and a scripted Playwright shadow of part of the story UAT — see § Proof), but no proof ceremony has run. Nothing here is 'proven', 'healthy', or 'mapped'; proof status is authored-only.
+apps/studio is a hand-built, single-process Vite dev app (run with `pnpm --filter studio dev`) that turns the repo's own docs/ corpus and a synthesised guidance Library into a reviewable forum: read rendered ADRs/glossary, anchor comments onto exact text spans / sections / whole topics and resolve them, and browse-author-seed a categorised Library of injectable guidance artifacts. The whole 'backend' is one Vite middleware file (server/devApi.ts) serving docs read-only from <repo>/docs and persisting comments + assets to git-tracked JSON stores under apps/studio/data. HONESTY: the first SEVEN units below are RETROSPECTIVE specs over already-working code: each contract describes the isolated unit test that WOULD prove a leaf (citing real code at file:line), each capability describes the integration test that WOULD prove it against its real in-story collaborators (no stubs within the organism), and the single story-level UAT below describes the acceptance walkthrough that WOULD prove the whole organism against the real running app. As of 2026-06-12 the package carries test tooling (a vitest suite in `pnpm -r test` scope, and a scripted Playwright shadow of part of the story UAT — see § Proof), but no proof ceremony has run on the retro seven. The EIGHTH unit, [`chat-panel`](chat-panel.md) (the renderer chat panel, 2026-06-27), is the exception — genuinely NET-NEW / forward-built: it precedes its code and carries a real `proof:`/`real:` block (proof-wired for the studio's vitest runner) so the spine drives it red→green under its own gate. Nothing here is 'proven', 'healthy', or 'mapped'; proof status is authored-only.
 
 ## What this is
 
@@ -55,9 +58,11 @@ build/secrets seam re-pointed off `cli` onto `@storytree/drive` by ADR-0112) —
 See [`../README.md`](../README.md) for the representation and how every field maps to
 ADR-0002 / `docs/glossary.md`.
 
-## Capabilities (7)
+## Capabilities (8)
 
-Listed roots-first (a capability appears after everything it depends on).
+Listed roots-first (a capability appears after everything it depends on). The first seven are
+RETROSPECTIVE specs over built code; the eighth (`chat-panel`) is the first NET-NEW / forward-built
+capability (it carries a real `proof:`/`real:` block — see its spec).
 
 | # | capability | outcome | depends on |
 |---|---|---|---|
@@ -68,6 +73,7 @@ Listed roots-first (a capability appears after everything it depends on).
 | 5 | [`annotate-topic`](annotate-topic.md) | An operator anchors a comment onto a precise place in a rendered topic. | `dev-server-persistence-backbone`, `read-corpus` |
 | 6 | [`browse-library`](browse-library.md) | An operator explores the seeded guidance Library down to a single rendered artifact. | `dev-server-persistence-backbone`, `seed-library-corpus`, `read-corpus` |
 | 7 | [`author-library-artifact`](author-library-artifact.md) | An operator durably changes the Library's contents through the editor form. | `dev-server-persistence-backbone`, `browse-library` |
+| 8 | [`chat-panel`](chat-panel.md) | The renderer chat panel POSTs `/api/chat`, reads the SSE stream, and renders the streamed `done`/`error`/`refused` events with busy + error + "busy / try again" (refused) states — a thin client that never imports the agent (nor `@storytree/drive`), its only seam the `fetch('/api/chat')` route. | `dev-server-persistence-backbone` |
 
 ## Dependency graph (code-derived)
 
@@ -96,6 +102,8 @@ acyclic; `dev-server-persistence-backbone` and `seed-library-corpus` are the roo
   - AssetEditor's save()/remove() call api.createAsset/updateAsset/deleteAsset → POST/PATCH/DELETE /api/assets, whose handlers run readAssetInput, the dup/relock guards, createdAt/updatedAt stamping and writeStore (devApi.ts:291-321) — author's durable mutations are the backbone's asset handlers.
 - `author-library-artifact` → `browse-library`
   - After every save/delete, AssetEditor/AssetView call refreshAssets() then navigate into browse-library's surfaces — create/edit land on AssetView (the detail render browse-library owns), delete routes to the Library list (AssetView.tsx:36-38); author's post-mutation render path is browse-library's components.
+- `chat-panel` → `dev-server-persistence-backbone`
+  - The chat panel's only path to the agent is a `fetch('/api/chat')` over the studio's `/api/*` middleware seam — the SAME shared connect-middleware coupling `read-corpus` and `browse-library` declare (the backbone's `/api/*` registration ahead of Vite's SPA fallback). The panel imports NO build/agent code; it speaks to the route. This edge is authored from the INTENDED data-flow (the capability is NET-NEW / forward-built — `chat-panel` precedes its code), not read off real source like the seven retro edges above; re-derive from the real imports when built (ADR-0010 §3) and correct if the code disagrees. The route's RUNTIME server (the desktop's `chat-sse-mount` dispatcher, served when the compiled studio bundle renders inside the desktop shell) is a CROSS-story concern, not a within-story edge — the panel makes no within-organism import to reach it.
 
 ## Cross-story boundary (ADR-0010 §4)
 
@@ -139,6 +147,24 @@ now declared + forest-rendered edges too, each read off real imports:
   declared a `cli` edge to reach them; the move carved them into `@storytree/drive` (owned by
   `drive-machinery`), so the studio now imports the narrower package and dropped its `@storytree/cli`
   dependency. The `cli` edge is gone from `depends_on`.
+
+The `chat-panel` capability (2026-06-27) adds **NO new cross-story package import edge** — a deliberate
+thin-client / slow-growth call (see its spec's "The event type is a local structural type" Guidance):
+
+- The panel speaks to `POST /api/chat` at **runtime via `fetch`** (a route, not an import). That route
+  is served by the **`desktop` story's** [`chat-sse-mount`](../desktop/chat-sse-mount.md) dispatcher
+  when the COMPILED studio bundle renders inside the desktop shell (ADR-0090 d.4 / ADR-0108 d.1) — a
+  runtime relationship, not a build coupling. The panel makes no import to reach it and no assumption
+  about which process serves it (absent in the bare `pnpm --filter studio dev` server → an honest
+  unavailable state, never a crash). So this is NOT a `depends_on` edge and is NOT in the boundary scan.
+- The wire events it parses are the same shape `headless-orchestrator`'s
+  [`chat-session-stream`](../headless-orchestrator/chat-session-stream.md) core emits
+  (`done`/`error`/`refused`), but the panel declares its OWN **local structural type** rather than
+  importing `@storytree/drive`'s `ChatStreamEvent` — both because the studio src model-path boundary
+  (`src/modelPathBoundary.test.ts`, ADR-0004) FORBIDS a `@storytree/drive` import in the renderer
+  (it catches an `import type` too) and because a thin client should not couple to the agent runtime's
+  types. No compile edge here; the seam that breaks if the wire shape drifts is the route's
+  operator-attested UAT + the `chat-sse-mount` integration test, not a `depends_on`.
 
 ## Story UAT
 
