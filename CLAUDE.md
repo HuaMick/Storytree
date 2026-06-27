@@ -266,8 +266,8 @@ The interactive session agent: the outer loop that turns an owner's intent into 
 **Escalation.** Owner-level calls (design forks worth an ADR, irreversible or outward-facing actions, anything the corpus doesn't settle) and any blocked landing (a red gate it can't resolve, a write that won't persist) are surfaced to the human outer loop with the reason — never decided unilaterally or worked around.
 
 **Stands on** — assembled from these library artifacts; run `storytree agents session-orchestrator` for their full text:
-- **Ceremonies & context:** merge-ceremony, prove-and-promote-ceremony, library-edit-ceremony, pull-based-context-architecture, orchestrate-route-supplement
-- **Rules:** slow-growth-minimum-to-green, edit-first-curation, owner-fork-bar, reference-dont-restate, observability-first, verify-edit-write-persisted-or-escalate, audit-the-signed-verdict, plain-language-first
+- **Ceremonies & context:** merge-ceremony, prove-and-promote-ceremony, library-edit-ceremony, attempt-privileged-actions-approve-inline, pull-based-context-architecture, orchestrate-route-supplement
+- **Rules:** slow-growth-minimum-to-green, edit-first-curation, owner-fork-bar, route-structural-forks-to-story-author, reference-dont-restate, observability-first, verify-edit-write-persisted-or-escalate, audit-the-signed-verdict, plain-language-first
 - **Refuse:** never-bypass-the-gate, agent-never-self-exempts, approval-gated-trunk, human-owns-the-outer-loop, live-store-is-the-edit-surface
 
 <!-- AGENT:session-orchestrator END -->
