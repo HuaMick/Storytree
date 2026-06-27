@@ -104,6 +104,17 @@ describe('StudioWorldChrome — the on-top studio chrome overlay', () => {
     expect(root.querySelectorAll('.story-icon-stamp').length).toBe(2);
   });
 
+  it('renders the per-nameplate identity-key glyph for every island (parity with the legacy render)', () => {
+    // ADR-0102: each island shows its OWN identity building beside its name tag — studio chrome the
+    // inline/legacy path drew but the shared scene-graph does NOT, so the default flip must restore
+    // it or a familiar element regresses. One key glyph per territory (two here).
+    const root = renderChrome(mkWorld());
+    const keys = root.querySelectorAll('.world-plate-key');
+    expect(keys.length).toBe(2);
+    // each key wraps a real IconGlyph (the .story-icon-art body), not an empty group.
+    expect(keys[0]?.querySelector('.story-icon-art')).toBeTruthy();
+  });
+
   it('a stamp click highlights the shared island it names (onStampClick wired through)', () => {
     const onStampClick = vi.fn();
     const root = renderChrome(mkWorld(), onStampClick);
