@@ -4,7 +4,7 @@
  * `storytree coverage <cap>` checks ONE capability on demand ({@link import("./coverage.js").coverageCommand},
  * ADR-0122). This sweeps EVERY capability that carries a registered real-build test surface
  * (`proof.real.testFile`) and WARNs — never blocks — when one declares a `## Contracts` behaviour no
- * SUBSTANTIVE test covers (a hollow `assert(true)` / skipped test does not count, ADR-0123). It is the
+ * SUBSTANTIVE test covers (a hollow `assert(true)` / skipped test does not count, ADR-0126). It is the
  * contract→test analogue of `check:corpus-sync` / `check:agents-sync`: a best-effort, local-only nudge
  * wired into `pnpm gate`, NOT a hard build-blocking gate.
  *
@@ -122,7 +122,7 @@ export function formatCoverageGate(report: GateCoverageReport): { warn: boolean;
       "SUBSTANTIVE test covers (a signed --real green attests ONE authored test, not every contract; " +
       "ADR-0020 §3 / ADR-0122). Advisory only — author a test NAMING each (the " +
       '`describe("<id>: …")` convention) AND asserting substantively (a hollow `assert(true)` or skipped ' +
-      "test does not count, ADR-0123), or split/retire the contract. " +
+      "test does not count, ADR-0126), or split/retire the contract. " +
       "Run `pnpm storytree coverage <cap>` for the per-contract report.",
   ];
   for (const u of report.underCovered) {
@@ -193,7 +193,7 @@ export function loadRealBuildCoverageUnits(storiesDir: string, repoRoot: string)
     let testNames: string[] = [];
     if (existsSync(abs)) {
       try {
-        // VOUCHING names only (ADR-0123): a hollow / skipped test contributes nothing, so a contract
+        // VOUCHING names only (ADR-0126): a hollow / skipped test contributes nothing, so a contract
         // named only by an `assert(true)` reads uncovered (not falsely covered).
         testNames = extractVouchingTestNames(readFileSync(abs, "utf8"));
       } catch {

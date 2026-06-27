@@ -4,7 +4,7 @@ load_bearing: true
 decided: 2026-06-27
 amends: [122]
 ---
-# ADR-0123: Static-AST hollow-test detection: a contract is covered only by a substantively-asserting test
+# ADR-0126: Static-AST hollow-test detection: a contract is covered only by a substantively-asserting test
 
 ## Status
 

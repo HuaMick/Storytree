@@ -958,7 +958,7 @@ function coverageHelp(): Envelope {
       "  storytree coverage <capability-id>   classify the capability's contracts (offline, read-only)",
       "",
       "Exits non-zero when a contract is uncovered (a green would over-claim); a fully-covered unit passes.",
-      "A test must RUN and ASSERT to count (ADR-0123): a hollow `assert(true)` (or a skipped test) under",
+      "A test must RUN and ASSERT to count (ADR-0126): a hollow `assert(true)` (or a skipped test) under",
       "the right name does NOT cover its contract. A substantive-but-irrelevant assertion still reads",
       "covered — judging that is the deeper semantic-reviewer follow-on.",
     ].join("\n"),
@@ -1155,7 +1155,7 @@ function walkTestFiles(absDir: string): string[] {
 
 /**
  * A capability's coverage facts for the contract-coverage check (ADR-0020 follow-on): its declared
- * `## Contracts` ids + the VOUCHING test names across its proof surface (ADR-0123 — a test only counts
+ * `## Contracts` ids + the VOUCHING test names across its proof surface (ADR-0126 — a test only counts
  * if it runs and asserts substantively, so a hollow `assert(true)` is excluded). Null for a missing/odd
  * spec. The proof surface is the registered real-build test file when present (the EXACT file a signed
  * `--real` green attests — the tightest honest signal for the gap), else the package/dir test files
@@ -1184,7 +1184,7 @@ function loadCoverageUnit(storiesDir: string, root: string, unitId: string): Cov
   const testNames: string[] = [];
   for (const f of existing) {
     try {
-      // VOUCHING names only (ADR-0123): a hollow / skipped test contributes nothing, so its contract
+      // VOUCHING names only (ADR-0126): a hollow / skipped test contributes nothing, so its contract
       // reads uncovered.
       testNames.push(...extractVouchingTestNames(readFileSync(f, "utf8")));
     } catch {

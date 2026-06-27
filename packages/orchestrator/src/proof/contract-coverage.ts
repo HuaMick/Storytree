@@ -20,7 +20,7 @@ import type { ContractDecl } from "@storytree/library";
  * deterministic, order-preserving — it mirrors {@link import("./adoption-proposal.js").classifyAdoption}
  * one tier DOWN (that is capability→gate coverage; this is contract→test coverage). No store / git / clock.
  *
- * HOLLOW-TEST DETECTION (ADR-0123, owner-directed 2026-06-27 — static AST over a runtime signal):
+ * HOLLOW-TEST DETECTION (ADR-0126, owner-directed 2026-06-27 — static AST over a runtime signal):
  * the first slice (ADR-0122) counted a test NAMED for a contract even if it was HOLLOW (`assert(true)`
  * under the right name). That is now closed at the EXTRACTION step: {@link extractVouchingTestNames}
  * parses the test source (the TypeScript compiler AST) and feeds the classifier only the names of tests
@@ -100,10 +100,10 @@ export function extractTestNames(testSource: string): string[] {
 }
 
 // ---------------------------------------------------------------------------
-// Hollow-test detection (ADR-0123): a test only VOUCHES if it runs and asserts substantively
+// Hollow-test detection (ADR-0126): a test only VOUCHES if it runs and asserts substantively
 // ---------------------------------------------------------------------------
 
-/** A test/suite call observed in a test file's AST — the hollow-detection unit (ADR-0123). */
+/** A test/suite call observed in a test file's AST — the hollow-detection unit (ADR-0126). */
 export interface ObservedTest {
   /** The test/suite name (the first string-literal arg) — what contract ids are matched against. */
   name: string;
@@ -264,7 +264,7 @@ export function analyzeObservedTests(testSource: string): ObservedTest[] {
 
 /**
  * PURE: the observed test names that VOUCH for their contract — the hollow-aware replacement for
- * {@link extractTestNames} as the coverage check's input (ADR-0123). A test whose region has no
+ * {@link extractTestNames} as the coverage check's input (ADR-0126). A test whose region has no
  * substantive assertion, or that is skipped, is OMITTED — so a contract named only by a hollow test
  * reads UNCOVERED. The drop-in for `extractTestNames` in the coverage loaders.
  */

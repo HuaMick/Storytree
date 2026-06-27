@@ -84,7 +84,7 @@ describe("real-suite", () => {});
 });
 
 // ---------------------------------------------------------------------------
-// extractVouchingTestNames / analyzeObservedTests — hollow-test detection (ADR-0123)
+// extractVouchingTestNames / analyzeObservedTests — hollow-test detection (ADR-0126)
 // ---------------------------------------------------------------------------
 
 test("extractVouchingTestNames: a substantive assertion vouches; assert(true) is hollow", () => {
@@ -157,7 +157,7 @@ test("analyzeObservedTests: surfaces name/skipped/vouches per observed test, in 
   assert.deepEqual(observed.map((o) => o.name).slice(0, 2), ["a: real", "inner-a"]);
 });
 
-test("RED→GREEN (ADR-0123): a contract named only by a HOLLOW test reads UNCOVERED; a substantive test covers it", () => {
+test("RED→GREEN (ADR-0126): a contract named only by a HOLLOW test reads UNCOVERED; a substantive test covers it", () => {
   const contractIds = ["fr-bounded-never-hangs"];
   const hollow = `describe("fr-bounded-never-hangs: deadline", () => { it("works", () => { assert(true); }); });`;
   const real = `describe("fr-bounded-never-hangs: deadline", () => { it("rejects on hang", async () => { await assert.rejects(connect(hangs)); }); });`;
@@ -177,7 +177,7 @@ test("RED→GREEN (ADR-0123): a contract named only by a HOLLOW test reads UNCOV
   assert.deepEqual(realReport.covered, ["fr-bounded-never-hangs"]);
 });
 
-test("contrast: static name-presence (extractTestNames) counts the hollow test — the gap ADR-0123 closes", () => {
+test("contrast: static name-presence (extractTestNames) counts the hollow test — the gap ADR-0126 closes", () => {
   const hollow = `describe("fr-bounded-never-hangs: deadline", () => { it("works", () => { assert(true); }); });`;
   // The OLD signal: name-presence sees the contract NAMED → would (over-)count it as covered.
   assert.ok(extractTestNames(hollow).some((n) => n.includes("fr-bounded-never-hangs")));
