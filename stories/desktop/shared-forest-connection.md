@@ -2,26 +2,31 @@
 id: "shared-forest-connection"
 tier: capability
 story: desktop
-title: "The local backend's writes reach the shared Cloud SQL, with a readiness probe that fails closed when ungranted or down"
-outcome: "The local backend's verdict/presence writes reach the SHARED Cloud SQL, with a readiness probe that fails closed (and clear guidance) when the member lacks the IAM grant or the DB is down."
+title: "The local backend BROKERS its forest writes to the hosted studio, with a readiness probe that fails closed when the broker is unreachable or the caller is not an authorized builder"
+outcome: "The local backend's verdict/presence writes reach the SHARED forest by POSTing the locally-signed verdict / presence to the hosted studio's members-gated write-broker (no local DB connection), with a readiness probe that fails closed (and clear guidance) when the broker is unreachable or the member is not an authorized builder."
 status: proposed
 proof_mode: integration-test
 depends_on: [local-backend-boot]
 # Node-borne proof config (ADR-0057 keystone): authoring THIS block is what makes the capability
-# inner-loop buildable — no NODE_BUILD_REGISTRY edit. EDIT-EXISTING (ADR-0057 §3 expansion C): contracts
-# 1 & 2 already landed (PR #397) — `forest-readiness.ts` + `forest-readiness.test.ts` EXIST at HEAD, the
-# resolving-connector and refused-connector paths are proven. This build completes the DROPPED contract 3
-# (`fr-bounded-never-hangs`): the leaf ADDS a hanging-connector regression test that FAILS against the
-# CURRENT no-deadline probe (a runtime red — its own node:test per-test timeout fires because the probe
-# `await`s a connector that never settles), then EDITS `forest-readiness.ts` to make the connection
-# attempt BOUNDED (the `serve.ts` `withTimeout` shape). The red is genuine and runtime, NOT a missing
-# symbol: the symbol already exists, the behaviour (an un-deadlined probe) is wrong. Contracts 1 & 2
-# re-run in the SAME suite as a no-regression wall — they stay green against the unchanged source, only
-# the new contract-3 test goes red, exactly the additive edit-existing shape `drift-reads-store.md` uses.
-# `install: true` + a typecheck wall because the probe imports the store connection types across the
-# package boundary (the proof runs in a fresh worktree — tsx + tsc need the lockfile-only install,
-# ADR-0031 §2). Single LITERAL source file (no `*`), so the default node:test proof on the one test file
-# is legal — no `proofCommand` (the edit-existing single-literal-glob exemption, proof-config.ts refine).
+# inner-loop buildable — no NODE_BUILD_REGISTRY edit. EDITS-EXISTING (editsExisting: true): the
+# forest-readiness.ts + .test.ts PAIR ALREADY EXISTS at HEAD — a prior `--real` build (commit 4fddb7c,
+# real-mqvjuoxe) landed the DIRECT-keyless-Cloud-SQL-connector version, even though the capability is
+# still authored `proposed` (never landed green/healthy). ADR-0117 RE-HOMES it from that direct connector
+# to a BROKER HTTP CLIENT: the leaf REWRITES the existing test to assert broker behaviour (ready only when
+# the broker authorizes the member as a builder; fail-closed when unreachable/forbidden; brokers-not-direct)
+# and REWRITES the existing source from a connector-smoke to a broker readiness probe + POST client. The RED
+# the spine observes is a BEHAVIOUR red — the new broker assertions fail against the OLD direct-connector
+# source at HEAD (NOT a module-not-found red; the module exists). This is why editsExisting MUST be true:
+# a net-new arm would expect the file absent at HEAD and mis-frame the red. The probe/client is offline-
+# testable over an INJECTED broker-POST seam (a reachable/authorized double + an unreachable/forbidden
+# double drive the ready vs fail-closed paths). The REAL broker endpoint over the network + the member's
+# live `builder` grant are operator-attested (a real HTTPS POST to the hosted studio + an in-app builder
+# role cannot run in CI), NOT this offline test. The desktop consumes the broker over HTTP and MUST NOT
+# import apps/studio/server (the surface boundary) — it holds a configured broker URL + the POST client.
+# install: true + a typecheck wall because the client imports the proof-protocol `Verdict` / notice-board
+# `PresenceDeclaration` shapes it POSTs across the package boundary (the proof runs in a fresh worktree —
+# tsx + tsc need the lockfile-only install, ADR-0031 §2). Single LITERAL source file (no `*`), so the
+# default node:test proof on the one test file is legal — no proofCommand.
 proof:
   command:
     file: pnpm
@@ -30,6 +35,7 @@ proof:
     testGlobs: ["apps/desktop/src/**/*.test.ts"]
     sourceGlobs: ["apps/desktop/src/**/*.ts"]
   real:
+    editsExisting: true
     testFile: "apps/desktop/src/backend/forest-readiness.test.ts"
     sourceFile: "apps/desktop/src/backend/forest-readiness.ts"
     scope:
@@ -39,168 +45,191 @@ proof:
     typecheck:
       file: pnpm
       args: ["--filter", "desktop", "typecheck"]
-    editsExisting: true
 ---
 
-# The local backend's writes reach the shared Cloud SQL, with a readiness probe that fails closed
+# The local backend BROKERS its forest writes to the hosted studio, fails closed when the broker is unreachable or the caller is not an authorized builder
 
-**Outcome —** The local backend's verdict/presence writes reach the SHARED Cloud SQL, with a readiness
-probe that fails closed (and clear guidance) when the member lacks the IAM grant or the DB is down.
+**Outcome —** The local backend's verdict/presence writes reach the SHARED forest by **POSTing the
+locally-signed verdict / presence declaration to the hosted studio's members-gated write-broker** (no
+local DB connection), with a readiness probe that fails closed (and clear guidance) when the broker is
+unreachable or the member is not an authorized **builder**.
 
-**Depends on —** [`local-backend-boot`](local-backend-boot.md) — the connection/readiness is the local
-backend's store seam; the probe runs as part of the backend this capability stands up.
+**Depends on —** [`local-backend-boot`](local-backend-boot.md) — the broker client/readiness is the local
+backend's write seam; the probe runs as part of the backend this capability stands up.
 
-> **Proof status (honest) — PARTLY BUILT.** Contracts 1 & 2 (`fr-ready-when-connector-resolves`,
-> `fr-fails-closed-with-guidance-when-ungranted`) LANDED in PR #397: `forest-readiness.ts` +
-> `forest-readiness.test.ts` exist at HEAD with a signed verdict over those two. Contract 3
-> (`fr-bounded-never-hangs`) was DROPPED by that build and is what THIS edit-existing build completes —
-> a hanging-connector test + a bounded deadline on the probe. ADR-0113 §6 keeps the SHARED Cloud SQL as
-> the source of truth (one living forest) — a per-member local store is explicitly NOT chosen. The
-> member's builds, verdicts, and presence write to the same `events.*` schema the owner watches, which
-> requires granting his Google identity Cloud SQL IAM access (ADR-0021 keyless) — an **attended
-> privileged action performed at delivery**, not code. The connector this rides is real:
-> `@storytree/store`'s keyless Cloud SQL IAM connection (the Node connector + ambient ADC, ADR-0021),
-> the SAME path `@storytree/drive`'s `--store pg` build persistence uses.
+> **Proof status (honest) — A DIRECT-CONNECTOR VERSION IS ALREADY LANDED; this RE-HOMES it (ADR-0117,
+> amends ADR-0113 §6 for friends).** The `forest-readiness.ts`/`.test.ts` pair already exists at HEAD (a
+> prior `--real` build, commit 4fddb7c) — the DIRECT keyless Cloud SQL connector probe — though the
+> capability is still authored `proposed` (never landed green). ADR-0113 §6 routed the friend's writes
+> DIRECTLY to shared Cloud SQL under his own keyless IAM identity (a per-friend `gcloud` grant). **ADR-0117
+> replaces that direct path for friends with
+> a BROKERED write:** the friend keeps local COMPUTE (the spine runs the gate and SIGNS locally, ADR-0091)
+> but his local backend **no longer opens a DB connection** — it POSTs the already-signed verdict / presence
+> to the studio's members-gated [`write-broker`](../studio-cloud/write-broker.md), and the SERVER persists
+> them under its one service-account DB identity. The collaborators are real: the studio's write-broker
+> endpoint (the `write-broker` capability), the proof-protocol `Verdict` / notice-board `PresenceDeclaration`
+> shapes the local gate produces, and the `node`/`fetch` HTTP client. **No per-friend Cloud SQL IAM grant;
+> the friend holds no DB identity and opens no DB connection.**
 
 ## Guidance
 
-WHY THIS IS A CAPABILITY, NOT A CONTRACT: its honest proof is the SHARED-FOREST READINESS AS A WHOLE — a
-probe that, before the loop runs, confirms the local backend can reach the shared Cloud SQL OR fails
-closed with member-actionable guidance (the IAM grant is missing / the DB is idle-stopped). That spans
-the probe AND the connector seam, so it is an integration test over an injected connector, not a single
+WHY THIS IS A CAPABILITY, NOT A CONTRACT: its honest proof is the SHARED-FOREST WRITE READINESS AS A
+WHOLE — a probe that, before the loop runs, confirms the local backend can reach the studio's write-broker
+AS AN AUTHORIZED BUILDER, OR fails closed with member-actionable guidance (the broker is unreachable / you
+are not yet a builder — ask the owner to mark you one in the Members panel). That spans the readiness probe
+AND the broker write client, so it is an integration test over an injected broker-POST seam, not a single
 isolated assertion.
 
-THE FOREST IS SHARED, NOT LOCAL (ADR-0113 §6 — the whole point of sharing with the circle): the member's
-verdict/presence writes go to the SHARED Cloud SQL (`events.work_event`/`events.verdict`/presence), so
-his work blooms in the forest the owner watches. This capability does NOT introduce a local store; it
-ensures the local backend's writes land in the shared one and that the connection is honest about its
-state.
+THE WRITE IS BROKERED, NOT DIRECT (ADR-0117 d.1/d.5 — the core re-homing): the member's verdict/presence
+writes are POSTed to the hosted studio's members-gated write-broker over HTTPS; the SERVER persists them
+to the shared `events.*` schema. This capability does NOT open a Cloud SQL connection and introduces NO
+local store — it ensures the local backend's locally-signed bytes reach the shared forest THROUGH THE
+BROKER, and that the connection is honest about its state. The direct-connector code path for the friend is
+RETIRED (the owner's own first-party `--pg`/load-corpus tooling may still connect directly; ADR-0117 scopes
+the friend).
 
-THE LIVE GRANT IS AN ATTENDED PRIVILEGED ACTION, OPERATOR-ATTESTED (ADR-0021 / ADR-0113 §6): the member's
-Google identity must be granted Cloud SQL IAM access at delivery — a keyless grant the OWNER performs
-(`gcloud`/REST), an attended privileged action (the "attempt privileged actions, approve inline" posture),
-NOT something this code does. The REAL connection over the data socket (port 3307) and the grant itself
-are **operator-attested** (Story UAT leg 5/6) — a CI run has neither the grant nor the socket. What CI
-proves is the PROBE LOGIC over an injected connector.
+THE READINESS PROBE CHECKS THE BROKER, NOT A DB SOCKET (ADR-0117 d.5 — what "ready" now means): the probe
+confirms (a) the broker endpoint is REACHABLE and (b) the caller is an AUTHORIZED BUILDER (the broker
+answers an authorized vs 403/401 result for this member) — NOT that a DB socket on port 3307 is open. This
+is the inverse of the old direct-connector probe: there is no keyless IAM grant to check and no raw socket
+to open; the authorization that matters is the in-app `builder` role (ADR-0117 d.2), surfaced by the broker.
 
-THE PROBE FAILS CLOSED, NEVER HANGS OR FORGES (the honesty wall): a refused/ungranted/idle connector must
-yield a clear, member-actionable readiness failure (you need the Cloud SQL IAM grant / the DB is down —
-`db:up`), bounded so it does not hang for minutes the way an un-deadlined Cloud SQL connector handshake
-can (the studio's `MEMBERS_RESOLVE_TIMEOUT_MS` precedent in `serve.ts`). It NEVER reports ready when it
-cannot actually connect, and it NEVER silently proceeds to write into a forest it cannot reach.
+LOCAL COMPUTE IS PRESERVED, ONLY THE WRITE IS BROKERED (ADR-0117 — ADR-0113 stands): the spine still runs
+the prove-it-gate on the member's machine and SIGNS the verdict locally (ADR-0091's gate-runs-then-signs).
+This capability does not touch where the work runs or who signs — it changes only WHERE THE PERSISTED BYTES
+ENTER THE FOREST: through a validated HTTP POST to the broker instead of a raw DB socket. The broker
+validates shape + attribution and persists the local signature unchanged (it never re-signs).
 
-OFFLINE-TESTABLE BY INJECTION: the probe takes the connector (an `async () => connection`) as an injected
-callback. The integration test drives it with a GRANTED connector double (resolves) and a
-REFUSED/ungranted connector double (rejects with a connection-shaped error) — asserting the ready path and
-the fail-closed guidance path. No real Cloud SQL, no grant, no socket. Production wires the real keyless
-`@storytree/store` connector (the same `--store pg` path the build persistence uses).
+THE BUILDER ROLE IS AN IN-APP GRANT, OPERATOR-ATTESTED (ADR-0117 d.2 — replaces the per-friend IAM grant):
+the member's `builder` role is granted IN-APP through the studio Members panel (the owner marks them a
+builder; ADR-0043 in-UI invitation extended by ADR-0117). NO `gcloud`, NO Cloud SQL IAM grant. The REAL
+brokered write over the network and the live `builder` grant are **operator-attested** (Story UAT leg 5/6)
+— a CI run has neither a hosted broker nor an in-app builder role. What CI proves is the PROBE + CLIENT
+LOGIC over an injected broker-POST seam.
+
+THE PROBE FAILS CLOSED, NEVER HANGS OR FORGES (the honesty wall, unchanged from the direct-path version):
+an unreachable/forbidden broker must yield a clear, member-actionable readiness failure (the broker is
+unreachable — is the studio up? / you are not yet an authorized builder — ask the owner), bounded so it
+does not hang the way an un-deadlined network call can (the studio's `MEMBERS_RESOLVE_TIMEOUT_MS` /
+`withTimeout` precedent in `serve.ts`). It NEVER reports ready when it cannot actually reach the broker as a
+builder, and it NEVER silently proceeds to POST into a forest it cannot reach.
+
+THE DESKTOP CONSUMES THE BROKER OVER HTTP — NEVER IMPORTS THE STUDIO SERVER (the surface boundary, ADR-0100
+/ ADR-0113 §8): the broker is reached by HTTP POST to a CONFIGURED broker URL, exactly as the renderer
+talks to any backend. This module imports NO `apps/studio/server` source (a forbidden surface→surface
+coupling); the cross-story edge desktop → studio-cloud is a RUNTIME HTTP edge, not a package import — so no
+new `@storytree/*` dep is added to `apps/desktop/package.json` for it (the boundary gate needs no new
+declared package edge for an HTTP consumption; the shapes POSTed come from `@storytree/proof-protocol` /
+`@storytree/notice-board`, both already reachable transitively).
+
+OFFLINE-TESTABLE BY INJECTION: the probe + client take the broker-POST seam (an `async (path, body) =>
+{ status, body }`, or a typed result) as an injected callback. The integration test drives it with an
+AUTHORIZED-builder broker double (a reachable POST that accepts), a FORBIDDEN broker double (403 — not a
+builder), an UNREACHABLE broker double (network error), and a HANGING double — asserting the ready path,
+the fail-closed-not-a-builder path, the fail-closed-unreachable path, and the bounded-never-hangs path. No
+real broker, no network, no DB. Production wires the real `fetch`-based POST to the configured broker URL.
 
 ## Integration test
 
-**Goal —** Prove that the readiness probe reports the shared forest reachable when the connector resolves,
-and fails CLOSED with member-actionable guidance when it does not (ungranted / DB down) — bounded, never
-hanging, never forging ready, all offline over an injected connector.
+**Goal —** Prove that the readiness probe reports the shared forest reachable when the broker accepts the
+member AS A BUILDER, and fails CLOSED with member-actionable guidance when the broker is unreachable or
+refuses the member (not a builder) — bounded, never hanging, never forging ready — and that the write
+client POSTs the locally-signed verdict/presence to the broker (never opening a DB connection), all offline
+over an injected broker-POST seam.
 
 The integration test exercises this capability against its **real in-story collaborator** — the readiness
-probe over an injected connector seam (a granted double and a refused double). The real Cloud SQL
-connection + the member's IAM grant are the operator-attested Story UAT legs, not this test.
+probe + broker write client over an injected broker-POST seam (authorized / forbidden / unreachable /
+hanging doubles), POSTing the real proof-protocol `Verdict` / notice-board `PresenceDeclaration` shapes. The
+real broker over the network + the member's live `builder` grant are the operator-attested Story UAT legs,
+not this test.
 
 The integration test would:
 
-1. Drive the probe with a GRANTED connector double (resolves to a usable connection) → it reports the
-   shared forest READY (the local backend may persist verdicts/presence to the shared store).
-2. Drive the probe with a REFUSED/ungranted connector double (rejects with a connection-shaped error) →
-   it reports NOT ready with member-actionable guidance (the member needs the Cloud SQL IAM grant
-   (ADR-0021), or the DB is idle-stopped — `db:up`), never a thrown crash.
-3. Drive the probe with a connector that HANGS (an `async () => new Promise(() => {})` that never
-   settles), passing a SHORT injected deadline (e.g. 50 ms) → the probe resolves to
-   `{ ready: false, guidance: <timeout> }` rather than hanging indefinitely (a deadline, the `serve.ts`
-   `withTimeout` precedent). Give this test an explicit, GENEROUS node:test per-test timeout (e.g.
-   `{ timeout: 5000 }`) so that against the UNCHANGED no-deadline source it FAILS at its own timeout (a
-   FINITE red, never a wedge), and after the edit resolves fast within the injected 50 ms (green).
-4. Assert the probe NEVER reports ready unless the connector actually resolved — no forged-ready path.
+1. Drive the probe with an AUTHORIZED-builder broker double (a reachable POST that accepts) → it reports the
+   shared forest READY (the local backend may broker verdicts/presence).
+2. Drive the probe with a FORBIDDEN broker double (the broker answers 403 — the member is not a builder) →
+   it reports NOT ready with member-actionable guidance (you are not yet an authorized builder — ask the
+   owner to mark you one in the Members panel), never a thrown crash.
+3. Drive the probe with an UNREACHABLE broker double (network error / connection refused) → NOT ready with
+   guidance (the broker is unreachable — is the studio up?), never a hang and never a forged ready.
+4. Drive the probe with a broker double that HANGS → the probe is bounded (a deadline, the `serve.ts`
+   `withTimeout` precedent) and reports not-ready-due-to-timeout rather than hanging indefinitely.
+5. Drive the WRITE client with a locally-signed `Verdict` (and a `PresenceDeclaration`) → it POSTs the
+   shape to the broker seam (asserting the body reached the broker POST, attributed to the member), and
+   opens NO DB connection (no pg connector in the path) — the broker, not the client, persists.
+6. Assert the probe NEVER reports ready unless the broker actually accepted the member as a builder — no
+   forged-ready path — and the module imports NO `apps/studio/server` and NO pg connector.
 
-## Contracts (3)
+## Contracts (4)
 
 The test-proven leaf behaviours — each one isolated automated test (`node:test`, the `desktop` suite),
-collaborators stubbed. Contracts 1 & 2 are PROVEN (LANDED #397, real tests in `forest-readiness.test.ts`);
-contract 3 is the dropped one this edit-existing build completes (its test is added to the same file).
+collaborators stubbed. None exist yet; each is the assertion a contract test WILL prove against the real
+broker probe/client code once authored (provisional path — re-cite at real `file:line` when built).
 
-1. **`fr-ready-when-connector-resolves`** — a resolving connector reports the shared forest ready
-   - **asserts —** given a connector double that resolves to a usable connection, the probe reports READY
-     (writes to the shared store may proceed) — and reports ready ONLY when the connector actually
-     resolved (no forged-ready path).
-   - **covers —** `apps/desktop/src/backend/forest-readiness.ts` (the ready path) — LANDED #397
-2. **`fr-fails-closed-with-guidance-when-ungranted`** — a refused connector yields actionable guidance
-   - **asserts —** given a connector double that rejects with a connection-shaped error (ungranted IAM /
-     DB down), the probe reports NOT ready with member-actionable guidance (the IAM grant / `db:up`),
+1. **`fr-ready-when-broker-accepts-builder`** — a reachable broker that authorizes the member reports ready
+   - **asserts —** given a broker-POST double that is reachable and authorizes the caller as a builder, the
+     probe reports READY (brokered writes may proceed) — and reports ready ONLY when the broker actually
+     accepted (no forged-ready path; an unreachable/forbidden broker is never "ready").
+   - **covers —** `apps/desktop/src/backend/forest-readiness.ts` (the ready path) *(provisional path)*
+2. **`fr-fails-closed-with-guidance-when-unbrokered`** — unreachable OR not-a-builder yields actionable guidance
+   - **asserts —** given a broker-POST double that is unreachable (network error) OR refuses the caller
+     (403 — not a builder), the probe reports NOT ready with member-actionable guidance (the broker is
+     unreachable — is the studio up? / you are not yet an authorized builder — ask the owner to mark you one),
      never a thrown crash and never silently proceeding to write.
-   - **covers —** `apps/desktop/src/backend/forest-readiness.ts` (the fail-closed path) — LANDED #397
-3. **`fr-bounded-never-hangs`** — a hanging connector is bounded by an injectable deadline
-   *(THE DROPPED CONTRACT — this build completes it; edit-existing, see "the edit-existing slice" below)*
-   - **asserts —** given a connector double that NEVER settles, the probe resolves to
-     `{ ready: false, guidance: <timeout-actionable> }` within roughly the injected deadline — it never
-     hangs the backend on an un-deadlined Cloud SQL handshake (the real 5–15 min idle-wake / cold-start
-     case). The probe takes an injectable timeout (default sensible, e.g. ~5 s à la `serve.ts`'s
-     `MEMBERS_RESOLVE_TIMEOUT_MS`) so the test can drive it with a SHORT deadline and assert a bounded
-     elapsed wall-clock; the timer is `.unref()`'d so a hung attempt never keeps the process alive.
-   - **covers —** `apps/desktop/src/backend/forest-readiness.ts` (the deadline arm of
-     `probeForestReadiness` — the `Promise.race([connector(), timeoutThatResolvesNotReady(ms)])` shape)
+   - **covers —** `apps/desktop/src/backend/forest-readiness.ts` (the fail-closed path)
+3. **`fr-bounded-never-hangs`** — a hanging broker is bounded by a deadline
+   - **asserts —** given a broker-POST double that never settles, the probe is bounded by a deadline (the
+     `serve.ts` `withTimeout` precedent) and reports not-ready-due-to-timeout, never hanging the backend.
+   - **covers —** `apps/desktop/src/backend/forest-readiness.ts` (the deadline)
+4. **`fr-write-brokers-not-direct`** — the write client POSTs to the broker and opens no DB connection
+   - **asserts —** given a locally-signed `Verdict` (and a `PresenceDeclaration`), the write client POSTs
+     the shape to the injected broker seam (the body reaches the broker POST, attributed to the member) and
+     opens NO DB connection — the module imports no pg connector and no `apps/studio/server` source; the
+     broker, not the client, persists. (Re-homing honesty: no direct-connector path survives.)
+   - **covers —** `apps/desktop/src/backend/forest-readiness.ts` (the broker write client)
 
-## Guidance — the edit-existing slice that completes contract 3
+## Guidance — the edits-existing slice that earns the signed verdict
 
-The brownfield rung toward `healthy` (ADR-0057 §3, EDIT-EXISTING): contracts 1 & 2 already landed (PR
-#397) — `forest-readiness.ts` and `forest-readiness.test.ts` EXIST at HEAD. This build completes the
-DROPPED contract 3 (`fr-bounded-never-hangs`): the probe currently does `await connector()` with NO
-deadline, so a hanging Cloud SQL handshake (the real 5–15 min idle-wake / cold-start case) would hang the
-backend forever. Add a hanging-connector regression test that fails against that behaviour, then bound the
-probe. Do NOT touch the resolving-connector or refused-connector tests/paths — they are proven; this is
-purely additive.
+The bootstrap rung toward `healthy` (ADR-0057 §3, **EDITS-EXISTING**): RE-HOME the existing forest-readiness
+probe from a direct Cloud SQL connector to a broker HTTP client, test-first. The
+`forest-readiness.ts`/`.test.ts` pair **ALREADY EXISTS at HEAD** (commit `4fddb7c` — the direct-connector
+version, green in the desktop suite); the leaf **REWRITES both** (this is why `editsExisting: true`).
 
-- **What exists at HEAD —** `probeForestReadiness(connector)` returns `{ ready: true }` on resolve and
-  `{ ready: false, guidance }` on reject — but it `await`s the connector with no timeout. The
-  resolving-connector and refused-connector tests already pass. Read them; do not change them.
-- **EXTEND the existing test —** `apps/desktop/src/backend/forest-readiness.test.ts`. ADD ONE test for the
-  hanging path. Drive the probe with a connector that NEVER settles
-  (`async () => new Promise<ForestConnection>(() => {})`) and a SHORT injected deadline (e.g. 50 ms).
-  Assert the result is `{ ready: false }` with member-actionable guidance (mentioning the timeout / DB
-  idle-wake). Give the test an explicit, GENEROUS node:test per-test timeout so the red is FINITE, not a
-  wedge:
-
-  ```ts
-  test("forest-readiness: a hanging connector is bounded, never hangs", { timeout: 5000 }, async () => {
-    const hangingConnector: ForestConnectorFn = () => new Promise<ForestConnection>(() => {});
-    const started = Date.now();
-    const result = await probeForestReadiness(hangingConnector, { timeoutMs: 50 });
-    assert.equal(result.ready, false, "a hanging connector must fail closed, not report ready");
-    if (result.ready) assert.fail("probe must not report ready when the connector hangs");
-    assert.ok(/timeout|timed out|idle|db:up|Cloud SQL/i.test(result.guidance), "guidance must be actionable");
-    assert.ok(Date.now() - started < 4000, "the probe must resolve well within the injected deadline, not hang");
-  });
-  ```
-
-- **The RED the spine observes (before IMPLEMENT) —** this is a RUNTIME red, NOT a missing symbol
-  (`probeForestReadiness` already exists). Against the UNCHANGED no-deadline source the probe `await`s the
-  never-settling connector forever, so the new test never resolves and FAILS at its own `{ timeout: 5000 }`
-  node:test deadline — a finite, observed red. Contracts 1 & 2 stay GREEN in the same run (the
-  no-regression wall) — only the new test is red.
-- **The GREEN (the edit) —** EDIT `apps/desktop/src/backend/forest-readiness.ts` to make the connection
-  attempt bounded. Add an injectable timeout (an options arg, e.g.
-  `probeForestReadiness(connector, { timeoutMs = 5000 } = {})`) and race the connector against a timer that
-  RESOLVES to `{ ready: false, guidance: <timeout-actionable> }` (the `serve.ts` `withTimeout` precedent —
-  but resolve-not-ready rather than reject, so the existing try/catch shape stays simple):
-  `Promise.race([attemptConnect(connector), timeoutThatResolvesNotReady(timeoutMs)])`. Keep the resolving
-  and refused paths byte-identical in behaviour. `.unref()` the timer so a hung attempt never keeps the
-  process alive. After the edit, the hanging test resolves fast within 50 ms (green), the other two stay
-  green, and the package suite + typecheck stay green.
+- **The rewritten test —** `apps/desktop/src/backend/forest-readiness.test.ts` (`node:test` +
+  `node:assert/strict`). REPLACE the direct-connector assertions with broker ones: drive the readiness probe
+  + broker write client (from `"./forest-readiness.js"`) through an INJECTED broker-POST seam — an
+  authorized-builder double, a forbidden 403 double, an unreachable double, and a hanging double — NOT the
+  old `ForestConnectorFn` connector double.
+- **The RED the spine observes (before IMPLEMENT) — a BEHAVIOUR red, NOT module-not-found.** The module
+  already exists, so the import resolves; the red comes from the NEW broker assertions failing against the
+  OLD direct-connector source at HEAD (today `probeForestReadiness` opens a DB connector and its fail-guidance
+  literally says "ask the owner to run `gcloud … roles/cloudsql.client`" — it has no broker-authorizes-builder
+  path, no bounded broker-POST client, and still assumes a direct connection). The leaf MUST author the new
+  test so it genuinely goes RED against the existing green source first. Assert the ready path, the
+  fail-closed-with-guidance path (unreachable AND not-a-builder), the bounded-never-hangs path, and the
+  brokers-not-direct write path.
+- **The GREEN —** REWRITE `apps/desktop/src/backend/forest-readiness.ts` from the connector-smoke to: a probe
+  that takes the injected broker-POST seam, attempts a bounded reachability/authorization check (the
+  `withTimeout` shape), and returns a readiness result — READY only when the broker actually accepted the
+  member as a builder, otherwise NOT ready with member-actionable guidance; plus a write client that POSTs the
+  locally-signed `Verdict`/`PresenceDeclaration` to the broker (never opening a DB connection). RETIRE the
+  `ForestConnectorFn`/`ForestConnection` direct-connector seam (no direct-connector path survives the
+  re-home). NO `apps/studio/server` import, NO pg connector. After it, the assertions hold, and the package
+  suite + typecheck stay green.
 
 Rules:
 
-- **Shared forest, never a local store** — the writes target the SHARED Cloud SQL (ADR-0113 §6); this
-  capability adds no local store.
-- **Fail closed with guidance** — ungranted/down/hanging → an honest, member-actionable not-ready, never
-  a hang and never a forged ready. The tests pin all three (`fr-fails-closed-with-guidance-when-ungranted`,
-  `fr-bounded-never-hangs`, the no-forged-ready half of `fr-ready-when-connector-resolves`).
-- **The live grant is operator-attested** — the member's Cloud SQL IAM grant (ADR-0021) is an attended
-  privileged action the owner performs at delivery; the real connection over the data socket is the
+- **Brokered, never a direct DB connection** — the writes are POSTed to the studio's write-broker
+  (ADR-0117 §1); this capability opens no Cloud SQL connection and adds no local store. The test pins this
+  (`fr-write-brokers-not-direct`).
+- **Ready means the broker authorizes you as a builder** — not that a DB socket is open. The probe reports
+  ready ONLY on an actual broker accept (`fr-ready-when-broker-accepts-builder`).
+- **Fail closed with guidance** — unreachable / not-a-builder / hanging → an honest, member-actionable
+  not-ready, never a hang and never a forged ready (`fr-fails-closed-with-guidance-when-unbrokered`,
+  `fr-bounded-never-hangs`).
+- **Consume the broker over HTTP; never import the studio server** — a configured broker URL + a POST
+  client; no `apps/studio/server` source import (the surface boundary). The cross-story edge is a runtime
+  HTTP edge, not a package import.
+- **The `builder` grant is operator-attested** — the member's in-app `builder` role (the Members panel,
+  ADR-0117 d.2) replaces the per-friend Cloud SQL IAM grant; the real brokered write over the network is the
   Story UAT human-witness leg, not this offline test.
