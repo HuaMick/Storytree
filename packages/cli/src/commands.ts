@@ -16,7 +16,7 @@ import type { UatTest, ReliabilityGate } from "@storytree/library";
 import {
   loadNodeSpec,
   findNodeSpecFile,
-  extractTestNames,
+  extractVouchingTestNames,
   resolveSignerFromEnv,
   platformShellCommand,
   runShellCommand,
@@ -34,7 +34,7 @@ import { agentsCommand, agentsHelp } from "./agents.js";
 import { attestCommand, attestHelp, type AttestationStoreLike, type AttestDeps } from "./attest.js";
 import { runDrift, driftHelp } from "./drift.js";
 import { renderDoctrine } from "./doctrine.js";
-import { graduateCommand, harnessMemoryDir } from "./graduate.js";
+import { graduateCommand, defaultMemoryDir, defaultSnapshotPath } from "./graduate.js";
 import type { Envelope } from "./envelope.js";
 import {
   libraryHealth,
@@ -208,29 +208,6 @@ export async function dashboard(store: Store): Promise<Envelope> {
 /** The repo root, resolved from this file's location (packages/cli/src -> three dirs up). */
 function repoRoot(): string {
   return path.resolve(fileURLToPath(import.meta.url), "..", "..", "..", "..");
-}
-
-/**
- * The MAIN checkout's directory (the `library graduate` default, ADR-0095): the harness keys its
- * agent-memory store by the PRIMARY working directory, never a worktree, so `git worktree list
- * --porcelain` (whose first entry is always the main worktree) resolves it from inside a
- * `.claude/worktrees/<name>` checkout. Falls back to `dir` when git can't answer — the resulting
- * default dir is always overridable with `--memory-dir`.
- */
-function mainCheckoutDir(dir: string): string {
-  try {
-    const out = execFileSync("git", ["worktree", "list", "--porcelain"], {
-      cwd: dir,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    });
-    for (const line of out.split("\n")) {
-      if (line.startsWith("worktree ")) return path.resolve(line.slice("worktree ".length).trim());
-    }
-  } catch {
-    // git missing / not a repo — fall back to the given dir.
-  }
-  return dir;
 }
 
 /** Count the generated non-template assets in apps/studio/data/assets.json (for count-reconciliation). */
@@ -952,14 +929,15 @@ function coverageHelp(): Envelope {
       "",
       "A signed --real green attests the ONE authored test the gate observed (ADR-0020 §3) — it cannot",
       "forge it, but it never checks that EVERY `## Contracts` behaviour has a test (the leaf reliably",
-      "drops the hardest one). This flags the gap: a contract no observed test NAMES (the",
+      "drops the hardest one). This flags the gap: a contract no SUBSTANTIVE test covers (the",
       '`describe("<id>: …")` convention) is reported UNCOVERED.',
       "",
       "  storytree coverage <capability-id>   classify the capability's contracts (offline, read-only)",
       "",
       "Exits non-zero when a contract is uncovered (a green would over-claim); a fully-covered unit passes.",
-      "Static name-presence (the first slice, ADR-0020 follow-on): it catches a DROPPED contract; a hollow",
-      "test under the right name is the named follow-on.",
+      "A test must RUN and ASSERT to count (ADR-0126): a hollow `assert(true)` (or a skipped test) under",
+      "the right name does NOT cover its contract. A substantive-but-irrelevant assertion still reads",
+      "covered — judging that is the deeper semantic-reviewer follow-on.",
     ].join("\n"),
     next: ["storytree tree", "storytree coverage <capability-id>"],
   };
@@ -1154,10 +1132,12 @@ function walkTestFiles(absDir: string): string[] {
 
 /**
  * A capability's coverage facts for the contract-coverage check (ADR-0020 follow-on): its declared
- * `## Contracts` ids + the test names across its proof surface. Null for a missing/odd spec. The proof
- * surface is the registered real-build test file when present (the EXACT file a signed `--real` green
- * attests — the tightest honest signal for the gap), else the package/dir test files walked from the
- * proof scope's test globs (a suite-proven capability). Pure-by-injection seam for `coverageCommand`.
+ * `## Contracts` ids + the VOUCHING test names across its proof surface (ADR-0126 — a test only counts
+ * if it runs and asserts substantively, so a hollow `assert(true)` is excluded). Null for a missing/odd
+ * spec. The proof surface is the registered real-build test file when present (the EXACT file a signed
+ * `--real` green attests — the tightest honest signal for the gap), else the package/dir test files
+ * walked from the proof scope's test globs (a suite-proven capability). Pure-by-injection seam for
+ * `coverageCommand`.
  */
 function loadCoverageUnit(storiesDir: string, root: string, unitId: string): CoverageUnit | null {
   const file = findNodeSpecFile(storiesDir, unitId);
@@ -1181,7 +1161,9 @@ function loadCoverageUnit(storiesDir: string, root: string, unitId: string): Cov
   const testNames: string[] = [];
   for (const f of existing) {
     try {
-      testNames.push(...extractTestNames(readFileSync(f, "utf8")));
+      // VOUCHING names only (ADR-0126): a hollow / skipped test contributes nothing, so its contract
+      // reads uncovered.
+      testNames.push(...extractVouchingTestNames(readFileSync(f, "utf8")));
     } catch {
       // An unreadable test file contributes no names (fail-closed toward "uncovered").
     }
@@ -1934,12 +1916,14 @@ export async function run(argv: readonly string[], deps: RunDeps): Promise<Envel
     if (help) return graduateHelp();
     // Default the memory dir to the harness store keyed by the MAIN checkout (works from a worktree);
     // --memory-dir overrides. The snapshot is the offline seed corpus (ADR-0095 reads it, not the DB).
-    const memoryDir = values["memory-dir"] ?? harnessMemoryDir(os.homedir(), mainCheckoutDir(repoRoot()));
+    // `defaultMemoryDir`/`defaultSnapshotPath` are shared with the `check:graduation-worklist` gate
+    // nudge so the two never drift on where memory / the seed live (@storytree/cli graduate.ts).
+    const memoryDir = values["memory-dir"] ?? defaultMemoryDir(os.homedir());
     return graduateCommand(
       { review: values.review === true },
       {
         memoryDir,
-        snapshotPath: path.join(repoRoot(), "apps", "studio", "data", "knowledge.json"),
+        snapshotPath: defaultSnapshotPath(),
         now: new Date().toISOString().slice(0, 10),
       },
     );

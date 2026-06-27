@@ -194,11 +194,14 @@ export type {
   ContractCoverage,
   ContractCoverageReport,
   ContractCoverageSpec,
+  ObservedTest,
 } from "./proof/contract-coverage.js";
 export {
   classifyContractCoverage,
   classifyDeclaredCoverage,
   extractTestNames,
+  extractVouchingTestNames,
+  analyzeObservedTests,
   testNameCoversContract,
 } from "./proof/contract-coverage.js";
 // ADR-0098 Layer 3 (U4): the pre-build batch decision-sweep — the deterministic owner-fork-bar
