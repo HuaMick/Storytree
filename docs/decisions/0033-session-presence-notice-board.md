@@ -13,6 +13,8 @@ approved the direction and the rename in conversation — this ADR records it fo
 holder of that name is renamed **`feedback-graduation`** (see
 [ADR-0032](0032-cite-graduation-mechanism.md), which reshaped it).
 
+**Superseded-in-part by [ADR-0048](0048-in-flight-build-is-the-primary-wisp.md)** — session presence is **demoted out of the orbiting-wisp role**: the thing that orbits a tree is now the in-flight mechanical *build* (a `building` work-event), not the *session*. The presence data model, the dock, and `noticeboard declare` all stand; only their orbiting-wisp role moves to the harness.
+
 ## Date
 
 2026-06-11
