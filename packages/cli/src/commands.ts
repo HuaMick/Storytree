@@ -16,7 +16,7 @@ import type { UatTest, ReliabilityGate } from "@storytree/library";
 import {
   loadNodeSpec,
   findNodeSpecFile,
-  extractTestNames,
+  extractVouchingTestNames,
   resolveSignerFromEnv,
   platformShellCommand,
   runShellCommand,
@@ -952,14 +952,15 @@ function coverageHelp(): Envelope {
       "",
       "A signed --real green attests the ONE authored test the gate observed (ADR-0020 §3) — it cannot",
       "forge it, but it never checks that EVERY `## Contracts` behaviour has a test (the leaf reliably",
-      "drops the hardest one). This flags the gap: a contract no observed test NAMES (the",
+      "drops the hardest one). This flags the gap: a contract no SUBSTANTIVE test covers (the",
       '`describe("<id>: …")` convention) is reported UNCOVERED.',
       "",
       "  storytree coverage <capability-id>   classify the capability's contracts (offline, read-only)",
       "",
       "Exits non-zero when a contract is uncovered (a green would over-claim); a fully-covered unit passes.",
-      "Static name-presence (the first slice, ADR-0020 follow-on): it catches a DROPPED contract; a hollow",
-      "test under the right name is the named follow-on.",
+      "A test must RUN and ASSERT to count (ADR-0123): a hollow `assert(true)` (or a skipped test) under",
+      "the right name does NOT cover its contract. A substantive-but-irrelevant assertion still reads",
+      "covered — judging that is the deeper semantic-reviewer follow-on.",
     ].join("\n"),
     next: ["storytree tree", "storytree coverage <capability-id>"],
   };
@@ -1154,10 +1155,12 @@ function walkTestFiles(absDir: string): string[] {
 
 /**
  * A capability's coverage facts for the contract-coverage check (ADR-0020 follow-on): its declared
- * `## Contracts` ids + the test names across its proof surface. Null for a missing/odd spec. The proof
- * surface is the registered real-build test file when present (the EXACT file a signed `--real` green
- * attests — the tightest honest signal for the gap), else the package/dir test files walked from the
- * proof scope's test globs (a suite-proven capability). Pure-by-injection seam for `coverageCommand`.
+ * `## Contracts` ids + the VOUCHING test names across its proof surface (ADR-0123 — a test only counts
+ * if it runs and asserts substantively, so a hollow `assert(true)` is excluded). Null for a missing/odd
+ * spec. The proof surface is the registered real-build test file when present (the EXACT file a signed
+ * `--real` green attests — the tightest honest signal for the gap), else the package/dir test files
+ * walked from the proof scope's test globs (a suite-proven capability). Pure-by-injection seam for
+ * `coverageCommand`.
  */
 function loadCoverageUnit(storiesDir: string, root: string, unitId: string): CoverageUnit | null {
   const file = findNodeSpecFile(storiesDir, unitId);
@@ -1181,7 +1184,9 @@ function loadCoverageUnit(storiesDir: string, root: string, unitId: string): Cov
   const testNames: string[] = [];
   for (const f of existing) {
     try {
-      testNames.push(...extractTestNames(readFileSync(f, "utf8")));
+      // VOUCHING names only (ADR-0123): a hollow / skipped test contributes nothing, so its contract
+      // reads uncovered.
+      testNames.push(...extractVouchingTestNames(readFileSync(f, "utf8")));
     } catch {
       // An unreadable test file contributes no names (fail-closed toward "uncovered").
     }
