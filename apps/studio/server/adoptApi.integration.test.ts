@@ -9,8 +9,9 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { handleApiRequest, type ApiContext, type AdoptContext, type BuildContext } from './apiRouter';
-import { BuildRegistry } from './buildRegistry';
-import type { BuildRunner, BuildEnvelope } from './buildWorker';
+// The worker RELOCATED into @storytree/drive/build-worker (worker-relocation, ADR-0133 d.3); the studio
+// HTTP integration suite stays green over the re-pointed apiRouter handlers (parity).
+import { BuildRegistry, type BuildRunner, type BuildEnvelope } from '@storytree/drive/build-worker';
 import type { LibraryBackend } from './libraryBackend';
 import type { Paths } from './apiRouter';
 

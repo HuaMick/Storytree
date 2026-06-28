@@ -55,8 +55,13 @@ import { handleDb } from './dbControl';
 import { handleDbWake, type DbWaker } from './dbWake';
 import type { CodeStamp } from './codeStamp';
 import type { InviteMailer } from './inviteMailer';
-import type { BuildRegistry } from './buildRegistry';
-import { runBuildJob, type BuildRunner } from './buildWorker';
+// The build worker machinery was RELOCATED into @storytree/drive (worker-relocation, ADR-0133 d.3):
+// an app may not import another app's server (ADR-0100), so the worker moved DOWN into the shared
+// package both the studio and the desktop import. The studio's handleBuild/handleAdopt HTTP wrappers
+// STAY here (ADR-0090's single boundary, two callers) as thin wrappers over the relocated runBuildJob.
+// build-worker.ts imports only node:crypto, so this static import is config-load-safe (no raw-TS `.js`
+// re-export graph — the writeBroker.ts precedent), unlike the lazily-imported @storytree/drive/build.
+import { runBuildJob, type BuildRunner, type BuildRegistry, type BuildContext } from '@storytree/drive/build-worker';
 // writeBroker.ts is config-load-safe (it type-imports the raw-TS zod packages and loads their runtime
 // values lazily), so it can be statically imported here without pulling proof-protocol's enums.js into
 // vite's config-load graph — the same way libraryBackend.ts is statically imported.
@@ -1397,14 +1402,10 @@ export async function handleActivity(
 // runner + discovery) is injected via {@link ApiContext.build}, like dbWake/invites — absent (the
 // hosted server in Phase 1) → 404.
 
-/** The build seam injected into the route table: the run registry, the build runner, and discovery. */
-export interface BuildContext {
-  registry: BuildRegistry;
-  /** Drives one build (the worker); wired over the real `nodeBuild --live` in the dev front. */
-  runner: BuildRunner;
-  /** Whether `unitId` is a real buildable node — validated against the SAME discovery `node build` uses. */
-  isBuildable(unitId: string): Promise<boolean>;
-}
+// The build seam (BuildContext) was lifted out of here into @storytree/drive/build-worker in the
+// relocation, so the studio route table and the desktop mount inject the SAME shape. Re-exported so the
+// studio's importers (devApi.ts, the build/adopt integration suites) keep their `./apiRouter` import.
+export type { BuildContext };
 
 /**
  * POST /api/build — dispatch a build intent (202 + runId; fire-and-forget worker, the client polls);

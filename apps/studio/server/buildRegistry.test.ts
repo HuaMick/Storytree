@@ -4,7 +4,9 @@
 // NO proof logic (the spine still signs); it only holds run state + the coarse progress.
 
 import { describe, it, expect } from 'vitest';
-import { BuildRegistry } from './buildRegistry';
+// The registry RELOCATED into @storytree/drive/build-worker (worker-relocation, ADR-0133 d.3); the
+// studio suite stays green from the new home (parity — no behaviour changed, only the home).
+import { BuildRegistry } from '@storytree/drive/build-worker';
 
 describe('BuildRegistry', () => {
   // brr-create-run-mints-building-run

@@ -6,15 +6,17 @@
 // inside no gate/spine/leaf internals.
 
 import { describe, it, expect, vi } from 'vitest';
-import { BuildRegistry } from './buildRegistry';
+// The worker RELOCATED into @storytree/drive/build-worker (worker-relocation, ADR-0133 d.3); the studio
+// suite stays green from the new home (parity — no behaviour changed, only the home).
 import {
+  BuildRegistry,
   runBuildJob,
   buildRunnerFromNodeBuild,
   routedBuildRunner,
   type BuildEnvelope,
   type NodeBuildLike,
   type StoryBuildLike,
-} from './buildWorker';
+} from '@storytree/drive/build-worker';
 
 describe('runBuildJob', () => {
   // ubt-worker-streams-coarse-lines-to-run (pass path)

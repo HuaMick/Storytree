@@ -15,8 +15,11 @@ import { createBackend, selectedStore, type LibraryBackend } from './libraryBack
 import { createCodeStampProbe, type CodeStamp } from './codeStamp';
 import { handleApiRequest, resolveStudioPaths, type Paths, type BuildContext, type AdoptContext } from './apiRouter';
 import { createInviteMailer, type InviteMailer } from './inviteMailer';
-import { BuildRegistry } from './buildRegistry';
-import { routedBuildRunner, adoptRunnerFromAdoptStory } from './buildWorker';
+// The build worker machinery relocated into @storytree/drive (worker-relocation, ADR-0133 d.3 /
+// ADR-0100). build-worker.ts imports only node:crypto, so this static import is config-load-safe
+// (the runner's build ENTRIES — @storytree/drive/build — stay lazily imported below to dodge the
+// raw-TS `.js` re-export trap).
+import { BuildRegistry, routedBuildRunner, adoptRunnerFromAdoptStory } from '@storytree/drive/build-worker';
 import { installDevServerResilience } from './devServerResilience';
 
 // Re-exported for the existing integration tests (the route table's real home).
