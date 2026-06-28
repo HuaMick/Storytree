@@ -6,6 +6,7 @@
 // forbidden surface→surface coupling. Re-composes the SAME organism drivers (orchestrator
 // discovery, library reads) the studio server is built from, exactly as devApi.ts does.
 
+import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { writeToForestBroker } from "./forest-readiness.js";
@@ -94,6 +95,173 @@ export interface LocalBackendBackend {
 export interface LocalBackendBuild {
   isBuildable: (unitId: string) => Promise<boolean>;
   runner: (unitId: string, sink: (line: string) => void) => Promise<{ ok: boolean; body: string }>;
+}
+
+// ---------- build-run lifecycle (re-composed LOCALLY — never imported from apps/studio/server, ADR-0100) ----------
+//
+// THE MOUNT (capability desktop-build-dispatch-mount, ADR-0108 Phase 3/4): the chat accept-to-land click
+// (cap 4) POSTs an accepted unit id and polls progress via GET ?runId. The studio serves this over its
+// BuildRegistry + runBuildJob; the desktop MAY NOT import that (the surface boundary, ADR-0100 — the test
+// guard pins it), so this re-composes the SAME run lifecycle locally, held to the SAME wire contract the
+// `api` client already calls (POST {unitId} → {runId}; GET ?runId → {status, transcript}).
+//
+// SAFE WRITE — INTENT, NEVER A VERDICT (ADR-0091): the registry captures COARSE progress and a terminal
+// outcome; it owns NO proof logic. The spine inside the dispatched `story build --real` observes RED→GREEN
+// from real exit codes and SIGNS; CI re-proves green before trunk (ADR-0022). This module holds no signing
+// key and no DB connection (the desktop's only write path is the BROKER, ADR-0117 — a separate seam).
+
+/** A build run's lifecycle state (mirrors the studio's `BuildRunStatus`). */
+type BuildRunStatus = "building" | "passed" | "failed";
+
+/** One desktop-driven build run — the registry-tracked state the GET poll reads back. */
+interface BuildRun {
+  runId: string;
+  unitId: string;
+  status: BuildRunStatus;
+  /** Coarse progress lines, oldest-first, bounded by the registry caps. */
+  transcript: string[];
+  startedAt: string;
+  endedAt?: string;
+  /** The final envelope body — present only on a `passed` run. */
+  envelope?: string;
+  /** The failure reason — present only on a `failed` run. */
+  reason?: string;
+}
+
+/** `createRun` either mints a run, or REFUSES (single-build-at-a-time) with a reason (the API maps to 409). */
+type CreateRunResult = { ok: true; run: BuildRun } | { ok: false; reason: string };
+
+const BUILD_MAX_LINES = 500;
+const BUILD_MAX_LINE_CHARS = 2_000;
+
+/** Collapse a value into ONE coarse display line: strip control chars / newlines, trim, truncate. */
+function normaliseBuildLine(line: string): string {
+  const flat = line.replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim();
+  return flat.length > BUILD_MAX_LINE_CHARS ? flat.slice(0, BUILD_MAX_LINE_CHARS) : flat;
+}
+
+/**
+ * The desktop's in-memory build-run registry — re-composes apps/studio/server's `BuildRegistry`
+ * lifecycle (mint / append / terminalise / getRun + the single-build guard) WITHOUT importing it across
+ * the surface boundary (ADR-0100). Holds the live runs the chat accept-to-land click drives so the GET
+ * poll can read `{ status, transcript }` back. One instance per backend factory.
+ */
+class DesktopBuildRegistry {
+  readonly #runs = new Map<string, BuildRun>();
+  /** The id of the one non-terminal run, or null when nothing is building (the single-build guard). */
+  #activeRunId: string | null = null;
+
+  /** Mint a fresh `building` run, or REFUSE (typed, never thrown) when one is already live. */
+  createRun(unitId: string): CreateRunResult {
+    if (this.#activeRunId !== null) {
+      return { ok: false, reason: "a build is already running" };
+    }
+    const run: BuildRun = {
+      runId: randomUUID(),
+      unitId,
+      status: "building",
+      transcript: [],
+      startedAt: new Date().toISOString(),
+    };
+    this.#runs.set(run.runId, run);
+    this.#activeRunId = run.runId;
+    return { ok: true, run: this.#clone(run) };
+  }
+
+  /** Append ONE coarse line to a non-terminal run (no-op for an unknown/terminal run; oldest dropped at the cap). */
+  appendLine(runId: string, line: string): void {
+    const run = this.#runs.get(runId);
+    if (run === undefined || run.status !== "building") return;
+    run.transcript.push(normaliseBuildLine(line));
+    if (run.transcript.length > BUILD_MAX_LINES) {
+      run.transcript.splice(0, run.transcript.length - BUILD_MAX_LINES);
+    }
+  }
+
+  /** Terminalise a run as PASSED with its final envelope body; unblocks the next build. */
+  terminalisePassed(runId: string, envelope: string): void {
+    this.#terminalise(runId, (run) => {
+      run.status = "passed";
+      run.envelope = envelope;
+    });
+  }
+
+  /** Terminalise a run as FAILED with its reason (no signed verdict); unblocks the next build. */
+  terminaliseFailed(runId: string, reason: string): void {
+    this.#terminalise(runId, (run) => {
+      run.status = "failed";
+      run.reason = reason;
+    });
+  }
+
+  /** A snapshot of a run (deep-copied transcript so callers can't mutate registry state), or undefined. */
+  getRun(runId: string): BuildRun | undefined {
+    const run = this.#runs.get(runId);
+    return run === undefined ? undefined : this.#clone(run);
+  }
+
+  #terminalise(runId: string, apply: (run: BuildRun) => void): void {
+    const run = this.#runs.get(runId);
+    if (run === undefined || run.status !== "building") return;
+    apply(run);
+    run.endedAt = new Date().toISOString();
+    if (this.#activeRunId === runId) this.#activeRunId = null;
+  }
+
+  #clone(run: BuildRun): BuildRun {
+    return { ...run, transcript: [...run.transcript] };
+  }
+}
+
+/**
+ * Drive one build to a terminal state, streaming the injected runner's coarse progress into the registry
+ * run. Never throws (started fire-and-forget): a non-ok envelope or a thrown runner is recorded as a
+ * `failed` terminal state, never an unhandled rejection — mirrors apps/studio/server's `runBuildJob`
+ * WITHOUT importing it (ADR-0100). The injected runner is driven THROUGH the run (its sink appends to the
+ * run's transcript) rather than discarded.
+ */
+async function runDesktopBuildJob(
+  registry: DesktopBuildRegistry,
+  runId: string,
+  unitId: string,
+  runner: LocalBackendBuild["runner"],
+): Promise<void> {
+  registry.appendLine(runId, `▸ build started: ${unitId}`);
+  try {
+    const envelope = await runner(unitId, (line) => registry.appendLine(runId, line));
+    // Append the envelope body as coarse lines BEFORE terminalising (a terminal run accepts no appends).
+    for (const line of envelope.body.split("\n")) registry.appendLine(runId, line);
+    if (envelope.ok) {
+      registry.terminalisePassed(runId, envelope.body);
+    } else {
+      registry.terminaliseFailed(runId, buildFailureReason(envelope.body));
+    }
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    registry.appendLine(runId, `✗ ${reason}`);
+    registry.terminaliseFailed(runId, reason);
+  }
+}
+
+/** A concise failure line lifted from a non-ok envelope body (falls back to a generic message). */
+function buildFailureReason(body: string): string {
+  const line = body
+    .split("\n")
+    .map((l) => l.trim())
+    .find((l) => /verdict:\s*NONE|failed|refus|error/i.test(l));
+  return line ?? "build failed";
+}
+
+/** Shape a tracked run into the GET /api/build?runId wire body (the studio's `BuildStatus`). */
+function buildStatusOf(run: BuildRun): Record<string, unknown> {
+  return {
+    runId: run.runId,
+    unitId: run.unitId,
+    status: run.status,
+    transcript: run.transcript,
+    ...(run.envelope !== undefined ? { envelope: run.envelope } : {}),
+    ...(run.reason !== undefined ? { reason: run.reason } : {}),
+  };
 }
 
 /**
@@ -187,6 +355,10 @@ async function buildTreePayload(deps: LocalBackendDeps): Promise<Record<string, 
 export function createLocalBackend(
   deps: LocalBackendDeps,
 ): (req: IncomingMessage, res: ServerResponse) => Promise<void> {
+  // One in-memory build-run registry per backend instance: the POST mints a run here and the GET poll
+  // reads it back (the run lifecycle the chat accept-to-land click drives). Re-composed locally — NOT
+  // imported from apps/studio/server (the surface boundary, ADR-0100).
+  const buildRegistry = new DesktopBuildRegistry();
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const url = new URL(req.url ?? "/", "http://localhost");
     try {
@@ -216,19 +388,42 @@ export function createLocalBackend(
         const assets = await deps.backend.listAssets();
         sendJson(res, 200, assets);
       } else if (url.pathname === "/api/build") {
+        // The registry-backed build mount (desktop-build-dispatch-mount, ADR-0108 Phase 3/4): POST
+        // dispatches a human-accepted unit id (mints a tracked run, fires the injected runner
+        // fire-and-forget, returns `{ runId }`) and GET ?runId polls that run's `{ status, transcript }`
+        // back — the SAME wire contract `api.build` / `api.buildStatus` already call, so the ChatPanel's
+        // accept-to-land click (cap 4) drives a real build from inside the app. A SAFE write — intent in,
+        // progress out, no verdict (ADR-0091); the spine signs, CI lands.
         if (deps.build === undefined) throw new HttpError(404, "build is not enabled");
+        const build = deps.build;
         const method = req.method ?? "GET";
-        if (method !== "POST") throw new HttpError(405, `method ${method} not allowed`);
-        const input = await readJsonBody<Record<string, unknown>>(req);
-        const unitId = asString(input["unitId"]).trim();
-        if (!unitId) throw new HttpError(400, "unitId is required");
-        if (!(await deps.build.isBuildable(unitId))) {
-          throw new HttpError(404, `no buildable node "${unitId}"`);
+        if (method === "GET") {
+          // Poll a tracked run's coarse progress (the route the ChatPanel polls, ADR-0108 d.7).
+          const runId = asString(url.searchParams.get("runId")).trim();
+          if (!runId) throw new HttpError(400, "runId is required");
+          const run = buildRegistry.getRun(runId);
+          if (run === undefined) throw new HttpError(404, "build run not found");
+          sendJson(res, 200, buildStatusOf(run));
+        } else if (method === "POST") {
+          const input = await readJsonBody<Record<string, unknown>>(req);
+          const unitId = asString(input["unitId"]).trim();
+          if (!unitId) throw new HttpError(400, "unitId is required");
+          // Validate — an un-buildable / unknown id is a typed 404; the worker is never spawned against
+          // nothing (mirrors the studio's isBuildable guard / its 404).
+          if (!(await build.isBuildable(unitId))) {
+            throw new HttpError(404, `no buildable node "${unitId}"`);
+          }
+          // Mint a tracked run — the single-build-at-a-time guard surfaces as a 409 (mirrors handleBuild).
+          const created = buildRegistry.createRun(unitId);
+          if (!created.ok) throw new HttpError(409, created.reason);
+          const { runId } = created.run;
+          // Fire-and-forget: the injected runner streams coarse progress into the run; runDesktopBuildJob
+          // never throws (it records a failed terminal state), so the floating promise can't reject.
+          void runDesktopBuildJob(buildRegistry, runId, unitId, build.runner);
+          sendJson(res, 202, { runId });
+        } else {
+          throw new HttpError(405, `method ${method} not allowed`);
         }
-        // The build runner is fire-and-forget (the client polls for progress via future GET).
-        // For now, return 202 with a stable envelope; the runner is wired but not yet polled.
-        void deps.build.runner(unitId, () => undefined);
-        sendJson(res, 202, { runId: unitId });
       } else if (url.pathname === "/api/forest/write") {
         // Persist a locally-signed verdict/presence to the SHARED forest THROUGH THE BROKER
         // (ADR-0117) — the desktop's forest-write path is brokered, never a direct DB connection.
