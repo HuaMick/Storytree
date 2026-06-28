@@ -16,6 +16,13 @@ decide → decompose → build → curate → open the landing PR), and **one or
 time** to start. Per-session budget controls are deferred (owner: not a day-one concern). The chat
 surface's APPEARANCE is operator-attested under ADR-0070 when built.
 
+> **Amended in degree by [ADR-0131](0131-extend-the-no-usd-ceiling-default-to-the-orchestrator-and-cu.md)**
+> — the **deferred per-session budget control** (this Status line; decision 6; the "deferred, not
+> foreclosed" consequence) is resolved for the orchestrator session in the **no-USD-ceiling** direction:
+> `headless-orchestrator.ts` drops its `?? 1` USD default, bounded by the turn cap (16) with `--budget`
+> the opt-in. The deferral is lifted only for the USD ceiling; the single-session guard and the
+> accept-to-land gate stay the load-bearing brakes.
+
 ## Context
 
 Today the session-orchestrator is a *generated prompt* (ADR-0051) that a human-run Claude Code session
@@ -137,6 +144,9 @@ loop, Phase 5 is hosting.
   terminal loop.
 - Per-session budget controls are deferred, not foreclosed — a natural follow-on when spend or the
   hosted phase makes them matter.
+  > **Update:** resolved by [ADR-0131](0131-extend-the-no-usd-ceiling-default-to-the-orchestrator-and-cu.md)
+  > in the no-USD-ceiling direction — the orchestrator session's `?? 1` USD default is dropped; it runs
+  > bounded by the turn cap (16), with `--budget` the opt-in cap. The follow-on landed here.
 
 ## References
 
