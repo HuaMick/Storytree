@@ -1592,8 +1592,9 @@ mark.st-hl.flash {
 /* the world (top-down field; portrait — pan/zoom from the foundation upward) */
 .world-frame {
   position: relative;
-  /* Height of the folded chat dock bar — lifts the gear/session-dock clear of it (scoped to the map). */
-  --chat-dock-h: 46px;
+  /* Height of the folded chat dock bar — lifts the gear/session-dock clear of it (scoped to the map).
+     Tracks the slim collapsed prompt-bar (.chat-dock-toggle: 7px padding + glyph/hint line + 1px border). */
+  --chat-dock-h: 32px;
   border: 1px solid var(--border);
   border-radius: 14px;
   overflow: hidden;
@@ -2338,67 +2339,141 @@ mark.st-hl.flash {
   }
 }
 
-/* ── ChatPanel (chat-panel capability, ADR-0070) ─────────────────────────────────────────────────
-   The renderer chat panel: an intent textarea + Send, and the streamed terminal outcome (a `done`
-   proposal, a distinct `error` failure, a distinct `refused` "busy" state, or the honest absent-route
-   "unavailable" degrade). Reuses the Build affordance idiom (.build-spinner / .build-progress) so the
-   "working" state is consistent. The exact look is operator-attested (the desktop story's UAT leg 7),
-   so this is a clean, restrained baseline, not a signed visual verdict. */
-.chat-panel {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 24px 20px 40px;
-}
-.chat-panel-head {
-  margin-bottom: 16px;
-}
-.chat-panel-title {
-  margin: 0 0 4px;
-}
-.chat-form {
+/* ── Chat dock + panel: a TERMINAL (chat-panel capability, ADR-0070; terminal redesign, owner feedback)
+   ──────────────────────────────────────────────────────────────────────────────────────────────────
+   The forest-map chat dock reads like a warm-dark TERMINAL, not a centered light webform: a full-width
+   top-to-bottom scrollback (the echoed `› intent` line + the orchestrator's reply), a pinned input row
+   with a `›` prompt glyph + an icon send (a return-arrow, never a "Send" label), monospace throughout.
+   The warm-dark palette is scoped as local custom properties on `.chat-dock` so every `.chat-*` rule
+   below themes off one source of truth (and the studio stays light-only — no dark-mode variant needed).
+   APPEARANCE IS OPERATOR-ATTESTED (the desktop story's UAT leg 7, ADR-0070): these colours are the
+   owner-approved palette, re-witnessed by the owner — not a signed visual verdict, and jsdom asserts
+   none of them. */
+.chat-dock {
+  /* warm-dark terminal palette (owner-approved) — one source of truth for the panel below */
+  --chat-bg: #1e1a15; /* dock background */
+  --chat-input-bg: #191510; /* input-row background */
+  --chat-border-inner: #2c251a; /* inner dividers */
+  --chat-border-outer: #38301f; /* outer border */
+  --chat-sage: #8fb87a; /* forest sage: prompt glyph, agent name, send icon */
+  --chat-reply: #d8cfb8; /* assistant / reply text */
+  --chat-user: #e7debd; /* user / input text */
+  --chat-muted: #6f6450; /* muted hint text */
+  --chat-caret: #d9a441; /* amber streaming caret */
+  --chat-handle: #4a3f2c; /* collapsed-bar drag handle */
+  --chat-chevron: #8c7f66; /* muted chevron */
+  --chat-mono: var(--mono), ui-monospace, Menlo, monospace;
+
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  background: var(--chat-bg);
+  border-top: 1px solid var(--chat-border-outer);
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  font-family: var(--chat-mono);
 }
-.chat-input {
-  width: 100%;
-  box-sizing: border-box;
-  resize: vertical;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  line-height: 1.5;
-}
-.chat-input:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-weak);
-}
-.chat-input:disabled {
-  background: var(--surface-2);
-  opacity: 0.7;
-}
-.chat-form-actions {
+/* The toggle bar that folds/unfolds the dock — NO title text (owner feedback). Collapsed: a slim
+   prompt-bar (`›` glyph + faint hint + up-chevron). Expanded: a minimal strip with just a down-chevron
+   to collapse, right-aligned (the drag grabber sits above it). */
+.chat-dock-toggle {
   display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 14px;
+  border: none;
+  border-bottom: 1px solid var(--chat-border-inner);
+  background: transparent;
+  color: var(--chat-muted);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.chat-dock-toggle:hover {
+  background: color-mix(in srgb, var(--chat-sage) 6%, transparent);
+}
+/* Expanded: push the lone collapse chevron to the right. */
+.chat-dock-toggle-expanded {
   justify-content: flex-end;
 }
-.chat-send {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+.chat-dock-toggle-prompt {
+  color: var(--chat-sage);
+  font-weight: 600;
 }
-.chat-send:hover {
-  background: #4338ca;
+.chat-dock-toggle-hint {
+  flex: 1 1 auto;
+  color: var(--chat-muted);
+  font-size: 12.5px;
 }
-.chat-send:disabled {
-  opacity: 0.55;
-  cursor: default;
+.chat-dock-toggle-chevron {
+  color: var(--chat-chevron);
+  font-size: 12px;
 }
+/* The thin top-edge grabber — drag up to grow, down to shrink. The handle pip reads as a draggable
+   strip without a title. */
+.chat-dock-resize {
+  position: relative;
+  height: 11px;
+  flex: 0 0 auto;
+  cursor: ns-resize;
+  background: transparent;
+}
+.chat-dock-resize::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--chat-handle);
+  transform: translate(-50%, -50%);
+}
+.chat-dock-resize:hover::after {
+  background: color-mix(in srgb, var(--chat-sage) 40%, var(--chat-handle));
+}
+/* The body holds the mounted ChatPanel and scrolls within the dragged height. */
+.chat-dock-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* The panel is a full-height flex column: the scrollback (.chat-outcome) grows and scrolls, the input
+   row (.chat-form) and hint pin to the bottom — FULL WIDTH, never a centered column. */
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  color: var(--chat-reply);
+}
+/* The scrollback — the current exchange reads top-to-bottom like terminal output. */
 .chat-outcome {
-  margin-top: 16px;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  font-size: 13px;
+  line-height: 1.65;
+}
+/* The echoed prompt line: `› <what they typed>` above the reply. */
+.chat-echo {
+  margin: 0;
+}
+.chat-prompt-glyph {
+  color: var(--chat-sage);
+  font-weight: 600;
+  margin-right: 6px;
+}
+.chat-echo-text {
+  color: var(--chat-user);
+  white-space: pre-wrap;
 }
 .chat-busy-status {
   display: flex;
@@ -2407,25 +2482,20 @@ mark.st-hl.flash {
   margin: 0 0 6px;
 }
 .chat-busy-label {
-  font-weight: 600;
-  color: var(--accent);
+  color: var(--chat-sage);
 }
 /* The assistant text streaming in live (the `delta` frames), before the session settles to its done
- * proposal. Same readable card as the proposal so the settle is visually continuous, with a blinking
- * caret to signal it is still generating. Preserves line breaks for multi-paragraph streaming. */
+ * proposal. A blinking amber caret signals it is still generating. Preserves line breaks. */
 .chat-streaming-text {
   margin: 0;
-  padding: 14px 16px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-2);
+  color: var(--chat-reply);
   white-space: pre-wrap;
-  line-height: 1.6;
+  line-height: 1.65;
 }
 .chat-streaming-text::after {
   content: '▋';
   margin-left: 2px;
-  color: var(--accent);
+  color: var(--chat-caret);
   animation: chat-caret-blink 1s step-end infinite;
 }
 @keyframes chat-caret-blink {
@@ -2433,27 +2503,22 @@ mark.st-hl.flash {
     opacity: 0;
   }
 }
-/* The done proposal — the streamed plan, in a readable card with preserved line breaks. */
+/* The done proposal — the streamed plan, preserved line breaks, no card chrome (terminal scrollback). */
 .chat-proposal {
-  padding: 14px 16px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-2);
+  color: var(--chat-reply);
 }
 .chat-proposal-body {
   margin: 0;
   white-space: pre-wrap;
-  line-height: 1.6;
+  line-height: 1.65;
 }
 .chat-proposal-meta {
-  margin: 10px 0 0;
+  margin: 8px 0 0;
+  color: var(--chat-muted);
 }
 /* The distinct error (failure) state — danger-hued, visibly NOT the refused/busy state. */
 .chat-error {
-  padding: 12px 14px;
-  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--danger) 7%, var(--surface));
+  color: var(--chat-reply);
 }
 .chat-error-label {
   margin: 0 0 4px;
@@ -2461,96 +2526,98 @@ mark.st-hl.flash {
 }
 .chat-error-detail {
   margin: 0;
+  color: var(--chat-muted);
 }
-/* The distinct refused ("busy — try again") state — warn-hued, recoverable, NOT a failure. */
+/* The distinct refused ("busy — try again") state — recoverable, NOT a failure. */
 .chat-refused {
-  padding: 12px 14px;
-  border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent);
-  border-radius: 8px;
-  background: var(--warn-weak);
+  color: var(--chat-reply);
 }
 .chat-refused-label {
   margin: 0 0 4px;
   font-weight: 600;
-  color: var(--warn);
+  color: var(--chat-caret);
 }
 .chat-refused-detail {
   margin: 0;
+  color: var(--chat-muted);
 }
 /* The honest absent-route degrade — muted, plainly "not here", never a hung spinner. */
 .chat-unavailable {
-  padding: 12px 14px;
-  border: 1px dashed var(--border);
-  border-radius: 8px;
-  background: var(--surface-2);
+  color: var(--chat-muted);
 }
 .chat-unavailable-label {
   margin: 0 0 4px;
   font-weight: 600;
+  color: var(--chat-reply);
 }
 .chat-unavailable-detail {
   margin: 0;
 }
-
-/* ── ChatDock (leg-7 chip 1, ADR-0108 / ADR-0113) ────────────────────────────────────────────────
-   The collapsible, draggable OVERLAY that docks ChatPanel to the BOTTOM of the forest map. Its
-   GEOMETRY is inline (position:fixed / bottom:0 / z-index / the dragged height — see ChatDock.tsx);
-   everything here is COSMETIC and is the desktop story's operator-attested UAT leg 7 (ADR-0070), not
-   a signed visual verdict — a restrained, clean baseline the owner re-witnesses. The dock is a flex
-   column: the toggle bar fixed, the body flex:1 and scrolling, so a tall conversation scrolls within
-   whatever height the operator dragged. */
-.chat-dock {
-  display: flex;
-  flex-direction: column;
-  /* Frosted overlay (consistent with the Shared-Islands panel) — 90% keeps the conversation readable. */
-  background: color-mix(in srgb, var(--surface) 90%, transparent);
-  backdrop-filter: blur(10px) saturate(1.05);
-  -webkit-backdrop-filter: blur(10px) saturate(1.05);
-  border-top: 1px solid var(--border);
-  border-top-left-radius: 12px;
-  border-top-right-radius: 12px;
-  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.18);
-  overflow: hidden;
-}
-/* The full-width clickable bar that folds/unfolds the dock. */
-.chat-dock-toggle {
+/* The pinned input row: prompt glyph + full-width transparent input + icon send. */
+.chat-form {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
-  width: 100%;
-  padding: 10px 18px;
-  border: none;
-  background: var(--surface-2);
-  color: var(--text);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-  text-align: left;
-}
-.chat-dock-toggle:hover {
-  background: color-mix(in srgb, var(--accent) 8%, var(--surface-2));
-}
-.chat-dock-toggle-chevron {
-  color: var(--muted);
-  font-size: 12px;
-}
-/* The thin top-edge grabber — drag up to grow, down to shrink. */
-.chat-dock-resize {
-  height: 6px;
   flex: 0 0 auto;
-  cursor: ns-resize;
-  background: transparent;
+  padding: 11px 14px;
+  border-top: 1px solid var(--chat-border-inner);
+  background: var(--chat-input-bg);
 }
-.chat-dock-resize:hover {
-  background: var(--accent-weak);
+.chat-input-glyph {
+  margin-right: 0;
 }
-/* The body holds the mounted ChatPanel and scrolls within the dragged height. (.chat-panel keeps its
-   own max-width / margin:auto, so the conversation stays centered inside the dock.) */
-.chat-dock-body {
+.chat-input {
   flex: 1 1 auto;
-  overflow-y: auto;
-  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: var(--chat-user);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.chat-input::placeholder {
+  color: var(--chat-muted);
+}
+.chat-input:focus {
+  outline: none;
+}
+.chat-input:disabled {
+  opacity: 0.6;
+}
+/* The icon send button — a return-arrow in forest sage, no "Send" label, no button chrome. */
+.chat-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 4px;
+  border: none;
+  background: transparent;
+  color: var(--chat-sage);
+  cursor: pointer;
+}
+.chat-send:hover {
+  color: color-mix(in srgb, var(--chat-sage) 70%, #fff);
+}
+.chat-send:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.chat-send-icon {
+  display: block;
+}
+/* The keybinding hint below the input row. */
+.chat-hint {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 5px 14px 11px;
+  background: var(--chat-input-bg);
+  color: var(--chat-muted);
+  font-size: 11px;
 }
 
 .build-transcript {

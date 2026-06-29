@@ -54,9 +54,10 @@ function heightPx(el: HTMLElement): number {
   return parseFloat(el.style.height || '0');
 }
 
-/** The single toggle bar (folded→click expands, expanded→click collapses). */
+/** The single toggle bar (folded→click expands, expanded→click collapses). Found by its aria-label
+ *  ("expand chat" / "collapse chat") — the visible "Chat" title text was removed (owner feedback). */
 function toggle(): HTMLElement {
-  return screen.getByRole('button', { name: /chat/i });
+  return screen.getByRole('button', { name: /(expand|collapse) chat/i });
 }
 
 beforeEach(() => {
@@ -76,6 +77,17 @@ describe('ChatDock', () => {
     expect(screen.queryByRole('textbox')).toBeNull();
     // The toggle announces the collapsed state.
     expect(toggle().getAttribute('aria-expanded')).toBe('false');
+  });
+
+  // ── cd-no-redundant-title (owner feedback: the "Chat" title appeared redundantly twice) ──────────
+  it('cd-no-redundant-title: the dock shows NO "Chat" title text — the toggle is a slim affordance found by aria-label, not a visible title', () => {
+    render(<ChatDock />);
+
+    // No visible "Chat" title text anywhere (the toggle label was removed; it stays findable via its
+    // aria-label only). Appearance is operator-attested — this asserts the chrome removal, not colours.
+    expect(screen.queryByText(/^chat$/i)).toBeNull();
+    // The toggle is still reachable by its accessible name.
+    expect(toggle()).toBeTruthy();
   });
 
   // ── cd-expands-on-click ──────────────────────────────────────────────────────

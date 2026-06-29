@@ -46,11 +46,12 @@ import { ChatPanel } from './ChatPanel';
 /** Flush the async chain a submit/timer kicked off. */
 const flush = (): Promise<void> => act(async () => {});
 
-/** Type the intent into the panel's input and submit it. */
+/** Type the intent into the panel's input and submit it. The send control is now an ICON button found
+ *  by aria-label="send" (the "Send" text label was removed for a terminal look). */
 function typeAndSubmit(intent: string): void {
   const input = screen.getByRole('textbox');
   fireEvent.change(input, { target: { value: intent } });
-  // Submit via the Send button (also covers Enter, but the button is the stable affordance).
+  // Submit via the icon send button (Enter-to-send is covered separately; the button is stable).
   fireEvent.click(screen.getByRole('button', { name: /send/i }));
 }
 
@@ -93,6 +94,70 @@ describe('ChatPanel', () => {
 
     settle(); // let the (never-terminal) stream resolve so the effect/timers settle cleanly
     await flush();
+  });
+
+  // ── cp-enter-submits / shift-enter-newline (terminal keybindings, owner feedback) ────────────────
+  it('cp-enter-submits: plain Enter in the input submits (fires the seam once); Shift+Enter does NOT submit', async () => {
+    let settle: () => void = () => {};
+    apiMock.chatStream.mockReturnValue(new Promise<void>((res) => { settle = res; }));
+
+    render(<ChatPanel />);
+    const input = screen.getByRole('textbox');
+
+    // Shift+Enter must NOT submit — it inserts a newline (the default), so the seam is untouched.
+    fireEvent.change(input, { target: { value: 'multi' } });
+    fireEvent.keyDown(input, { key: 'Enter', shiftKey: true });
+    await flush();
+    expect(apiMock.chatStream).not.toHaveBeenCalled();
+
+    // Plain Enter submits — fires the seam exactly once with the typed intent.
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await flush();
+    expect(apiMock.chatStream).toHaveBeenCalledTimes(1);
+    expect(apiMock.chatStream.mock.calls[0]?.[0]).toBe('multi');
+
+    settle();
+    await flush();
+  });
+
+  it('cp-enter-submits (sibling: empty-intent guard holds for Enter): plain Enter on a blank input fires NO seam call', async () => {
+    apiMock.chatStream.mockResolvedValue(undefined);
+    render(<ChatPanel />);
+
+    // Enter on an empty input — the trim guard blocks the POST.
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
+    await flush();
+    expect(apiMock.chatStream).not.toHaveBeenCalled();
+  });
+
+  // ── cp-no-redundant-chrome (owner feedback: the "Chat" h2 + blurb were removed) ──────────────────
+  it('cp-no-redundant-chrome: the panel renders NO "Chat" title heading and NO blurb — and the send control is an icon (aria-label="send"), not a "Send" text button', () => {
+    render(<ChatPanel />);
+
+    // The "Chat" <h2> title and the "Ask the orchestrator…" blurb are gone.
+    expect(screen.queryByRole('heading', { name: /chat/i })).toBeNull();
+    expect(screen.queryByText(/ask the orchestrator to orient and propose/i)).toBeNull();
+    // The send control is reachable by its accessible name "send" (an icon button)…
+    expect(screen.getByRole('button', { name: /send/i })).toBeTruthy();
+    // …and carries no literal "Send" text label.
+    expect(screen.queryByText(/^send$/i)).toBeNull();
+  });
+
+  // ── cp-echoes-the-submitted-intent (terminal scrollback: `› <what they typed>`) ──────────────────
+  it('cp-echoes-the-submitted-intent: the submitted intent is echoed back as a terminal prompt line above the reply', async () => {
+    apiMock.chatStream.mockImplementation(async (_intent, onEvent) => {
+      onEvent({ type: 'done', proposal: 'a fine plan', turns: 1 });
+    });
+
+    const { container } = render(<ChatPanel />);
+    typeAndSubmit('rework the chat dock');
+    await flush();
+
+    // The echoed intent line is present (the current exchange's prompt) alongside the reply.
+    const echo = container.querySelector('.chat-echo');
+    expect(echo).toBeTruthy();
+    expect(echo?.textContent).toContain('rework the chat dock');
+    expect(screen.getByText(/a fine plan/)).toBeTruthy();
   });
 
   // ── cp-renders-the-done-proposal ────────────────────────────────────────────
