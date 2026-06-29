@@ -100,7 +100,8 @@ export function ChatDock(): React.JSX.Element {
         ...(expanded ? { height: `${height}px` } : {}),
       }}
     >
-      {/* The resize grabber lives on the dock's TOP edge, only while expanded. */}
+      {/* The resize grabber lives on the dock's TOP edge, only while expanded — a thin drag handle,
+          paired below with the collapse chevron in the minimal top strip (no title text). */}
       {expanded && (
         <div
           role="separator"
@@ -111,17 +112,34 @@ export function ChatDock(): React.JSX.Element {
         />
       )}
 
-      {/* One control toggles both ways: folded → expand, expanded → collapse. */}
+      {/* One control toggles both ways: folded → expand, expanded → collapse. NO "Chat" title text
+          anywhere (owner feedback: the title appeared redundantly). Collapsed: a slim, discoverable
+          prompt-bar — a forest-sage `›` glyph + a faint hint + an up-chevron. Expanded: a minimal top
+          strip with just a down-chevron to collapse (the drag grabber sits above it). The
+          aria-expanded state stays the testable signal. The aria-label keeps the toggle findable
+          ("expand chat" / "collapse chat") now that the visible text label is gone. */}
       <button
         type="button"
-        className="chat-dock-toggle"
+        className={`chat-dock-toggle${expanded ? ' chat-dock-toggle-expanded' : ''}`}
         aria-expanded={expanded}
+        aria-label={expanded ? 'collapse chat' : 'expand chat'}
         onClick={toggle}
       >
-        <span className="chat-dock-toggle-label">Chat</span>
-        <span className="chat-dock-toggle-chevron" aria-hidden="true">
-          {expanded ? '▾' : '▴'}
-        </span>
+        {expanded ? (
+          <span className="chat-dock-toggle-chevron" aria-hidden="true">
+            {'▾'}
+          </span>
+        ) : (
+          <>
+            <span className="chat-dock-toggle-prompt" aria-hidden="true">
+              {'›'}
+            </span>
+            <span className="chat-dock-toggle-hint">Ask the orchestrator…</span>
+            <span className="chat-dock-toggle-chevron" aria-hidden="true">
+              {'▴'}
+            </span>
+          </>
+        )}
       </button>
 
       {/* ChatPanel stays MOUNTED; `hidden` (not conditional render) preserves conversation state and

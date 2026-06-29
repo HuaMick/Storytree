@@ -68,10 +68,38 @@ type BuildPhase =
   | { kind: 'terminal'; status: BuildStatus }
   | { kind: 'error'; message: string };
 
+/** A small return-arrow (corner-down-left) glyph — the send affordance, an icon not a "Send" button
+ *  (terminal look). Inline SVG: the studio carries no icon webfont; sibling components draw SVG inline.
+ *  `currentColor` so the icon inherits the send button's forest-sage colour from CSS. */
+function SendIcon(): React.JSX.Element {
+  return (
+    <svg
+      className="chat-send-icon"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polyline points="9 10 4 15 9 20" />
+      <path d="M20 4v7a4 4 0 0 1-4 4H4" />
+    </svg>
+  );
+}
+
 export function ChatPanel(): React.JSX.Element {
   const [intent, setIntent] = useState('');
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
   const [buildPhase, setBuildPhase] = useState<BuildPhase>({ kind: 'idle' });
+  // The intent the operator submitted for the CURRENT exchange — echoed back as a terminal prompt line
+  // (`› <what they typed>`) ABOVE the reply, so the single in-flight exchange reads as a mini
+  // scrollback. NOT a multi-turn history (the backend is single-session per submit); it holds only the
+  // one current intent and is cleared back to empty on idle.
+  const [submitted, setSubmitted] = useState('');
   // A re-entrancy guard so a double-submit (two synchronous clicks before the stream starts) cannot
   // fire a second POST. State alone is racy across synchronous events in the same tick; the ref flips
   // immediately. Mirrors usePollableRun's single-in-flight guard in BuildSection.
@@ -88,6 +116,7 @@ export function ChatPanel(): React.JSX.Element {
     if (!trimmed) return; // client-side empty-intent guard — never POST an empty intent
 
     inFlight.current = true;
+    setSubmitted(trimmed); // echo it back as the terminal prompt line for this exchange
     // The terminal frame the stream delivers (the backend end()s after one terminal event). We keep
     // the LAST terminal frame and render it when the stream resolves — the contracts pin the terminal
     // render, which is the journey the operator sees.
@@ -207,53 +236,19 @@ export function ChatPanel(): React.JSX.Element {
 
   return (
     <div className="chat-panel">
-      <header className="chat-panel-head">
-        <h2 className="chat-panel-title">Chat</h2>
-        <p className="muted small">
-          Ask the orchestrator to orient and propose. It reads and proposes — it never builds or
-          merges on its own.
-        </p>
-      </header>
-
-      <form
-        className="chat-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          submit();
-        }}
-      >
-        <textarea
-          className="chat-input"
-          value={intent}
-          onChange={(e) => setIntent(e.target.value)}
-          placeholder="What would you like to work on?"
-          rows={3}
-          disabled={disabled}
-          spellCheck={false}
-          // Cmd/Ctrl+Enter submits — a small ergonomic affordance over the Send button.
-          onKeyDown={(e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-              e.preventDefault();
-              submit();
-            }
-          }}
-          aria-label="chat intent"
-        />
-        <div className="chat-form-actions">
-          <button type="submit" className="btn chat-send" disabled={disabled}>
-            {busy ? (
-              <>
-                <span className="chat-spinner build-spinner build-spinner-inline" aria-hidden="true" />
-                Sending…
-              </>
-            ) : (
-              'Send'
-            )}
-          </button>
-        </div>
-      </form>
-
       <div className="chat-outcome" aria-live="polite">
+        {/* Echo the submitted intent as a terminal prompt line ABOVE the reply: `› <what they typed>`,
+            so the current exchange reads top-to-bottom like a terminal scrollback. Shown for every
+            non-idle phase (the one current exchange); cleared back to idle resets it. */}
+        {phase.kind !== 'idle' && submitted && (
+          <p className="chat-echo">
+            <span className="chat-prompt-glyph" aria-hidden="true">
+              {'›'}
+            </span>
+            <span className="chat-echo-text">{submitted}</span>
+          </p>
+        )}
+
         {phase.kind === 'busy' && (
           // The non-terminal "thinking/streaming" affordance. Before any token arrives it shows an
           // indeterminate progress bar ("working…"); once deltas stream in, the live text itself is
@@ -371,6 +366,55 @@ export function ChatPanel(): React.JSX.Element {
           </div>
         )}
       </div>
+
+      {/* The terminal INPUT ROW — pinned below the scrollback. A forest-sage `›` prompt glyph, the
+          full-width transparent input, and an icon send button (a return-arrow, not a "Send" label).
+          Plain Enter submits; Shift+Enter inserts a newline (handled in onKeyDown below). */}
+      <form
+        className="chat-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
+        }}
+      >
+        <span className="chat-prompt-glyph chat-input-glyph" aria-hidden="true">
+          {'›'}
+        </span>
+        <textarea
+          className="chat-input"
+          value={intent}
+          onChange={(e) => setIntent(e.target.value)}
+          placeholder="What would you like to work on?"
+          rows={1}
+          disabled={disabled}
+          spellCheck={false}
+          // Terminal keybindings: plain Enter submits (preventDefault); Shift+Enter inserts a newline
+          // (fall through to the default). The submit()'s own trim guard blocks an empty/whitespace
+          // intent. Cmd/Ctrl+Enter also submits (kept for parity with the rest of the studio).
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              submit();
+            }
+          }}
+          aria-label="chat intent"
+        />
+        <button
+          type="submit"
+          className="chat-send"
+          disabled={disabled}
+          aria-label="send"
+        >
+          {busy ? (
+            <span className="chat-spinner build-spinner build-spinner-inline" aria-hidden="true" />
+          ) : (
+            <SendIcon />
+          )}
+        </button>
+      </form>
+      <p className="chat-hint" aria-hidden="true">
+        enter to send · shift+enter for newline
+      </p>
     </div>
   );
 }
