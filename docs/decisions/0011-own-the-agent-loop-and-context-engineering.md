@@ -14,11 +14,7 @@ accepted (2026-06-06) — **supersedes** ADR-0001's *pi* per-node runtime and **
 its *model-agnostic, pay-as-you-go* non-negotiable; **amends** ADR-0004 and ADR-0005 (the
 boundary now wraps an owned loop, not pi). The rest of ADR-0001's stack stands.
 
-**Superseded-in-part by [ADR-0019](0019-library-tier-name-and-defer-dbos.md)** — §5's "DBOS/Postgres durable execution stands" is overtaken (DBOS deferred; the store is a plain typed Postgres connection now).
-
 **Superseded-in-part by [ADR-0030](0030-all-in-on-claude-agent-sdk.md)** (accepted, 2026-06-10) — §§1–2 are demoted: the **Claude Agent SDK** becomes the live runtime (subscription auth), the owned loop becomes the offline/test executor + pivot-out fallback, and "own context engineering / never delegate to a third-party harness" reframes to owning the **map and pull surfaces** (story tree, Library, CLI). §3's seam discipline carries, pointed the other way.
-
-**Superseded-in-part by [ADR-0036](0036-story-world-studio-visualisation.md)** (accepted, 2026-06-12) — §5's "the PixiJS studio" mention is overtaken (the same overtaken-mention shape as the DBOS line above): the studio's story world shipped as inline SVG; PixiJS is named-deferred.
 
 ## Date
 
@@ -70,11 +66,18 @@ Two things changed that bet (owner, 2026-06-06):
    (provisionally `packages/agent`, replacing `packages/pi-adapter`), is the **sole** place
    a model runtime is imported, and is driven **only** by `packages/orchestrator`;
    `packages/core` and `apps/studio` still hold no model-invocation path. ADR-0005's
-   **spine/leaf split stands** — code sequences (the orchestrator over DBOS), the owned
+   **spine/leaf split stands** — code sequences (the orchestrator spine), the owned
    loop judges at the leaf. *run ≠ node* and *no agent-spawns-agent* are unchanged.
-5. **What does NOT change.** DBOS/Postgres durable execution, the thin orchestrator, the
-   event store as the single observability source, the PixiJS studio, and TS/Node/pnpm all
-   stand. Only **pi-as-leaf** and the **model-agnostic non-negotiable** are reversed.
+   *(The original wording said "the orchestrator over DBOS"; DBOS is deferred —
+   [ADR-0019](0019-library-tier-name-and-defer-dbos.md) — and the substrate claim is
+   corrected out here per [ADR-0139](0139-the-accepted-adr-set-carries-no-stale-prose-correct-in-place.md).)*
+5. **What does NOT change.** The thin orchestrator, the event store as the single
+   observability source, and TS/Node/pnpm all stand. Only **pi-as-leaf** and the
+   **model-agnostic non-negotiable** are reversed. *(Two stack picks named here as "stands"
+   were later overtaken and are corrected out of this list per [ADR-0139](0139-the-accepted-adr-set-carries-no-stale-prose-correct-in-place.md):
+   DBOS/Postgres durable execution is deferred for the library store —
+   [ADR-0019](0019-library-tier-name-and-defer-dbos.md), a plain typed Postgres connection
+   instead; and the PixiJS studio shipped as inline SVG — [ADR-0036](0036-story-world-studio-visualisation.md).)*
 
 ## Consequences
 
