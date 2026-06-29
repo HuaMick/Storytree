@@ -8,8 +8,10 @@ status: proposed
 proposed — directed by the owner 2026-06-29 in design discussion with the orchestrator, and drafted by
 the orchestrator from that discussion (the workflow this ADR itself sanctions, decision 2). It mostly
 **affirms the already-accepted ADR-0108**; what is genuinely NEW is the ADR-authoring carve-out
-(decision 2) and the sharpening of *how* ADR-0108 Phase 3 is built (decision 1). Awaiting the owner's
-wording-confirm to flip to accepted. Amends ADR-0108; upholds ADR-0091.
+(decision 2), the sharpening of *how* ADR-0108 Phase 3 is built (decision 1), and the consultative
+change/fix routing model (decision 4 — owner-confirmed 2026-06-29: a bug is a missing contract). The
+content is now complete; awaiting the owner's nod to flip to accepted. Amends ADR-0108; upholds
+ADR-0091.
 
 ## Context
 
@@ -66,6 +68,28 @@ The owner's framing sharpens two things ADR-0108 left implicit:
    orchestrator's spawning handles authoring + conversational changes/fixes; the human's button + merge
    are the direct gates.
 
+4. **A change/fix routes through CONSULTATIVE enlistment, not a mechanical rule** (resolving the open
+   tension this ADR first flagged). A bug fix or change is not a new story, so the orchestrator does not
+   author it directly — it ENLISTS the roles the change needs and JUDGES the composition:
+   - **A bug is a missing contract.** A bug is signal that the story is under-specified — a behaviour
+     the contracts did not pin. So the orchestrator's first judgment is: *under-specified story, or
+     right-contract-wrong-impl?* If under-specified → spawn the **story-author** to add the missing
+     contract (the red test that reproduces the bug), then spawn the **leaf** to drive that contract
+     red→green (spine signs, CI re-proves, human lands). If the contract was right and only the code was
+     wrong → straight to the leaf to re-drive the existing contract. Either way the change becomes a
+     **provable unit by becoming a contract** — the bridge from change → red→green. This extends
+     `orchestrate-route-supplement` (decompose → route → supplement) and
+     `route-structural-forks-to-story-author` into the change/fix domain.
+   - **Each enlisted subagent advises HONESTLY against its own prose.** A subagent is a consultant, not
+     a yes-man: it assesses the task against its OWN guidance and answers honestly — DO the work, report
+     **no action needed** (e.g. the test author finds the coverage already sufficient), **push back**,
+     or **escalate a clarifying question** up through the orchestrator (potentially to the user). The
+     orchestrator composes these honest verdicts; it never pre-decides a role's output. This
+     honest-consultant discipline is GENERAL — it governs every enlistment, not just changes — and is
+     flagged as a **candidate Library principle** for the guidance-curator to author and graduate.
+   - **Same flow for changes**, not only fixes: a change is a new/refined contract enlisted, judged, and
+     driven the same way.
+
 ## Consequences
 
 **Good**
@@ -83,10 +107,13 @@ The owner's framing sharpens two things ADR-0108 left implicit:
   needs the SDK subagent/Agent-tool surface on the live runtime (ADR-0030), careful tool-scoping per
   spawned role, the single-session/concurrency guard (ADR-0108 d.6), and the turn-cap brake
   (ADR-0130 / ADR-0131). A real build arc, not a wiring increment.
-- **OPEN design tension (flagged, not solved here):** how a bug fix / change — which is *not* a new
-  story — becomes a provable unit the gate can drive (a new contract/test on an existing story? a new
-  capability? a node-level real drive, given the node path is a synthetic smoke today, ADR-0099-B). The
-  routing of CHANGES (vs. new work) into the inner loop is the next design question.
+- **RESOLVED by decision 4:** how a bug fix / change becomes a provable unit — it becomes a *contract*
+  (a bug is a missing contract; story-author adds it, the leaf drives it red→green), routed through
+  consultative enlistment. The residual is lighter and OPERATIONAL, not architectural: the orchestrator
+  must BOUND the consultation (know when enough roles have weighed in) and route an upward clarification
+  cleanly back to the human; and a real *unit-level* drive is still a smoke today (ADR-0099-B), so the
+  leaf re-driving a single contract for a fix is itself a build-shape detail to settle when Phase 3 is
+  built.
 
 **Neutral**
 - Affirms, does not retire, ADR-0108's shape and phasing; the terminal session-orchestrator is
@@ -111,5 +138,12 @@ The owner's framing sharpens two things ADR-0108 left implicit:
 - ADR-0099-B — node `--live` smoke is synthetic; a real unit-level drive is the primitive a bug-fix
   path needs.
 - ADR-0128 / ADR-0129 + `docs/research/inner-loop-adoption-gap.md` — drive authority is the lever.
+- `orchestrate-route-supplement` (Library pattern) — decompose → route → supplement with subagents;
+  decision 4 extends it into the change/fix domain.
+- `route-structural-forks-to-story-author` (Library principle) — the bug → story-author routing
+  (a missing contract is a structural fork).
+- **Candidate Library principle** (guidance-curator to author + graduate): the *honest-consultant
+  enlistment* discipline — an enlisted subagent advises honestly against its own prose (act / no action
+  needed / push back / escalate-for-clarification), never a yes-man executor (decision 4).
 - Code: `packages/agent/src/headless-orchestrator.ts` (the propose-only runtime to promote);
   `packages/agent/src/sdk-author.ts` (`ClaudeAgentAuthor` — the subagent-capable runtime).
