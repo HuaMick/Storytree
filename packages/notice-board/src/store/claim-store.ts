@@ -240,6 +240,67 @@ export class PgClaimStore {
     );
   }
 
+  /**
+   * Bulk-release every claim whose `branch` column equals `branch`. Deletes all matching
+   * `events.node_claim` rows in one transaction and appends one `released` audit event per cleared
+   * claim to `events.claim_event`. Returns the number of claims released.
+   *
+   * This is the guaranteed machine clear the CI merge job calls — `release()` drops one claim by
+   * `(unitId, sessionId)`; this drops ALL of a merged branch's claims by `branch` alone.
+   */
+  async releaseClaimsByBranch(branch: string): Promise<number> {
+    const client = await this.#pool.connect();
+    try {
+      await client.query("BEGIN");
+      const del = await client.query(
+        `DELETE FROM events.node_claim WHERE branch = $1 RETURNING ${CLAIM_COLUMNS}`,
+        [branch],
+      );
+      const removed = del.rows as ClaimRow[];
+      for (const row of removed) {
+        const doc = rowToDoc(row);
+        await this.#appendEvent(client, row.unit_id, "released", row.session_id, doc);
+      }
+      await client.query("COMMIT");
+      return removed.length;
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Bump the heartbeat on `unitId` IFF held by `sessionId` (a session can only refresh its OWN
+   * claim's liveness) — the store-side mirror of {@link bumpHeartbeat from claim.ts}, the cheap
+   * mid-flight refresh the loops' trace signals call so a live session's claim never ages out
+   * (ADR-0138 §4). Touches ONLY `heartbeat_at`; it never re-acquires, refuses, or appends a
+   * `claim_event` — a heartbeat is a high-frequency liveness signal, not a state transition, so
+   * auditing every bump would flood the log. Returns true when our row was refreshed; false when
+   * there was nothing of ours to bump (released, never held, or held by another). Atomic.
+   */
+  async bumpHeartbeat(unitId: string, sessionId: string): Promise<boolean> {
+    const client = await this.#pool.connect();
+    try {
+      await client.query("BEGIN");
+      const upd = await client.query(
+        `UPDATE events.node_claim SET heartbeat_at = now()
+           WHERE unit_id = $1 AND session_id = $2
+         RETURNING ${CLAIM_COLUMNS}`,
+        [unitId, sessionId],
+      );
+      const bumped = (upd.rows as ClaimRow[])[0];
+      await client.query("COMMIT");
+      return bumped !== undefined;
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
   async #appendEvent(
     client: ClaimClient,
     unitId: string,
