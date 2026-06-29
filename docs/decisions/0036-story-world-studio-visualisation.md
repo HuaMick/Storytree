@@ -1,7 +1,7 @@
 ---
 status: accepted
 decided: 2026-06-12
-supersedes_in_part: [1, 11]
+supersedes_in_part: [1]
 ---
 
 # ADR-0036: The story world — the studio renders the work hierarchy as a hex-island world (SVG, not PixiJS)
@@ -11,9 +11,7 @@ supersedes_in_part: [1, 11]
 accepted (2026-06-12, owner-steered live through PRs #54–#58 and the 2026-06-12 direction call) —
 **supersedes [ADR-0001](0001-foundational-stack.md) in part** (the PixiJS v8 + `@pixi/react`
 story-tree engine pick is overtaken: the shipped world is plain inline SVG in React);
-**supersedes [ADR-0011](0011-own-the-agent-loop-and-context-engineering.md) §5 in part** (its
-"the PixiJS studio … stands" line, the same overtaken-mention shape as its DBOS line was for
-ADR-0019); **refines [ADR-0006](0006-event-store-observability-surface.md)** (the studio renders
+**refines [ADR-0006](0006-event-store-observability-surface.md)** (the studio renders
 a *composite* of read surfaces — `stories/` frontmatter, `events.verdict`, `events.session` — not
 the event store alone), **[ADR-0023](0023-library-cli-choose-your-own-adventure.md)** (the
 "when the story tree exists" deferral condition is now met), **[ADR-0030](0030-all-in-on-claude-agent-sdk.md)**
