@@ -1118,6 +1118,12 @@ function layoutSubdag(story: TreeStory): SubLayout {
 
 // ---------- view ----------
 
+// Px the pointer may wander between press and release before the gesture is treated as a PAN (and the
+// click suppressed) rather than a node SELECT. The old 4px was below normal click jitter, so ordinary
+// mouse/trackpad clicks were being eaten as micro-drags and never opened the detail panel (owner UX
+// feedback). 10px comfortably clears click jitter while staying responsive for an intentional drag.
+const DRAG_SLOP = 10;
+
 type Band = TreeSession['band'];
 
 /** What the session dock shows: the board-level list, or one session's detail. */
@@ -1422,7 +1428,15 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
   const onPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const d = dragRef.current;
     if (!d) return;
-    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) d.moved = true;
+    // Until the pointer wanders past the slop the press is still a CLICK: don't pan and don't mark it
+    // moved, so a click that jitters a few px still selects the node (it is NOT suppressed on
+    // pointerup). Track lastX/Y meanwhile so the pan tracks smoothly once the slop IS crossed.
+    if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) <= DRAG_SLOP) {
+      d.lastX = e.clientX;
+      d.lastY = e.clientY;
+      return;
+    }
+    d.moved = true;
     const dx = e.clientX - d.lastX;
     const dy = e.clientY - d.lastY;
     d.lastX = e.clientX;
@@ -2655,10 +2669,11 @@ function SharedIslandsPanel({
   const [flyout, dispatch] = useReducer(flyoutReducer, FLYOUT_CLOSED);
   const panelRef = useRef<HTMLDivElement>(null);
   const islandRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  // The panel is a drawer COLLAPSED to a single bar by default (owner UX: a laptop-height screen was
-  // crowded + showed an inner scrollbar). Controlled (not a bare <details>) so a map stamp-click can
-  // pop it open to reveal the shared island it highlights.
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  // Legend + Shared Islands are TWO independent drawers, each collapsed to a bar by default (owner
+  // UX: a laptop screen was crowded + scrolled). Only the Shared-Islands one is controlled — so a map
+  // stamp-click can pop it open to reveal the island it highlights; the Legend drawer is a plain
+  // uncontrolled <details>.
+  const [islandsOpen, setIslandsOpen] = useState(false);
 
   // Escape / click-outside dismiss the right-flyout (the contained-loop close).
   useEffect(() => {
@@ -2679,16 +2694,16 @@ function SharedIslandsPanel({
     };
   }, [flyout.open]);
 
-  // A stamp click on the map highlights its shared island — pop the drawer open (it is collapsed by
-  // default) so the highlight is visible.
+  // A stamp click on the map highlights its shared island — pop the Shared-Islands drawer open (it is
+  // collapsed by default) so the highlight is visible.
   useEffect(() => {
-    if (highlightId) setDrawerOpen(true);
+    if (highlightId) setIslandsOpen(true);
   }, [highlightId]);
   // …then scroll the card into view once the drawer is open and its slot is in the DOM.
   useEffect(() => {
-    if (!highlightId || !drawerOpen) return;
+    if (!highlightId || !islandsOpen) return;
     islandRefs.current.get(highlightId)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [highlightId, drawerOpen]);
+  }, [highlightId, islandsOpen]);
 
   const legendKey = (row: RowKey): string => `legend:${row}`;
   const legendOpen: RowKey | null = flyout.open?.startsWith('legend:')
@@ -2703,21 +2718,13 @@ function SharedIslandsPanel({
 
   return (
     <div className="shared-islands-panel" ref={panelRef}>
-      {/* A drawer collapsed to a single bar by default — mirrors the right panel's "Architectural
-          Decision Records" <details> disclosure. Keeps a laptop-height screen uncrowded; the operator
-          expands it on demand (and a map stamp-click pops it open). */}
-      <details
-        className="shared-islands-drawer"
-        open={drawerOpen}
-        onToggle={(e) => setDrawerOpen((e.currentTarget as HTMLDetailsElement).open)}
-      >
-        <summary className="shared-islands-summary">Legend &amp; Shared Islands</summary>
-        <div className="shared-islands-panel-body">
-        {/* The relocated world legend (ABOVE the islands). Controlled: the panel owns the open
-            chip via the shared right-flyout, and renders the drawer body to the RIGHT — so a chip
-            expansion never shoves the panel's content down. */}
-        <section className="panel-section panel-legend">
-          <h3 className="panel-head">Legend</h3>
+      <div className="shared-islands-panel-body">
+        {/* Two independent drawers, each a clickable bar collapsed by default (owner UX) — mirror the
+            right panel's "Architectural Decision Records" <details>. First the Legend chip-bar, then the
+            Shared-Island cards (controlled, so a map stamp-click pops it open). The legend's own row
+            flyout still renders to the RIGHT, so expanding a chip never shoves the panel content down. */}
+        <details className="panel-drawer panel-legend">
+          <summary className="panel-drawer-head">Legend</summary>
           <WorldLegend
             stories={stories}
             builds={builds}
@@ -2732,10 +2739,14 @@ function SharedIslandsPanel({
             renderDrawer={false}
             barClassName="legend-bar-panel"
           />
-        </section>
+        </details>
 
-        <section className="panel-section panel-islands">
-          <h3 className="panel-head">Shared Islands</h3>
+        <details
+          className="panel-drawer panel-islands"
+          open={islandsOpen}
+          onToggle={(e) => setIslandsOpen((e.currentTarget as HTMLDetailsElement).open)}
+        >
+          <summary className="panel-drawer-head">Shared Islands</summary>
           {islands.length === 0 ? (
             <p className="panel-empty">No shared islands. (Set <code>?buildings=off</code> to draw them on the map instead.)</p>
           ) : (
@@ -2772,9 +2783,8 @@ function SharedIslandsPanel({
               ))}
             </div>
           )}
-        </section>
-        </div>
-      </details>
+        </details>
+      </div>
 
       {/* The ONE right-flyout (a self-contained box anchored to the panel's right edge): either
           the open legend row's drawer body, or the open shared island's detail. */}
