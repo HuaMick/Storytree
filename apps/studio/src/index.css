@@ -1939,6 +1939,43 @@ mark.st-hl.flash {
   overflow-y: auto;
   overflow-x: visible;
 }
+/* The whole panel is a drawer collapsed to a single bar by default (owner UX: a laptop-height screen
+   was crowded + scrolled) — mirrors the right panel's Relevant-ADRs <details>. When open it becomes
+   the flex column that lets the body scroll within the panel's max-height. */
+.shared-islands-drawer {
+  min-height: 0;
+}
+.shared-islands-drawer[open] {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.shared-islands-summary {
+  margin: 0;
+  cursor: pointer;
+  user-select: none;
+  list-style: none; /* hide the default disclosure triangle (Firefox) */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.shared-islands-summary::-webkit-details-marker {
+  display: none; /* hide the default disclosure triangle (WebKit) */
+}
+.shared-islands-summary::before {
+  content: '▸';
+  font-size: 9px;
+  transition: transform 0.15s ease;
+}
+.shared-islands-drawer[open] .shared-islands-summary::before {
+  transform: rotate(90deg);
+}
 .shared-islands-panel .panel-section {
   display: flex;
   flex-direction: column;
