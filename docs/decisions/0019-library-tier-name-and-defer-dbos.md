@@ -2,7 +2,7 @@
 status: accepted
 load_bearing: true
 decided: 2026-06-08
-supersedes_in_part: [1, 9, 12]
+supersedes_in_part: [1]
 ---
 
 # ADR-0019: The knowledge tier is named "library"; defer DBOS for its store
@@ -61,5 +61,6 @@ units and decided by the owner in the studio.
 - [ADR-0017](0017-cross-cutting-knowledge-tier.md) (name deferred there, resolved here),
   [ADR-0015](0015-gcp-hosting-cloud-sql-event-store.md) (the store),
   [ADR-0001](0001-foundational-stack.md) / [ADR-0009](0009-concurrency-isolation-id-allocation.md)
-  (DBOS, deferred for now), [ADR-0018](0018-knowledge-tier-phase1-structured-source.md) (the structured
-  source this migrates).
+  (DBOS, deferred for now; ADR-0009 corrected in place per
+  [ADR-0139](0139-the-accepted-adr-set-carries-no-stale-prose-correct-in-place.md)),
+  [ADR-0018](0018-knowledge-tier-phase1-structured-source.md) (the structured source this migrates).
