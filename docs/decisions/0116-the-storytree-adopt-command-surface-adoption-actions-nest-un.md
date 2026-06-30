@@ -8,7 +8,7 @@ decided: 2026-06-27
 
 accepted (2026-06-27) — decided/directed by the owner in conversation on 2026-06-27. Design-time alignment IS the ratification (ADR-0110); no second end-of-flow ask.
 
-**Superseded-in-part by [ADR-0118](0118-workflow-first-cli-surface-proof-commands-mirror-the-studio.md)** — this ADR's **grain-first proof surface** and its load-bearing call to keep `gate` a standalone top-level area are overtaken: the CLI proof surface becomes **workflow-first** (top-level `adopt` / `build` / `witness` workflows mirroring the studio), with the `gate` primitive un-conflated and nested below (`adopt gate` for observe, `build gate --real` for build-tests). This ADR's "`adopt` is first-class" decision survives — `adopt` stays, now as a workflow.
+**Correction ([ADR-0118](0118-workflow-first-cli-surface-proof-commands-mirror-the-studio.md), per [ADR-0139](0139-the-accepted-adr-set-carries-no-stale-prose-correct-in-place.md)):** the headline decision — adoption actions nest under a first-class `adopt` area — STANDS and is current (`adopt` is still first-class, now as a workflow). Overtaken: this ADR's **grain-first proof surface** and its call to keep `gate` a standalone top-level area. ADR-0118 reshaped the surface to **workflow-first** (`adopt` / `build` / `witness` mirroring the studio) and un-conflated `gate` into `adopt gate` (observe) / `build gate --real` (build-tests). The grain-first/gate-standalone passages below are corrected in place to point here.
 
 ## Context
 
@@ -31,7 +31,7 @@ at a CLI-local `./adr-frontmatter.js` that ADR-0112 moved into `@storytree/drive
 was filed under `story` even though it is an *adoption* action, not a build. (2) The `gate` area must
 NOT be blanket-absorbed under `adopt`: an `observe` gate is earned BY adoption (observe-and-sign), but
 a `build-tests` gate is earned by a real red→green BUILD (ADR-0098), not adoption — so `gate` spans
-both the adoption and the build surface and cannot live wholly under `adopt`.
+both the adoption and the build surface and cannot live wholly under `adopt`. *(Conclusion overtaken — see the Correction above: ADR-0118 un-conflated `gate` rather than keeping it standalone, so the gate primitive nests under both workflows.)*
 
 ## Decision
 
@@ -48,7 +48,7 @@ Make `adopt` a first-class CLI area and nest the two genuinely-adoption actions 
 - `storytree adopt plan <story-id>` — the read-only, offline adoption-plan classification (the report
   formerly at `storytree story adopt-plan`).
 
-`gate` stays its own area (it spans adoption + build). The CLI `adopt` driver is a thin
+`gate` stays its own area (it spans adoption + build). *(Overtaken — see the Correction above: ADR-0118 dissolved standalone `gate` into `adopt gate` / `build gate --real`.)* The CLI `adopt` driver is a thin
 pure-by-injection DISPATCHER (`packages/cli/src/adopt.ts`) over `runAdopt` + `adoptPlanCommand`,
 mirroring `gate`/`uat` so the routing is offline-testable; `commands.ts` wires the live seams (the
 verdict store is the same `PgWorkStore` the sibling proof commands use under `--pg`). The studio's
@@ -64,10 +64,10 @@ JSDoc fixed.
 
 - Agents drive the COMPLETE adoption flow from the terminal with the same engine and honesty walls as
   the studio — closing the "studio-only Adopt" gap — and the proof surface reads as a coherent ladder
-  (`attest` · `uat` · `gate` · `adopt` · `node` · `story`).
+  (`attest` · `uat` · `gate` · `adopt` · `node` · `story`). *(Corrected — see the Correction above: this grain-first ladder was reshaped to a workflow-first surface, `adopt` / `build` / `witness` on top with the grains nested below.)*
 - The adoption-plan report is discoverable under its conceptual home (`adopt plan`), and the
   gate-vs-adopt boundary is now recorded here so it is not re-litigated (the recurring temptation is to
-  fold `gate` under `adopt`).
+  fold `gate` under `adopt`). *(Overtaken — see the Correction above: ADR-0118 did revisit this boundary and resolved it by un-conflating the phase fork, so the gate primitive nests under each workflow.)*
 - COST: `storytree adopt plan` is a guided breaking move from `storytree story adopt-plan` — the old
   path now returns a redirecting refusal, and any muscle-memory/script must update. One more area to
   keep consistent across the rosters.

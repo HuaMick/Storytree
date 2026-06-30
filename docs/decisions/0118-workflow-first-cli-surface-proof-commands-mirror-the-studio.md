@@ -1,14 +1,13 @@
 ---
 status: accepted
 decided: 2026-06-27
-supersedes_in_part: [116]
 load_bearing: true
 ---
 # ADR-0118: Workflow-first CLI surface: proof commands mirror the studio's workflows, primitives nest below
 
 ## Status
 
-accepted (2026-06-27) — decided/directed by the owner in conversation on 2026-06-27. Design-time alignment IS the ratification (ADR-0110); no second end-of-flow ask. Supersedes IN PART ADR-0116 (which kept `gate` a standalone top-level area and left the proof surface grain-first); ADR-0116's "`adopt` is first-class" call survives — `adopt` stays, now as a workflow with the gate primitive nested under it.
+accepted (2026-06-27) — decided/directed by the owner in conversation on 2026-06-27. Design-time alignment IS the ratification (ADR-0110); no second end-of-flow ask. **Reshapes** the CLI proof surface [ADR-0116](0116-the-storytree-adopt-command-surface-adoption-actions-nest-un.md) set (which kept `gate` a standalone top-level area and left the proof surface grain-first); ADR-0116's "`adopt` is first-class" call STANDS — `adopt` stays, now as a workflow with the gate primitive nested under it — so ADR-0116 is **corrected in place** (per [ADR-0139](0139-the-accepted-adr-set-carries-no-stale-prose-correct-in-place.md)), not superseded.
 
 ## Context
 
@@ -50,10 +49,10 @@ Two tenets are recorded as the durable rationale (candidates for promotion to pr
 - `gate`'s hidden phase fork is un-conflated at the surface: observe → `adopt gate`, build-tests → `build gate --real`. The `--real` flag stops doubling as a silent phase switch.
 - The composable grain-algebra survives one level down, so scripted/looping agents keep predictable primitives.
 - COST: a real reshape of the proof top-verbs (`node`/`story`/`gate`/`uat`/`attest`), back-compat aliases to maintain, and a top surface that CHURNS more than a grain-first one (workflows multiply as the methodology grows — adopt, build, witness, … — where grains are stable nouns). The churn is accepted as a feature: the surface should track how we actually work.
-- This is a substantive re-decision of ADR-0116's grain-first/gate-standalone call (copy-on-write, ADR-0086): recorded as `supersedes_in_part: [116]`; ADR-0116's first-class-`adopt` decision is retained.
+- This reshapes ADR-0116's grain-first/gate-standalone call while retaining its first-class-`adopt` decision; ADR-0116 is corrected in place to match (ADR-0139).
 - ALIGNMENT SCAFFOLDING (deferred to the implementing session, per the owner): the reshape likely warrants new PRINCIPLES (the two tenets above) and possibly a dedicated **cli-writer subagent** to keep the surface aligned as it grows. Whether to add them — and the plan to **dogfood** the reshape through storytree's own build machinery rather than hand-coding it — is the explore step a fresh session owns next.
 
 ## References
 
-- ADR-0116 (the first-pass `adopt` area + the grain-first/gate-standalone call this supersedes in part), ADR-0023 (the choose-your-own-adventure CLI surface), ADR-0094 (status-aware go-green affordances the studio surfaces — Adopt for `mapped`, Build for `proposed`), ADR-0098 (build-tests gates earned by a real build — the build half of the gate fork), ADR-0085 / ADR-0097 (observe gates / adoption — the adoption half), ADR-0044 (the lower-rigor attestation vouch → `witness vouch`), ADR-0057 (node-build discoverability), ADR-0110 (owner-directed → born accepted).
+- ADR-0116 (the first-pass `adopt` area + the grain-first/gate-standalone call this reshapes — ADR-0116's first-class-`adopt` stands, corrected in place per ADR-0139), ADR-0023 (the choose-your-own-adventure CLI surface), ADR-0094 (status-aware go-green affordances the studio surfaces — Adopt for `mapped`, Build for `proposed`), ADR-0098 (build-tests gates earned by a real build — the build half of the gate fork), ADR-0085 / ADR-0097 (observe gates / adoption — the adoption half), ADR-0044 (the lower-rigor attestation vouch → `witness vouch`), ADR-0057 (node-build discoverability), ADR-0110 (owner-directed → born accepted).
 - Code: `apps/studio/server/buildWorker.ts` `routedBuildRunner` (the studio's tier-routed single Build the `build <id>` auto-route will mirror); `packages/cli/src/commands.ts` (the dispatch to reshape); `packages/cli/src/{adopt,gate,uat,attest}.ts` + `@storytree/drive`'s `node-build`/`story-build` (the primitives to relocate).
