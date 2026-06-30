@@ -124,6 +124,15 @@ export type SceneKind =
   | 'wisp-hit'
   | 'wisp-glow'
   | 'wisp-dot'
+  // the story-CLAIM wisp orbit (ADR-0138 §5) — a session is working this story.
+  // A DISTINCT drawable family from the build wisp: it carries a `colourState`
+  // (authoring / proving / supplementing), NEVER a bloom, so the §5 honesty wall
+  // holds at the kind level (a claim wisp can never be mistaken for a verdict bloom).
+  | 'claim-wisps'
+  | 'claim-wisp'
+  | 'claim-wisp-hit'
+  | 'claim-wisp-glow'
+  | 'claim-wisp-dot'
   // the nameplate
   | 'plate'
   | 'plate-bg'
@@ -166,11 +175,26 @@ export interface SceneNodeBase {
    *  while implementing (and when no phase is known). A SEPARATE field from the orbit `phase`
    *  (location ⟂ form); the mapper appends its `band-<phaseBand>` class. */
   phaseBand?: WispPhaseBand;
+  /** A story-CLAIM wisp's subagent colour-state (ADR-0138 §5) — what the orchestrator is doing on
+   *  the claimed story: `authoring` (story-author), `proving` (red→green leaf), `supplementing`
+   *  (glue). Carried on a `claim-wisp` node; the mapper appends its `state-<colourState>` class.
+   *  GUARANTEED never to be `green`/`bloom` (the honesty wall) — a claim is not a proof. ALSO carried
+   *  on a BUILD `wisp` when the live work-event stamped one (advisory role tint, additive to
+   *  `phaseBand`). A SEPARATE field from `phase` (the orbit rotation) — location ⟂ form. */
+  colourState?: ClaimColourState;
 }
 
 /** The wisp's three visual bands (ADR-0048 §3 v2) — the mapper's `band-red`/`band-green`/
  *  `band-building` class suffix. */
 export type WispPhaseBand = 'red' | 'green' | 'building';
+
+/** The three ADR-0138 §5 subagent colour-states a story-CLAIM wisp wears — what the orchestrator is
+ *  doing on the claimed story. DUPLICATED as the core's OWN input vocabulary (the scene-graph is a
+ *  foundational root that depends on nothing — ADR-0093 §Open call 2), mirroring `@storytree/drive`'s
+ *  `subagentColourState` output. GUARANTEED never `green`/`bloom`: a claim is a coordination signal,
+ *  never a proof (only a signed verdict paints the green bloom — ADR-0045). The mapper appends its
+ *  `state-<colourState>` class. */
+export type ClaimColourState = 'authoring' | 'proving' | 'supplementing';
 
 /** The prove-it-gate's phases (ADR-0020 §1), DUPLICATED as the core's OWN input vocabulary — the
  *  scene-graph is a foundational root that depends on nothing (ADR-0093 §Open call 2), so it mirrors
@@ -312,8 +336,20 @@ export interface SceneTerritoryInput {
   /** In-flight build wisps, folded from live builds (the core derives each orbit
    *  ROTATION from the runId — geometry, like the crown jitter). The optional
    *  `phase` is the live prove-it-gate phase the surface folds in (ADR-0048 §3 v2)
-   *  — the core maps it to the wisp's red→green band. Empty when nothing builds. */
-  wisps: { runId: string; title: string; phase?: BuildPhase }[];
+   *  — the core maps it to the wisp's red→green band. The optional `colourState`
+   *  (ADR-0138 §5) is the live subagent role the work-event stamped — an additive
+   *  role tint on the build wisp (absent → existing `phaseBand` look, unchanged).
+   *  Empty when nothing builds. */
+  wisps: { runId: string; title: string; phase?: BuildPhase; colourState?: ClaimColourState }[];
+  /** In-flight story CLAIMS, folded from the live `events.node_claim` layer (ADR-0138 §5). One
+   *  orbiting claim wisp per claim — a session is working this story (coordination), coloured by what
+   *  the orchestrator is doing (`colourState`). The core derives the orbit ROTATION from `key` (a
+   *  stable id — sessionId or unitId — geometry, like the build wisp's runId). DISTINCT from `wisps`
+   *  AND from any bloom: a claim is never a proof (the §5 honesty wall). OPTIONAL and back-compat: a
+   *  surface with no live-claim concept (the public website, which has no sessions) omits it entirely,
+   *  so the claim layer is inert there — `buildClaimWisps` returns null and the render is unchanged.
+   *  Absent/empty when nothing is claimed. */
+  claims?: { key: string; title: string; colourState: ClaimColourState }[];
   /** The nameplate box (surface chrome: the studio's `nameplateLayout`, the web's
    *  own sizing) + the text the surface chose. */
   plate: {
@@ -696,11 +732,60 @@ function buildWisps(t: SceneTerritoryInput): SceneG | null {
         ),
       ],
       // `phase` is the orbit ROTATION (geometry); `phaseBand` is the red→green build state
-      // (ADR-0048 §3 v2) — two independent fields (location ⟂ form).
-      { kind: 'wisp', title: w.title, phase, phaseBand: wispBand(w.phase) },
+      // (ADR-0048 §3 v2); `colourState` is the optional live subagent-role tint the work-event
+      // stamped (ADR-0138 §5) — three independent fields (location ⟂ form).
+      {
+        kind: 'wisp',
+        title: w.title,
+        phase,
+        phaseBand: wispBand(w.phase),
+        ...(w.colourState ? { colourState: w.colourState } : {}),
+      },
     );
   });
   return g(wisps, { kind: 'wisps', transform: `translate(${f(t.centroid.x)} ${f(t.centroid.y)})` });
+}
+
+// ---------------------------------------------------------------------------
+// the story-CLAIM wisps (the coordination orbit, ADR-0138 §5)
+// ---------------------------------------------------------------------------
+
+/** The orbiting story-CLAIM layer: a wisp orbits a story while a SESSION is working it (someone is
+ *  here — the coordination signal, distinct from "a proof is being driven"). Live-data driven (the
+ *  surface folds which stories are claimed); the core derives each orbit phase from the claim `key`
+ *  and lays the glow/dot/hit at the orbit radius. The mapper drives the rotation from `phase`.
+ *
+ *  §5 honesty wall (non-negotiable): a claim wisp is a DISTINCT drawable family (`claim-wisp*` kinds)
+ *  carrying a `colourState` that is NEVER `green`/`bloom` — only a signed verdict paints the green
+ *  bloom (ADR-0045). A claimed-but-not-proven story can therefore never render as a proven-green one.
+ *  Orbits a touch wider than the build wisp so the two layers read as distinct when both are present. */
+function buildClaimWisps(t: SceneTerritoryInput): SceneG | null {
+  // `claims` is OPTIONAL (a surface with no live-claim concept omits it) — absent/empty ⇒ no layer.
+  const claims = t.claims ?? [];
+  if (!claims.length) return null;
+  const orbitR = t.radius * 0.72 + 22;
+  const wisps = claims.map((c) => {
+    const phase = rand01(hash(c.key)) * 360;
+    return g(
+      [
+        g(
+          [
+            circle(0, 0, 12, { kind: 'claim-wisp-hit' }),
+            circle(0, 0, 6.5, { kind: 'claim-wisp-glow' }),
+            circle(0, 0, 2.8, { kind: 'claim-wisp-dot' }),
+          ],
+          { transform: `translate(${f(orbitR)} 0)` },
+        ),
+      ],
+      // `phase` is the orbit ROTATION (geometry); `colourState` is the subagent role (form) — two
+      // independent fields (location ⟂ form). NEVER carries an `outcome`/`bloom` (the §5 wall).
+      { kind: 'claim-wisp', title: c.title, phase, colourState: c.colourState },
+    );
+  });
+  return g(wisps, {
+    kind: 'claim-wisps',
+    transform: `translate(${f(t.centroid.x)} ${f(t.centroid.y)})`,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -751,6 +836,10 @@ export function buildTerritoryFlora(t: SceneTerritoryInput): SceneG {
   children.push(buildPlate(t));
   const wisps = buildWisps(t);
   if (wisps) children.push(wisps);
+  // ADR-0138 §5: the story-claim orbit ("a session is here") — a DISTINCT drawable family from the
+  // build wisp, never a bloom. Layered after the build wisps so when both run the claim reads outside.
+  const claimWisps = buildClaimWisps(t);
+  if (claimWisps) children.push(claimWisps);
 
   return g(children, { kind: 'territory', status: t.status, id: t.id });
 }
