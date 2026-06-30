@@ -11,7 +11,7 @@ accepted (2026-06-06) — resolves part of `open-questions.md` §3(a); complemen
 [ADR-0009](0009-concurrency-isolation-id-allocation.md) (state isolation) and
 [ADR-0011](0011-own-the-agent-loop-and-context-engineering.md) (the owned loop).
 
-**Superseded-in-part by [ADR-0019](0019-library-tier-name-and-defer-dbos.md)** (DBOS deferred; the store is a plain typed Postgres connection now — the DBOS-based state isolation this complements is the deferred path, not the built one).
+**Correction ([ADR-0019](0019-library-tier-name-and-defer-dbos.md), per [ADR-0139](0139-the-accepted-adr-set-carries-no-stale-prose-correct-in-place.md)): the DBOS coordination substrate this references was DEFERRED.** The store is a plain typed Postgres connection now (ADR-0019) and coordination claims are unbuilt, so this ADR's references to DBOS as the *current* coordination substrate (Context, Decision §4, Consequences) are overtaken. The CORE decision STANDS in full — don't own the sandbox (borrow it), build the `ToolExecutor` seam now with a trivial local backend, tiered cheapest-isolation-first backends — as does the orthogonal axis this ADR decided: a worktree is a code-edit sandbox, NOT the coordination substrate (and git worktrees are in fact the current code-edit isolation).
 
 ## Date
 
@@ -25,7 +25,8 @@ loop** at the leaf. That loop dispatches tool calls — `read` / `write` / `edit
 already decided **state / coordination** isolation (per-node DBOS workflow against one
 shared Postgres store, *not* branch-per-session) but explicitly left **§3(a)** open:
 whether the agent's **code edits** run in a git branch/worktree per node — i.e. *where
-tool execution lives*.
+tool execution lives*. *(The DBOS coordination substrate was later deferred by
+[ADR-0019](0019-library-tier-name-and-defer-dbos.md); the §3(a) decision below is unaffected.)*
 
 Sandboxing — isolated `bash` + filesystem for an agent, especially many agents editing
 code in parallel — is the most commoditized and the hardest-to-build-well piece of an
@@ -48,11 +49,12 @@ open-source options exist (owner, 2026-06-06).
    **container / microVM (Firecracker) / sandbox-as-a-service (Daytona)** when running
    untrusted code. Anthropic's reference `bash` / text-editor tool implementations may seed
    the tool surface. **No single backend is mandated now.**
-4. **Relationship to ADR-0009.** ADR-0009 **stands**: state/coordination isolation is DBOS
-   workflows over shared Postgres, *not* git branches. This ADR is only about **where the
-   agent's tools physically run** — the orthogonal axis ADR-0009 §3(a) deferred. A
-   worktree, *if* adopted, is a tool-execution sandbox for code edits, **not** the
-   coordination/claim substrate (claims remain DB rows; ADR-0009).
+4. **Relationship to ADR-0009.** The orthogonal split STANDS: this ADR is only about
+   **where the agent's tools physically run** — the axis ADR-0009 §3(a) deferred — and a
+   worktree is a tool-execution sandbox for code edits, **not** the coordination/claim
+   substrate. *(ADR-0009's DBOS state/coordination substrate was DEFERRED by
+   [ADR-0019](0019-library-tier-name-and-defer-dbos.md) and coordination claims are unbuilt;
+   git worktrees are now in fact the code-edit isolation this ADR foresaw.)*
 
 ## Consequences
 
@@ -61,7 +63,8 @@ open-source options exist (owner, 2026-06-06).
   vs virtual) stays a deferred, borrow-when-needed choice. §3(b)/(c) (claim granularity,
   conflict ceremony) remain open under ADR-0009.
 - **Keeps the engine's differentiation tight** — *owned:* loop + context; *borrowed:*
-  sandbox; *provided:* durable concurrency (DBOS).
+  sandbox; *provided:* durable concurrency (DBOS — *deferred by
+  [ADR-0019](0019-library-tier-name-and-defer-dbos.md)*).
 - The `ToolExecutor` interface lands with `packages/agent` (ADR-0011); its exact shape is
   provisional.
 
