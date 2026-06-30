@@ -345,8 +345,11 @@ export interface SceneTerritoryInput {
    *  orbiting claim wisp per claim — a session is working this story (coordination), coloured by what
    *  the orchestrator is doing (`colourState`). The core derives the orbit ROTATION from `key` (a
    *  stable id — sessionId or unitId — geometry, like the build wisp's runId). DISTINCT from `wisps`
-   *  AND from any bloom: a claim is never a proof (the §5 honesty wall). Empty when nothing is claimed. */
-  claims: { key: string; title: string; colourState: ClaimColourState }[];
+   *  AND from any bloom: a claim is never a proof (the §5 honesty wall). OPTIONAL and back-compat: a
+   *  surface with no live-claim concept (the public website, which has no sessions) omits it entirely,
+   *  so the claim layer is inert there — `buildClaimWisps` returns null and the render is unchanged.
+   *  Absent/empty when nothing is claimed. */
+  claims?: { key: string; title: string; colourState: ClaimColourState }[];
   /** The nameplate box (surface chrome: the studio's `nameplateLayout`, the web's
    *  own sizing) + the text the surface chose. */
   plate: {
@@ -757,9 +760,11 @@ function buildWisps(t: SceneTerritoryInput): SceneG | null {
  *  bloom (ADR-0045). A claimed-but-not-proven story can therefore never render as a proven-green one.
  *  Orbits a touch wider than the build wisp so the two layers read as distinct when both are present. */
 function buildClaimWisps(t: SceneTerritoryInput): SceneG | null {
-  if (!t.claims.length) return null;
+  // `claims` is OPTIONAL (a surface with no live-claim concept omits it) — absent/empty ⇒ no layer.
+  const claims = t.claims ?? [];
+  if (!claims.length) return null;
   const orbitR = t.radius * 0.72 + 22;
-  const wisps = t.claims.map((c) => {
+  const wisps = claims.map((c) => {
     const phase = rand01(hash(c.key)) * 360;
     return g(
       [
