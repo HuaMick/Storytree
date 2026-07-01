@@ -2,7 +2,6 @@
 status: accepted
 load_bearing: true
 decided: 2026-06-06
-supersedes_in_part: [1]
 amends: [4, 5]
 ---
 
@@ -10,9 +9,10 @@ amends: [4, 5]
 
 ## Status
 
-accepted (2026-06-06) — **supersedes** ADR-0001's *pi* per-node runtime and **relaxes**
-its *model-agnostic, pay-as-you-go* non-negotiable; **amends** ADR-0004 and ADR-0005 (the
-boundary now wraps an owned loop, not pi). The rest of ADR-0001's stack stands.
+accepted (2026-06-06) — **reverses** ADR-0001's *pi* per-node runtime and its
+*model-agnostic, pay-as-you-go* non-negotiable (ADR-0001 corrected in place per
+[ADR-0139](0139-the-accepted-adr-set-carries-no-stale-prose-correct-in-place.md)); **amends**
+ADR-0004 and ADR-0005 (the boundary now wraps an owned loop, not pi).
 
 **Superseded-in-part by [ADR-0030](0030-all-in-on-claude-agent-sdk.md)** (accepted, 2026-06-10) — §§1–2 are demoted: the **Claude Agent SDK** becomes the live runtime (subscription auth), the owned loop becomes the offline/test executor + pivot-out fallback, and "own context engineering / never delegate to a third-party harness" reframes to owning the **map and pull surfaces** (story tree, Library, CLI). §3's seam discipline carries, pointed the other way.
 
@@ -81,10 +81,11 @@ Two things changed that bet (owner, 2026-06-06):
 
 ## Consequences
 
-- **Supersedes ADR-0001** — its "per-node coding agent: pi" choice and its "model-agnostic
-  via pi" non-negotiable. ADR-0001's stack (DBOS, orchestrator, event store, PixiJS, TS) is
-  untouched, and its de-risk spike (3-node fan-out/fan-in on DBOS) still applies — now with
-  owned-loop nodes instead of pi sessions.
+- **Reverses ADR-0001** — its "per-node coding agent: pi" choice and its "model-agnostic
+  via pi" non-negotiable (ADR-0001 corrected in place per [ADR-0139](0139-the-accepted-adr-set-carries-no-stale-prose-correct-in-place.md)).
+  Of the rest of ADR-0001's stack this ADR left standing, the orchestrator, event store, and
+  TS stand; DBOS was later deferred ([ADR-0019](0019-library-tier-name-and-defer-dbos.md)) and
+  PixiJS overtaken ([ADR-0036](0036-story-world-studio-visualisation.md)).
 - **Amends ADR-0004 / ADR-0005** — the boundary now wraps `packages/agent` (the owned
   loop), not pi; the leaf is the owned loop, not a pi session. The structural rules (single
   import site, orchestrator-only driver, spine/leaf discriminator, run≠node, sole fan-out)
@@ -114,6 +115,6 @@ Two things changed that bet (owner, 2026-06-06):
 
 ## References
 
-- [ADR-0001](0001-foundational-stack.md) (superseded in part), [ADR-0004](0004-orchestrator-agent-boundary.md) / [ADR-0005](0005-orchestration-spine-code-vs-judgment.md) (amended here), [ADR-0003](0003-v1-reversal-ledger.md) (ledger).
+- [ADR-0001](0001-foundational-stack.md) (corrected in place per [ADR-0139](0139-the-accepted-adr-set-carries-no-stale-prose-correct-in-place.md)), [ADR-0004](0004-orchestrator-agent-boundary.md) / [ADR-0005](0005-orchestration-spine-code-vs-judgment.md) (amended here), [ADR-0003](0003-v1-reversal-ledger.md) (ledger).
 - [`pull-based-context-architecture`](../guidelines/pull-based-context-architecture.md); the Claude Code SDK opacity experience (v1 `Agentic` repo).
 - Design conversation, 2026-06-06.

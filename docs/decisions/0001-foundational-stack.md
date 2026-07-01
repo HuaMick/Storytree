@@ -9,14 +9,7 @@ decided: 2026-06-03
 
 accepted (2026-06-03)
 
-**Superseded-in-part by [ADR-0011](0011-own-the-agent-loop-and-context-engineering.md)** — the **pi** per-node runtime and the **model-agnostic, pay-as-you-go** non-negotiable are reversed: storytree owns the agent loop, built on the Anthropic SDK. The rest of this ADR's stack (the thin orchestrator, the event store, TS/Node/pnpm) stands.
-
-**Superseded-in-part by [ADR-0019](0019-library-tier-name-and-defer-dbos.md)** — the **DBOS (Transact-TS) durable-execution substrate** chosen here is overtaken for the library store: DBOS is deferred and Phase 2 begins with a plain typed Postgres connection (the reserved `dbos` schema stays reserved), so this ADR's "DBOS/Postgres stands" no longer holds for the corpus tier.
-
-**Superseded-in-part by [ADR-0036](0036-story-world-studio-visualisation.md)** (accepted,
-2026-06-12) — the **PixiJS v8 + `@pixi/react`** tree-UI engine pick is overtaken: the shipped
-story world is plain inline SVG in React (top-down hex, not isometric); PixiJS is now
-named-deferred, revisited only if scale outgrows SVG.
+**Correction ([ADR-0011](0011-own-the-agent-loop-and-context-engineering.md), [ADR-0019](0019-library-tier-name-and-defer-dbos.md), [ADR-0036](0036-story-world-studio-visualisation.md), per [ADR-0139](0139-the-accepted-adr-set-carries-no-stale-prose-correct-in-place.md)):** this ADR's core decision — a minimal owned surface (a thin custom orchestrator, no agent framework; an owned event store as the single observability source) on **TypeScript / Node 24 / pnpm** — STANDS in full and is current. Overtaken are three tactical picks: the **pi leaf runtime** and the **model-agnostic / pay-as-you-go** non-negotiable were **reversed** ([ADR-0011] — storytree owns the agent loop, now the Claude Agent SDK runtime per [ADR-0030](0030-all-in-on-claude-agent-sdk.md)); the **DBOS (Transact-TS)** durable-execution substrate was **deferred** for the library store ([ADR-0019] — a plain typed Postgres connection now; the reserved `dbos` schema stays reserved); and the **PixiJS v8 + `@pixi/react`** tree-UI pick was **overtaken** ([ADR-0036] — the studio world shipped as inline SVG in React; PixiJS named-deferred). The overtaken picks below are corrected in place to point here.
 
 ## Reaffirmation (2026-06-06) — TypeScript stands, all-in
 
@@ -32,7 +25,11 @@ storytree's correctness ethos). Verdict: **TypeScript stands, now all-in.** Reas
   store** (the single source of truth the studio renders); Temporal would add a separate
   service + state store + UI overlapping what storytree builds itself. Temporal's
   signals/queries and scale-maturity were the draw — not worth a second platform yet.
-- The **studio is browser-bound TS** (React + PixiJS) regardless.
+  *(DBOS was later deferred — [ADR-0019](0019-library-tier-name-and-defer-dbos.md); see the
+  Correction above. The Temporal-vs-DBOS comparison and the TypeScript-stands conclusion here
+  are unaffected.)*
+- The **studio is browser-bound TS** (React + inline SVG — the PixiJS pick was overtaken,
+  [ADR-0036](0036-story-world-studio-visualisation.md); see the Correction above) regardless.
 
 With loop, orchestrator, and studio all TS, a Rust `packages/core` would be an **island**
 behind a codegen seam serving no other Rust code — net negative. TS guardrails (strict
@@ -69,19 +66,23 @@ durable-execution substrate. No agent framework.
 - **Per-node coding agent: pi** (`earendil-works/pi`). Model-agnostic (15+
   providers), highly customizable, exposes `prompt`/`steer`/`followUp`, a
   lifecycle event stream, and `edit`-tool diffs/patches. pi owns everything
-  *inside* a node.
+  *inside* a node. *(Reversed — see the Correction above: storytree owns the
+  agent loop, now the Claude Agent SDK runtime, [ADR-0011] / [ADR-0030].)*
 - **Durable execution: DBOS (Transact-TS)** over Postgres. Auto-resumes
   crashed workflows, durable queues with concurrency caps — crash-safe
   parallelism as a library, not a cluster. (Restate is the reserved
   alternative if a single self-contained binary is later preferred over a
-  Postgres dependency.)
+  Postgres dependency.) *(Deferred — see the Correction above: a plain typed
+  Postgres connection now, [ADR-0019]; the `dbos` schema stays reserved.)*
 - **Orchestration: a thin custom layer** — the story-DAG, the scheduler, and
   an **event store** that is the single source of truth for observability
   (pi events + orchestrator events). The UI renders the event store; no
   external trace product is in the loop.
 - **Tree UI: PixiJS v8 + `@pixi/react`**, 2D isometric, embedded as a panel in
   a React web IDE. Art assets are deferred (curated/AI, chosen later) — the
-  engine is settled, the look is a later pass.
+  engine is settled, the look is a later pass. *(Overtaken — see the Correction
+  above: the studio world shipped as inline SVG in React, [ADR-0036]; PixiJS
+  named-deferred.)*
 - **Language: TypeScript, Node 24, pnpm workspaces.**
 
 ## Alternatives considered
@@ -106,6 +107,11 @@ durable-execution substrate. No agent framework.
   Google's. **Rejected** for a TS-first, model-agnostic build today.
 
 ## Consequences
+
+*(The pi- and DBOS-dependent claims in this section — model-agnosticism/pay-as-you-go via pi,
+crash-safe parallelism on DBOS's primitives, and the de-risk spike of pi sessions on DBOS —
+assumed the two tactical picks since overtaken; see the Correction above. The minimal-owned-surface
+and event-store rationale stands.)*
 
 **Gained.** Minimal surface we fully own and can see into; model-agnosticism
 and pay-as-you-go via pi; observability that is first-class and SaaS-free;
