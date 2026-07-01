@@ -42,6 +42,28 @@ CREATE TABLE IF NOT EXISTS events.comment (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Suggestion history: append-only (ADR-0140 suggestions-as-proposals — a proposed edit is a record
+-- distinct from a comment, carrying a proposed replacement + original + an open/accepted/rejected
+-- status). Mirrors comment_event; `type` is created|transitioned. The DATA half (PgSuggestionStore,
+-- packages/library/src/store/pg-suggestion-store.ts) is proven offline; this DDL is its live home,
+-- consumed by the accept/reject route (accept-reject-suggestion-api) and the studio backend.
+CREATE TABLE IF NOT EXISTS events.suggestion_event (
+  seq   BIGSERIAL PRIMARY KEY,
+  id    TEXT NOT NULL,
+  type  TEXT NOT NULL,            -- created|transitioned
+  doc   JSONB,
+  actor TEXT NOT NULL,
+  at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Suggestion current-state projection: one row per suggestion id.
+CREATE TABLE IF NOT EXISTS events.suggestion (
+  id         TEXT PRIMARY KEY,
+  doc        JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Session-presence history (ADR-0033): one append-only event per declare/done. `id` is the
 -- worktree-derived sessionId; presence is advisory, so rows carry no signer chain.
 CREATE TABLE IF NOT EXISTS events.session_event (

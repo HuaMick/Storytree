@@ -36,7 +36,7 @@ function sampleSuggestion(over: Partial<Suggestion> = {}): Suggestion {
 // Schema validation — the write boundary
 // ---------------------------------------------------------------------------
 
-test("SuggestionSchema accepts a valid open suggestion", () => {
+test("ses-record-validates-at-the-boundary: SuggestionSchema accepts a valid open suggestion", () => {
   const doc = sampleSuggestion();
   const parsed = SuggestionSchema.parse(doc);
   assert.equal(parsed.id, "s1");
@@ -93,7 +93,7 @@ test("SuggestionSchema refuses a blank block handle", () => {
 // applySuggestionTransition — the pure status state machine
 // ---------------------------------------------------------------------------
 
-test("applySuggestionTransition open→accepted stamps decidedBy and decidedAt", () => {
+test("ses-open-transitions-to-accepted-or-rejected: applySuggestionTransition open→accepted stamps decidedBy and decidedAt", () => {
   const open = sampleSuggestion({ status: "open" });
   const result = applySuggestionTransition(open, "accept", "admin-user", "2026-07-01T02:00:00Z");
   assert.equal(result.status, "accepted", "status transitions to accepted");
@@ -114,7 +114,7 @@ test("applySuggestionTransition open→rejected stamps decidedBy and decidedAt",
   assert.equal(result.decidedAt, "2026-07-01T02:00:00Z", "decidedAt is stamped");
 });
 
-test("applySuggestionTransition refuses re-deciding an accepted suggestion", () => {
+test("ses-closed-suggestion-cannot-be-re-decided: applySuggestionTransition refuses re-deciding an accepted suggestion", () => {
   const accepted = sampleSuggestion({
     status: "accepted",
     decidedBy: "admin-user",
@@ -151,7 +151,7 @@ test("applySuggestionTransition does not mutate the input suggestion", () => {
 // mergeSuggestionPatch — the pure patch-merge helper
 // ---------------------------------------------------------------------------
 
-test("mergeSuggestionPatch applies present fields and leaves the rest", () => {
+test("ses-merge-and-store-surface: mergeSuggestionPatch applies present fields and leaves the rest", () => {
   const suggestion = sampleSuggestion();
   const patched = mergeSuggestionPatch(suggestion, { proposed: "New replacement." });
   assert.equal(patched.proposed, "New replacement.", "proposed field updated");
