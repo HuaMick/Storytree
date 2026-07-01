@@ -18,11 +18,13 @@ capabilities: []
 # minimal input contract (a story is just an id + deps + its capabilities' deps), so it depends on
 # NOTHING — `depends_on: []`, alongside proof-protocol and storage-protocol at the bottom of the order.
 depends_on: []
-# Consumed by `apps/studio` today and the public website (a separate repo) in a later unit — NEITHER is
-# a workspace PACKAGE organism, so there is no package-graph consumer edge to declare. `[]` is the
-# honest classification; the studio/web consumption is described in prose. The boundary gate
-# (`check:boundaries`) is green with this — a foundational root with no organism consumer draws no edge.
-consumed_by: []
+# Consumed by `apps/studio` (a SURFACE, ADR-0100 — its edge is declared in the studio story), by the
+# public website (a separate repo that takes the core's synced built output, never a package edge),
+# AND — since the website-experience story's R3F mapper landed — by `packages/forest-world-r3f`, the
+# first workspace PACKAGE organism to import this core. That real code edge is declared on both sides
+# (consumer-side in website-experience's `depends_on`; here provider-side) so `check:boundaries`
+# covers it either way.
+consumed_by: [website-experience]
 # Deciding ADRs (ADR-0037 §2): the shared render-core decision / this package's identity as a
 # foundational root (93); the organism model it stands on (68); ports/shared cores as root organisms,
 # the foundational-minimality rule (75); author-defined story green + mapped-as-bootstrap (83); the
@@ -56,16 +58,20 @@ It defines the *look* and only the look — never the live data, the store, the 
 interactive chrome ([ADR-0093](../../docs/decisions/0093-shared-forest-world-render-core-for-studio-and-the-public-we.md)
 §4, the precise line that keeps the public ↔ private decoupling intact).
 
-## Consumers — and why `consumed_by` is `[]`
+## Consumers
 
-The studio app (`apps/studio`) renders from this core today, and the public website (a separate repo,
-the `web/` submodule) will render from its synced artifact in a later unit
+Three consumers, three different edge kinds. The studio app (`apps/studio`) renders from this core —
+a consuming SURFACE (ADR-0100), its edge declared in the studio story's own `depends_on`. The public
+website (a separate repo, the `web/` submodule) renders from the core's **synced artifact**
 ([ADR-0093](../../docs/decisions/0093-shared-forest-world-render-core-for-studio-and-the-public-we.md)
-§2–§3). NEITHER consumer is a workspace **package** organism — the studio is an app, the website is a
-separate repo that takes the core's *built output*, never its source. So there is no package-graph
-consumer edge to draw, and `consumed_by: []` is the honest classification (not an omission). The
-boundary gate (`pnpm check:boundaries`) is green with this: a foundational root with no organism
-consumer simply draws no inbound edge, and `depends_on: []` draws no outbound one.
+§2–§3) — a built-output edge held by the `check:web-engine` drift gate, never a package import. And
+`packages/forest-world-r3f` — the R3F mapper the `website-experience` story owns
+([ADR-0123](../../docs/decisions/0123-webgl-forest-world-renderer-via-react-three-fiber-website-fi.md))
+— imports `@storytree/forest-world` directly: the first workspace **package** organism consumer, so
+the core now draws a real inbound package-graph edge. That edge is declared consumer-side
+(website-experience `depends_on: [forest-world]`) and provider-side (`consumed_by:
+[website-experience]` above), and `pnpm check:boundaries` covers it. `depends_on: []` still draws no
+outbound edge — the core remains a foundational root.
 
 ## Why it is a foundational root organism
 
