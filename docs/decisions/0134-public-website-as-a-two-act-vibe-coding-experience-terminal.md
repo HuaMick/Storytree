@@ -14,6 +14,15 @@ mapping, the surrounding-pages scope); design-time alignment ratifies it
 ([ADR-0110](0110-collapse-the-redundant-end-of-flow-adr-ratification.md)) once those settle — no second
 end-of-flow ask.
 
+**Update (2026-07-02):** the unpacking has landed — the Act 2 level ladder / dev-goal→map mapping
+(the five approved beats), the surrounding informational-pages scope (a per-page fold / discard /
+keep-static triage), and the R3F mapper's package home (parent-side, a new
+`packages/forest-world-r3f`) are now authored in
+[`stories/website-experience/`](../../stories/website-experience/story.md), per owner direction of
+2026-07-02. Of §5's deferred items, the asset/perf/mobile budget and the replay / deep-link UX
+remain open, carried as that story's open modeling calls. Stays **proposed** — owner-directed —
+while the design settles.
+
 ## Context
 
 The public site (`storytree-web` — an Astro static + Keystatic brochure, a consuming surface per
