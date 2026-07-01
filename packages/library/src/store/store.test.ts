@@ -24,6 +24,10 @@ test("schema.sql declares the events schema and all six tables", async () => {
   assert.match(sql, /events\.library_artifact/);
   assert.match(sql, /events\.comment_event/);
   assert.match(sql, /events\.comment\b/);
+  // ADR-0140 suggestions-as-proposals: the suggestion event + projection homes (additive only), the
+  // live tables the offline-proven PgSuggestionStore (pg-suggestion-store.ts) targets.
+  assert.match(sql, /events\.suggestion_event/);
+  assert.match(sql, /events\.suggestion\b/);
   // Drive-machinery Phase A: the work-hierarchy lifecycle + signed-verdict homes (additive only).
   assert.match(sql, /events\.work_event/);
   assert.match(sql, /events\.verdict\b/);
