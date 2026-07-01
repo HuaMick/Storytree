@@ -1,7 +1,6 @@
 ---
 status: accepted
 decided: 2026-06-12
-supersedes_in_part: [1]
 ---
 
 # ADR-0036: The story world — the studio renders the work hierarchy as a hex-island world (SVG, not PixiJS)
@@ -9,8 +8,9 @@ supersedes_in_part: [1]
 ## Status
 
 accepted (2026-06-12, owner-steered live through PRs #54–#58 and the 2026-06-12 direction call) —
-**supersedes [ADR-0001](0001-foundational-stack.md) in part** (the PixiJS v8 + `@pixi/react`
-story-tree engine pick is overtaken: the shipped world is plain inline SVG in React);
+**overtakes [ADR-0001](0001-foundational-stack.md)'s** PixiJS v8 + `@pixi/react` story-tree engine
+pick (the shipped world is plain inline SVG in React; ADR-0001 corrected in place per
+[ADR-0139](0139-the-accepted-adr-set-carries-no-stale-prose-correct-in-place.md));
 **refines [ADR-0006](0006-event-store-observability-surface.md)** (the studio renders
 a *composite* of read surfaces — `stories/` frontmatter, `events.verdict`, `events.session` — not
 the event store alone), **[ADR-0023](0023-library-cli-choose-your-own-adventure.md)** (the
@@ -145,7 +145,7 @@ in the repo.
 
 ## References
 
-- [ADR-0001](0001-foundational-stack.md) — the superseded PixiJS engine pick.
+- [ADR-0001](0001-foundational-stack.md) — the PixiJS engine pick, corrected in place per [ADR-0139](0139-the-accepted-adr-set-carries-no-stale-prose-correct-in-place.md).
 - [ADR-0006](0006-event-store-observability-surface.md), [ADR-0010](0010-three-tier-work-hierarchy.md) §3–4,
   [ADR-0019](0019-library-tier-name-and-defer-dbos.md) (the named-deferred pattern),
   [ADR-0023](0023-library-cli-choose-your-own-adventure.md), [ADR-0030](0030-all-in-on-claude-agent-sdk.md),
