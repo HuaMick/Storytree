@@ -23,9 +23,14 @@ capabilities: []
 # live (ADR-0100 §3). `forest-world` is a foundational root that depends on nothing, so this edge is
 # trivially acyclic.
 depends_on: [forest-world]
-# A SINK (ADR-0100): nothing consumes the public website — it is the top of the dependency order, the
-# project's front door. `[]` is the honest classification, not an omission.
-consumed_by: []
+# A package-level SINK (ADR-0100): no code imports a surface, so the website draws no inbound
+# PACKAGE edge and can never close a cycle. At the STORY grain it now has one consumer (ADR-0134):
+# `website-experience` — the two-act front-door experience — consumes this node's delivered
+# mechanism (the sync-into-submodule + drift-gate artifact flow its `web-experience-sync` extends,
+# and the grounded-claims wire its page triage keeps green) as a precondition of its own UAT. A
+# story-graph edge with the `studio-cloud → studio` precedent (ADR-0100 v1), not a code edge;
+# acyclic by construction (website-experience → website → forest-world).
+consumed_by: [website-experience]
 # Deciding ADRs (ADR-0037 §2): the website-wiring decision / the route-by-material model / the
 # artifacts-not-source boundary (66); the shared forest-world render core both surfaces draw from, and
 # the sync-into-submodule + drift-gate mechanism (93); the consuming-surface model that brings the site
@@ -82,7 +87,11 @@ Decision): it is never `foundational`, draws no inbound edge, and cannot close a
 ([ADR-0093](../../docs/decisions/0093-shared-forest-world-render-core-for-studio-and-the-public-we.md)
 §1), so `website → forest-world` is acyclic by construction — `pnpm check:boundaries` is green with
 this (the website owns no package, so it draws no coverage obligation; the single edge points at a
-root that points nowhere).
+root that points nowhere). Since [ADR-0134](../../docs/decisions/0134-public-website-as-a-two-act-vibe-coding-experience-terminal.md)
+one refinement at the STORY grain: [`website-experience`](../website-experience/story.md) — the
+two-act front-door experience — `depends_on` this node, consuming its delivered sync + grounding
+mechanism (a story-graph edge, not a package import), so the surface stays a package-level sink
+while `website-experience` sits above it as the story-level sink.
 
 ## Reliability Gates
 
