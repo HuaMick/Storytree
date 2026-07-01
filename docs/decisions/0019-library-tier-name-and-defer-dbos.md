@@ -2,7 +2,6 @@
 status: accepted
 load_bearing: true
 decided: 2026-06-08
-supersedes_in_part: [1]
 ---
 
 # ADR-0019: The knowledge tier is named "library"; defer DBOS for its store
@@ -12,8 +11,9 @@ supersedes_in_part: [1]
 accepted (2026-06-08) — **resolves** [ADR-0017](0017-cross-cutting-knowledge-tier.md)'s deferred tier
 name; sets the store execution model for ADR-0017's Phase-2 migration, **deferring**
 [ADR-0001](0001-foundational-stack.md) / [ADR-0009](0009-concurrency-isolation-id-allocation.md)'s DBOS
-for the corpus. Records owner decisions from the studio open-questions `oq-knowledge-tier-name` and
-`oq-store-execution-model`.
+for the corpus (ADR-0001 corrected in place per
+[ADR-0139](0139-the-accepted-adr-set-carries-no-stale-prose-correct-in-place.md)). Records owner
+decisions from the studio open-questions `oq-knowledge-tier-name` and `oq-store-execution-model`.
 
 ## Date
 
@@ -61,6 +61,6 @@ units and decided by the owner in the studio.
 - [ADR-0017](0017-cross-cutting-knowledge-tier.md) (name deferred there, resolved here),
   [ADR-0015](0015-gcp-hosting-cloud-sql-event-store.md) (the store),
   [ADR-0001](0001-foundational-stack.md) / [ADR-0009](0009-concurrency-isolation-id-allocation.md)
-  (DBOS, deferred for now; ADR-0009 corrected in place per
+  (DBOS, deferred for now; ADR-0001 and ADR-0009 corrected in place per
   [ADR-0139](0139-the-accepted-adr-set-carries-no-stale-prose-correct-in-place.md)),
   [ADR-0018](0018-knowledge-tier-phase1-structured-source.md) (the structured source this migrates).
