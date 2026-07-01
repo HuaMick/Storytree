@@ -24,7 +24,10 @@ import assert from 'node:assert/strict';
 
 import {
   buildScene,
+  hexCenter,
+  type SceneG,
   type SceneInput,
+  type SceneKind,
   type SceneTerritoryInput,
 } from '@storytree/forest-world';
 
@@ -93,13 +96,80 @@ function mkInput(over: Partial<SceneInput> = {}): SceneInput {
 const asInstance = (d: Descriptor3D): d is InstanceDescriptor => d.kind !== 'skipped';
 const asSkipped = (d: Descriptor3D): d is SkippedDescriptor => d.kind === 'skipped';
 
+/** Positional tolerance: the core rounds path coords to 0.1 (`toFixed(1)`), so a
+ *  vertex-centroid recovery of a baked centre lands within ~0.05 per axis. */
+const closeTo = (got: number, want: number, msg: string): void =>
+  assert.ok(Math.abs(got - want) < 0.15, `${msg} (got ${got}, want ~${want})`);
+
 // ---------------------------------------------------------------------------
-// determinism
+// contract: r3f-mapping-is-deterministic
 // ---------------------------------------------------------------------------
 
-test('worldTo3D is deterministic — same scene → byte-identical descriptor array', () => {
+test('r3f-mapping-is-deterministic: same scene → deep-equal descriptor arrays, stable ordering', () => {
   const scene = buildScene(mkInput());
   assert.deepEqual(worldTo3D(scene), worldTo3D(scene));
+  // A fresh scene from the same input maps identically too — the core's determinism
+  // carried through the mapper end-to-end.
+  assert.deepEqual(worldTo3D(buildScene(mkInput())), worldTo3D(scene));
+});
+
+// ---------------------------------------------------------------------------
+// contract: r3f-semantic-layer-maps-faithfully
+// ---------------------------------------------------------------------------
+
+test('r3f-semantic-layer-maps-faithfully: kind → mesh family, position → transform, status → variant', () => {
+  const scene = buildScene(
+    mkInput({
+      territories: [mkTerritory({ wisps: [{ runId: 'r1', title: 'building unit-a' }] })],
+    }),
+  );
+  const descs = worldTo3D(scene);
+
+  // kind family → typed descriptor branch, transforms derived from the World geometry:
+  // each hex-ground sits at ITS baked hex centre (distinct per tile, never collapsed).
+  const grounds = descs.filter((d): d is InstanceDescriptor => d.kind === 'hex-ground');
+  assert.equal(grounds.length, 2, 'one hex-ground per draw tile');
+  const c0 = hexCenter({ q: 0, r: 0 });
+  const c1 = hexCenter({ q: 1, r: 0 });
+  closeTo(grounds[0]!.transform.x, c0.x, 'tile 0 x from its hex centre');
+  closeTo(grounds[0]!.transform.z, c0.y, 'tile 0 z from its hex centre');
+  closeTo(grounds[1]!.transform.x, c1.x, 'tile 1 x from its hex centre');
+  closeTo(grounds[1]!.transform.z, c1.y, 'tile 1 z from its hex centre');
+  assert.notDeepEqual(grounds[0]!.transform, grounds[1]!.transform, 'tiles do not collapse');
+
+  // the story tree stands at its territory's treeSpot.
+  const trees = descs.filter((d): d is InstanceDescriptor => d.kind === 'story-tree');
+  assert.equal(trees.length, 1, 'one story-tree per territory');
+  closeTo(trees[0]!.transform.x, 100, 'tree x = treeSpot.x');
+  closeTo(trees[0]!.transform.z, 190, 'tree z = treeSpot.y');
+
+  // the road carries its routed polyline on the ground plane, anchored at its centroid.
+  const roads = descs.filter((d): d is InstanceDescriptor => d.kind === 'road-strip');
+  assert.equal(roads.length, 1, 'one road-strip per road');
+  const rd = roads[0]!;
+  assert.ok(rd.points && rd.points.length >= 2, 'road-strip carries its polyline');
+  closeTo(rd.points![0]!.x, 0, 'road start x');
+  closeTo(rd.points![0]!.z, 0, 'road start z');
+  closeTo(rd.points![rd.points!.length - 1]!.x, 100, 'road end x');
+  closeTo(rd.points![rd.points!.length - 1]!.z, 100, 'road end z');
+  closeTo(rd.transform.x, 50, 'road anchor at the polyline centroid');
+  closeTo(rd.transform.z, 50, 'road anchor at the polyline centroid');
+
+  // the wisp orbits its territory's centroid.
+  const sprites = descs.filter((d): d is InstanceDescriptor => d.kind === 'wisp-sprite');
+  assert.equal(sprites.length, 1, 'one wisp-sprite per in-flight wisp');
+  closeTo(sprites[0]!.transform.x, 100, 'wisp x = territory centroid.x');
+  closeTo(sprites[0]!.transform.z, 200, 'wisp z = territory centroid.y');
+
+  // folded SceneStatus → a distinct material variant per status.
+  for (const status of ['healthy', 'unhealthy', 'proposed', 'building'] as const) {
+    const ds = worldTo3D(buildScene(mkInput({ territories: [mkTerritory({ status })] })));
+    for (const gd of ds.filter((d): d is InstanceDescriptor => d.kind === 'hex-ground')) {
+      assert.equal(gd.material, status, `hex-ground material reflects '${status}'`);
+    }
+    const tr = ds.filter((d): d is InstanceDescriptor => d.kind === 'story-tree');
+    assert.equal(tr[0]!.material, status, `story-tree material reflects '${status}'`);
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -148,7 +218,7 @@ test('worldTo3D maps in-flight build wisps to wisp-sprite descriptors — one pe
 // non-core / unknown kinds → explicit skip, never a throw
 // ---------------------------------------------------------------------------
 
-test('worldTo3D emits skipped descriptors for non-core SceneKinds — never a throw', () => {
+test('r3f-unknown-kind-skips-visibly: an unhandled SceneKind yields a named skip, never a throw', () => {
   // The real buildScene output contains many non-core structural kinds:
   // world, ground-hex, tile-side, tile-top, roads-layer, road-line, flora-layer,
   // territory, shadow, trunk, crown-lo, crown-hi, plate, plate-bg, plate-id,
@@ -161,6 +231,19 @@ test('worldTo3D emits skipped descriptors for non-core SceneKinds — never a th
     assert.equal(typeof s.sceneKind, 'string', 'each skipped descriptor carries the original SceneKind');
     assert.ok(s.sceneKind.length > 0, 'sceneKind is non-empty');
   }
+
+  // A kind this mapper has never heard of (a FUTURE core addition) degrades to an
+  // explicit named skip — the mapper may lag the core, never crash the site's 3D island.
+  const novel: SceneG = {
+    el: 'g',
+    children: [{ el: 'g', children: [], kind: 'lava-flow' as SceneKind }],
+  };
+  const out = worldTo3D(novel);
+  assert.deepEqual(
+    out.filter(asSkipped).map((s) => s.sceneKind),
+    ['lava-flow'],
+    'the unknown kind is skipped BY NAME — visible in output, not silently dropped',
+  );
 });
 
 // ---------------------------------------------------------------------------

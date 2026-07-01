@@ -12,7 +12,7 @@
 // All other SceneKinds yield { kind: 'skipped', sceneKind } — explicit, never a
 // throw, never a silent drop. Total coverage is the invariant.
 
-import type { SceneG, SceneNode } from '@storytree/forest-world';
+import type { SceneG, SceneNode, ScenePath } from '@storytree/forest-world';
 
 // ---------------------------------------------------------------------------
 // Descriptor types — the provability-firewall output contract
@@ -42,6 +42,10 @@ export interface InstanceDescriptor {
    *  'healthy' / 'unhealthy' / 'proposed'). Set for status-bearing families (hex-ground,
    *  story-tree); absent on families that don't carry a territory status. */
   material?: string;
+  /** A ground-plane polyline (road-strip only): the road's routed path as 3D points,
+   *  in path order — the strip the canvas lays on the ground. Absent on point-like
+   *  families (hex-ground / story-tree / wisp-sprite). */
+  points?: Transform3D[];
 }
 
 /** A skip record: a scene node with no core 3D mapping. Never a throw, never a silent
@@ -65,6 +69,44 @@ function parseTranslate(t: string): { x: number; y: number } {
   const m = /translate\(\s*([-\d.]+)\s+([-\d.]+)/.exec(t);
   if (!m) return { x: 0, y: 0 };
   return { x: parseFloat(m[1]!), y: parseFloat(m[2]!) };
+}
+
+/** All coordinate pairs in a path `d` string, in path order. The core emits M/L
+ *  polylines (`hexPath` / `polyPath`; road `d`s are surface-routed lines), so pairing
+ *  the numeric stream recovers the vertices. On a curve command the control points
+ *  join the polyline — spike-fidelity approximation, still deterministic and total. */
+function pathPoints(d: string): { x: number; y: number }[] {
+  const nums = d.match(/-?\d+(?:\.\d+)?/g);
+  if (!nums) return [];
+  const pts: { x: number; y: number }[] = [];
+  for (let i = 0; i + 1 < nums.length; i += 2) {
+    pts.push({ x: parseFloat(nums[i]!), y: parseFloat(nums[i + 1]!) });
+  }
+  return pts;
+}
+
+/** The mean of a point set — the exact centre of a regular polygon's vertices
+ *  (the hex tile centre), the midpoint-ish anchor of a road polyline. */
+function centroidOf(pts: { x: number; y: number }[]): { x: number; y: number } {
+  if (pts.length === 0) return { x: 0, y: 0 };
+  let sx = 0;
+  let sy = 0;
+  for (const p of pts) {
+    sx += p.x;
+    sy += p.y;
+  }
+  return { x: sx / pts.length, y: sy / pts.length };
+}
+
+/** The first direct child path wearing one of `kinds` (where the core bakes a
+ *  family's geometry: the tile's `tile-top`, the road's `road-line`). */
+function childPath(node: SceneG, ...kinds: string[]): ScenePath | null {
+  for (const child of node.children) {
+    if (child.el === 'path' && child.kind !== undefined && kinds.includes(child.kind)) {
+      return child;
+    }
+  }
+  return null;
 }
 
 /** Recursively walk a scene node, emitting descriptors into `out`.
@@ -92,18 +134,21 @@ function walkNode(
 
   // Emit a descriptor for this node.
   switch (kind) {
-    case 'tile':
-      // Classic extruded-hex ground tile → hex-ground instance.
-      // The hex centre is baked into the child path geometry; the group itself carries
-      // no translate, so childXY is the accumulated parent offset (0 in the classic
-      // ground, since ground-hex has no translate either). Material = territory status.
+    case 'tile': {
+      // Classic extruded-hex ground tile → hex-ground instance. The tile group
+      // carries NO translate — the core bakes the hex centre into the child
+      // `tile-top` path's vertices — so the centre is recovered as the vertex
+      // centroid (exact for a regular hex ring). Material = territory status.
+      const top = childPath(node, 'tile-top', 'tile-top-wheat');
+      const c = top ? centroidOf(pathPoints(top.d)) : { x: 0, y: 0 };
       out.push({
         kind: 'hex-ground',
-        transform: { x: childXY.x, y: 0, z: childXY.y },
+        transform: { x: childXY.x + c.x, y: 0, z: childXY.y + c.y },
         group: 'hex-ground',
         material: node.status ?? 'unknown',
       });
       break;
+    }
 
     case 'tree':
       // The central story tree → story-tree instance. The tree group carries a
@@ -116,15 +161,21 @@ function walkNode(
       });
       break;
 
-    case 'road':
-      // A `depends_on` road → road-strip instance. The road geometry lives in the
-      // child road-line path's `d`; no translate on the group itself.
+    case 'road': {
+      // A `depends_on` road → road-strip instance. The routed geometry lives in the
+      // child road-line path's `d` (surface-computed; no translate on the group), so
+      // the strip carries the parsed ground-plane polyline and anchors at its centroid.
+      const line = childPath(node, 'road-line');
+      const pts = line ? pathPoints(line.d) : [];
+      const mid = centroidOf(pts);
       out.push({
         kind: 'road-strip',
-        transform: { x: childXY.x, y: 0, z: childXY.y },
+        transform: { x: childXY.x + mid.x, y: 0, z: childXY.y + mid.y },
         group: 'road-strip',
+        points: pts.map((p) => ({ x: childXY.x + p.x, y: 0, z: childXY.y + p.y })),
       });
       break;
+    }
 
     case 'wisp':
       // An individual in-flight build wisp → wisp-sprite GPU point.
@@ -159,7 +210,11 @@ function walkNode(
  * Maps a `buildScene` output (the @storytree/forest-world semantic scene graph) to
  * a flat array of typed 3D instance descriptors — the ADR-0123 provability firewall.
  *
- * Core kind families emit `InstanceDescriptor` objects:
+ * Core kind families emit `InstanceDescriptor` objects, each POSITIONED from the
+ * real World geometry (the faithfulness contract): the tile's baked hex centre
+ * (vertex centroid of `tile-top`), the tree's `treeSpot` translate, the road's
+ * routed polyline (carried as `points` + a centroid anchor), the wisp's territory
+ * centroid:
  * - `tile`  → `hex-ground`   (extruded hex mesh; material = territory SceneStatus)
  * - `tree`  → `story-tree`   (3D story-tree mesh; material = territory SceneStatus)
  * - `road`  → `road-strip`   (path strip on the ground plane)
