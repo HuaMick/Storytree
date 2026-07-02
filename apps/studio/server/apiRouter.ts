@@ -67,6 +67,11 @@ export type { BuildContext };
 // vite's config-load graph — the same way libraryBackend.ts is statically imported.
 import { handleWriteBroker, type WriteBrokerBackend } from './writeBroker';
 import { handleSuggestionDecision, type SuggestionDecisionBackend } from './suggestionApi';
+import {
+  handleReviewFeed,
+  type ReviewFeedCommentStore,
+  type ReviewFeedSuggestionStore,
+} from './reviewFeedApi';
 
 const ASSET_CATEGORIES: AssetCategory[] = [
   'definition',
@@ -1636,6 +1641,44 @@ function suggestionDecisionBackend(backend: LibraryBackend): SuggestionDecisionB
   };
 }
 
+// ---------- review feed (ADR-0140 — one poll returns a topic's comments + suggestions) ----------
+//
+// GET /api/review/feed?topicId=<id> runs cap 5's handleReviewFeed over the backend's comment +
+// suggestion reads, so the Review surface refreshes on the existing 30s visibility-gated poll.
+// The feed is an ADVISORY read (the activeSessions / latestVerdicts discipline): each source
+// degrades to an empty list — the suggestion seam is OPTIONAL (json backend omits it → null store
+// → empty suggestions inside the handler), and a read failure (a down DB) is swallowed to an
+// empty list here rather than bubbling to the central 503 — the Review surface shows no feed
+// rather than erroring mid-poll.
+
+/** Adapt the backend's comment read to the feed's seam, swallowing failures to empty (advisory). */
+function reviewFeedCommentStore(backend: LibraryBackend): ReviewFeedCommentStore {
+  return {
+    async listComments(filter) {
+      try {
+        return await backend.listComments(filter);
+      } catch {
+        return []; // advisory: a down DB reads as an empty source, never a throw
+      }
+    },
+  };
+}
+
+/** The feed's suggestion seam, or `null` when the backend has no suggestion read (json). */
+function reviewFeedSuggestionStore(backend: LibraryBackend): ReviewFeedSuggestionStore | null {
+  const list = backend.listSuggestions?.bind(backend);
+  if (!list) return null;
+  return {
+    async list(filter) {
+      try {
+        return await list(filter);
+      } catch {
+        return []; // advisory: a down DB reads as an empty source, never a throw
+      }
+    },
+  };
+}
+
 // ---------- the dispatch ----------
 
 /** Everything one front (dev plugin / hosted server) wires into the route table. */
@@ -1827,6 +1870,15 @@ export async function handleApiRequest(
         backend: writeBrokerBackend(ctx.backend),
         caller: ctx.policy?.me.email ?? null,
         access: ctx.policy?.access ?? null,
+      });
+    } else if (url.pathname === '/api/review/feed') {
+      // ADR-0140 cap 5: one topic's comments + suggestions in one response, for the Review
+      // surface's existing 30s poll. Member-readable (a GET passes the policy gate); both
+      // sources are advisory — absent seam or a down DB reads as empty, never a throw.
+      if ((req.method ?? 'GET') !== 'GET') throw new HttpError(405, 'method not allowed');
+      await handleReviewFeed(req, res, url, {
+        commentStore: reviewFeedCommentStore(ctx.backend),
+        suggestionStore: reviewFeedSuggestionStore(ctx.backend),
       });
     } else if (url.pathname === '/api/suggestions/decision') {
       // ADR-0140: the suggestion accept/reject decision. The policy gate already enforced the

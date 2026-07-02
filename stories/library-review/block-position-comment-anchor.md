@@ -158,17 +158,17 @@ distinctly-named test so `storytree coverage block-position-comment-anchor` repo
      downgrades a legacy/`text`/unknown kind to the safe default (`topic`, never an unfindable locator).
      At HEAD this assertion fails because `normalizeCommentAnchor` does not exist — the required runtime
      witness for a shape change the tsx (no-typecheck) runner would otherwise not observe.
-   - **covers —** `packages/library/src/store/pg-comment-store.ts` (`normalizeCommentAnchor`, `CommentAnchor`) *(provisional path)*
+   - **covers —** `packages/library/src/store/pg-comment-store.ts:61-87` (`normalizeCommentAnchor` — canonical `kind: 'block'`, quote-span fields stripped, `text`/unknown downgraded to `topic`) + `:31` (`CommentAnchor` — the block shape)
 2. **`bpa-merge-preserves-the-block-anchor`** — patching a comment preserves its block anchor
    - **asserts —** `mergeCommentPatch` over a block-anchored comment changes `body` / toggles
      `resolved`+`resolvedAt` while leaving the block anchor intact (the anchor is not patchable), does
      not mutate the input, and returns a new object.
-   - **covers —** `packages/library/src/store/pg-comment-store.ts` (`mergeCommentPatch`) *(provisional path)*
+   - **covers —** `packages/library/src/store/pg-comment-store.ts:116` (`mergeCommentPatch` — the anchor is not a patchable field; the merge invariants hold for the block shape)
 3. **`bpa-store-constructs-over-the-new-shape`** — the store surface is intact after the shape change
    - **asserts —** the module imports without throwing and `new PgCommentStore({} as Pool)` constructs
      with `list`/`create`/`update`/`remove` present (the constructor issues no SQL) — the block-anchor
      change did not break the store's surface.
-   - **covers —** `packages/library/src/store/pg-comment-store.ts` (`PgCommentStore`) *(provisional path)*
+   - **covers —** `packages/library/src/store/pg-comment-store.ts:133` (`PgCommentStore` — constructs over the new shape; `normalizeCommentAnchor` applied at the `create`/`update` write boundary)
 
 ## Guidance — the slice that earns the signed verdict
 
