@@ -5,12 +5,17 @@
  * function runs, a refusal names the holder and spawns nothing, and each
  * trace signal bumps the claim heartbeat so a live spawn never ages out.
  *
- * The E1 seam (resolveSpawnClaim, ./spawn-claim.ts) is consumed here — not
- * stubbed — so the real decision logic is exercised by the proof.
- *
- * Imports only node: builtins and relative files — install-free proof run.
+ * Both already-built seams are CONSUMED here, never re-implemented: the E1
+ * acquire-or-wait decision (resolveSpawnClaim, ./spawn-claim.ts) and the
+ * work-time claim-request builder (workClaimRequest, @storytree/notice-board —
+ * the kind→intent stamping lives in ONE place, so the wisp colour vocabulary
+ * can evolve there without this gate drifting). The package value import means
+ * the real proof carries the install + typecheck arm (the story-author-spawn
+ * precedent), not the install-free builtins-only run.
  */
 
+import { workClaimRequest } from "@storytree/notice-board";
+import type { WorkClaimKind } from "@storytree/notice-board";
 import { resolveSpawnClaim } from "./spawn-claim.js";
 import type { ClaimHolder } from "./spawn-claim.js";
 
@@ -59,10 +64,12 @@ export interface ClaimGatedSpawnArgs {
   /** The calling branch (stamped into the claim request). */
   branch: string;
   /**
-   * The work kind / role (stamped as `intent` on the claim request per ADR-0138 §5
-   * so the wisp colour layer can read the role).
+   * The work kind (stamped as `intent` on the claim request by workClaimRequest
+   * per ADR-0138 §5 so the wisp colour layer can read the role). A finer role
+   * vocabulary is a notice-board amend owned by wisp-as-story-claim — flagged
+   * in the story's open modeling calls, not widened here.
    */
-  kind: string;
+  kind: WorkClaimKind;
   /** Injected claim store — the real pg store in production, a recording fake in tests. */
   store: ClaimStore;
   /**
@@ -99,19 +106,18 @@ export async function claimGatedSpawn({
   store,
   spawnFn,
 }: ClaimGatedSpawnArgs): Promise<ClaimGatedSpawnResult> {
-  // 4. Fail-closed input wall: blank unitId → no claim call, no spawn
-  if (!unitId) {
+  // 4. Fail-closed input wall: blank/whitespace-only unitId → no claim call,
+  //    no spawn (the same nonBlank rule notice-board's ClaimDoc enforces)
+  if (unitId.trim().length === 0) {
     return { ok: false, reason: "no-unit" };
   }
 
-  // 1. Claim BEFORE spawn — the mechanical definition of "claim-gated"
-  //    intent = kind so the wisp colour layer can read the role (ADR-0138 §5)
-  const claimResult = await store.claim({
-    unitId,
-    sessionId,
-    branch,
-    intent: kind,
-  });
+  // 1. Claim BEFORE spawn — the mechanical definition of "claim-gated".
+  //    workClaimRequest stamps intent from the work kind (ADR-0138 §3/§5),
+  //    consumed from notice-board so the stamping never drifts.
+  const claimResult = await store.claim(
+    workClaimRequest({ unitId, sessionId, branch, kind }),
+  );
 
   // E1 seam: map ClaimResult → SpawnDecision (real import, never stubbed)
   const decision = resolveSpawnClaim(claimResult);

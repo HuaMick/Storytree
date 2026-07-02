@@ -22,12 +22,11 @@
  *        the spawn fn is never invoked — the gate exposes no bypass arm.
  *
  * Every test is OFFLINE: the store and spawnFn are injected recording fakes — no pg, no
- * live SDK spend. The E1 seam (resolveSpawnClaim, ./spawn-claim.ts) is consumed by the
- * implementation via a real import, not stubbed — only the injected store is a fake.
- *
- * Import rule: this file imports ONLY node: builtins and relative files (no package value
- * imports — the worktree has no node_modules and a package import crashes the proof run).
- * `import type` is fine (erased by tsx before runtime).
+ * live SDK spend. Both already-built seams are consumed by the implementation via real
+ * imports, not stubbed — the E1 decision (resolveSpawnClaim, ./spawn-claim.ts) and the
+ * work-time request builder (workClaimRequest, @storytree/notice-board; the package
+ * import is why the cap's real proof carries the install + typecheck arm). Only the
+ * injected store is a fake.
  */
 
 import test from "node:test";
@@ -410,5 +409,37 @@ test("cgs-no-claim-free-spawn-path: a blank unitId is a fail-closed typed refusa
     spawnCalled,
     false,
     "the spawn fn must NEVER be invoked when unitId is blank — the gate has no bypass arm (ADR-0138 §3)",
+  );
+
+  // Whitespace-only is blank too (the nonBlank rule notice-board's ClaimDoc enforces):
+  // the wall must trip BEFORE the store, not lean on the store's own refusal.
+  const wsResult = await claimGatedSpawn({
+    unitId: "   ",
+    sessionId: "sess-delta",
+    branch: "claude/sess-delta",
+    kind: "orchestrate",
+    store,
+    spawnFn: async (_onTrace: (msg: unknown) => void) => {
+      spawnCalled = true;
+      return "spawned";
+    },
+  });
+
+  assert.equal(wsResult.ok, false, "a whitespace-only unitId must refuse exactly like an empty one");
+  if (wsResult.ok) return;
+  assert.equal(
+    (wsResult as { reason?: string }).reason,
+    "no-unit",
+    "a whitespace-only unitId must be the same fail-closed 'no-unit' refusal",
+  );
+  assert.equal(
+    claimCalled,
+    false,
+    "store.claim() must NEVER be called for a whitespace-only unitId — fail-closed before any I/O",
+  );
+  assert.equal(
+    spawnCalled,
+    false,
+    "the spawn fn must NEVER be invoked for a whitespace-only unitId",
   );
 });
