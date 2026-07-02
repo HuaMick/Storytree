@@ -59,14 +59,14 @@ the same `BuildContext`. This dispatch is the AGENT-side third caller — the or
 not the human's click. Get this wrong — invoking build entries directly, re-implementing tier routing,
 or forking the registry — and you stand up a second build path outside the worker's guards.
 
-CONSUME THE TIER ROUTING VERBATIM — THE FIX-DRIVE `--real` SHAPE IS THE SIBLING'S (the story-level
-sequencing note / OQ-A, `oq-fix-drive-build-shape`): today the worker routes a node id to the
-non-persisting `node build --live` smoke (ADR-0099-B — a pipeline proof whose PASS never persists) and
-a story id to `story build --real`. The fix-drive path WANTS node→`--real`, and an in-flight sibling
-increment owns exactly that routing change INSIDE the worker. This dispatch must NOT special-case,
-override, or duplicate the routing: when the sibling lands, this capability inherits `--real` node
-drives with zero change. Until then, a node dispatch is honestly the smoke — record it, don't fix it
-here.
+CONSUME THE TIER ROUTING VERBATIM — THE FIX-DRIVE `--real` SHAPE IS THE WORKER'S (the story-level
+sequencing note / OQ-A, `oq-fix-drive-build-shape` — RESOLVED by ADR-0144 before this capability was
+built): the worker routes a node id to `node build --real` with persist semantics (the node's real
+proof, signed verdict to `events.verdict`, PASS parked on a `claude/real/*` branch) and a story id to
+`story build --real`; the synthetic `--live` smoke (ADR-0099-B) is a CLI-only pipeline check, no
+longer what a dispatch drives. This dispatch must NOT special-case, override, or duplicate the
+routing: it inherited the `--real` node drive from the worker with zero change here — the routing was
+built once, inside the worker.
 
 THE DISPATCH IS A SAFE BUILD INTENT (ADR-0091 / ADR-0108 d.5): a unit id to the worker, a `{ runId }`
 back. The spine INSIDE the worker observes real RED→GREEN exit codes and signs; this module holds no
