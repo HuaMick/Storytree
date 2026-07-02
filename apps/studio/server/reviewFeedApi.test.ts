@@ -7,9 +7,9 @@
 // and the test suite exits cleanly (no leaked handles).
 //
 // Contract ids (each describe/it name leads with its id so the coverage check credits them):
-//   rrf-two-source-merge
-//   rrf-topic-filter
-//   rrf-absent-store-degrades
+//   rrf-returns-comments-and-suggestions-for-a-topic
+//   rrf-filters-to-the-requested-topic
+//   rrf-empty-feed-when-store-absent
 
 import { describe, it, expect } from 'vitest';
 import { Readable } from 'node:stream';
@@ -175,8 +175,7 @@ function makeSuggestion(overrides: Partial<FeedSuggestion> = {}): FeedSuggestion
 
 describe('handleReviewFeed — review-feed endpoint (cap review-refresh-feed)', () => {
   it(
-    'rrf-two-source-merge: GET for a populated topic → 200 with BOTH block-anchored comments ' +
-      'and suggestions (with statuses) in one response',
+    'rrf-returns-comments-and-suggestions-for-a-topic: GET for a populated topic → 200 with BOTH block-anchored comments and suggestions (with statuses) in one response',
     async () => {
       const comment = makeComment();
       const openSuggestion = makeSuggestion({ status: 'open' });
@@ -226,8 +225,7 @@ describe('handleReviewFeed — review-feed endpoint (cap review-refresh-feed)', 
   );
 
   it(
-    'rrf-topic-filter: stores contain items for multiple topics → ' +
-      'only the requested topic\'s items are returned',
+    "rrf-filters-to-the-requested-topic: stores contain items for multiple topics → only the requested topic's items are returned",
     async () => {
       const targetComment = makeComment({ id: 'c-target', topicId: TOPIC_ID });
       const otherComment = makeComment({ id: 'c-other', topicId: OTHER_TOPIC_ID });
@@ -263,8 +261,7 @@ describe('handleReviewFeed — review-feed endpoint (cap review-refresh-feed)', 
   );
 
   it(
-    'rrf-absent-store-degrades: null comment store or suggestion store → 200 empty feed, never a throw ' +
-      '(the advisory-absence contract honouring the activeSessions / latestVerdicts discipline)',
+    'rrf-empty-feed-when-store-absent: null comment store or suggestion store → 200 empty feed, never a throw (the advisory-absence contract honouring the activeSessions / latestVerdicts discipline)',
     async () => {
       const url = new URL(`http://localhost/api/review/feed?topicId=${TOPIC_ID}`);
 

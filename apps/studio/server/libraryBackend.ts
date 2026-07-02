@@ -182,6 +182,12 @@ export interface LibraryBackend {
   /** One suggestion by id, or `null` when absent. */
   getSuggestion?(id: string): Promise<Suggestion | null>;
   /**
+   * The suggestion projection, optionally topic/status-filtered — the review-feed's second source
+   * (review-refresh-feed, ADR-0140). Same optionality posture as {@link getSuggestion}: pg only;
+   * the json backend omits it and the feed degrades to an empty suggestion list (never a throw).
+   */
+  listSuggestions?(filter?: SuggestionFilter): Promise<Suggestion[]>;
+  /**
    * Apply an accept/reject decision through the store's atomic transition (append the
    * `transitioned` event + upsert the projection). Returns the updated suggestion, `null` if the
    * id does not exist; throws the store's closed-suggestion error on a re-decide race.
@@ -460,7 +466,7 @@ function lastAdminError(message: string): Error {
 // `store.X` call sites below are unchanged.
 //
 // Types are `import type` only (fully erased under verbatimModuleSyntax), so they add no runtime import.
-import type { PoolHandle, PgLibraryStore, PgCommentStore, PgSuggestionStore, Suggestion } from '@storytree/library/store';
+import type { PoolHandle, PgLibraryStore, PgCommentStore, PgSuggestionStore, Suggestion, SuggestionFilter } from '@storytree/library/store';
 import type { PgUserStore } from '@storytree/studio-members/store';
 import type { PgAttestationStore, PgWorkStore } from '@storytree/orchestrator/store';
 
@@ -999,6 +1005,11 @@ export class PgBackend implements LibraryBackend {
     const { suggestions } = await this.#ready();
     const all = await suggestions.list();
     return all.find((s) => s.id === id) ?? null;
+  }
+
+  async listSuggestions(filter?: SuggestionFilter): Promise<Suggestion[]> {
+    const { suggestions } = await this.#ready();
+    return suggestions.list(filter);
   }
 
   async transitionSuggestion(
