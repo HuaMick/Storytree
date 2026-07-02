@@ -4,7 +4,7 @@ import * as os from "node:os";
 import path from "node:path";
 import process from "node:process";
 
-import { sessionHook, statuslineGlance } from "@storytree/drive";
+import { sessionHook, statuslineGlance, undeclaredSessionNudge } from "@storytree/drive";
 import type { AmbientDeps, HeartbeatState } from "@storytree/drive";
 import { deriveIdentity } from "@storytree/drive";
 import type { PresenceStoreLike } from "@storytree/drive";
@@ -20,8 +20,12 @@ import { loadLocalSecrets } from "./secrets.js";
  *
  * HARD CONTRACT (the V1 hook-loop lesson, encoded): ALWAYS exit 0, bounded time, and silent on
  * every failure path — no output when the DB is down, no error ever surfaces into the session.
- * The hook modes print NOTHING even on success (SessionStart stdout lands in the model's
- * context); statusline prints at most the one glance line. This command must NEVER be registered
+ * The hook modes print nothing on success with ONE deliberate exception (ADR-0143): `start` in a
+ * recognised session worktree prints the single undeclared-session nudge line — SessionStart
+ * stdout lands in the model's context, and that is exactly the lever: the agent sees the anchor
+ * ceremony (ADR-0142: declare --node lights the story wisp) as its first instruction. The nudge is
+ * static and offline-computable, so it adds no DB coupling and no new failure path. `end` prints
+ * nothing; statusline prints at most the one glance line. This command must NEVER be registered
  * on a blocking-capable hook event (`Stop`, `PreToolUse`, `UserPromptSubmit`) — `auditHookConfig`
  * in `ambient-presence.ts` keys on the "ambient-presence" name to enforce exactly that.
  */
@@ -48,22 +52,26 @@ function timeout(ms: number): Promise<null> {
  */
 async function acquireStore(): Promise<{
   store: PresenceStoreLike | null;
+  claims: { bumpHeartbeatsBySession(sessionId: string): Promise<number> } | null;
   close: () => Promise<void>;
 }> {
   try {
     const { createPool, closePool } = await import("@storytree/library/store");
-    const { PgPresenceStore } = await import("@storytree/notice-board/store");
+    const { PgClaimStore, PgPresenceStore } = await import("@storytree/notice-board/store");
     const acquired = await Promise.race([
       createPool().then(({ pool, connector }) => ({
         store: new PgPresenceStore(pool) as PresenceStoreLike,
+        // The claim-heartbeat seam (ADR-0142): the statusline beat keeps this session's work-time
+        // claims out of stale-reclaim. Bump-only — the hook never takes or releases a claim.
+        claims: new PgClaimStore(pool),
         close: () => closePool(pool, connector),
       })),
       timeout(ACQUIRE_TIMEOUT_MS),
     ]);
-    if (acquired === null) return { store: null, close: async () => {} };
+    if (acquired === null) return { store: null, claims: null, close: async () => {} };
     return acquired;
   } catch {
-    return { store: null, close: async () => {} };
+    return { store: null, claims: null, close: async () => {} };
   }
 }
 
@@ -98,8 +106,8 @@ async function main(): Promise<void> {
   // Not a recognised session worktree (primary checkout, build worktrees) → silently do nothing.
   if (identity === null) return;
 
-  const { store, close } = await acquireStore();
-  const deps: AmbientDeps = { store, identity, now: () => new Date() };
+  const { store, claims, close } = await acquireStore();
+  const deps: AmbientDeps = { store, identity, now: () => new Date(), claims };
 
   try {
     if (mode === "statusline") {
@@ -113,6 +121,10 @@ async function main(): Promise<void> {
         workingOn: `interactive session on ${identity.branch}`,
         timeoutMs: STORE_TIMEOUT_MS,
       });
+      // The one deliberate SessionStart print (ADR-0143): inject the anchor ceremony into the
+      // fresh session's context. Static + offline — printed whether or not the declare above
+      // reached the store, because the nudge is for the AGENT, not a status of the write.
+      if (mode === "start") process.stdout.write(undeclaredSessionNudge(identity));
     }
   } catch {
     // unreachable by the module's own contract — belt-and-suspenders silence

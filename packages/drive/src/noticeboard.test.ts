@@ -1,13 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import type { PresenceDeclarationDoc } from "@storytree/notice-board";
+import type { ClaimDocT, ClaimRequest, ClaimResult, PresenceDeclarationDoc } from "@storytree/notice-board";
 import { STALE_THRESHOLD_MS, POSSIBLY_DEAD_THRESHOLD_MS } from "@storytree/notice-board";
 
 import {
   deriveIdentity,
   noticeboardCommand,
   type PresenceStoreLike,
+  type SessionClaimStoreLike,
   type SessionIdentity,
   type NoticeboardDeps,
 } from "./noticeboard.js";
@@ -425,4 +426,140 @@ test("unknown subcommand returns a help envelope listing declare, done, and the 
   assert.match(env.body, /done/);
   // 'noticeboard' or listing of sub-commands
   assert.match(env.body, /noticeboard/);
+});
+
+// ---------------------------------------------------------------------------
+// Claim-at-declare / release-at-done (ADR-0142)
+// ---------------------------------------------------------------------------
+
+interface FakeClaims extends SessionClaimStoreLike {
+  claimed: ClaimRequest[];
+  releasedSessions: string[];
+  /** When set, claim() refuses every request with this holder. */
+  refuseWith?: ClaimDocT;
+  /** When set, claim()/releaseClaimsBySession() throw. */
+  throwing?: boolean;
+  releaseCount: number;
+}
+
+function makeFakeClaims(over: Partial<FakeClaims> = {}): FakeClaims {
+  const self: FakeClaims = {
+    claimed: [],
+    releasedSessions: [],
+    releaseCount: 0,
+    async claim(req: ClaimRequest): Promise<ClaimResult> {
+      if (self.throwing === true) throw new Error("claim store unavailable");
+      self.claimed.push(req);
+      if (self.refuseWith !== undefined) return { acquired: false, heldBy: self.refuseWith };
+      return {
+        acquired: true,
+        reclaimed: false,
+        claim: {
+          unitId: req.unitId,
+          sessionId: req.sessionId,
+          branch: req.branch,
+          intent: req.intent ?? "",
+          claimedAt: NOW.toISOString(),
+          heartbeatAt: NOW.toISOString(),
+        },
+      };
+    },
+    async releaseClaimsBySession(sessionId: string): Promise<number> {
+      if (self.throwing === true) throw new Error("claim store unavailable");
+      self.releasedSessions.push(sessionId);
+      return self.releaseCount;
+    },
+    ...over,
+  };
+  return self;
+}
+
+const CLAIM_IDENTITY: SessionIdentity = { sessionId: "wt-claim", branch: "claude/claim-branch" };
+
+test("declare --node takes the work-time claim on each declared node (orchestrate intent, identity attribution)", async () => {
+  const claims = makeFakeClaims();
+  const deps: NoticeboardDeps = { store: makeFakeStore(), identity: CLAIM_IDENTITY, now: nowFn, claims };
+  const env = await noticeboardCommand(
+    "declare",
+    { workingOn: "landing ADR-0142", nodes: ["story-a", "story-b"] },
+    deps,
+  );
+  assert.equal(env.ok, true, env.body);
+  assert.deepEqual(
+    claims.claimed.map((r) => ({ unitId: r.unitId, sessionId: r.sessionId, branch: r.branch, intent: r.intent })),
+    [
+      { unitId: "story-a", sessionId: "wt-claim", branch: "claude/claim-branch", intent: "orchestrate" },
+      { unitId: "story-b", sessionId: "wt-claim", branch: "claude/claim-branch", intent: "orchestrate" },
+    ],
+  );
+  assert.match(env.body, /story-a: claimed/);
+  assert.match(env.body, /wisp is lit/);
+});
+
+test("declare: a claim REFUSAL never fails the declare — presence lands, the holder is named", async () => {
+  const claims = makeFakeClaims({
+    refuseWith: {
+      unitId: "story-a",
+      sessionId: "other-session",
+      branch: "claude/other",
+      intent: "orchestrate",
+      claimedAt: NOW.toISOString(),
+      heartbeatAt: NOW.toISOString(),
+    },
+  });
+  const store = makeFakeStore();
+  const deps: NoticeboardDeps = { store, identity: CLAIM_IDENTITY, now: nowFn, claims };
+  const env = await noticeboardCommand("declare", { workingOn: "x", nodes: ["story-a"] }, deps);
+  assert.equal(env.ok, true, env.body);
+  assert.ok(store.docs.has("wt-claim"), "presence still declared");
+  assert.match(env.body, /HELD by other-session/);
+  assert.match(env.body, /claude\/other/);
+});
+
+test("declare: a THROWING claim store never fails the declare — surfaced as FAILED, wisp not lit", async () => {
+  const claims = makeFakeClaims({ throwing: true });
+  const store = makeFakeStore();
+  const deps: NoticeboardDeps = { store, identity: CLAIM_IDENTITY, now: nowFn, claims };
+  const env = await noticeboardCommand("declare", { workingOn: "x", nodes: ["story-a"] }, deps);
+  assert.equal(env.ok, true, env.body);
+  assert.ok(store.docs.has("wt-claim"), "presence still declared");
+  assert.match(env.body, /claim write FAILED/);
+});
+
+test("declare: no claims dep (older caller / offline) → body unchanged, no claims section", async () => {
+  const deps: NoticeboardDeps = { store: makeFakeStore(), identity: CLAIM_IDENTITY, now: nowFn };
+  const env = await noticeboardCommand("declare", { workingOn: "x", nodes: ["story-a"] }, deps);
+  assert.equal(env.ok, true, env.body);
+  assert.doesNotMatch(env.body, /claims:/);
+});
+
+test("declare: nodes empty → no claim is ever taken (only an anchored node lights a wisp)", async () => {
+  const claims = makeFakeClaims();
+  const deps: NoticeboardDeps = { store: makeFakeStore(), identity: CLAIM_IDENTITY, now: nowFn, claims };
+  const env = await noticeboardCommand("declare", { workingOn: "x", nodes: [] }, deps);
+  assert.equal(env.ok, true, env.body);
+  assert.equal(claims.claimed.length, 0);
+});
+
+test("done releases every claim the session holds and reports the count", async () => {
+  const claims = makeFakeClaims({ releaseCount: 2 });
+  const store = makeFakeStore();
+  const deps: NoticeboardDeps = { store, identity: CLAIM_IDENTITY, now: nowFn, claims };
+  await noticeboardCommand("declare", { workingOn: "x", nodes: ["story-a"] }, deps);
+  const env = await noticeboardCommand("done", { nodes: [] }, deps);
+  assert.equal(env.ok, true, env.body);
+  assert.deepEqual(claims.releasedSessions, ["wt-claim"]);
+  assert.match(env.body, /Released 2 story claims/);
+});
+
+test("done: a THROWING claim release never un-dones the session — surfaced with the stale-reclaim note", async () => {
+  const claims = makeFakeClaims();
+  const store = makeFakeStore();
+  const deps: NoticeboardDeps = { store, identity: CLAIM_IDENTITY, now: nowFn, claims };
+  await noticeboardCommand("declare", { workingOn: "x", nodes: ["story-a"] }, deps);
+  claims.throwing = true;
+  const env = await noticeboardCommand("done", { nodes: [] }, deps);
+  assert.equal(env.ok, true, env.body);
+  assert.match(env.body, /Claim release FAILED/);
+  assert.match(env.body, /stale-reclaim/);
 });

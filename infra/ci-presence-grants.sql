@@ -17,6 +17,16 @@ GRANT SELECT, INSERT, UPDATE ON events.session
 GRANT INSERT ON events.session_event
   TO "storytree-ci-presence@storytree-498613.iam";
 
+-- The story-claim clear (ADR-0138 cap D / ADR-0142): the merge job's ingest-merge also calls
+-- releaseClaimsByBranch — DELETE ... RETURNING on the claim projection (RETURNING needs SELECT)
+-- plus one append-only `released` history row per cleared claim. Added 2026-07-02: the clear had
+-- been failing soft ("permission denied for table node_claim") on every merge since cap D landed —
+-- these two tables postdate the original tightest-grant set above.
+GRANT SELECT, DELETE ON events.node_claim
+  TO "storytree-ci-presence@storytree-498613.iam";
+GRANT INSERT ON events.claim_event
+  TO "storytree-ci-presence@storytree-498613.iam";
+
 -- USAGE on sequences so the session_event BIGSERIAL `seq` can advance on INSERT. Sequence-only
 -- (no table INSERT elsewhere), so this cannot widen write access beyond the two tables above.
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA events

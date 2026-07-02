@@ -19,6 +19,13 @@ export interface AmbientDeps {
   store: PresenceStoreLike | null;
   identity: SessionIdentity | null;
   now: () => Date;
+  /**
+   * The session-scoped claim-heartbeat seam (ADR-0142): the statusline beat that keeps presence
+   * fresh also keeps this session's work-time claims out of the stale-reclaim window. Optional/null
+   * = no claim bumping (offline, older callers). NEVER takes or releases a claim — ambient
+   * automation only refreshes liveness; only a deliberate `declare --node` lights a wisp.
+   */
+  claims?: { bumpHeartbeatsBySession(sessionId: string): Promise<number> } | null;
 }
 
 export interface BuildPresenceInfo {
@@ -206,6 +213,15 @@ export async function statuslineGlance(
     } catch {
       // fail-silent
     }
+    // Same beat, same debounce: refresh the session's work-time claim heartbeats (ADR-0142) so a
+    // live session's claim never ages into stale-reclaim. Bump-only — never take/release.
+    if (deps.claims !== undefined && deps.claims !== null) {
+      try {
+        await deps.claims.bumpHeartbeatsBySession(identity.sessionId);
+      } catch {
+        // fail-silent
+      }
+    }
   }
 
   // Build the status line
@@ -232,6 +248,27 @@ export async function statuslineGlance(
   }
 
   return parts.join(" | ");
+}
+
+// ---------------------------------------------------------------------------
+// undeclaredSessionNudge (ADR-0143)
+// ---------------------------------------------------------------------------
+
+/**
+ * The one line the SessionStart hook injects into a fresh worktree session's context (ADR-0143) —
+ * the narrow, deliberate amendment of the hook's print-nothing contract. PURE and offline: no store
+ * read, no clock — a recognised worktree identity in, the static anchor prompt out (`""` for a
+ * plain checkout, so non-session shells stay silent). One line only: SessionStart stdout lands in
+ * the model's context, and this is the ceremony the session must see first — anchoring via
+ * `noticeboard declare --node` is what lights the story wisp (ADR-0142).
+ */
+export function undeclaredSessionNudge(identity: SessionIdentity | null): string {
+  if (identity === null) return "";
+  return (
+    `[storytree] Session "${identity.sessionId}" is UNDECLARED — once you know your unit, anchor it ` +
+    "(this lights the story wisp on the map, ADR-0142): " +
+    'pnpm storytree noticeboard declare --working-on "<what>" --node <story-id> --pg\n'
+  );
 }
 
 // ---------------------------------------------------------------------------
