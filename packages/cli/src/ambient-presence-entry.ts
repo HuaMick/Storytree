@@ -48,22 +48,26 @@ function timeout(ms: number): Promise<null> {
  */
 async function acquireStore(): Promise<{
   store: PresenceStoreLike | null;
+  claims: { bumpHeartbeatsBySession(sessionId: string): Promise<number> } | null;
   close: () => Promise<void>;
 }> {
   try {
     const { createPool, closePool } = await import("@storytree/library/store");
-    const { PgPresenceStore } = await import("@storytree/notice-board/store");
+    const { PgClaimStore, PgPresenceStore } = await import("@storytree/notice-board/store");
     const acquired = await Promise.race([
       createPool().then(({ pool, connector }) => ({
         store: new PgPresenceStore(pool) as PresenceStoreLike,
+        // The claim-heartbeat seam (ADR-0142): the statusline beat keeps this session's work-time
+        // claims out of stale-reclaim. Bump-only — the hook never takes or releases a claim.
+        claims: new PgClaimStore(pool),
         close: () => closePool(pool, connector),
       })),
       timeout(ACQUIRE_TIMEOUT_MS),
     ]);
-    if (acquired === null) return { store: null, close: async () => {} };
+    if (acquired === null) return { store: null, claims: null, close: async () => {} };
     return acquired;
   } catch {
-    return { store: null, close: async () => {} };
+    return { store: null, claims: null, close: async () => {} };
   }
 }
 
@@ -98,8 +102,8 @@ async function main(): Promise<void> {
   // Not a recognised session worktree (primary checkout, build worktrees) → silently do nothing.
   if (identity === null) return;
 
-  const { store, close } = await acquireStore();
-  const deps: AmbientDeps = { store, identity, now: () => new Date() };
+  const { store, claims, close } = await acquireStore();
+  const deps: AmbientDeps = { store, identity, now: () => new Date(), claims };
 
   try {
     if (mode === "statusline") {

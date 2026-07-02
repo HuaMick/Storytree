@@ -19,6 +19,13 @@ export interface AmbientDeps {
   store: PresenceStoreLike | null;
   identity: SessionIdentity | null;
   now: () => Date;
+  /**
+   * The session-scoped claim-heartbeat seam (ADR-0142): the statusline beat that keeps presence
+   * fresh also keeps this session's work-time claims out of the stale-reclaim window. Optional/null
+   * = no claim bumping (offline, older callers). NEVER takes or releases a claim — ambient
+   * automation only refreshes liveness; only a deliberate `declare --node` lights a wisp.
+   */
+  claims?: { bumpHeartbeatsBySession(sessionId: string): Promise<number> } | null;
 }
 
 export interface BuildPresenceInfo {
@@ -205,6 +212,15 @@ export async function statuslineGlance(
       state.writeLastBump(nowIso);
     } catch {
       // fail-silent
+    }
+    // Same beat, same debounce: refresh the session's work-time claim heartbeats (ADR-0142) so a
+    // live session's claim never ages into stale-reclaim. Bump-only — never take/release.
+    if (deps.claims !== undefined && deps.claims !== null) {
+      try {
+        await deps.claims.bumpHeartbeatsBySession(identity.sessionId);
+      } catch {
+        // fail-silent
+      }
     }
   }
 

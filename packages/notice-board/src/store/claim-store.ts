@@ -272,6 +272,62 @@ export class PgClaimStore {
   }
 
   /**
+   * Bulk-release every claim held by `sessionId` — the `noticeboard done` twin of
+   * {@link releaseClaimsByBranch} (ADR-0142): a session marking itself done drops ALL of its
+   * work-time claims in one transaction, one `released` audit event per cleared claim. Returns the
+   * number of claims released (0 when the session held nothing — a no-op, never an error).
+   */
+  async releaseClaimsBySession(sessionId: string): Promise<number> {
+    const client = await this.#pool.connect();
+    try {
+      await client.query("BEGIN");
+      const del = await client.query(
+        `DELETE FROM events.node_claim WHERE session_id = $1 RETURNING ${CLAIM_COLUMNS}`,
+        [sessionId],
+      );
+      const removed = del.rows as ClaimRow[];
+      for (const row of removed) {
+        const doc = rowToDoc(row);
+        await this.#appendEvent(client, row.unit_id, "released", row.session_id, doc);
+      }
+      await client.query("COMMIT");
+      return removed.length;
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Bump the heartbeat on EVERY claim held by `sessionId` — the statusline-heartbeat twin of
+   * {@link bumpHeartbeat} (ADR-0142): the ambient beat that keeps a live session's presence fresh
+   * also keeps its work-time claims out of the stale-reclaim window, without knowing which units it
+   * holds. Touches ONLY `heartbeat_at`, appends NO audit event (a heartbeat is a liveness signal,
+   * not a state transition). Returns the number of claims bumped (0 = held nothing). Atomic.
+   */
+  async bumpHeartbeatsBySession(sessionId: string): Promise<number> {
+    const client = await this.#pool.connect();
+    try {
+      await client.query("BEGIN");
+      const upd = await client.query(
+        `UPDATE events.node_claim SET heartbeat_at = now()
+           WHERE session_id = $1
+         RETURNING ${CLAIM_COLUMNS}`,
+        [sessionId],
+      );
+      await client.query("COMMIT");
+      return (upd.rows as ClaimRow[]).length;
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
    * Bump the heartbeat on `unitId` IFF held by `sessionId` (a session can only refresh its OWN
    * claim's liveness) — the store-side mirror of {@link bumpHeartbeat from claim.ts}, the cheap
    * mid-flight refresh the loops' trace signals call so a live session's claim never ages out

@@ -117,3 +117,40 @@ test("noticeboard --help is an ok envelope and the top help names the area", asy
   const top = await run([], { store: new InMemoryStore() });
   assert.match(top.body, /noticeboard/);
 });
+
+test("declare through the dispatch takes the work-time claim on the anchored node (ADR-0142 glue)", async () => {
+  const presence = fakePresenceStore();
+  const claimed: Array<{ unitId: string; sessionId: string; branch: string; intent?: string }> = [];
+  const claims = {
+    async claim(req: { unitId: string; sessionId: string; branch: string; intent?: string }) {
+      claimed.push(req);
+      return {
+        acquired: true as const,
+        reclaimed: false,
+        claim: {
+          unitId: req.unitId,
+          sessionId: req.sessionId,
+          branch: req.branch,
+          intent: req.intent ?? "",
+          claimedAt: new Date().toISOString(),
+          heartbeatAt: new Date().toISOString(),
+        },
+      };
+    },
+    async releaseClaimsBySession(): Promise<number> {
+      return 0;
+    },
+  };
+  const env = await run(
+    ["noticeboard", "declare", "--working-on", "landing 0142", "--node", "wisp-as-story-claim"],
+    {
+      store: new InMemoryStore(),
+      presence: { store: presence, identity: { sessionId: "alpha-4", branch: "claude/y" }, claims },
+    },
+  );
+  assert.equal(env.ok, true, env.body);
+  assert.deepEqual(claimed, [
+    { unitId: "wisp-as-story-claim", sessionId: "alpha-4", branch: "claude/y", intent: "orchestrate" },
+  ]);
+  assert.match(env.body, /wisp is lit/);
+});

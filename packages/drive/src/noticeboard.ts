@@ -7,8 +7,8 @@
  */
 import { execFileSync } from "node:child_process";
 
-import type { PresenceDeclarationDoc } from "@storytree/notice-board";
-import { classifyPresence } from "@storytree/notice-board";
+import type { ClaimRequest, ClaimResult, PresenceDeclarationDoc } from "@storytree/notice-board";
+import { classifyPresence, workClaimRequest } from "@storytree/notice-board";
 
 import type { Envelope } from "./envelope.js";
 
@@ -38,10 +38,23 @@ export interface SessionIdentity {
   branch: string;
 }
 
+/**
+ * The session-scoped slice of the write-claim store (ADR-0142 claim-at-declare): `declare --node`
+ * takes the work-time claim on each declared node (one ceremony step = presence + wisp), and `done`
+ * bulk-releases everything the session holds. Satisfied by `PgClaimStore`; null when offline —
+ * claim behaviour then silently absent (presence still works exactly as before).
+ */
+export interface SessionClaimStoreLike {
+  claim(req: ClaimRequest): Promise<ClaimResult>;
+  releaseClaimsBySession(sessionId: string): Promise<number>;
+}
+
 export interface NoticeboardDeps {
   store: PresenceStoreLike | null;
   identity: SessionIdentity | null;
   now: () => Date;
+  /** The write-claim store (ADR-0142); optional/null = no claim behaviour (offline, older callers). */
+  claims?: SessionClaimStoreLike | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -229,12 +242,42 @@ export async function noticeboardCommand(
     };
     const stored = await deps.store.declare(doc);
     const nodeList = stored.nodes.length > 0 ? stored.nodes.join(", ") : "(none)";
+
+    // Claim-at-declare (ADR-0142): anchoring a node ALSO takes the work-time claim on it — the wisp
+    // acquisition ADR-0138 §3 named, wired the cheap way. Fail-soft per node: a refusal or a claim
+    // hiccup never loses the presence declare; it is surfaced loudly instead.
+    const claims = deps.claims ?? null;
+    const claimLines: string[] = [];
+    if (claims !== null && stored.nodes.length > 0) {
+      for (const nodeId of stored.nodes) {
+        try {
+          const res = await claims.claim(
+            workClaimRequest({
+              unitId: nodeId,
+              sessionId: deps.identity.sessionId,
+              branch: deps.identity.branch,
+              kind: "orchestrate",
+            }),
+          );
+          claimLines.push(
+            res.acquired
+              ? `    ${nodeId}: claimed — the story wisp is lit`
+              : `    ${nodeId}: HELD by ${res.heldBy.sessionId} (branch ${res.heldBy.branch}, intent "${res.heldBy.intent}") — coordinate or pick other work`,
+          );
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          claimLines.push(`    ${nodeId}: claim write FAILED (${msg}) — presence declared, wisp NOT lit`);
+        }
+      }
+    }
+
     const body = [
       `Declared presence for session "${stored.sessionId}".`,
       `  branch:     ${stored.branch}`,
       `  workingOn:  ${stored.workingOn}`,
       `  nodes:      ${nodeList}`,
       `  startedAt:  ${stored.startedAt}`,
+      ...(claimLines.length > 0 ? ["  claims:", ...claimLines] : []),
     ].join("\n");
 
     const next: string[] =
@@ -277,9 +320,22 @@ export async function noticeboardCommand(
       body: `No active declaration found for session "${deps.identity.sessionId}". Use declare first.`,
     };
   }
+  // Release every work-time claim the session holds (ADR-0142) — a done session is working nothing,
+  // so its wisps go out. Fail-soft: a release hiccup never un-dones the session (stale-reclaim and
+  // the CI merge clear are the backstops); it is surfaced instead.
+  let claimNote = "";
+  if (deps.claims !== undefined && deps.claims !== null) {
+    try {
+      const released = await deps.claims.releaseClaimsBySession(deps.identity.sessionId);
+      if (released > 0) claimNote = ` Released ${released} story claim${released !== 1 ? "s" : ""}.`;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      claimNote = ` Claim release FAILED (${msg}) — claims will age out via stale-reclaim.`;
+    }
+  }
   return {
     ok: true,
-    body: `Session "${result.sessionId}" marked as done. Thanks for keeping the board current.`,
+    body: `Session "${result.sessionId}" marked as done.${claimNote} Thanks for keeping the board current.`,
     next: ["storytree noticeboard --pg"],
   };
 }
