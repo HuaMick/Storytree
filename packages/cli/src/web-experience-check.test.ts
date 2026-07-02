@@ -28,10 +28,12 @@ import { test } from "node:test";
 
 import {
   checkExperienceEntry,
+  checkExperienceSite,
   extractStaticImports,
   findExperienceMarkers,
   isWebGlSpecifier,
   walkStaticClosure,
+  withExtensionFallback,
 } from "./web-experience-check.js";
 
 // ── findExperienceMarkers ─────────────────────────────────────────────────────
@@ -298,4 +300,115 @@ test("checkExperienceEntry fails when a path containing forest-world-r3f is stat
   assert.equal(problems.length, 1);
   assert.equal(problems[0]?.kind, "webgl-leak");
   assert.match(problems[0]?.detail ?? "", /forest-world-r3f/);
+});
+
+// ── checkExperienceSite — the site-level judge over fixture site-trees ────────
+// The grain the gate actually runs (the `## Contracts` ids lead these test names,
+// ADR-0122): adoption detection via the explicit data-experience-entry marker,
+// page-tagged findings, the extension-resolving closure walk, and the bootstrap SKIP.
+
+test("erg-skip-marker-required: an entry page missing data-experience-skip reds with the page named; present → no finding", () => {
+  const missing = new Map<string, string>([
+    [
+      "src/pages/index.astro",
+      `<main data-experience-entry><div data-experience-fallback>calm view</div></main>`,
+    ],
+  ]);
+  const red = checkExperienceSite(missing);
+  assert.equal(red.kind, "checked");
+  const findings = red.kind === "checked" ? red.findings : [];
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0]?.page, "src/pages/index.astro", "the finding names the entry page");
+  assert.equal(findings[0]?.problem.kind, "missing-skip-marker");
+
+  const present = new Map<string, string>([
+    [
+      "src/pages/index.astro",
+      `<main data-experience-entry>
+         <button data-experience-skip>Skip to calm</button>
+         <div data-experience-fallback>calm view</div>
+       </main>`,
+    ],
+  ]);
+  const green = checkExperienceSite(present);
+  assert.equal(green.kind, "checked");
+  assert.deepEqual(green.kind === "checked" ? green.findings : null, []);
+});
+
+test("erg-fallback-marker-required: an entry page missing data-experience-fallback reds with the page named; present → no finding", () => {
+  const missing = new Map<string, string>([
+    [
+      "src/pages/index.astro",
+      `<main data-experience-entry><button data-experience-skip>Skip</button></main>`,
+    ],
+  ]);
+  const red = checkExperienceSite(missing);
+  assert.equal(red.kind, "checked");
+  const findings = red.kind === "checked" ? red.findings : [];
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0]?.page, "src/pages/index.astro", "the finding names the entry page");
+  assert.equal(findings[0]?.problem.kind, "missing-fallback-marker");
+});
+
+test("erg-act1-static-closure-is-webgl-free: a static chain from the entry to three reds naming the leak; the same target behind dynamic import() is green", () => {
+  // The entry page's frontmatter import is extensionless — the walk must resolve it
+  // (withExtensionFallback), or the wall is toothless the day the storm lands.
+  const entryPage = [
+    "---",
+    "import { bootStorm } from '../scripts/act1';",
+    "---",
+    "<main data-experience-entry>",
+    "  <button data-experience-skip>Skip to calm</button>",
+    "  <div data-experience-fallback>calm view</div>",
+    "</main>",
+  ].join("\n");
+  const files = new Map<string, string>([
+    ["src/pages/index.astro", entryPage],
+    ["src/scripts/act1.ts", `import { grain } from './grain.ts';`],
+    ["src/scripts/grain.ts", `import * as THREE from 'three';`],
+  ]);
+  const red = checkExperienceSite(files);
+  assert.equal(red.kind, "checked");
+  const redFindings = red.kind === "checked" ? red.findings : [];
+  assert.equal(redFindings.length, 1);
+  assert.equal(redFindings[0]?.problem.kind, "webgl-leak");
+  assert.match(redFindings[0]?.problem.detail ?? "", /three/, "the leak names the WebGL target");
+
+  // The same target moved behind the sanctioned inflection seam — dynamic import() — is green.
+  files.set("src/scripts/grain.ts", `export const loadScene = () => import('three');`);
+  const green = checkExperienceSite(files);
+  assert.equal(green.kind, "checked");
+  assert.deepEqual(green.kind === "checked" ? green.findings : null, []);
+});
+
+test("erg-absent-experience-skips: a site tree with no data-experience-entry page yields SKIP (not red, not green-silent)", () => {
+  // Today's pre-experience site: real pages, no adoption marker — the bootstrap allowance.
+  const todaysSite = new Map<string, string>([
+    ["src/pages/index.astro", `<main><h1>storytree</h1><p>the pre-experience landing page</p></main>`],
+    ["src/pages/how-it-works.astro", `<main>a plain info page</main>`],
+  ]);
+  const result = checkExperienceSite(todaysSite);
+  assert.equal(result.kind, "skip", "no entry marker → SKIP, never a failure");
+  assert.match(
+    result.kind === "skip" ? result.reason : "",
+    /bootstrap allowance/,
+    "the SKIP is loud about why",
+  );
+
+  const empty = checkExperienceSite(new Map());
+  assert.equal(empty.kind, "skip", "an empty site tree also SKIPs");
+
+  // The marker outside src/pages/ (a component, a doc) does NOT arm the gate.
+  const strayMarker = new Map<string, string>([
+    ["src/components/Notes.md", `mentions data-experience-entry in prose`],
+  ]);
+  assert.equal(checkExperienceSite(strayMarker).kind, "skip");
+});
+
+test("withExtensionFallback resolves extensionless specifiers to known source extensions", () => {
+  const files = new Map<string, string>([["src/a.ts", "content-a"]]);
+  const read = withExtensionFallback((p) => files.get(p) ?? null);
+  assert.equal(read("src/a"), "content-a", "extensionless hit via .ts fallback");
+  assert.equal(read("src/a.ts"), "content-a", "literal path still direct");
+  assert.equal(read("src/missing"), null, "no candidate → null");
 });

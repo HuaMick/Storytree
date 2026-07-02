@@ -10,10 +10,13 @@
 //   isWebGlSpecifier       — detect three / @react-three/* / forest-world-r3f
 //   walkStaticClosure      — graph walk from the Act 1 entry (injection-testable)
 //   checkExperienceEntry   — the combined judge (marker contract + WebGL wall)
+//   findExperienceEntries  — adoption detection (pages carrying data-experience-entry)
+//   withExtensionFallback  — import-resolution reader wrapper (extensionless specifiers)
+//   checkExperienceSite    — the whole-site judge (entries → findings | bootstrap SKIP)
 //
 // Proof: node --import tsx --test packages/cli/src/web-experience-check.test.ts
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -181,15 +184,115 @@ export function checkExperienceEntry(
   return problems;
 }
 
+// ── Site-level judge ──────────────────────────────────────────────────────────
+
+/**
+ * The explicit adoption signal: a page under `src/pages/` carrying this attribute IS the
+ * experience entry. Today's site has no such page, so the check SKIPs (bootstrap allowance —
+ * the guard lands before the storm); the storm cap declares it when it flips home. Detection
+ * must be this explicit: keying on a page PATH (e.g. index.astro exists) would arm the gate
+ * against the pre-experience site and red every increment until the storm lands.
+ */
+export const EXPERIENCE_ENTRY_MARKER = "data-experience-entry";
+
+/** Pages (paths under `src/pages/`) whose content carries the entry marker, sorted. */
+export function findExperienceEntries(files: ReadonlyMap<string, string>): string[] {
+  const entries: string[] = [];
+  for (const [p, content] of files) {
+    if (p.startsWith("src/pages/") && content.includes(EXPERIENCE_ENTRY_MARKER)) entries.push(p);
+  }
+  return entries.sort();
+}
+
+const RESOLVE_EXTENSIONS = [".ts", ".js", ".tsx", ".jsx", ".astro"];
+
+/**
+ * Wrap a raw reader with import-resolution fallbacks: try the literal path, then the known
+ * source extensions (an extensionless `../scripts/act1` resolves to `act1.ts`). Without this
+ * the closure walk stops silently at extensionless specifiers and the WebGL wall is toothless
+ * the day the storm lands — a silent false-green.
+ */
+export function withExtensionFallback(
+  readFile: (p: string) => string | null,
+): (p: string) => string | null {
+  return (p) => {
+    const direct = readFile(p);
+    if (direct !== null) return direct;
+    for (const ext of RESOLVE_EXTENSIONS) {
+      const withExt = readFile(p + ext);
+      if (withExt !== null) return withExt;
+    }
+    return null;
+  };
+}
+
+export interface SiteFinding {
+  /** web-root-relative path of the entry page the problem was found on. */
+  readonly page: string;
+  readonly problem: ExperienceProblem;
+}
+
+export type SiteCheckResult =
+  | { readonly kind: "skip"; readonly reason: string }
+  | {
+      readonly kind: "checked";
+      readonly entries: readonly string[];
+      readonly findings: readonly SiteFinding[];
+    };
+
+/**
+ * The whole-site judge the gate runs: `files` is the web/src tree as a web-root-relative
+ * POSIX-path → content map. No page carries {@link EXPERIENCE_ENTRY_MARKER} → SKIP (bootstrap
+ * allowance). Otherwise every entry page is held to the marker contract and the
+ * no-WebGL-in-Act-1 wall, its static closure seeded at the page itself (the storm's script
+ * graph hangs off the entry's imports), findings tagged with the page.
+ */
+export function checkExperienceSite(files: ReadonlyMap<string, string>): SiteCheckResult {
+  const entries = findExperienceEntries(files);
+  if (entries.length === 0) {
+    return {
+      kind: "skip",
+      reason:
+        `no page under src/pages/ carries ${EXPERIENCE_ENTRY_MARKER} — the site has not ` +
+        "adopted the experience yet (bootstrap allowance: the guard lands before the storm).",
+    };
+  }
+  const read = withExtensionFallback((p) => files.get(p) ?? null);
+  const findings: SiteFinding[] = [];
+  for (const page of entries) {
+    const content = files.get(page) ?? "";
+    for (const problem of checkExperienceEntry(content, page, read)) {
+      findings.push({ page, problem });
+    }
+  }
+  return { kind: "checked", entries, findings };
+}
+
 // ── CLI shell (main) ──────────────────────────────────────────────────────────
+
+const TEXT_EXT = new Set([".astro", ".html", ".md", ".mdx", ".jsx", ".tsx", ".ts", ".js"]);
+
+/** Recursively collect web-relative text-file paths under a dir (the check-web-grounding shell). */
+function walkTextFiles(dir: string, base: string, out: string[] = []): string[] {
+  for (const name of readdirSync(dir)) {
+    const full = path.join(dir, name);
+    if (statSync(full).isDirectory()) walkTextFiles(full, base, out);
+    else if (TEXT_EXT.has(path.extname(name).toLowerCase())) {
+      out.push(path.relative(base, full).split(path.sep).join("/"));
+    }
+  }
+  return out;
+}
 
 function main(): void {
   // packages/cli/src/web-experience-check.ts → four dirs up (the build-claude-md.ts pattern).
   const repoRoot = path.resolve(fileURLToPath(import.meta.url), "..", "..", "..", "..");
   const webRoot = path.join(repoRoot, "web");
+  const webSrc = path.join(webRoot, "src");
   const inCi = process.env.CI === "true";
 
-  if (!existsSync(webRoot)) {
+  // Key on web/src, not web/: an uninitialized submodule leaves an EMPTY web/ stub dir.
+  if (!existsSync(webSrc)) {
     if (inCi) {
       console.error(
         "check:web-experience — web/ is not checked out in CI. The workflow must clone the " +
@@ -204,54 +307,41 @@ function main(): void {
     return;
   }
 
-  // Bootstrap allowance: no experience entry yet → SKIP, never fail.
-  // The entry path convention follows ADR-0134 (to be refined when the entry is authored).
-  const entryHtmlCandidates = [
-    path.join(webRoot, "src", "pages", "experience.astro"),
-    path.join(webRoot, "src", "pages", "index.astro"),
-  ];
-  const entryHtml = entryHtmlCandidates.find((p) => existsSync(p));
-  if (entryHtml === undefined) {
-    console.log(
-      "check:web-experience — SKIP: no experience entry page found in web/src/pages/ " +
-        "(bootstrap allowance — the guard lands before the storm).",
-    );
+  // The walk space is web-root-relative POSIX paths (never OS-native), so the pure judge's
+  // string-based specifier resolution holds on Windows checkouts too.
+  const files = new Map<string, string>();
+  for (const rel of walkTextFiles(webSrc, webRoot)) {
+    files.set(rel, readFileSync(path.join(webRoot, rel), "utf8"));
+  }
+
+  const result = checkExperienceSite(files);
+
+  if (result.kind === "skip") {
+    console.log(`check:web-experience — SKIP: ${result.reason}`);
     return;
   }
 
-  const page = readFileSync(entryHtml, "utf8");
-
-  // Act 1 entry: the storm's script entry (convention; adapt when the web tree is adopted).
-  const act1EntryCandidates = [
-    path.join(webRoot, "src", "scripts", "act1.ts"),
-    path.join(webRoot, "src", "scripts", "storm.ts"),
-  ];
-  const act1EntryAbs = act1EntryCandidates.find((p) => existsSync(p));
-
-  const readFile = (absPath: string): string | null => {
-    try {
-      return readFileSync(absPath, "utf8");
-    } catch {
-      return null;
-    }
-  };
-
-  const act1Entry = act1EntryAbs ?? path.join(webRoot, "src", "scripts", "act1.ts");
-
-  const problems = checkExperienceEntry(page, act1Entry, readFile);
-
-  if (problems.length > 0) {
+  if (result.findings.length > 0) {
     console.error(
-      `check:web-experience — BLOCKED: ${problems.length} problem(s) in the experience entry:\n`,
+      `check:web-experience — BLOCKED: ${result.findings.length} problem(s) across ` +
+        `${result.entries.length} experience entry page(s):\n`,
     );
-    for (const p of problems) {
-      console.error(`  ✗ [${p.kind}]${p.detail !== undefined ? `: ${p.detail}` : ""}`);
+    for (const f of result.findings) {
+      console.error(
+        `  ✗ web/${f.page} [${f.problem.kind}]` +
+          (f.problem.detail !== undefined ? `: ${f.problem.detail}` : ""),
+      );
     }
+    console.error(
+      "\nThe experience entry must keep the skip + fallback affordances and a WebGL-free Act 1 " +
+        "static closure (ADR-0134; dynamic import() at the inflection is the sanctioned seam).",
+    );
     process.exit(1);
   }
 
   console.log(
-    "check:web-experience — OK: experience entry carries both affordance markers and Act 1 is WebGL-free.",
+    `check:web-experience — OK: ${result.entries.length} experience entry page(s) carry both ` +
+      "affordance markers and their Act 1 static closure is WebGL-free.",
   );
 }
 
