@@ -41,6 +41,18 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: bash scripts/adr-pr-collision-check.sh
 
+      # A branch is ONE landed unit — it dies on merge (ADR-0142). The merge job below clears the
+      # merged branch's board state (presence + node_claim) keyed on the head ref, so re-landing the
+      # same branch name would erase live sessions from the map and feed the stale-PR trap family.
+      # Refuse a PR whose head branch already has a merged PR. Fail-open on gh errors, like the ADR
+      # collision check above.
+      - name: Merged-branch guard (a branch dies on merge)
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: bash scripts/merged-branch-guard.sh
+
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
         with:

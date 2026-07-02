@@ -50,7 +50,7 @@ import { nodeBuild, nodeHelp, nodeResolve } from "@storytree/drive";
 import { orchestrate } from "@storytree/drive";
 import type { SdkQueryFn } from "@storytree/agent";
 import { deriveIdentity, noticeboardCommand } from "@storytree/drive";
-import type { PresenceStoreLike, SessionIdentity } from "@storytree/drive";
+import type { PresenceStoreLike, SessionClaimStoreLike, SessionIdentity } from "@storytree/drive";
 import { findDependents } from "./retire.js";
 import { storyBuild, storyHelp } from "@storytree/drive";
 import { flipFrontmatterStatus, type AdoptStory, type FlipResult } from "@storytree/drive";
@@ -995,10 +995,13 @@ export interface RunDeps {
   /**
    * The presence seam (ADR-0033): `store` is the live presence store when --pg (null offline);
    * `identity` is injectable for tests — when ABSENT it is derived from the enclosing worktree.
+   * `claims` (ADR-0142) is the write-claim store riding the same pool: `declare --node` takes the
+   * work-time claim (the wisp), `done` bulk-releases the session's claims; null/absent offline.
    */
   readonly presence?: {
     readonly store?: PresenceStoreLike | null;
     readonly identity?: SessionIdentity | null;
+    readonly claims?: SessionClaimStoreLike | null;
   };
   /**
    * The verdict event log (verdict-glyphs): the live work-store slice when --pg; null/absent
@@ -1662,6 +1665,8 @@ export async function run(argv: readonly string[], deps: RunDeps): Promise<Envel
         store: deps.presence?.store ?? null,
         identity,
         now: () => new Date(),
+        // Claim-at-declare (ADR-0142): the anchored node's work-time claim rides the declare.
+        claims: deps.presence?.claims ?? null,
       },
     );
   }

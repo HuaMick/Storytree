@@ -745,3 +745,58 @@ test("auditHookConfig: ambient-presence hook under Stop is a violation", () => {
   const violations = auditHookConfig(settings);
   assert.ok(violations.length >= 1, "should flag ambient-presence hook under Stop");
 });
+
+// ---------------------------------------------------------------------------
+// statuslineGlance — claim heartbeat piggyback (ADR-0142)
+// ---------------------------------------------------------------------------
+
+function makeClaimBumper(throwing = false): {
+  bumps: string[];
+  bumpHeartbeatsBySession(sessionId: string): Promise<number>;
+} {
+  const bumps: string[] = [];
+  return {
+    bumps,
+    async bumpHeartbeatsBySession(sessionId: string): Promise<number> {
+      if (throwing) throw new Error("claim store error: bump");
+      bumps.push(sessionId);
+      return 1;
+    },
+  };
+}
+
+test("statuslineGlance: the heartbeat beat also bumps the session's claim heartbeats", async () => {
+  const store = makeRecordingStore([makeDoc({ sessionId: IDENTITY.sessionId, nodes: ["n1"] })]);
+  const claims = makeClaimBumper();
+  const deps: AmbientDeps = { store, identity: IDENTITY, now: () => NOW, claims };
+  await statuslineGlance(deps, makeHeartbeatState(null), 60_000); // null lastBump → beat fires
+  assert.deepEqual(claims.bumps, [IDENTITY.sessionId]);
+});
+
+test("statuslineGlance: within the debounce window the claim bump does NOT fire (same debounce as presence)", async () => {
+  const store = makeRecordingStore([makeDoc({ sessionId: IDENTITY.sessionId })]);
+  const claims = makeClaimBumper();
+  const recent = new Date(NOW.getTime() - 1_000).toISOString();
+  const deps: AmbientDeps = { store, identity: IDENTITY, now: () => NOW, claims };
+  await statuslineGlance(deps, makeHeartbeatState(recent), 60_000);
+  assert.equal(claims.bumps.length, 0);
+});
+
+test("statuslineGlance: a THROWING claim bumper stays silent — the glance line still renders", async () => {
+  const store = makeRecordingStore([makeDoc({ sessionId: IDENTITY.sessionId, nodes: ["n1"] })]);
+  const deps: AmbientDeps = {
+    store,
+    identity: IDENTITY,
+    now: () => NOW,
+    claims: makeClaimBumper(true),
+  };
+  const line = await statuslineGlance(deps, makeHeartbeatState(null), 60_000);
+  assert.notEqual(line, "", "the glance still renders despite the claim bump failure");
+});
+
+test("statuslineGlance: no claims dep (older caller) → beat unchanged, nothing throws", async () => {
+  const store = makeRecordingStore([makeDoc({ sessionId: IDENTITY.sessionId })]);
+  const deps: AmbientDeps = { store, identity: IDENTITY, now: () => NOW };
+  const line = await statuslineGlance(deps, makeHeartbeatState(null), 60_000);
+  assert.notEqual(line, "");
+});
