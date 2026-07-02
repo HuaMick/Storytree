@@ -169,16 +169,15 @@ walkthrough that proves the whole spawn authority.
   subagent runs WITHIN the one session's claim, never as a second orchestration. Pinned by
   `sts-single-session-guard-holds`.
 
-**Sequencing note — the fix-drive build shape (OQ-A, `oq-fix-drive-build-shape`).** The routed node
-dispatch today is the non-persisting `node build --live` smoke (ADR-0099-B) — an honest pipeline
-proof, never a real proof of the node, never persisted. The fix-drive spawn path WANTS `node build
---real` (persists a real-proof `building` event → the wisp; runs the contract's real proof) — and a
-sibling increment ("route chat-accepted node builds to `node build --real`", in flight as this is
-authored) owns exactly that routing change inside the routed worker. This story's
-`builder-spawn-dispatch` therefore consumes `routedBuildRunner`'s tier routing **verbatim** and must
-NOT re-implement or fork it: when the sibling routing lands, the builder spawn inherits `--real`
-node drives with zero change here; until it lands, a node dispatch is honestly the `--live` smoke and
-its PASS never persists (ADR-0099). Do not build the routing twice.
+**Sequencing note — the fix-drive build shape (OQ-A, `oq-fix-drive-build-shape` — RESOLVED by
+[ADR-0144](../../docs/decisions/0144-chat-accepted-node-builds-run-the-real-proof-and-persist-the.md),
+2026-07-02, which landed BEFORE `builder-spawn-dispatch` was built).** The routed node dispatch drives
+`node build --real` with persist semantics (the node's real proof, a real-proof `building` event →
+the wisp, signed verdict to `events.verdict`, PASS parked on a `claude/real/*` branch); the synthetic
+`node build --live` smoke (ADR-0099-B) stays a CLI-only pipeline check, never what a dispatch drives.
+This story's `builder-spawn-dispatch` consumed `routedBuildRunner`'s tier routing **verbatim** and
+must NOT re-implement or fork it — it inherited the `--real` node drive with zero change here,
+exactly as sequenced. Do not build the routing twice.
 
 Status stays `proposed` for every unit — `healthy` is earned through the prove-it-gate AND the
 operator's live-spawn attestation; it is never authored (ADR-0020).
@@ -329,9 +328,9 @@ landed nothing.
    (under-specified story → spawn the story-author to add the missing contract, then spawn the builder
    to drive it; right-contract-wrong-impl → straight to the builder), the dispatched drive runs on the
    REAL worker, the spine observes RED→GREEN and SIGNS (the chat handed in nothing), and the work
-   reaches the trunk only through the existing human-gated ceremony. *(operator-attested. NOTE: until
-   the sibling node→`--real` routing lands, a node-tier dispatch is honestly the ADR-0099-B `--live`
-   smoke — a pipeline proof whose PASS never persists; the leg's full force lands with that routing.)*
+   reaches the trunk only through the existing human-gated ceremony. *(operator-attested. NOTE: the
+   node→`--real` routing landed as ADR-0144 before this story was built, so a node-tier dispatch runs
+   the node's REAL persisted proof — this leg carries its full force.)*
 7. **The scope walls held throughout.** _(witness: human)_ **Success —** the chat session held NO
    write tool at any point (spawn power only); accept-to-land stayed the human's (nothing merged
    without the ceremony; the forest-map Build stayed the whole-story go-green, ADR-0136); ONE
@@ -368,12 +367,11 @@ live-spawn attestation (legs 5–7).
    (ADR-0117's broker question applies); this story ships spawn power only, and the claim gate's
    "ADR-authoring is the sole claim-free act" is honoured by construction (no ADR path exists here to
    gate). Follow-on story/capability when the owner wants it.
-2. **The fix-drive `--real` routing belongs to the sibling increment (sequencing, not a fork).** The
-   routed worker's node branch is `--live` today; the in-flight sibling ("route chat-accepted node
-   builds to `node build --real`", resolving `oq-fix-drive-build-shape` / OQ-A) changes THAT routing
-   in THE worker. `builder-spawn-dispatch` consumes the routing verbatim and inherits the change; if
-   this story is built first, UAT leg 6 is honest about the smoke; if the sibling lands first, leg 6
-   gets its full force free. Neither blocks the other; do not build the routing twice.
+2. **The fix-drive `--real` routing belonged to the sibling increment (sequencing, not a fork —
+   RESOLVED).** The sibling ("route chat-accepted node builds to `node build --real`", resolving
+   `oq-fix-drive-build-shape` / OQ-A) landed as ADR-0144 (2026-07-02) BEFORE `builder-spawn-dispatch`
+   was built, so the dispatch consumed the worker's routing verbatim and inherited the `--real` node
+   drive free — UAT leg 6 carries its full force. The routing was built once, in the worker.
 3. **The spawned story-author's LIVE-store knowledge writes are out of the minimal journey.** The
    work hierarchy is disk-canonical (`stories/` frontmatter-md, ADR-0039), so the fenced `stories/**`
    write scope covers the bring-a-story-in journey. Live `--pg` Library artifact writes from the
