@@ -285,14 +285,18 @@ The interactive session agent: the outer loop that turns an owner's intent into 
 - Tests: `node:test` + `node:assert/strict`, `*.test.ts` under `src/`.
 - **Anchor your session on the notice board** once you know what you're working on:
   `pnpm storytree noticeboard declare --working-on "<what>" --node <story-id> --pg` (repeat
-  `--node` per story; re-declares upsert, so refining is cheap). Hooks only auto-declare
-  `nodes: []`, which renders in the studio session dock but never as a story wisp.
+  `--node` per story; re-declares upsert, so refining is cheap). The declare also TAKES the
+  work-time story claim on each `--node` (ADR-0142) — that claim is the story wisp on the map.
+  Hooks only auto-declare `nodes: []`, which renders in the studio session dock but never as a
+  story wisp.
 - **Landing work** is the `session-orchestrator` operating discipline above (generated from the
   library `merge-ceremony`, the single source of truth — don't hand-copy the rule back here):
   green unit → **non-draft** PR → CI auto-merges (ADR-0022); never `gh pr merge`; a hold (draft /
   `hold` label) is **temporary** — flip it to ready the moment the held unit is green.
-  `claude/real/*` promotion branches merge **non-squash** (ADR-0031). Full text:
-  `storytree agents session-orchestrator`.
+  `claude/real/*` promotion branches merge **non-squash** (ADR-0031). **A branch dies on merge**
+  (ADR-0142): CI refuses a PR from an already-merged head branch, and the merge machine-clears the
+  branch's presence + story claims — after a landing, cut a fresh branch and re-declare so the
+  wisp re-lights. Full text: `storytree agents session-orchestrator`.
 - **A PR is not "done" until CI is green — WATCH it, don't open-and-walk-away.** CI
   (`.github/workflows/ci.yml`) runs `check:manifest` + `pnpm -r typecheck` + `pnpm -r test` +
   `pnpm -r build` against the **merge of your branch with `main`**, so a green local `pnpm gate` does

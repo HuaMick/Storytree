@@ -64,8 +64,12 @@ class FakeClaimClient {
   deleteReturns?: ClaimRow;
   /** The rows a releaseClaimsByBranch DELETE returns; the bulk branch-clear can remove many. */
   branchDeleteReturns?: ClaimRow[];
+  /** The rows a releaseClaimsBySession DELETE returns; the `done` bulk-release can remove many. */
+  sessionDeleteReturns?: ClaimRow[];
   /** The row a bumpHeartbeat UPDATE returns; undefined = nothing of ours to bump. */
   bumpReturns?: ClaimRow;
+  /** The rows a bumpHeartbeatsBySession UPDATE returns; the session bulk-bump can touch many. */
+  sessionBumpReturns?: ClaimRow[];
   /** When set, any query whose text includes this fragment throws. */
   failOnPattern?: string;
 
@@ -92,9 +96,11 @@ class FakeClaimClient {
       }
       return { rows: this.winnerRow ? [this.winnerRow] : [] };
     }
-    // The heartbeat bump is the only UPDATE whose SET clause STARTS with heartbeat_at (claim()'s
-    // multi-column UPDATE never contains the literal "SET heartbeat_at = now()") — route it first.
+    // The heartbeat bumps are the only UPDATEs whose SET clause STARTS with heartbeat_at (claim()'s
+    // multi-column UPDATE never contains the literal "SET heartbeat_at = now()") — route them first.
+    // The per-unit bump filters on unit_id; the session bulk-bump (ADR-0142) keys on session_id alone.
     if (head.startsWith("UPDATE") && text.includes("SET heartbeat_at = now()")) {
+      if (text.includes("WHERE session_id =")) return { rows: this.sessionBumpReturns ?? [] };
       return { rows: this.bumpReturns ? [this.bumpReturns] : [] };
     }
     if (head.startsWith("UPDATE") && text.includes("events.node_claim")) {
@@ -104,6 +110,10 @@ class FakeClaimClient {
     // rows; release() deletes one by (unit_id, session_id). Route the branch form first.
     if (head.startsWith("DELETE") && text.includes("WHERE branch =")) {
       return { rows: this.branchDeleteReturns ?? [] };
+    }
+    // The `done` bulk-release (releaseClaimsBySession, ADR-0142) deletes by session_id alone.
+    if (head.startsWith("DELETE") && text.includes("WHERE session_id =")) {
+      return { rows: this.sessionDeleteReturns ?? [] };
     }
     if (head.startsWith("DELETE")) {
       return { rows: this.deleteReturns ? [this.deleteReturns] : [] };
@@ -342,6 +352,73 @@ test("bumpHeartbeat (nothing of ours): UPDATE matches no row → returns false, 
   const ok = await storeWith(client).bumpHeartbeat("chat-session-stream", "session-B");
   assert.equal(ok, false);
   assert.equal(client.events.length, 0);
+  assert.ok(commits(client));
+});
+
+// ── releaseClaimsBySession / bumpHeartbeatsBySession (ADR-0142): the session-scoped twins ────
+// `noticeboard done` drops every claim the session holds; the statusline heartbeat keeps every
+// claim the session holds out of the stale-reclaim window without knowing which units they are.
+
+test("releaseClaimsBySession: bulk-DELETE by session → returns the count, one 'released' event per cleared claim, COMMIT", async () => {
+  const client = new FakeClaimClient();
+  client.sessionDeleteReturns = [
+    heldRow({ unit_id: "unit-alpha", session_id: "sess-A", branch: "claude/x" }),
+    heldRow({ unit_id: "unit-beta", session_id: "sess-A", branch: "claude/x" }),
+  ];
+  const count = await storeWith(client).releaseClaimsBySession("sess-A");
+
+  assert.equal(count, 2, "returns the number of cleared claims");
+  assert.ok(
+    client.calls.some((c) => c.text.includes("DELETE FROM events.node_claim WHERE session_id =")),
+    "deletes by session alone",
+  );
+  assert.deepEqual(client.events, [
+    { unitId: "unit-alpha", type: "released", sessionId: "sess-A" },
+    { unitId: "unit-beta", type: "released", sessionId: "sess-A" },
+  ]);
+  assert.ok(commits(client) && !rollsBack(client));
+  assert.ok(client.released);
+});
+
+test("releaseClaimsBySession (held nothing): returns 0, no 'released' event, still COMMITs", async () => {
+  const client = new FakeClaimClient(); // sessionDeleteReturns undefined → nothing matched
+  const count = await storeWith(client).releaseClaimsBySession("sess-empty");
+  assert.equal(count, 0);
+  assert.equal(client.events.length, 0);
+  assert.ok(commits(client));
+});
+
+test("releaseClaimsBySession: a DB error mid-transaction → ROLLBACK, no COMMIT, client released", async () => {
+  const client = new FakeClaimClient();
+  client.sessionDeleteReturns = [heldRow({ unit_id: "unit-alpha", session_id: "sess-A" })];
+  client.failOnPattern = "INSERT INTO events.claim_event";
+  await assert.rejects(() => storeWith(client).releaseClaimsBySession("sess-A"), /Fake-induced failure/);
+  assert.ok(rollsBack(client) && !commits(client));
+  assert.ok(client.released);
+});
+
+test("bumpHeartbeatsBySession: UPDATE by session alone → returns the count, NO audit event, COMMIT", async () => {
+  const client = new FakeClaimClient();
+  client.sessionBumpReturns = [
+    heldRow({ unit_id: "unit-alpha", session_id: "sess-A" }),
+    heldRow({ unit_id: "unit-beta", session_id: "sess-A" }),
+  ];
+  const count = await storeWith(client).bumpHeartbeatsBySession("sess-A");
+
+  assert.equal(count, 2, "returns the number of bumped claims");
+  const bulkBump = client.calls.find(
+    (c) => c.text.includes("SET heartbeat_at = now()") && c.text.includes("WHERE session_id ="),
+  );
+  assert.ok(bulkBump !== undefined, "the session bulk-bump UPDATE was issued (session_id filter alone)");
+  assert.equal(client.events.length, 0, "no claim_event for a heartbeat bump");
+  assert.ok(commits(client) && !rollsBack(client));
+  assert.ok(client.released);
+});
+
+test("bumpHeartbeatsBySession (held nothing): returns 0, still COMMITs", async () => {
+  const client = new FakeClaimClient(); // sessionBumpReturns undefined
+  const count = await storeWith(client).bumpHeartbeatsBySession("sess-empty");
+  assert.equal(count, 0);
   assert.ok(commits(client));
 });
 
