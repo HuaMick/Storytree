@@ -62,12 +62,21 @@ off the SAME `resolveAccess` role the policy already reads.
 WRITE that store persists (and the accept/reject decision the route drives); it couples to the
 suggestion surface's route paths.
 
-> **Proof status (honest) — NOT BUILT, `proposed`.** This precedes the code. Today `guestPolicy.ts`
-> (`createMembersPolicy.gate`, `apps/studio/server/guestPolicy.ts:95-126`) lets a member POST only
-> comments (and a builder/admin the write-broker); every other non-GET POST is admin-only. There is a
-> passing vitest suite (`guestPolicy.test.ts`) that pins the wake-authorization + member/admin scope.
-> This capability EXTENDS that gate: a member may also POST a suggestion (create), but the accept/reject
-> decision and the hard asset edit stay admin-only.
+> **Proof status (honest) — BUILT via the prove-it-gate (run real-mr3kexsx, signed PASS @ a62393c,
+> coverage 4/4).** `createMembersPolicy.gate` now permits a member POST to `/api/suggestions` (the
+> suggestion-create path joins `/api/comments` as a member-permitted write) while
+> `/api/suggestions/decision` and the asset write stay admin-only; the four `msp-*` assertions pin it
+> in `guestPolicy.test.ts`. **Consolidation glue (this cap, owed from cap 3):** the decision handler
+> is MOUNTED — `POST /api/suggestions/decision` in `apiRouter.ts` runs cap 3's
+> `handleSuggestionDecision` over `suggestionDecisionBackend` (the `LibraryBackend` optional
+> suggestion seam → `PgSuggestionStore`; json backend → 503), proven end-to-end behind this cap's
+> gate by `suggestionDecisionApi.integration.test.ts`. **ACCEPT-APPLY IS DEFERRED, LOUDLY:** the
+> mount's `applyToAsset` refuses with 501 BEFORE any status transition persists, because the
+> blockId → asset-body splice needs the block model the Review-mode UI caps
+> (`review-refresh-feed` / `inline-comment-thread` / `collapsed-suggestion-view`) settle — a naive
+> body splice would silently corrupt structured docs. Reject works end-to-end; a suggestion is never
+> marked `accepted` without its content applied. The suggestion-CREATE route (`/api/suggestions`)
+> has no handler yet — the gate opening it first is this cap's point; the route lands with the UI caps.
 
 ## Guidance
 
