@@ -19,7 +19,9 @@ const sql = readFileSync(path.join(here, "ci-presence-grants.sql"), "utf8");
 const { pool, connector } = await createPool();
 try {
   await pool.query(sql);
-  console.log("ci-presence grants applied (events.session{,_event} → storytree-ci-presence@…iam).");
+  console.log(
+    "ci-presence grants applied (events.session{,_event} + events.node_claim/claim_event → storytree-ci-presence@…iam).",
+  );
 } finally {
   await closePool(pool, connector);
 }
