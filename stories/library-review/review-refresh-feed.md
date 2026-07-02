@@ -56,10 +56,17 @@ empty feed (never a throw) when the store is absent.
 returns), [`suggestion-edit-store`](suggestion-edit-store.md) (the suggestions it returns) — the feed
 reads both record kinds for a topic.
 
-> **Proof status (honest) — NOT BUILT, `proposed`.** This precedes the code. There is no review-feed
-> endpoint today (comments are fetched via `GET /api/comments`; there is no suggestion read). The leaf
-> authors a single feed handler that returns both kinds for a topic, proven by an isolated vitest
-> handler test over stub backends (the `activityApi` / `inFlightActivity` advisory-read discipline).
+> **Proof status (honest) — BUILT via the prove-it-gate (run real-mr41u3ro, signed PASS @ 6c06f94,
+> verdict in `events.verdict`, coverage 3/3).** The leaf authored
+> `apps/studio/server/reviewFeedApi.ts` (`handleReviewFeed` + the `ReviewFeedCommentStore` /
+> `ReviewFeedSuggestionStore` seams) and the three `rrf-*` contract tests in
+> `apps/studio/server/reviewFeedApi.test.ts` (vitest, stub stores, no DB). **Consolidation glue:**
+> the route is MOUNTED — `GET /api/review/feed` in `apps/studio/server/apiRouter.ts:1874`
+> (member-readable) runs the handler over advisory catch-to-empty adapters on the backend's comment
+> store + the new optional `LibraryBackend.listSuggestions` seam
+> (`apps/studio/server/libraryBackend.ts:189`; the json backend omits it, so suggestions degrade to
+> `[]` — never a throw), proven end-to-end by
+> `apps/studio/server/reviewFeedApi.integration.test.ts`.
 
 ## Guidance
 
@@ -117,24 +124,23 @@ merge/filter logic. It would:
 ## Contracts (3)
 
 The test-proven leaf behaviours — each **one isolated automated test** in the `studio` suite (vitest,
-`apps/studio/server/reviewFeedApi.test.ts`), the comment + suggestion stores scripted as stubs. None
-exist yet; each is the assertion a contract test WILL prove once authored (re-cite at real `file:line`
-when built). Per ADR-0122 each contract id leads a distinctly-named test so `storytree coverage
-review-refresh-feed` reports 3/3.
+`apps/studio/server/reviewFeedApi.test.ts`), the comment + suggestion stores scripted as stubs. Per
+ADR-0122 each contract id leads a distinctly-named test; `storytree coverage review-refresh-feed`
+reports 3/3.
 
 1. **`rrf-returns-comments-and-suggestions-for-a-topic`** — the feed returns both record kinds for one topic
    - **asserts —** for topic A the handler returns A's block-anchored comments AND A's suggestions
      (each with its `status`) in one response; each comment carries a block anchor (not a text-quote
      span) and each suggestion its status — the combined wire shape.
-   - **covers —** `apps/studio/server/reviewFeedApi.ts` (the two-source read) *(provisional path)*
+   - **covers —** `apps/studio/server/reviewFeedApi.ts:49-67` (`handleReviewFeed` — the two-source parallel read merged into the single `{ topicId, comments, suggestions }` payload)
 2. **`rrf-filters-to-the-requested-topic`** — other topics' records are excluded
    - **asserts —** records for topic B are absent from topic A's feed (and vice-versa) — the feed is
      topic-scoped, not the whole corpus.
-   - **covers —** `apps/studio/server/reviewFeedApi.ts` (the topic filter) *(provisional path)*
+   - **covers —** `apps/studio/server/reviewFeedApi.ts:55-56` (the `{ topicId }` filter built from the query and passed to BOTH store reads — topic-scoped, not the whole corpus)
 3. **`rrf-empty-feed-when-store-absent`** — an absent store yields an empty feed, never a throw
    - **asserts —** against an absent/null store backend the handler returns an empty feed and does NOT
      throw — the advisory-absence degradation (the `activeSessions` / `latestVerdicts` contract).
-   - **covers —** `apps/studio/server/reviewFeedApi.ts` (the advisory degradation) *(provisional path)*
+   - **covers —** `apps/studio/server/reviewFeedApi.ts:58-65` (the null-store guards — an absent store resolves to `[]` inside the parallel read, so the 200 payload always carries arrays)
 
 ## Guidance — the net-new slice that earns the signed verdict
 

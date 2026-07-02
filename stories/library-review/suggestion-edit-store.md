@@ -130,24 +130,24 @@ distinctly-named test so `storytree coverage suggestion-edit-store` reports 4/4.
    - **asserts —** the suggestion schema parses a complete `{ status:'open', proposed, original,
      block, author, topicKind, topicId, createdAt }` doc and refuses a blank `proposed`, an unknown
      `status` (`'merged'`), and a blank author — fail-closed at the write boundary.
-   - **covers —** `packages/library/src/store/pg-suggestion-store.ts` (the suggestion schema) *(provisional path)*
+   - **covers —** `packages/library/src/store/pg-suggestion-store.ts:25-40` (`SuggestionSchema` — the fail-closed zod boundary, applied at the store's `create` via `SuggestionSchema.parse`, `:152`)
 2. **`ses-open-transitions-to-accepted-or-rejected`** — the pure transition drives open → accepted / rejected
    - **asserts —** `applySuggestionTransition('open','accept',decider)` returns `accepted` with
      `decidedBy`/`decidedAt` stamped, and `('open','reject',decider)` returns `rejected` — the only two
      legal moves from `open`.
-   - **covers —** `packages/library/src/store/pg-suggestion-store.ts` (`applySuggestionTransition`) *(provisional path)*
+   - **covers —** `packages/library/src/store/pg-suggestion-store.ts:61-78` (`applySuggestionTransition` — the open→accepted/rejected branch stamps `decidedBy`/`decidedAt`)
 3. **`ses-closed-suggestion-cannot-be-re-decided`** — a decided suggestion refuses a second transition
    - **asserts —** `applySuggestionTransition('accepted','reject',…)` and `('rejected','accept',…)`
      both refuse (a loud throw / typed refusal) — a closed suggestion is terminal; re-deciding is
      rejected.
-   - **covers —** `packages/library/src/store/pg-suggestion-store.ts` (`applySuggestionTransition`) *(provisional path)*
+   - **covers —** `packages/library/src/store/pg-suggestion-store.ts:67-71` (`applySuggestionTransition` — the non-`open` guard throws; a closed suggestion is terminal)
 4. **`ses-merge-and-store-surface`** — the patch merge keeps the invariants and the store constructs
    - **asserts —** `mergeSuggestionPatch` applies a present field, never overwrites `id`, ignores
      `undefined`, applies explicit `null`, and does not mutate the input; the module imports and
      `new PgSuggestionStore({} as Pool)` constructs with its read/write surface present (no SQL on
      construct).
-   - **covers —** `packages/library/src/store/pg-suggestion-store.ts` (`mergeSuggestionPatch` +
-     `PgSuggestionStore`) *(provisional path)*
+   - **covers —** `packages/library/src/store/pg-suggestion-store.ts:89-98` (`mergeSuggestionPatch` — the
+     `mergeCommentPatch` invariants) + `:119` (`PgSuggestionStore` — constructs with no SQL)
 
 ## Guidance — the net-new slice that earns the signed verdict
 
