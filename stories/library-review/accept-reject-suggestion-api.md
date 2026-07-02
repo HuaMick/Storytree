@@ -64,10 +64,15 @@ suggestion is a 404 — the suggestion state machine surfaced over HTTP.
 suggestion record and drives its pure `applySuggestionTransition` state machine; it couples to that
 store's surface and its transition guard.
 
-> **Proof status (honest) — NOT BUILT, `proposed`.** This precedes the code. The studio server has no
-> suggestion route today. The leaf authors `apps/studio/server/suggestionApi.ts` (a handler mirroring
-> the `writeBroker` / `uatVerdict` handlers) + its registration in the route table, proven by an
-> isolated vitest handler test over a stub suggestion backend (the `writeBroker.test.ts` pattern).
+> **Proof status (honest) — BUILT.** Signed REAL PASS @ `b33d27c` (run `real-mr3is5wu`, 2026-07-02),
+> coverage 4/4. The leaf authored `apps/studio/server/suggestionApi.ts` (`handleSuggestionDecision`
+> over the injected `SuggestionDecisionBackend` seam) + `apps/studio/server/suggestionDecisionApi.test.ts`
+> (vitest, stub backends — the `writeBroker.test.ts` discipline); the handler is proven over the seam.
+> The production route-table MOUNT is deliberately deferred to cap 4 (`member-suggest-write-policy`):
+> the backend's `applyToAsset` needs the blockId→asset-body apply that depends on the block model caps
+> 5/7/8 settle, and the mount belongs with the policy wall that gates it — an honest deferral, not a
+> skip. Frontmatter stays `proposed` — status is earned through the rollup (caps 1–2 follow the same
+> convention).
 
 ## Guidance
 
@@ -130,27 +135,30 @@ backends (the `writeBroker.test.ts` pattern). No stubs within the handler's own 
 
 The test-proven leaf behaviours — each **one isolated automated test** in the `studio` suite (vitest,
 `apps/studio/server/suggestionDecisionApi.test.ts`), the suggestion store + asset-write scripted as
-stubs. None exist yet; each is the assertion a contract test WILL prove once authored (re-cite at real
-`file:line` when built). Per ADR-0122 each contract id leads a distinctly-named test so `storytree
+stubs. All four are BUILT and proven (REAL PASS @ `b33d27c`, run `real-mr3is5wu`); covers lines cite
+the real `file:line`. Per ADR-0122 each contract id leads a distinctly-named test so `storytree
 coverage accept-reject-suggestion-api` reports 4/4.
 
 1. **`ars-accept-applies-and-closes`** — accepting applies the proposed edit and closes the suggestion
    - **asserts —** an authorized accept on an `open` suggestion responds 200 with the suggestion
      `accepted` (decider/timestamp stamped) and the asset-write path was called with the `proposed`
      prose for the targeted block — the proposal is applied to the document, not merely flagged.
-   - **covers —** `apps/studio/server/suggestionApi.ts` (the accept branch) *(provisional path)*
+   - **covers —** `apps/studio/server/suggestionApi.ts:166-176` (the accept branch: the `applyToAsset`
+     call with the `proposed` prose, the persist, the 200)
 2. **`ars-reject-closes-without-touching-the-doc`** — rejecting closes the suggestion and leaves the doc untouched
    - **asserts —** an authorized reject on an `open` suggestion responds 200 with the suggestion
      `rejected` and the asset-write path was NOT called — a rejected proposal never mutates the document.
-   - **covers —** `apps/studio/server/suggestionApi.ts` (the reject branch) *(provisional path)*
+   - **covers —** `apps/studio/server/suggestionApi.ts:84-90` (the transition flips to `rejected`) +
+     `:168-176` (the accept-only `applyToAsset` guard is skipped — the document is untouched)
 3. **`ars-closed-suggestion-is-409`** — re-deciding a closed suggestion is refused
    - **asserts —** a decision on an already-`accepted` (or `rejected`) suggestion responds 409 (the
      closed-suggestion guard from `applySuggestionTransition`), and nothing is re-applied to the document.
-   - **covers —** `apps/studio/server/suggestionApi.ts` (the transition-refusal → 409 mapping) *(provisional path)*
+   - **covers —** `apps/studio/server/suggestionApi.ts:153-164` (the transition-refusal → 409 mapping;
+     the closed-suggestion refusal itself is thrown at `:79-83`)
 4. **`ars-missing-suggestion-is-404`** — a decision on an unknown suggestion is a 404
    - **asserts —** a decision targeting a non-existent suggestion id responds 404 and the asset-write
      path is not called.
-   - **covers —** `apps/studio/server/suggestionApi.ts` (the not-found mapping) *(provisional path)*
+   - **covers —** `apps/studio/server/suggestionApi.ts:144-149` (the not-found → 404 mapping)
 
 ## Guidance — the net-new slice that earns the signed verdict
 
