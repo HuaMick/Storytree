@@ -635,12 +635,36 @@ code {
 .doc-layout.doc-layout-view {
   grid-template-columns: minmax(0, 1fr);
 }
-/* The View ↔ Review mode switch sits above the document, right-aligned like a
-   word-processor mode control. (.btn.review-mode-toggle outranks .btn's inline-flex,
-   which would void the auto margin.) */
-.btn.review-mode-toggle {
-  display: flex;
-  margin: 12px 16px 0 auto;
+/* The View ↔ Edit mode switch (ADR-0146): a compact segmented control at the TOP-LEFT of the
+   topic surface. Two [View | Edit] segments; the active one is tinted. It is one button
+   (the proven toggle) — a click flips the mode. */
+.review-mode-toggle {
+  display: inline-flex;
+  align-items: stretch;
+  margin: 14px 0 4px 40px;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-2);
+  cursor: pointer;
+  font: inherit;
+}
+.review-mode-seg {
+  padding: 4px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  border-radius: 6px;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.review-mode-seg.is-active {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+}
+.review-mode-toggle:hover .review-mode-seg:not(.is-active) {
+  color: var(--text);
 }
 .doc {
   padding: 26px 40px 80px;
@@ -3731,95 +3755,208 @@ button.legend-tile:hover {
   }
 }
 
-/* ---------- review surface (ADR-0140 caps 7/8 — Google-Docs "suggesting mode") ----------
-   Quiet, word-processor feel: in Review mode the prose itself is click-to-edit-in-place,
-   the editor reads as prose (the document font, no bordered box), inline threads are light
-   cards in the document flow, suggestion views are light inline cards. No strikethrough
-   anywhere; nothing is opacity:0-until-hover. */
+/* ---------- Review-mode editor (ADR-0146 — split-pane markdown editor + CriticMarkup) ----------
+   Replaces the ReviewBlocks click-to-edit surface. VIEW mode: clean rendered prose. EDIT mode:
+   a quiet real-editor split — a monospace source pane on the left, a live rendered preview on the
+   right, a CriticMarkup toolbar above. Panes stack on narrow widths. The now-unused ReviewBlocks
+   styles (.review-block*, .review-editable, .block-editor, .review-comment-affordance) are removed. */
 
-.review-block {
-  position: relative;
+.review-view {
+  /* View posture — the rendered prose flows exactly as a read-only document. */
+}
+
+/* The toolbar: a quiet strip of editor buttons above the split. Clean, not loud. */
+.review-editor-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 8px;
+  margin-bottom: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.cm-tool-group {
+  display: inline-flex;
+  gap: 4px;
+}
+.cm-tool-group-md {
+  padding-left: 8px;
+  margin-left: 2px;
+  border-left: 1px solid var(--border-strong);
+}
+.cm-tool {
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 10px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.cm-tool:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-weak);
+}
+.cm-tool-md {
+  min-width: 30px;
+  font-family: var(--mono);
+}
+.cm-tool-spacer {
+  flex: 1;
+}
+.cm-save {
+  margin-left: auto;
+}
+.cm-save-note {
+  margin: -4px 0 10px;
+  padding: 6px 10px;
+  font-size: 12px;
   border-radius: 6px;
 }
-
-/* The click target for edit-in-place — carries the block's prose. A whisper of hover tint in
-   Review mode so the block under the cursor reads as editable; nothing more. */
-.review-block-prose {
-  position: relative;
+.cm-save-note-saved {
+  color: var(--good);
+  background: var(--good-weak);
 }
-.review-editable {
-  cursor: text;
-  border-radius: 6px;
-  /* pull the margin comment glyph into the gutter; keep the prose left edge unchanged */
-  transition: background-color 120ms ease;
+.cm-save-note-local {
+  color: var(--warn);
+  background: var(--warn-weak);
 }
-.review-editable:focus {
-  outline: none;
-}
-.review-blocks-review .review-editable:hover {
-  background: color-mix(in srgb, var(--accent) 4%, transparent);
+.cm-save-note-error {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
 }
 
-/* The inline editor: styled to read IDENTICAL to the rendered prose — the document font,
-   size, line-height, colour; no bordered card, no grey box, no monospace. A faint accent
-   ring on focus is the only affordance that the cursor has landed in an editable paragraph. */
-.block-editor {
+/* The split — source | preview. Stacks below 860px. */
+.review-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .review-split {
+    grid-template-columns: 1fr;
+  }
+}
+.review-pane {
+  min-width: 0;
+}
+.review-pane-label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.review-source-textarea {
   display: block;
   width: 100%;
   box-sizing: border-box;
-  margin: 0;
-  /* inherit the document typography so the swap is seamless */
-  font: inherit;
-  color: inherit;
-  line-height: inherit;
-  background: transparent;
-  border: none;
-  border-left: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  border-radius: 0;
-  padding: 0 0 0 12px;
-  resize: none;
-  overflow: hidden; /* auto-grow handles height in JS */
+  min-height: 360px;
+  padding: 12px 14px;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  resize: vertical;
+  tab-size: 2;
 }
-.block-editor:focus {
+.review-source-textarea:focus {
   outline: none;
-  border-left-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 4%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-weak);
+}
+.review-preview-body {
+  min-height: 360px;
+  padding: 4px 14px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow-wrap: break-word;
 }
 
-/* The quiet, always-visible margin "comment" affordance — a small speech-bubble glyph in the
-   gutter that opens the block's thread. Subtle and out of the editing flow; NEVER hover-hidden. */
-.review-comment-affordance {
-  position: absolute;
-  left: -30px;
-  top: 2px;
+/* ---- CriticMarkup tracked-change rendering (the core of the preview) ---- */
+.cm-preview {
+  display: block;
+}
+/* Insertion — green, underlined. */
+.cm-ins {
+  color: var(--good);
+  background: var(--good-weak);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--good) 60%, transparent);
+  text-underline-offset: 2px;
+  border-radius: 2px;
+  padding: 0 2px;
+  margin: 0 1px;
+}
+/* Deletion — red, struck through. */
+.cm-del {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--danger) 60%, transparent);
+  border-radius: 2px;
+  padding: 0 2px;
+  margin: 0 1px;
+}
+/* Substitution — old struck then new added, snug together (its own inner spans reset margin). */
+.cm-sub {
+  border-radius: 2px;
+  margin: 0 1px;
+}
+.cm-sub .cm-ins,
+.cm-sub .cm-del {
+  margin: 0;
+}
+.cm-sub .cm-del {
+  margin-right: 1px;
+}
+/* Highlight — yellow marker. */
+.cm-mark {
+  background: #fff3bf;
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 2px;
+  margin: 0 1px;
+}
+/* Comment — a small inline bubble in the margin colour. */
+.cm-comment {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
+  align-items: baseline;
+  gap: 4px;
+  margin: 0 2px;
+  padding: 1px 8px;
+  font-size: 12.5px;
   color: var(--muted);
-  cursor: pointer;
-  opacity: 0.5;
-  transition: opacity 120ms ease, color 120ms ease, background-color 120ms ease;
-}
-.review-comment-affordance:hover {
-  opacity: 1;
-  color: var(--accent);
   background: var(--accent-weak);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  border-radius: 10px;
+  vertical-align: baseline;
 }
-@media (max-width: 720px) {
-  /* no negative-margin gutter on narrow layouts — fold the glyph inline */
-  .review-comment-affordance {
-    position: static;
-    margin-bottom: 2px;
-  }
+.cm-comment-glyph {
+  font-size: 11px;
+}
+/* Keep the preview's inline change elements from forcing block breaks: the base markdown text
+   runs render as .markdown blocks, the change spans sit inline within the flow. */
+.cm-preview > .markdown {
+  display: inline;
+}
+.cm-preview > .markdown > :first-child {
+  display: inline;
 }
 
-/* inline comment thread — a light card in the flow, above its anchor block */
+/* inline comment thread — a light card in the flow (used by InlineCommentThread, retained) */
+.inline-comment-thread {
 .inline-comment-thread {
   margin: 10px 0;
   padding: 10px 12px;

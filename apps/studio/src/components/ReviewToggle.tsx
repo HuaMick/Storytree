@@ -1,14 +1,15 @@
 /**
- * View ↔ Review mode toggle (ADR-0140: the word-processor mode switch).
+ * View ↔ Edit mode toggle (ADR-0146: the top-left word-processor mode switch).
  *
- * Two states:
- *   - 'view'   — the read posture; no commenting/suggesting affordances are shown.
- *   - 'review' — commenting + suggesting turned on.
+ * Two states (the CONTEXT VALUE is unchanged from cap 6 — 'view' | 'review' — only the
+ * visible LABEL changed to View | Edit per ADR-0146; downstream consumers still gate on
+ * the 'review' value):
+ *   - 'view'   — the read posture; clean rendered prose, no editing affordances.
+ *   - 'review' — the editor is on (rendered as "Edit").
  *
- * The toggle owns the mode state and publishes it via ReviewModeContext.  Caps 7
- * (inline-comment-thread) and 8 (collapsed-suggestion-view) read the context and gate
- * their own affordances on the published value — this component gates, it does not
- * implement those affordances.
+ * The toggle owns the mode state and publishes it via ReviewModeContext.  The
+ * ReviewEditor (ADR-0146) reads the context and shows the split-pane editor on 'review'.
+ * This component gates; it does not implement the editor.
  */
 
 import { createContext, useState } from 'react';
@@ -30,8 +31,11 @@ interface ReviewToggleProps {
 }
 
 /**
- * Renders the View ↔ Review mode switch and wraps children in the mode context.
- * The button label reflects the CURRENT mode so it always matches /view|review/i.
+ * Renders the View ↔ Edit mode switch (a top-left segmented control) and wraps children in
+ * the mode context. It is ONE button (the proven cap-6 toggle behaviour): its accessible
+ * name always contains the current mode's word ("View" or "Edit") so it reads as a mode
+ * switch; a click flips between the two states. The two [View | Edit] segments are the
+ * visual affordance — the active one is highlighted via aria-pressed / .is-active.
  */
 export function ReviewToggle({ children }: ReviewToggleProps) {
   const [mode, setMode] = useState<ReviewMode>('view');
@@ -40,10 +44,19 @@ export function ReviewToggle({ children }: ReviewToggleProps) {
     setMode((m) => (m === 'view' ? 'review' : 'view'));
   }
 
+  const inEdit = mode === 'review';
+
   return (
     <ReviewModeContext.Provider value={mode}>
-      <button type="button" className="btn small review-mode-toggle" onClick={toggle}>
-        {mode === 'view' ? 'View' : 'Review'}
+      <button
+        type="button"
+        className="review-mode-toggle"
+        onClick={toggle}
+        aria-label={inEdit ? 'Edit mode — switch to View' : 'View mode — switch to Edit'}
+        aria-pressed={inEdit}
+      >
+        <span className={`review-mode-seg${!inEdit ? ' is-active' : ''}`}>View</span>
+        <span className={`review-mode-seg${inEdit ? ' is-active' : ''}`}>Edit</span>
       </button>
       {children}
     </ReviewModeContext.Provider>

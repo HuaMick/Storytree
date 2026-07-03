@@ -7,7 +7,7 @@ import { useAnnotations } from '../lib/useAnnotations';
 import { assetEditHref, assetHref, docHref, libraryHref, navigate } from '../lib/route';
 import { ASSET_CATEGORY_GLOSS } from '../types';
 import { Markdown } from './Markdown';
-import { ReviewBlocks } from './ReviewBlocks';
+import { ReviewEditor } from './ReviewEditor';
 import { ReviewToggle } from './ReviewToggle';
 
 export function AssetView({ id }: { id: string }): React.JSX.Element {
@@ -62,10 +62,11 @@ export function AssetView({ id }: { id: string }): React.JSX.Element {
         <h1>{asset.title}</h1>
         <p className="lede">{asset.description}</p>
 
-        {/* Per-block render (ADR-0140 caps 7/8): the block model keys the inline
-            comment threads + suggestion views mounted in the document flow. */}
+        {/* Review-mode surface (ADR-0146): View shows clean rendered prose; Edit is a
+            split-pane markdown editor with a CriticMarkup toolbar + live preview. Replaces
+            the ReviewBlocks click-to-edit surface. */}
         <div className="asset-body">
-          <ReviewBlocks topicKind="asset" topicId={asset.id} body={asset.body} />
+          <ReviewEditor asset={asset} />
         </div>
 
         {(sources.length > 0 || asset.provenance) && (
