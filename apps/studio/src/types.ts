@@ -62,6 +62,33 @@ export interface NewComment {
 }
 
 /**
+ * A suggestion — a member's proposed edit to one block of a topic (ADR-0140).
+ * Mirrors the store record (packages/library/src/store/pg-suggestion-store.ts):
+ * `block` is the stable block handle (the splitBlocks id), `proposed`/`original`
+ * the replacement and the drift witness.
+ */
+export interface SuggestionRecord {
+  id: string;
+  topicKind: TopicKind;
+  topicId: string;
+  block: string;
+  proposed: string;
+  original: string;
+  status: 'open' | 'accepted' | 'rejected';
+  author: string;
+  createdAt: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+}
+
+/** One poll of a topic's review surface: its comments + its suggestions (cap 5's feed). */
+export interface ReviewFeedPayload {
+  topicId: string;
+  comments: Comment[];
+  suggestions: SuggestionRecord[];
+}
+
+/**
  * The artifact taxonomy: a typed, reusable unit of agent guidance. A lean set,
  * shaped to the durable outputs the ADRs produce.
  * - `pattern` absorbs the old "guideline": a reusable approach you apply.
