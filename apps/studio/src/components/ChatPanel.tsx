@@ -58,6 +58,19 @@ type Phase =
   | { kind: 'refused'; reason: string }
   | { kind: 'unavailable'; detail: string };
 
+/** One spawn line in the live transcript (spawn-visibility, ADR-0137). The orchestrator session
+ *  spawned a sub-agent (a story-author or builder) for `unitId`; `phase` moves started → finished
+ *  (with `ok` on the finish). Keyed by role+unitId so the matching `finished` frame RESOLVES the
+ *  `started` line in place rather than appending a duplicate. Non-terminal — it rides the transcript
+ *  like a delta and never ends the stream. The line's LOOK is the story's operator-attested UAT
+ *  leg 5 (ADR-0070) — geometry/behaviour only here. */
+interface SpawnLine {
+  role: string;
+  unitId: string;
+  phase: 'started' | 'finished';
+  ok?: boolean;
+}
+
 /** The panel's build dispatch phase — idle until the operator explicitly clicks the Build button
  *  (ADR-0108 d.3). Mirrors usePollableRun in BuildSection but scoped inline to the chat panel
  *  (the seam is the chat panel's, not the island's; the poll path is chat-scoped). */
@@ -91,7 +104,15 @@ function SendIcon(): React.JSX.Element {
   );
 }
 
-export function ChatPanel(): React.JSX.Element {
+/** Props for ChatPanel. `onSpawnFinished` surfaces a spawn-FINISHED frame UP to the wrapping ChatDock
+ *  (live-story-island-refresh, ADR-0137) — a plain callback over the plain-JSON `spawn` frame, never a
+ *  drive import. ChatDock fences it to a story-author finish and invokes reloadTree so the just-authored
+ *  island appears live. Optional: ChatPanel renders standalone (no dock) with no callback. */
+export interface ChatPanelProps {
+  onSpawnFinished?: (frame: { role: string; unitId: string; ok?: boolean }) => void;
+}
+
+export function ChatPanel({ onSpawnFinished }: ChatPanelProps = {}): React.JSX.Element {
   const [intent, setIntent] = useState('');
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
   const [buildPhase, setBuildPhase] = useState<BuildPhase>({ kind: 'idle' });
@@ -100,10 +121,19 @@ export function ChatPanel(): React.JSX.Element {
   // scrollback. NOT a multi-turn history (the backend is single-session per submit); it holds only the
   // one current intent and is cleared back to empty on idle.
   const [submitted, setSubmitted] = useState('');
+  // The live spawn transcript (spawn-visibility, ADR-0137): the sub-agent spawns the session emitted
+  // this exchange, in arrival order. A `started` frame appends a line; the matching `finished` frame
+  // (same role + unitId) RESOLVES that line in place. Non-terminal — it survives into the terminal
+  // render (the spawn lines stay visible above the proposal/error). Reset on each new submit.
+  const [spawns, setSpawns] = useState<readonly SpawnLine[]>([]);
   // A re-entrancy guard so a double-submit (two synchronous clicks before the stream starts) cannot
   // fire a second POST. State alone is racy across synchronous events in the same tick; the ref flips
   // immediately. Mirrors usePollableRun's single-in-flight guard in BuildSection.
   const inFlight = useRef(false);
+  // Hold the latest onSpawnFinished in a ref so the stream callback (created inside the stable
+  // `submit`) always calls the current prop without re-creating `submit` on every render.
+  const onSpawnFinishedRef = useRef(onSpawnFinished);
+  onSpawnFinishedRef.current = onSpawnFinished;
 
   const busy = phase.kind === 'busy';
   // The input/Send are disabled while streaming AND once the route is proven absent (the panel does
@@ -117,6 +147,7 @@ export function ChatPanel(): React.JSX.Element {
 
     inFlight.current = true;
     setSubmitted(trimmed); // echo it back as the terminal prompt line for this exchange
+    setSpawns([]); // clear any spawn lines from the previous exchange
     // The terminal frame the stream delivers (the backend end()s after one terminal event). We keep
     // the LAST terminal frame and render it when the stream resolves — the contracts pin the terminal
     // render, which is the journey the operator sees.
@@ -133,6 +164,42 @@ export function ChatPanel(): React.JSX.Element {
           // A non-terminal token fragment — append and re-render the live busy view.
           streamed += event.text;
           setPhase({ kind: 'busy', streamed });
+          return;
+        }
+        if (event.type === 'spawn') {
+          // A non-terminal spawn frame (ADR-0137) — append/resolve a spawn line; NEVER terminate the
+          // stream (it must not replace the `done` proposal). A `started` frame appends a new line; a
+          // `finished` frame RESOLVES the matching started line (same role + unitId) in place.
+          const frame = event;
+          setSpawns((prev) => {
+            if (frame.phase === 'finished') {
+              const idx = prev.findIndex(
+                (s) => s.role === frame.role && s.unitId === frame.unitId && s.phase === 'started',
+              );
+              const resolved: SpawnLine = {
+                role: frame.role,
+                unitId: frame.unitId,
+                phase: 'finished',
+                ...(frame.ok !== undefined ? { ok: frame.ok } : {}),
+              };
+              if (idx === -1) return [...prev, resolved];
+              const next = prev.slice();
+              next[idx] = resolved;
+              return next;
+            }
+            return [...prev, { role: frame.role, unitId: frame.unitId, phase: 'started' }];
+          });
+          // Surface a spawn-FINISHED frame UP to the wrapping dock (live-story-island-refresh,
+          // ADR-0137) — the dock fences it to a story-author finish and reloads the map. Plain
+          // callback over the plain-JSON frame; ChatPanel does NOT decide the fence (role-agnostic
+          // here), it just relays the finish.
+          if (frame.phase === 'finished') {
+            onSpawnFinishedRef.current?.({
+              role: frame.role,
+              unitId: frame.unitId,
+              ...(frame.ok !== undefined ? { ok: frame.ok } : {}),
+            });
+          }
           return;
         }
         terminal = event;
@@ -247,6 +314,31 @@ export function ChatPanel(): React.JSX.Element {
             </span>
             <span className="chat-echo-text">{submitted}</span>
           </p>
+        )}
+
+        {/* The live SPAWN transcript (spawn-visibility, ADR-0137): one line per sub-agent the session
+            spawned this exchange, in arrival order. A `started` frame reads "🔧 spawning <role> for
+            <unitId>…"; the matching `finished` frame resolves it to "✓ <role> finished" (or an honest
+            "✗ <role> failed" on ok:false). Non-terminal — the lines survive into the terminal render
+            above the proposal/error. The line's LOOK is the story's operator-attested UAT leg 5
+            (ADR-0070); geometry/behaviour only here. */}
+        {spawns.length > 0 && (
+          <ul className="chat-spawns">
+            {spawns.map((s, i) => (
+              <li
+                key={`${s.role}:${s.unitId}:${i}`}
+                className={`chat-spawn-line chat-spawn-${s.phase}${
+                  s.phase === 'finished' && s.ok === false ? ' chat-spawn-failed' : ''
+                }`}
+              >
+                {s.phase === 'started'
+                  ? `🔧 spawning ${s.role} for ${s.unitId}…`
+                  : s.ok === false
+                    ? `✗ ${s.role} failed`
+                    : `✓ ${s.role} finished`}
+              </li>
+            ))}
+          </ul>
         )}
 
         {phase.kind === 'busy' && (

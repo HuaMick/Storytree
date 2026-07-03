@@ -83,15 +83,33 @@ export interface ChatRefusedEvent {
   type: 'refused';
   reason: string;
 }
+/** A NON-terminal spawn frame (spawn-visibility story, ADR-0137) — the orchestrator session spawned a
+ *  sub-agent (a story-author or a builder) for a unit. Like a `delta`, it appends to the live
+ *  transcript and NEVER terminates the stream. `phase: "started"` announces the spawn; the matching
+ *  `phase: "finished"` resolves it (`ok: false` marks an honest failure). PLAIN JSON — declared here
+ *  studio-local (never imported from @storytree/drive, ADR-0004 / the modelPathBoundary wall). The
+ *  producer is chat-sse-mount (apps/desktop) / chat-stream (packages/drive). */
+export interface ChatSpawnEvent {
+  type: 'spawn';
+  phase: 'started' | 'finished';
+  role: string;
+  unitId: string;
+  ok?: boolean;
+}
 /** One SSE `data:` frame from /api/chat, discriminated by `type`. A stream is zero or more
- *  non-terminal `delta` frames followed by exactly one terminal `done`/`error`/`refused` frame. */
-export type ChatEvent = ChatDeltaEvent | ChatDoneEvent | ChatErrorEvent | ChatRefusedEvent;
+ *  non-terminal `delta`/`spawn` frames followed by exactly one terminal `done`/`error`/`refused` frame. */
+export type ChatEvent =
+  | ChatDeltaEvent
+  | ChatDoneEvent
+  | ChatErrorEvent
+  | ChatRefusedEvent
+  | ChatSpawnEvent;
 
 /** A frame that parses to JSON but isn't a recognised ChatEvent shape — defensively ignored. */
 function isChatEvent(value: unknown): value is ChatEvent {
   if (value === null || typeof value !== 'object') return false;
   const t = (value as { type?: unknown }).type;
-  return t === 'delta' || t === 'done' || t === 'error' || t === 'refused';
+  return t === 'delta' || t === 'done' || t === 'error' || t === 'refused' || t === 'spawn';
 }
 
 /**
