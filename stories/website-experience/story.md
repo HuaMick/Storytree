@@ -35,8 +35,11 @@ consumed_by: []
 # forest-world mapper, client-only island, mandatory fallback, package home delegated to this
 # story (123); the shared render core + the sync-into-submodule artifact flow the mapper joins (93);
 # the 2026-07-03 re-decision at the walkthrough's attestation gate — Act 2 walks the real 2.5D map,
-# the R3F island scoped to the inflection's landing moment, replay-only final (145).
-decisions: [93, 123, 134, 145]
+# the R3F island scoped to the inflection's landing moment, replay-only final (145); the 2026-07-03
+# owner-directed progressive expansion — Act 2 opens on the loved single island and grows to the full
+# legible forest (more islands, inter-story roads, the genuinely-populated status legend, session
+# wisps), each reveal teaching a covered gripe (147, amends 134/145).
+decisions: [93, 123, 134, 145, 147]
 ---
 
 # The two-act vibe-coding experience — the public site's front door enacts chaos → calm
@@ -52,8 +55,12 @@ same input, opposite outcome.** In Act 1 the visitor's single tap (send a prompt
 Act 2 the visitor's single tap (advance) grows order. The evidence base for what the storm screams
 and what the forest answers is
 [docs/research/vibe-coding-gripes-2026.md](../../docs/research/vibe-coding-gripes-2026.md) — its
-five-row beat table IS the approved Act 2 spine, carried verbatim into `act2-beat-director` and
-`act2-guided-walkthrough`.
+beat table is the approved Act 2 opening, carried into `act2-beat-director` and
+`act2-guided-walkthrough`, and EXTENDED by the ADR-0147 progressive arc (the loved opening beats grow
+to the full forest). The reveal→gripe mapping for the whole grown arc — each UI element the walk
+reveals answering a *covered* gripe, and the beat-4 non-duplication honesty — is the coverage-map menu
+[docs/research/vibe-coding-coverage-map-2026.md](../../docs/research/vibe-coding-coverage-map-2026.md)
+("How the walkthrough uses this map").
 
 - **Act 1 — the storm.** One retro CRT terminal, already logged into a coding agent. The visitor
   sends ONE prompt (suggested chip or typed — the gesture also unlocks audio). The agent "thinks,"
@@ -69,10 +76,14 @@ five-row beat table IS the approved Act 2 spine, carried verbatim into `act2-bea
   way →` (this transform) and an external ghost exit; see
   [`act1-terminal-storm`](act1-terminal-storm.md) "As built — the finale rework".)*
 - **Act 2 — the calm forest.** Silence resolves into an empty land. An AUTO-GUIDED, VISITOR-PACED
-  walkthrough (one Next-tap per beat, plain language — the tonal inverse of Act 1) grows the forest
-  through the five approved beats: plant a story → watch a wisp → it branches (green only on signed
-  proof) → stories connect (roads; the wrong-way UI→DB road as the visible antipattern) → pull back
-  (the whole legible forest) → CTA. A **stylized teaching diorama over FICTIONAL data**
+  walkthrough (one Next-tap per beat, plain language — the tonal inverse of Act 1) OPENS on the loved
+  single island (one story on one island — the non-overwhelming opening) and grows PROGRESSIVELY to
+  the full legible forest (ADR-0147): plant a story → watch a wisp → it branches (green only on signed
+  proof) → the wrong-way UI→DB road (the visible coupling antipattern, NOT duplication) → the forest
+  grows (neighbor islands rise) → stories depend on each other (inter-story roads draw the cross-story
+  DAG over a genuinely mixed-status forest) → pull back (the whole legible forest: green = proven,
+  sapling = in-progress, withered = broken, session wisps drifting) → CTA. Each reveal teaches a
+  covered gripe (the coverage-map menu). A **stylized teaching diorama over FICTIONAL data**
   (ADR-0056/0066/0093 boundary), never the operable studio.
 - **Rollout — replace home incrementally.** The storm becomes the live homepage as soon as it is
   presentable; Act 2 grows in place on the real here.now CD rail (every merge to `storytree-web`
@@ -134,10 +145,10 @@ owner witnesses it), or CONTENT (owner-attested editorial judgement).
 | 1 | [`r3f-world-spike`](r3f-world-spike.md) | LEAF | `packages/forest-world-r3f` is born: a real forest-world `World` + scene-graph maps to typed 3D instance descriptors, rendered in an R3F canvas with drei `MapControls` in a dev harness. | yes | — |
 | 2 | [`experience-rollout-guardrails`](experience-rollout-guardrails.md) | LEAF | `check:web-experience` (parent-side, check:web-grounding pattern) fails the gate when the experience entry lacks the skip affordance or the reduced-motion/no-WebGL fallback, or when Act 1 statically reaches R3F. | yes | — |
 | 3 | [`web-experience-sync`](web-experience-sync.md) | LEAF | The sync + drift-gate mechanism generalises to carry the R3F mapper package (`.tsx`-aware, `@storytree/forest-world` imports rewritten to the synced sibling core) into the site under the same `@generated` discipline. | yes | `r3f-world-spike` |
-| 4 | [`act2-beat-director`](act2-beat-director.md) | LEAF | A pure, deterministic, visitor-paced beat director in `forest-world-r3f`: the five approved beats as typed data, advancing one tap at a time; green appears only with a signed-proof marker; the wrong-way road is flagged from data. | yes | `r3f-world-spike` |
+| 4 | [`act2-beat-director`](act2-beat-director.md) | LEAF | A pure, deterministic, visitor-paced beat director in `forest-world-r3f`: the approved progressive arc as typed data, advancing one tap at a time; the world holds MULTIPLE stories with a tri-state status (proven/building/broken → green/sapling/withered) via a grow-forest delta; green appears only with a signed-proof marker; the wrong-way road is flagged from data (ADR-0147 grows it from five beats). | yes | `r3f-world-spike` |
 | 5 | [`act1-terminal-storm`](act1-terminal-storm.md) | LOOK | One visitor prompt breeds the diegetic terminal storm to the ~10–12 peak — CRT look, canvas grain, gesture-unlocked audio, HUD, unanswerable demands; no WebGL. | (look) | `experience-rollout-guardrails` |
 | 6 | [`storm-to-forest-inflection`](storm-to-forest-inflection.md) | LOOK | At peak, the peak affordance's transform option (a diegetic finale terminal as of web `281b1e6`); a single click transforms — silence, collapse into soil — and lazy-loads the R3F island into the empty calm land. | (look) | `act1-terminal-storm`, `web-experience-sync` |
-| 7 | [`act2-guided-walkthrough`](act2-guided-walkthrough.md) | LOOK | The five-beat, visitor-paced, plain-language walkthrough grows the fictional forest over the synced director ON THE REAL 2.5D MAP (ADR-0145; anchored-callout narration), to the pull-back and the CTA. | (look) | `storm-to-forest-inflection`, `act2-beat-director`, `web-experience-sync` |
+| 7 | [`act2-guided-walkthrough`](act2-guided-walkthrough.md) | LOOK | The visitor-paced, plain-language walkthrough OPENS on the loved single island and grows PROGRESSIVELY to the full legible forest over the synced director ON THE REAL 2.5D MAP (ADR-0145 substrate + ADR-0147 growth; anchored-callout narration) — more islands, inter-story roads, the genuinely-populated status legend, session wisps — each reveal teaching a covered gripe, to the CTA. | (look) | `storm-to-forest-inflection`, `act2-beat-director`, `web-experience-sync` |
 | 8 | [`info-pages-triage`](info-pages-triage.md) | CONTENT | Every legacy info page has an explicit executed disposition — folded into Act 2, discarded, or kept static — with no orphan links and the grounding wire still green; the outcome decides Keystatic's survival. | (content) | `act2-guided-walkthrough` |
 
 ## Dependency graph and the incremental rollout plan
@@ -166,8 +177,12 @@ whole (owner decision 6):
   beats grow in place; the walkthrough may land beats incrementally (the director is data-driven),
   each merge leaving a complete-so-far guided arc ending at the CTA. *(G's first build — over the
   R3F island — was refused at its 2026-07-03 attestation gate and re-decided onto the real 2.5D map
-  with anchored-callout narration, ADR-0145; the walkthrough HALT stands until the rebuild is
-  attested. Web draft PR #20 closed superseded, its machine floor recorded there.)*
+  with anchored-callout narration, ADR-0145; Web draft PR #20 closed superseded, its machine floor
+  recorded there. A single-island rebuild on the 2.5D map (the five kept beats) is staged in web draft
+  PR #22. At that gate the owner further directed the PROGRESSIVE EXPANSION, ADR-0147: F re-builds the
+  director at the GROWN scope — multiple stories, a tri-state status, a grow-forest delta, the
+  seven-beat progressive default script — and G grows the walk ON TOP OF PR #22's loved single-island
+  baseline to the full legible forest. The walkthrough HALT stands until the grown walk is attested.)*
 - **Increment H — `info-pages-triage`** — the surrounding pages fold in, retire, or stay; the
   Keystatic call falls out of the disposition set.
 
@@ -218,13 +233,18 @@ case. Witnesses marked per leg (ADR-0040 / ADR-0070) — the felt legs are human
    storytree affordance appear amid the noise. Click once. **Success —** the terminals fall silent
    and collapse, their fragments drop into the ground as soil, the calm empty land fades up — a
    TRANSFORM in place, not a navigation; the R3F bundle loads only now, behind the exhale.
-5. **The same gesture grows order.** _(witness: human)_ Advance the walkthrough one Next-tap per
-   beat, in plain language throughout: plant a story (a seed grows into a tree with its outcome on
-   a label) → watch a wisp (presence without obligation) → it branches (limbs turn green ONLY on a
-   signed passing proof) → stories connect (roads — the wrong-way UI→DB road skipping the service
-   layer is visibly flagged as the antipattern) → pull back (one legible forest: green = proven,
-   sapling = in-progress, withered = broken). **Success —** the arc ends on the CTA to the real
-   product; at no beat does the visitor work harder than one tap — the Act 1 contrast lands.
+5. **The same gesture grows order — from one loved island to the full forest.** _(witness: human)_
+   Advance the walkthrough one Next-tap per beat, in plain language throughout. It OPENS on the loved
+   single island (one story on one island — non-overwhelming), then grows progressively (ADR-0147):
+   plant a story (a seed grows into a tree with its outcome on a label) → watch a wisp (presence
+   without obligation) → it branches (limbs turn green ONLY on a signed passing proof) → the wrong-way
+   UI→DB road skipping the service layer is visibly flagged as the antipattern (a coupling shortcut,
+   NOT duplication) → the forest grows (neighbor story-islands rise) → stories depend on each other
+   (real inter-story roads draw the cross-story DAG over a genuinely mixed-status forest) → pull back
+   (one legible forest: green = proven, sapling = in-progress, withered = broken — the legend
+   genuinely populated — with session wisps drifting). **Success —** the arc ends on the CTA to the
+   real product; at no beat does the visitor work harder than one tap; the opening never overwhelms
+   and the growth reads as one coherent forest, not a second storm — the Act 1 contrast lands.
 6. **The artifact edge is live.** _(witness: machine)_ `pnpm check:web-engine` (extended) at a clean
    HEAD. **Success —** green: the site's synced copies of the render core AND the R3F mapper are
    byte-fresh from their parent packages (`@generated`, no drift, no stale leftovers) — the 3D look
