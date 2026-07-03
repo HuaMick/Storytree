@@ -18,9 +18,15 @@ export type TopicKind = 'doc' | 'asset';
  *   re-found after the doc re-renders or is edited. `headingSlug` scopes the
  *   search; `startOffset` is a position hint for disambiguation; `color` is the
  *   highlight tag.
+ * - `block`   — a specific content block within the topic (`blockId` is the stable
+ *   handle; ADR-0140 block-anchor model). The text-span fields stay null; the
+ *   store boundary (`normalizeCommentAnchor`) strips them on write anyway. The
+ *   `text` kind is retired by the remove-text-selection-anchoring capability.
  */
 export interface CommentAnchor {
-  kind: 'topic' | 'section' | 'text';
+  kind: 'topic' | 'section' | 'text' | 'block';
+  /** Stable block handle; present when kind === 'block'. */
+  blockId?: string;
   headingSlug: string | null;
   headingText: string | null;
   quote: string | null;

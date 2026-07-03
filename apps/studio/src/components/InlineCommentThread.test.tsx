@@ -53,11 +53,11 @@ const tick = (ms: number): Promise<void> =>
  * Uses the new `kind: 'block'` anchor shape (added by cap 1): the test pins the behaviour the
  * implementation must satisfy, so the shape is correct-by-design even before the type is updated.
  */
-const blockComment = (id: string, body: string, blockHandle = 'intro-block') => ({
+const blockComment = (id: string, body: string, blockId = 'intro-block') => ({
   id,
   topicKind: 'asset',
   topicId: 'review-topic',
-  anchor: { kind: 'block', blockHandle },
+  anchor: { kind: 'block', blockId },
   body,
   author: 'alice',
   createdAt: '2024-01-01T00:00:00.000Z',
@@ -87,7 +87,7 @@ describe('InlineCommentThread', () => {
   // in the document flow — NOT inside an <aside> or .comment-panel side panel. This is what
   // makes InlineCommentThread a code-review style thread that REPLACES CommentPanel (ADR-0140).
   it(
-    'ict-in-flow-placement: renders in the document flow — not in an aside or side-panel',
+    'ict-renders-in-flow-above-its-block: renders in the document flow — not in an aside or side-panel',
     async () => {
       apiMock.listComments.mockResolvedValue([blockComment('c-1', 'Hello thread')]);
 
@@ -117,7 +117,7 @@ describe('InlineCommentThread', () => {
   // (kind: 'block', blockHandle) — never a text-quote anchor or section anchor.
   // This is the seam to cap 1 (the block-anchor type).
   it(
-    'ict-block-anchored-post: posting sends a block anchor carrying the blockHandle',
+    'ict-posts-a-block-anchored-comment: posting sends a block anchor carrying the blockId',
     async () => {
       apiMock.listComments.mockResolvedValue([]);
       apiMock.createComment.mockResolvedValue(blockComment('c-new', 'New comment'));
@@ -146,7 +146,7 @@ describe('InlineCommentThread', () => {
           topicId: 'review-topic',
           body: 'New comment',
           author: 'alice',
-          anchor: expect.objectContaining({ kind: 'block', blockHandle: 'intro-block' }),
+          anchor: expect.objectContaining({ kind: 'block', blockId: 'intro-block' }),
         }),
       );
     },
@@ -158,7 +158,7 @@ describe('InlineCommentThread', () => {
   // without a page reload. Fake timers drive the poll; the api seam returns an extra comment
   // on the second call. The seam to cap 5 (the review-refresh feed).
   it(
-    'ict-feed-driven-refresh: a new comment appears on the next poll without a page reload',
+    'ict-refreshes-from-the-live-feed: a new comment appears on the next poll without a page reload',
     async () => {
       apiMock.listComments
         .mockResolvedValueOnce([blockComment('c-1', 'First comment')])
@@ -194,7 +194,7 @@ describe('InlineCommentThread', () => {
   // existing comments still render (the thread is read-only, not hidden) but the form is absent.
   // The seam to cap 6 (the View ↔ Review mode toggle).
   it(
-    'ict-review-only-affordance: form absent in view mode, present in review mode; comments always render',
+    'ict-add-affordance-is-review-only: form absent in view mode, present in review mode; comments always render',
     async () => {
       apiMock.listComments.mockResolvedValue([blockComment('c-1', 'Existing comment')]);
 

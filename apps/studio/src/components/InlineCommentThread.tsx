@@ -14,7 +14,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../api';
 import { PRESENCE_POLL_MS } from '../lib/presence';
-import type { TopicKind, Comment, CommentAnchor } from '../types';
+import type { TopicKind, Comment } from '../types';
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -51,12 +51,16 @@ export function InlineCommentThread({
   const loadComments = useCallback(async (): Promise<void> => {
     try {
       const result = await api.listComments(topicId);
-      setComments(result);
+      // One thread per block: keep only THIS block's comments (a topic's other
+      // block threads render their own).
+      setComments(
+        result.filter((c) => c.anchor.kind === 'block' && c.anchor.blockId === blockHandle),
+      );
     } catch {
       // Advisory: keep the last-known comments on a failed poll (same discipline
       // as the presence layer's "keep last-known sessions" on a studio server error).
     }
-  }, [topicId]);
+  }, [topicId, blockHandle]);
 
   useEffect(() => {
     void loadComments();
@@ -72,15 +76,26 @@ export function InlineCommentThread({
     const text = (textareaRef.current?.value ?? body).trim();
     if (!text || busy) return;
     setBusy(true);
-    // kind:'block' is the cap-1 anchor shape.  The CommentAnchor union will be
-    // extended by cap 1; until then we bridge with a type assertion.
+    // kind:'block' is the cap-1 anchor shape — `blockId` is the field the store
+    // boundary (normalizeCommentAnchor) keeps; the text-span fields ride as null
+    // and are stripped on write.
     void api
       .createComment({
         topicKind,
         topicId,
         body: text,
         author: operator,
-        anchor: { kind: 'block', blockHandle } as unknown as CommentAnchor,
+        anchor: {
+          kind: 'block',
+          blockId: blockHandle,
+          headingSlug: null,
+          headingText: null,
+          quote: null,
+          prefix: null,
+          suffix: null,
+          startOffset: null,
+          color: null,
+        },
       })
       .then(() => {
         setBody('');

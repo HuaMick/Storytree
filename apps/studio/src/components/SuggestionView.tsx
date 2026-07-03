@@ -16,7 +16,7 @@
 import { useContext, useState } from 'react';
 import { api } from '../api.js';
 import { ReviewModeContext } from './ReviewToggle.js';
-import type { MeInfo } from '../types.js';
+import type { MeInfo, TopicKind } from '../types.js';
 
 // ── Suggestion shape ──────────────────────────────────────────────────────────
 
@@ -46,6 +46,11 @@ interface SuggestionSeam {
   createSuggestion: (input: {
     blockId: string;
     proposedText: string;
+    /** Topic identity + drift witness — sent when the mount supplies them (the server needs
+     *  them to persist a real Suggestion record; the component test exercises the seam bare). */
+    topicKind?: TopicKind;
+    topicId?: string;
+    originalText?: string;
   }) => Promise<{ id: string; status: 'open' }>;
   decideSuggestion: (input: {
     id: string;
@@ -60,6 +65,10 @@ const suggApi = api as unknown as SuggestionSeam;
 export interface SuggestionViewProps {
   suggestion: Suggestion;
   me: MeInfo;
+  /** Topic identity for the compose POST; optional — when absent the compose sends the bare
+   *  seam payload (the proven component-test shape). The mount always supplies it. */
+  topicKind?: TopicKind;
+  topicId?: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -71,7 +80,7 @@ export interface SuggestionViewProps {
  *   - compose form visible in Review mode (members propose, admins decide)
  *   - Accept/Reject controls for admin/owner; hidden for members
  */
-export function SuggestionView({ suggestion, me }: SuggestionViewProps) {
+export function SuggestionView({ suggestion, me, topicKind, topicId }: SuggestionViewProps) {
   const mode = useContext(ReviewModeContext);
   const [showOriginal, setShowOriginal] = useState(false);
   const [composeText, setComposeText] = useState('');
@@ -91,6 +100,11 @@ export function SuggestionView({ suggestion, me }: SuggestionViewProps) {
     await suggApi.createSuggestion({
       blockId: suggestion.blockId,
       proposedText: composeText,
+      // Topic identity + the drift witness ride along only when the mount supplies them —
+      // the bare payload stays the proven seam shape.
+      ...(topicKind !== undefined && topicId !== undefined
+        ? { topicKind, topicId, originalText: suggestion.originalText }
+        : {}),
     });
   }
 

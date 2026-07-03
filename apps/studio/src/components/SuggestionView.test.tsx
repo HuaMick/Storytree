@@ -111,7 +111,7 @@ describe('SuggestionView', () => {
   //
   // The deliberate word-processor choice (ADR-0140): read the result, expand to audit the change.
   // The proposed text is rendered as the default view — no strikethrough diff presentation.
-  it('sv-proposed-text-by-default: the proposed text is displayed by default with NO strikethrough element, and the original is hidden until the toggle is clicked', () => {
+  it('csv-proposed-result-by-default-no-strikethrough: the proposed text is displayed by default with NO strikethrough element, and the original is hidden until the toggle is clicked', () => {
     const { container } = render(<SuggestionView suggestion={openSuggestion} me={adminMe} />);
 
     // The proposed text is visible without any interaction.
@@ -126,7 +126,7 @@ describe('SuggestionView', () => {
   //
   // Clicking the "show change" toggle reveals the original so the reviewer can audit what changed.
   // Clicking it again collapses it back (a true toggle, not a one-way expansion).
-  it('sv-show-change-expands-original: clicking "show change" reveals the original text; clicking again collapses it', () => {
+  it('csv-show-change-expands-the-original: clicking "show change" reveals the original text; clicking again collapses it', () => {
     render(<SuggestionView suggestion={openSuggestion} me={adminMe} />);
 
     // Before the first click the original is hidden.
@@ -151,7 +151,7 @@ describe('SuggestionView', () => {
   // In Review mode a member may compose a suggested edit to the block.  Submitting the compose
   // form POSTs api.createSuggestion with the block id + the typed proposed text.  The returned
   // suggestion has status 'open' — the member proposes, an admin decides.
-  it('sv-compose-posts-proposal: in Review mode a member may compose a suggested edit — submitting POSTs api.createSuggestion with the block id + proposed text, result status is open', async () => {
+  it('csv-member-composes-a-proposal: in Review mode a member may compose a suggested edit — submitting POSTs api.createSuggestion with the block id + proposed text, result status is open', async () => {
     apiMock.createSuggestion.mockResolvedValue({ id: 'sg-new', status: 'open' });
 
     render(
@@ -178,7 +178,7 @@ describe('SuggestionView', () => {
   //
   // A member cannot accept or reject a suggestion — deciding is admin-only (cap 4).
   // The affordance is absent from the rendered view entirely so a member cannot reach the seam.
-  it('sv-member-no-decision-controls: a member does NOT see Accept or Reject controls on an open suggestion', () => {
+  it('csv-decision-controls-are-admin-only: a member does NOT see Accept or Reject controls on an open suggestion', () => {
     render(<SuggestionView suggestion={openSuggestion} me={memberMe} />);
 
     expect(screen.queryByRole('button', { name: /accept/i })).toBeNull();
