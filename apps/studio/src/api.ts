@@ -16,7 +16,10 @@ import type {
   MeInfo,
   NewComment,
   PresencePayload,
+  ReviewFeedPayload,
   StoreHealth,
+  SuggestionRecord,
+  TopicKind,
   TreePayload,
   UatVerdictResult,
   UserRole,
@@ -118,9 +121,19 @@ function isChatEvent(value: unknown): value is ChatEvent {
  * frame); REJECTS when the route is absent or the request fails (a non-OK status or a network error —
  * the studio-standalone case where /api/chat is not mounted), so the caller can degrade honestly
  * rather than hang on a stream that never arrives.
+ *
+ * `signal` — an OPTIONAL AbortSignal (transcript-reset). Forwarded to `fetch`, so a reset can
+ * `controller.abort()` the in-flight stream (the fetch rejects with an AbortError and the reader tears
+ * down), leaving no zombie stream settling into a cleared panel. Threading a fetch option stays inside
+ * the thin-client wall — no agent/drive/model import, no wire-shape change. The existing two-arg
+ * callers keep working (the parameter is optional).
  */
-async function chatStream(intent: string, onEvent: (event: ChatEvent) => void): Promise<void> {
-  const res = await fetch('/api/chat', jsonInit('POST', { intent }));
+async function chatStream(
+  intent: string,
+  onEvent: (event: ChatEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const res = await fetch('/api/chat', { ...jsonInit('POST', { intent }), ...(signal ? { signal } : {}) });
   if (!res.ok || res.body === null) {
     // Absent route / fail-closed backend (e.g. studio-standalone 404, or the intent guard's 400).
     throw new Error(`chat unavailable (${res.status} ${res.statusText})`);
@@ -183,6 +196,28 @@ export const api = {
     http(`/api/comments?id=${q(id)}`, jsonInit('PATCH', patch)),
   deleteComment: (id: string): Promise<{ ok: true }> =>
     http(`/api/comments?id=${q(id)}`, { method: 'DELETE' }),
+
+  // Review-mode suggestion seam (ADR-0140). createSuggestion posts a member PROPOSAL (the
+  // member-suggest policy gate opens exactly this path); decideSuggestion drives the admin-only
+  // accept/reject route; reviewFeed is cap 5's one-poll comments+suggestions payload.
+  createSuggestion: (input: {
+    blockId: string;
+    proposedText: string;
+    topicKind?: TopicKind;
+    topicId?: string;
+    originalText?: string;
+  }): Promise<SuggestionRecord> => http('/api/suggestions', jsonInit('POST', input)),
+  decideSuggestion: (input: {
+    id: string;
+    decision: 'accept' | 'reject';
+  }): Promise<SuggestionRecord> =>
+    // The component seam speaks {id, decision}; cap 3's route speaks {suggestionId, action}.
+    http(
+      '/api/suggestions/decision',
+      jsonInit('POST', { suggestionId: input.id, action: input.decision }),
+    ),
+  reviewFeed: (topicId: string): Promise<ReviewFeedPayload> =>
+    http(`/api/review/feed?topicId=${q(topicId)}`),
 
   listAssets: (): Promise<GuidanceAsset[]> => http('/api/assets'),
   createAsset: (input: AssetInput): Promise<GuidanceAsset> =>
