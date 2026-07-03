@@ -7,6 +7,7 @@ import { useAnnotations } from '../lib/useAnnotations';
 import { assetEditHref, assetHref, docHref, libraryHref, navigate } from '../lib/route';
 import { ASSET_CATEGORY_GLOSS } from '../types';
 import { Markdown } from './Markdown';
+import { ReviewBlocks } from './ReviewBlocks';
 import { ReviewToggle } from './ReviewToggle';
 
 export function AssetView({ id }: { id: string }): React.JSX.Element {
@@ -14,8 +15,6 @@ export function AssetView({ id }: { id: string }): React.JSX.Element {
   const articleRef = useRef<HTMLElement>(null);
   const asset = assets.find((a) => a.id === id);
   const ann = useAnnotations(id, articleRef, asset?.body ?? '');
-  // Memoized so React renders it once and never strips the highlight marks.
-  const body = useMemo(() => <Markdown>{asset?.body ?? ''}</Markdown>, [asset?.body]);
   // "Sources": the unit's `references` grouped by the type of thing each points at, resolved live
   // against the loaded corpus (asset:<id> -> its category). A view, never stored.
   const sources = useMemo(
@@ -63,7 +62,11 @@ export function AssetView({ id }: { id: string }): React.JSX.Element {
         <h1>{asset.title}</h1>
         <p className="lede">{asset.description}</p>
 
-        <div className="asset-body">{body}</div>
+        {/* Per-block render (ADR-0140 caps 7/8): the block model keys the inline
+            comment threads + suggestion views mounted in the document flow. */}
+        <div className="asset-body">
+          <ReviewBlocks topicKind="asset" topicId={asset.id} body={asset.body} />
+        </div>
 
         {(sources.length > 0 || asset.provenance) && (
           <div className="asset-refs">

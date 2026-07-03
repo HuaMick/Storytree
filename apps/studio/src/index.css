@@ -3730,3 +3730,223 @@ button.legend-tile:hover {
     display: none;
   }
 }
+
+/* ---------- review surface (ADR-0140 caps 7/8 — the in-flow review mount) ----------
+   Quiet, Google-Docs-adjacent: inline threads are light cards in the document flow,
+   suggestion views carry a subtle "suggested edit" affordance, per-block tools show
+   on hover in Review mode. No strikethrough anywhere. */
+
+.review-block {
+  position: relative;
+  border-radius: 6px;
+}
+/* Review posture: a whisper of hover tint so the block under the cursor reads as
+   the target of the per-block tools. */
+.review-blocks-review .review-block:hover {
+  background: color-mix(in srgb, var(--accent) 3%, transparent);
+}
+
+/* per-block hover tools ("Comment" / "Suggest") — unobtrusive, top-right */
+.review-block-tools {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+  z-index: 1;
+}
+.review-block:hover .review-block-tools,
+.review-block:focus-within .review-block-tools {
+  opacity: 1;
+}
+.review-tool {
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+}
+.review-tool:hover {
+  color: var(--accent);
+  border-color: var(--border-strong);
+}
+
+/* inline comment thread — a light card in the flow, above its anchor block */
+.inline-comment-thread {
+  margin: 10px 0;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent-weak);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05);
+  font-size: 13px;
+}
+.inline-comment-thread ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.inline-comment-thread li {
+  padding: 4px 0;
+}
+.inline-comment-thread li + li {
+  border-top: 1px solid var(--border);
+}
+.inline-comment-thread textarea {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  margin-top: 8px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  resize: vertical;
+  box-sizing: border-box;
+}
+.inline-comment-thread textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+}
+.inline-comment-thread button {
+  margin-top: 6px;
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--accent);
+  cursor: pointer;
+}
+.inline-comment-thread button:hover {
+  background: var(--accent-weak);
+}
+
+/* suggestion slot — the block's pending suggested edit, quiet, under the prose */
+.suggestion-slot {
+  margin: 8px 0 12px;
+}
+.suggestion-slot-label {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.suggestion-view {
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--accent) 3%, var(--surface));
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  font-size: 13.5px;
+}
+.suggestion-proposed {
+  margin: 0;
+}
+.suggestion-toggle {
+  font: inherit;
+  font-size: 11px;
+  margin-top: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.suggestion-toggle:hover {
+  color: var(--accent);
+}
+/* the audited original: muted, boxed — never struck through (ADR-0140) */
+.suggestion-original {
+  margin: 6px 0 0;
+  padding: 6px 8px;
+  background: var(--surface-2);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.suggestion-compose {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.suggestion-compose input {
+  flex: 1;
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+.suggestion-compose input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.suggestion-compose button,
+.suggestion-decision button {
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.suggestion-compose button:hover,
+.suggestion-decision button:hover {
+  background: var(--accent-weak);
+  color: var(--accent);
+}
+.suggestion-decision {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* per-block suggest compose (the create path for NEW suggestions) */
+.suggest-compose {
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05);
+}
+.suggest-compose textarea {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  resize: vertical;
+  box-sizing: border-box;
+}
+.suggest-compose textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+}
+.suggest-compose-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
