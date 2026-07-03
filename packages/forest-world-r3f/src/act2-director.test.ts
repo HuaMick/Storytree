@@ -204,10 +204,10 @@ test('abd-wrong-way-road-is-flagged-from-data: exactly one road declares the lay
 });
 
 // ---------------------------------------------------------------------------
-// abd-default-script-is-the-seven-approved-beats  (ADR-0147)
+// abd-default-script-is-the-approved-progressive-arc  (ADR-0147)
 // ---------------------------------------------------------------------------
 
-test('abd-default-script-is-the-seven-approved-beats: validates against BeatScript and walks end-to-end to the CTA', () => {
+test('abd-default-script-is-the-approved-progressive-arc: validates against BeatScript, IS the seven progressive-arc beats in order, and walks end-to-end to the CTA', () => {
   // The exported default script validates against the exported zod contract —
   // the SAME contract the site parses its beat copy against at build time.
   const parsed = BeatScript.safeParse(defaultScript);
@@ -291,66 +291,73 @@ test('abd-default-script-is-the-seven-approved-beats: validates against BeatScri
 });
 
 // ---------------------------------------------------------------------------
-// abd-world-holds-multiple-stories  (ADR-0147)
+// abd-forest-grows-multiple-stories  (ADR-0147)
 // ---------------------------------------------------------------------------
 
-test('abd-world-holds-multiple-stories: WorldState.stories is an array; plant-story seeds stories[0]; grow-forest raises sibling stories with mixed status', () => {
+test('abd-forest-grows-multiple-stories: plant-story seeds stories[0] without overwriting; grow-forest raises sibling stories; inter-story add-roads connects story-id endpoints', () => {
   // ADR-0147: the world no longer holds ONE story — WorldState.stories is an array
-  // of per-story nodes, each { id, label, hasWisp, status, limbs }.
-  // The initial world has an empty stories array (not a bare storyId string).
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const initWorld = initialState.world as any;
+  // of per-story nodes. The initial world has an empty stories array.
   assert.ok(
-    Array.isArray(initWorld.stories),
+    Array.isArray(initialState.world.stories),
     'initial world.stories is an empty array (ADR-0147: world holds multiple stories, not a single storyId string)',
   );
-  assert.equal(initWorld.stories.length, 0, 'initial world has no stories yet');
+  assert.equal(initialState.world.stories.length, 0, 'initial world has no stories yet');
 
-  // After beat-1 (plant-story), stories[0] is seeded with the planted story.
-  // plant-story no longer OVERWRITES — it seeds stories[0] (ADR-0147 §THE MODEL).
-  let state: DirectorState = advance(initialState, defaultScript);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const worldAfterPlant = state.world as any;
+  // After beat-1 (plant-story), stories[0] is seeded with the planted story —
+  // plant-story no longer OVERWRITES; it seeds stories[0] (ADR-0147 §THE MODEL).
+  const afterPlant: DirectorState = advance(initialState, defaultScript);
+  assert.equal(afterPlant.world.stories.length, 1, 'exactly one story after plant-story (stories[0] seeded)');
+  assert.equal(afterPlant.world.stories[0]!.id, 'story-outcome-api', 'stories[0].id matches the planted story id');
   assert.ok(
-    Array.isArray(worldAfterPlant.stories),
-    'world.stories is an array after plant-story',
-  );
-  assert.equal(worldAfterPlant.stories.length, 1, 'exactly one story after plant-story (stories[0] seeded)');
-  assert.equal(
-    worldAfterPlant.stories[0].id,
-    'story-outcome-api',
-    'stories[0].id matches the planted story id',
-  );
-  assert.ok(
-    typeof worldAfterPlant.stories[0].label === 'string' &&
-      worldAfterPlant.stories[0].label.length > 0,
+    typeof afterPlant.world.stories[0]!.label === 'string' && afterPlant.world.stories[0]!.label.length > 0,
     'stories[0].label is a non-empty string (the outcome label on the map)',
   );
 
-  // After beat-5 (grow-forest), the world holds MULTIPLE stories (neighbor islands).
-  // Advance beats 1–5: plant-story, attach-wisp, branch-caps, add-roads, grow-forest.
+  // After beat-5 (grow-forest), the world holds MULTIPLE coexisting stories
+  // (sibling island stories raised, upsert by id) — the enabler of the expansion
+  // the single-storyId model could not hold. Walk beats 1–5.
   let s: DirectorState = initialState;
-  for (let i = 0; i < 5; i++) {
-    s = advance(s, defaultScript);
-  }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const worldAfterGrow = s.world as any;
+  for (let i = 0; i < 5; i++) s = advance(s, defaultScript);
   assert.ok(
-    Array.isArray(worldAfterGrow.stories),
-    'world.stories is still an array after grow-forest',
-  );
-  assert.ok(
-    worldAfterGrow.stories.length > 1,
+    s.world.stories.length > 1,
     'more than one story after grow-forest (sibling island stories raised, ADR-0147)',
   );
-
-  // Each story carries a tri-state status: proven | building | broken.
-  // This is the ADR-0147 fix for the "latent over-claim" (all stories previously
-  // folded to a single amber hue; no broken state existed).
-  const validStatuses = new Set(['proven', 'building', 'broken']);
-  const statuses: string[] = (worldAfterGrow.stories as Array<{ status: string }>).map(
-    (st) => st.status,
+  // The opening story survives the growth (plant did not get overwritten by grow).
+  assert.ok(
+    s.world.stories.some((st) => st.id === 'story-outcome-api'),
+    'the planted opening story is still present after grow-forest (upsert, not overwrite)',
   );
+
+  // The grow-forest beat (beat 5) uses the new 'grow-forest' delta kind.
+  const beat5 = defaultScript[4]!;
+  assert.equal(beat5.id, 'beat-5-grow-forest', "beat at index 4 has id 'beat-5-grow-forest' (ADR-0147)");
+  assert.equal(beat5.delta.kind, 'grow-forest', "beat-5 delta kind is 'grow-forest' (new discriminated-union variant, ADR-0147)");
+
+  // After beat-6 (connect-stories), inter-story dependency roads connect story-id
+  // endpoints — the cross-story DAG, reusing add-roads (no new road mechanism).
+  let full: DirectorState = initialState;
+  for (let i = 0; i < 6; i++) full = advance(full, defaultScript);
+  const storyIds = new Set(full.world.stories.map((st) => st.id));
+  const interStoryRoads = full.world.roads.filter((r) => storyIds.has(r.from) && storyIds.has(r.to));
+  assert.ok(
+    interStoryRoads.length >= 1,
+    'at least one road connects two story-id endpoints after connect-stories (the cross-story DAG, ADR-0147)',
+  );
+});
+
+// ---------------------------------------------------------------------------
+// abd-story-status-is-tristate-proven-building-broken  (ADR-0147)
+// ---------------------------------------------------------------------------
+
+test('abd-story-status-is-tristate-proven-building-broken: every story carries proven/building/broken; a broken neighbor is reachable; the pulled-back forest holds all three at once', () => {
+  // Walk the full default script to the pulled-back forest.
+  let s: DirectorState = initialState;
+  for (const _ of defaultScript) s = advance(s, defaultScript);
+
+  const validStatuses = new Set(['proven', 'building', 'broken']);
+  const statuses = s.world.stories.map((st) => st.status);
+
+  // Every story's status is exactly one of the tri-state values.
   for (const status of statuses) {
     assert.ok(
       validStatuses.has(status),
@@ -358,25 +365,22 @@ test('abd-world-holds-multiple-stories: WorldState.stories is an array; plant-st
     );
   }
 
-  // The status set is GENUINELY MIXED — at least two distinct statuses present
-  // so the pull-back legend is HONEST (not uniform amber).
+  // The withered/broken state is REACHABLE (previously impossible — the latent
+  // over-claim ADR-0147 fixes): a broken neighbor exists in the grown forest.
   assert.ok(
-    new Set(statuses).size >= 2,
-    'story statuses are genuinely mixed after grow-forest (at least 2 distinct values — the forest is not uniform)',
+    statuses.includes('broken'),
+    'a broken (withered) story is present in the pulled-back forest (the withered state is real, not decorative)',
   );
 
-  // The grow-forest beat (beat 5) uses the 'grow-forest' delta kind — a new entry
-  // in the BeatDelta discriminated union (ADR-0147).
-  const beat5 = defaultScript[4]!;
+  // The forest holds ALL THREE states at once, so the pull-back legend
+  // (green = proven, sapling = building, withered = broken) is GENUINELY
+  // populated — not uniform amber.
+  assert.ok(statuses.includes('proven'), 'a proven (green) story is present');
+  assert.ok(statuses.includes('building'), 'a building (sapling) story is present');
   assert.equal(
-    beat5.id,
-    'beat-5-grow-forest',
-    "beat at index 4 has id 'beat-5-grow-forest' (ADR-0147)",
-  );
-  assert.equal(
-    beat5.delta.kind,
-    'grow-forest',
-    "beat-5 delta kind is 'grow-forest' (new discriminated-union variant, ADR-0147)",
+    new Set(statuses).size,
+    3,
+    'the pulled-back forest holds all three statuses simultaneously (the legend is genuinely populated, ADR-0147)',
   );
 });
 
