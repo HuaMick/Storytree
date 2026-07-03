@@ -69,6 +69,19 @@ type Reply =
   | { kind: 'refused'; reason: string }
   | { kind: 'unavailable'; detail: string };
 
+/** One spawn line in the live transcript (spawn-visibility, ADR-0137). The orchestrator session
+ *  spawned a sub-agent (a story-author or builder) for `unitId`; `phase` moves started → finished
+ *  (with `ok` on the finish). Keyed by role+unitId so the matching `finished` frame RESOLVES the
+ *  `started` line in place rather than appending a duplicate. Non-terminal — it rides the transcript
+ *  like a delta and never ends the stream. The line's LOOK is the story's operator-attested UAT
+ *  leg 5 (ADR-0070) — geometry/behaviour only here. */
+interface SpawnLine {
+  role: string;
+  unitId: string;
+  phase: 'started' | 'finished';
+  ok?: boolean;
+}
+
 /** One exchange in the persistent transcript: the operator's prompt echo (`› <prompt>`) + the reply
  *  that streamed in for it. Entries APPEND on each send and never replace a prior entry — the
  *  scrollback reads as one continuous terminal (multi-turn-transcript). `id` is a stable monotonic
@@ -135,17 +148,35 @@ function ResetIcon(): React.JSX.Element {
   );
 }
 
-export function ChatPanel(): React.JSX.Element {
+/** Props for ChatPanel. `onSpawnFinished` surfaces a spawn-FINISHED frame UP to the wrapping ChatDock
+ *  (live-story-island-refresh, ADR-0137) — a plain callback over the plain-JSON `spawn` frame, never a
+ *  drive import. ChatDock fences it to a story-author finish and invokes reloadTree so the just-authored
+ *  island appears live. Optional: ChatPanel renders standalone (no dock) with no callback. */
+export interface ChatPanelProps {
+  onSpawnFinished?: (frame: { role: string; unitId: string; ok?: boolean }) => void;
+}
+
+export function ChatPanel({ onSpawnFinished }: ChatPanelProps = {}): React.JSX.Element {
   const [intent, setIntent] = useState('');
   // The persistent multi-turn transcript — an ORDERED list of exchanges, newest LAST. Each send
   // APPENDS; prior exchanges stay rendered (multi-turn-transcript). The empty transcript is the idle
   // resting state.
   const [transcript, setTranscript] = useState<Exchange[]>([]);
   const [buildPhase, setBuildPhase] = useState<BuildPhase>({ kind: 'idle' });
+  // The live spawn transcript (spawn-visibility, ADR-0137) for the CURRENT in-flight exchange: the
+  // sub-agent spawns the session emitted this turn, in arrival order. A `started` frame appends a line;
+  // the matching `finished` frame (same role + unitId) RESOLVES that line in place. Non-terminal — it
+  // rides the streaming (tail/busy) exchange like a delta and never ends the stream. Cleared on each
+  // new submit AND on reset, so a new turn starts clean.
+  const [spawns, setSpawns] = useState<readonly SpawnLine[]>([]);
   // A re-entrancy guard so a double-submit (two synchronous clicks before the stream starts) cannot
   // fire a second POST. State alone is racy across synchronous events in the same tick; the ref flips
   // immediately. Mirrors usePollableRun's single-in-flight guard in BuildSection.
   const inFlight = useRef(false);
+  // Hold the latest onSpawnFinished in a ref so the stream callback (created inside the stable
+  // `submit`) always calls the current prop without re-creating `submit` on every render.
+  const onSpawnFinishedRef = useRef(onSpawnFinished);
+  onSpawnFinishedRef.current = onSpawnFinished;
   // Monotonic id source for exchange keys — survives appends without index churn.
   const nextId = useRef(0);
   // The AbortController for the CURRENT in-flight send (transcript-reset). Its signal is threaded into
@@ -203,6 +234,7 @@ export function ChatPanel(): React.JSX.Element {
     if (!trimmed) return; // client-side empty-intent guard — never POST an empty intent
 
     inFlight.current = true;
+    setSpawns([]); // clear any spawn lines from the previous exchange — this turn starts clean
     // APPEND a new exchange (prompt echo + an in-flight busy reply). Prior exchanges stay untouched —
     // the append-not-replace heart of the transcript (mtt-appends-not-replaces / mtt-echoes-each-prompt).
     const id = nextId.current++;
@@ -241,6 +273,43 @@ export function ChatPanel(): React.JSX.Element {
             // A non-terminal token fragment — append and re-render the tail (newest) entry live.
             streamed += event.text;
             patchTailReply({ kind: 'busy', streamed });
+            return;
+          }
+          if (event.type === 'spawn') {
+            // A non-terminal spawn frame (ADR-0137) — append/resolve a spawn line; NEVER terminate the
+            // stream and NEVER touch the tail reply (it must not replace the `done` proposal). A
+            // `started` frame appends a new line; a `finished` frame RESOLVES the matching started line
+            // (same role + unitId) in place. The spawns ride the current in-flight (tail) exchange.
+            const frame = event;
+            setSpawns((prev) => {
+              if (frame.phase === 'finished') {
+                const idx = prev.findIndex(
+                  (s) => s.role === frame.role && s.unitId === frame.unitId && s.phase === 'started',
+                );
+                const resolved: SpawnLine = {
+                  role: frame.role,
+                  unitId: frame.unitId,
+                  phase: 'finished',
+                  ...(frame.ok !== undefined ? { ok: frame.ok } : {}),
+                };
+                if (idx === -1) return [...prev, resolved];
+                const next = prev.slice();
+                next[idx] = resolved;
+                return next;
+              }
+              return [...prev, { role: frame.role, unitId: frame.unitId, phase: 'started' }];
+            });
+            // Surface a spawn-FINISHED frame UP to the wrapping dock (live-story-island-refresh,
+            // ADR-0137) — the dock fences it to a story-author finish and reloads the map. Plain
+            // callback over the plain-JSON frame; ChatPanel does NOT decide the fence (role-agnostic
+            // here), it just relays the finish.
+            if (frame.phase === 'finished') {
+              onSpawnFinishedRef.current?.({
+                role: frame.role,
+                unitId: frame.unitId,
+                ...(frame.ok !== undefined ? { ok: frame.ok } : {}),
+              });
+            }
             return;
           }
           terminal = event;
@@ -306,6 +375,7 @@ export function ChatPanel(): React.JSX.Element {
     }
     inFlight.current = false;
     setTranscript([]); // empty the scrollback back to the idle resting state
+    setSpawns([]); // clear the in-flight spawn lines too — a reset starts clean
     setBuildPhase({ kind: 'idle' }); // any in-flight build-progress/accept phase is reset too
     setIntent(''); // clear the input
     // Return the input to its one-row resting height (the auto-grow base).
@@ -392,13 +462,41 @@ export function ChatPanel(): React.JSX.Element {
 
   /** Render ONE exchange's reply body — the per-entry terminal render (done/error/refused/unavailable)
    *  or the live busy stream. The build affordance + progress attach to a `done` entry via buildPhase
-   *  scoped to this exchange's id. */
-  const renderReply = (exchange: Exchange): React.JSX.Element => {
+   *  scoped to this exchange's id. `isTail` marks the newest exchange — the only one that can be
+   *  in-flight — under which the live SPAWN transcript (scoped to the current turn) renders. */
+  const renderReply = (exchange: Exchange, isTail: boolean): React.JSX.Element => {
     const { reply, id } = exchange;
     const buildForThis =
       buildPhase.kind !== 'idle' && buildPhase.exchangeId === id ? buildPhase : null;
     return (
       <>
+        {/* The live SPAWN transcript (spawn-visibility, ADR-0137): one line per sub-agent the session
+            spawned this turn, in arrival order. A `started` frame reads "🔧 spawning <role> for
+            <unitId>…"; the matching `finished` frame resolves it to "✓ <role> finished" (or an honest
+            "✗ <role> failed" on ok:false). Non-terminal — the lines ride the current (tail) exchange
+            alongside its reply (they survive into its terminal render, above the proposal/error) and
+            are cleared on the next send. Scoped to the tail exchange (`spawns` is the current turn's).
+            The line's LOOK is the story's operator-attested UAT leg 5 (ADR-0070); geometry/behaviour
+            only here. */}
+        {isTail && spawns.length > 0 && (
+          <ul className="chat-spawns">
+            {spawns.map((s, i) => (
+              <li
+                key={`${s.role}:${s.unitId}:${i}`}
+                className={`chat-spawn-line chat-spawn-${s.phase}${
+                  s.phase === 'finished' && s.ok === false ? ' chat-spawn-failed' : ''
+                }`}
+              >
+                {s.phase === 'started'
+                  ? `🔧 spawning ${s.role} for ${s.unitId}…`
+                  : s.ok === false
+                    ? `✗ ${s.role} failed`
+                    : `✓ ${s.role} finished`}
+              </li>
+            ))}
+          </ul>
+        )}
+
         {reply.kind === 'busy' && (
           // The non-terminal "thinking/streaming" affordance for the tail entry. Before any token
           // arrives it shows an indeterminate progress bar ("working…"); once deltas stream in, the
@@ -529,7 +627,7 @@ export function ChatPanel(): React.JSX.Element {
         {/* The persistent transcript — each exchange stacks top-to-bottom: a `› <prompt>` echo line
             ABOVE its reply, prior exchanges never replaced (multi-turn-transcript). The empty
             transcript is the idle resting scrollback. */}
-        {transcript.map((exchange) => (
+        {transcript.map((exchange, i) => (
           <div className="chat-exchange" key={exchange.id}>
             <p className="chat-echo">
               <span className="chat-prompt-glyph" aria-hidden="true">
@@ -537,7 +635,7 @@ export function ChatPanel(): React.JSX.Element {
               </span>
               <span className="chat-echo-text">{exchange.prompt}</span>
             </p>
-            {renderReply(exchange)}
+            {renderReply(exchange, i === transcript.length - 1)}
           </div>
         ))}
       </div>
