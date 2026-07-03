@@ -41,9 +41,9 @@ concrete once the beats exist on the site.
 THE FRAME (owner decision 5). Per page, exactly one of:
 
 - **Fold into Act 2** — the page's job is absorbed by a beat or the CTA state (candidates: the
-  how-it-works narrative IS the five beats; the roadmap's "what's coming" may live behind the
-  pull-back / CTA). Folding means the page's URL redirects or retires WITH its inbound links
-  updated — never a dead route.
+  how-it-works narrative IS the walkthrough's progressive arc (the seven beats, ADR-0147); the
+  roadmap's "what's coming" may live behind the pull-back / CTA). Folding means the page's URL
+  redirects or retires WITH its inbound links updated — never a dead route.
 - **Discard** — the page's job no longer exists post-experience. Discard is honest deletion (plus
   redirect where external links are known), not an unlinked zombie.
 - **Keep as a plain static page** — the page earns its keep as calm reference (candidates:

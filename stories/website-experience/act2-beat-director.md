@@ -54,21 +54,26 @@ to the CTA.
 **Depends on —** [`r3f-world-spike`](r3f-world-spike.md) — the director lives in the mapper's
 package and emits the World / scene inputs the mapper draws.
 
-> **Proof status (honest) — BUILT at the FIVE-beat scope; re-specced to the PROGRESSIVE arc
-> (ADR-0147), so the authored status is `proposed` pending the re-build.** The prior build stands as
-> HISTORY, not a claim on the grown scope: the gated SDK leaf authored the NET-NEW director through the
-> real prove-it-gate at the five-beat scope — the test observed red at HEAD (module-not-found,
+> **Proof status (honest) — the GROWN progressive-arc scope (ADR-0147) is BUILT and leaf-proven; the
+> prior FIVE-beat build stands beneath it as append-only history.** The authored frontmatter status is
+> `proposed` (leaf-proven lives in prose, not the frontmatter — `healthy` is earned through the story
+> gate, never authored, ADR-0020). The grown re-build: the gated SDK leaf re-authored the director
+> through the real prove-it-gate at the grown scope — the test observed RED at HEAD against the
+> single-story module (`world.storyId` / the five-beat `defaultScript` — no `grow-forest` delta, no
+> `WorldState.stories`, no tri-state `status`), then GREEN across all six contracts once the module grew
+> (run `real-mr4gzkfu`, signed PASS @ `8aa8d0f` 2026-07-03, `editsExisting`, persisted to
+> `events.verdict` via `--store pg`; package typecheck + suite observed green in the installed
+> worktree). `storytree coverage act2-beat-director` reports **6/6** after the coverage-id consolidation
+> (`b5bb800`). The two load-bearing thesis contracts (`abd-green-only-on-signed-proof`,
+> `abd-wrong-way-road-is-flagged-from-data`) carried through the re-spec VERBATIM.
+>
+> The prior FIVE-beat build stands as HISTORY, not a claim on the grown scope, and is NOT amended
+> (append-only, ADR-0044): the gated SDK leaf authored the NET-NEW director through the real
+> prove-it-gate at the five-beat scope — the test observed red at HEAD (module-not-found,
 > `act2-director.ts` did not exist), then the pure module green (run `real-mr32b6ib`, signed PASS @
-> `2358bc4` 2026-07-02, persisted to `events.verdict`; package typecheck + suite observed green in the
-> installed worktree). That five-beat build is a true, signed historical fact and is NOT amended
-> (append-only, ADR-0044). **The GROWN scope (ADR-0147) is not yet proven:** the owner's 2026-07-03
-> direction expands the walk from the loved single island to the full forest, which grows the
-> director's vocabulary — `WorldState` now holds multiple stories with a tri-state status, a new
-> `grow-forest` delta raises neighbor islands, and the default script is the progressive arc (contract
-> list below, 6 contracts). The re-build reverts this capability to `building`, observes RED at the
-> grown scope, and re-proves GREEN — a new signed verdict on top of (never replacing) the `2358bc4`
-> history. The two load-bearing thesis contracts (`abd-green-only-on-signed-proof`,
-> `abd-wrong-way-road-is-flagged-from-data`) carry through the re-spec verbatim.
+> `2358bc4` 2026-07-02, persisted to `events.verdict`). That five-beat verdict is a true, signed
+> historical fact beneath the grown `8aa8d0f` verdict — the re-build proved the grown vocabulary on top
+> of it, never replacing it.
 >
 > Consolidated on top of the five-beat build (already landed, kept as the baseline the re-build grows):
 > the `zod` dep (orchestrator glue, a leaf never touches package.json); the exported ZOD contract
@@ -77,12 +82,12 @@ package and emits the World / scene inputs the mapper draws.
 > refine) — the teaching claims are runtime contracts, not type hints; the named `defaultScript` export
 > and the pure director surface re-exported from the root barrel
 > (`packages/forest-world-r3f/src/index.ts`); and contract-id-led tests (`storytree coverage
-> act2-beat-director`). The progressive arc is APPROVED CONTENT before the re-build —
+> act2-beat-director`). The progressive arc is APPROVED CONTENT —
 > [ADR-0147](../../docs/decisions/0147-act-2-grows-progressively-from-the-loved-single-island-to-th.md)
 > (owner-directed 2026-07-03) fixes the grown structure, and the reveal→gripe mapping is
 > [docs/research/vibe-coding-coverage-map-2026.md](../../docs/research/vibe-coding-coverage-map-2026.md)
-> ("How the walkthrough uses this map"); the choreography stays a provable ENGINE, now at the grown
-> scope, rather than ad-hoc site script.
+> ("How the walkthrough uses this map"); the choreography is a provable ENGINE proven at the grown
+> scope (`8aa8d0f`), rather than ad-hoc site script.
 
 ## Guidance
 

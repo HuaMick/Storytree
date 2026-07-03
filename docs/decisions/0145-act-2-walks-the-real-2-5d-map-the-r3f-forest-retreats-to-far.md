@@ -83,6 +83,12 @@ The forces that make the pivot cheap and coherent:
    at the bottom. Plain language and the build-time narration/script validation wall carry over.
 5. **Everything else in the walkthrough spec is unchanged:** five beats, Next-only visitor pacing,
    Back/skip/Escape affordances, the honest diorama-closing CTA.
+   *(Update 2026-07-03, [ADR-0147](0147-act-2-grows-progressively-from-the-loved-single-island-to-th.md):
+   the "five beats" here grew to a SEVEN-beat progressive arc — the loved single-island opening
+   (beats 1–4) is kept verbatim, then the forest grows to the full legible map (grow-forest →
+   inter-story roads → pull-back). ADR-0147 amends this ADR; the 2.5D substrate, the Next-only pacing,
+   the callout narration, and the CTA STAND unchanged — only the beat structure on the substrate grows.
+   Noted in place per ADR-0139.)*
 6. **The replay/deep-link question is closed: replay-only is final.** At the same gate the owner
    closed [ADR-0134](0134-public-website-as-a-two-act-vibe-coding-experience-terminal.md) §5's last
    open UX half: the experience replays every visit and Act 2 gets **no** standalone deep-link.

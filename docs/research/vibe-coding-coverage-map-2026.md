@@ -112,7 +112,7 @@ means "proven against its declared obligations," not "correct in every unstated 
 | Gripe | storytree mechanism | Cited |
 |---|---|---|
 | Babysitting / botsitting (~6.4 hrs/week "the agent types, I check, I'm tired") | **Wisps — presence without obligation**: a soft mark drifts over live work; the visitor/owner *watches*, they don't *approve each step* | ADR-0138 · `packages/notice-board/src/claim.ts` · **the walkthrough's beat 2** |
-| Terminal sprawl — 15 sessions, no single overview | **One forest on one screen** — the anti-storm. The notice board is session presence; the map is the overview Act 1's HUD refuses to be | ADR-0033 (notice board) · `packages/notice-board/` · **the walkthrough's beat 5 / pull-back** |
+| Terminal sprawl — 15 sessions, no single overview | **One forest on one screen** — the anti-storm. The notice board is session presence; the map is the overview Act 1's HUD refuses to be | ADR-0033 (notice board) · `packages/notice-board/` · **the walkthrough's pull-back (beat 7, ADR-0147)** |
 | Done vs in-flight vs abandoned is unknowable | The **status legend**: green = proven, sapling = in-progress, withered = broken — derived from signed verdicts, not self-report; and the **wisp is a forced, CI-cleared story-claim** (one coordination + observability layer) | ADR-0040/0138/0142 · status `packages/forest-world/src/scene.ts:45` · claim `packages/notice-board/src/claim.ts:51` |
 | "Agent A doesn't know Agent B changed the API it depends on" | **Per-unit write-claim** refuses a *second concurrent build of one unit* | ADR-0121 · `packages/notice-board/src/claim.ts` (per-unit build-claim, stale-reclaim window) |
 | Session amnesia ("every new conversation is his first day") | The **Library is the persistent cross-session memory** (pull-based, just-in-time), and the **graduation loop** turns repeated friction into durable guidance so the *next* session doesn't relearn it | ADR-0023 (pull-based CLI) · ADR-0032/0095 (cite + memory→Library graduation) |
@@ -180,7 +180,10 @@ in storytree's problem domain.
 
 The owner's direction is that Act 2 should **open on one loved island and expand slowly to the full
 forest map, revealing more real UI vocabulary as it goes**. This map is the menu for that reveal: each
-UI element the expansion surfaces should teach a **covered** gripe —
+UI element the expansion surfaces teaches a **covered** gripe. This is the source-of-record reveal→gripe
+menu ([ADR-0147](../decisions/0147-act-2-grows-progressively-from-the-loved-single-island-to-th.md),
+which decided the SEVEN-beat progressive arc: beats 1–4 are the loved opening kept verbatim, beats 5–7
+grow the forest) —
 
 - **beat 1 · plant a story** → *comprehension debt / orphaned intent (C-13)* — intent on a label.
 - **beat 2 · watch a wisp** → *babysitting / botsitting (D-17)* — presence without obligation.
@@ -188,13 +191,17 @@ UI element the expansion surfaces should teach a **covered** gripe —
   dominant pain**; the map's most load-bearing teach.
 - **beat 4 · stories connect (the wrong-way road)** → *layer-jumps, god-modules, hidden coupling
   (C-9,11,12)* — **not** duplication (see the over-claim flag).
-- **beat 5 · pull back to one forest (green/sapling/withered)** → *terminal sprawl, done-vs-in-flight
-  (D-18,19)* — the anti-storm.
+- **beat 5 · the forest grows (neighbor islands rise, mixed status)** → *comprehension-debt /
+  orphaned-architecture at scale (C-13)* — the whole forest legible at a glance, not one tree.
+- **beat 6 · stories depend on each other (inter-story dependency roads)** → *hidden coupling /
+  blast-radius (C-11,12)* — the cross-story DAG; still coupling, **not** duplication.
+- **beat 7 · pull back to one forest (green/sapling/withered)** → *terminal sprawl, done-vs-in-flight
+  (D-18,19)* — the anti-storm (renumbered from beat 5; teaching role unchanged).
 
-The expansion's *new* reveals (more islands, the real dependency roads between stories, the status
-legend, session wisps, the pull-back to one legible forest) each correspond to a covered row above —
-so the walk, made watchable, **is** this coverage map. Phase 2 routes the hierarchy/beat-vocabulary
-question to `story-author`; this doc is its input.
+The expansion's beats 5–7 (more islands, the real dependency roads between stories, the status legend,
+session wisps, the pull-back to one legible forest) each correspond to a covered row above — so the
+walk, made watchable, **is** this coverage map. Phase 2 routes the hierarchy/beat-vocabulary question
+to `story-author`; this doc is its input.
 
 ---
 

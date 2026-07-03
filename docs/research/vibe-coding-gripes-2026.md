@@ -95,6 +95,16 @@ still ask a human (**75.3%**): "when I don't trust AI's answers."
 
 ## The Act 2 spine — dev goals × pains × map (the beat table)
 
+> **Update (2026-07-03, [ADR-0147](../decisions/0147-act-2-grows-progressively-from-the-loved-single-island-to-th.md)):**
+> the five-row spine below is no longer the whole Act 2 — the owner grew it into a SEVEN-beat
+> PROGRESSIVE arc that keeps this loved opening (beats 1–4) verbatim, then grows the forest: beat 5
+> *grow-forest* (neighbor islands rise, mixed status — comprehension-debt at scale, C-13), beat 6
+> *connect-stories* (inter-story dependency roads draw the cross-story DAG — hidden coupling /
+> blast-radius, C-11/12, still coupling NOT duplication), and *pull-back* renumbers to beat 7. The
+> canonical reveal→gripe menu is now
+> [`vibe-coding-coverage-map-2026.md`](vibe-coding-coverage-map-2026.md) ("How the walkthrough uses
+> this map"); the table below is kept as the base evidence, read with that expansion.
+
 | Act 2 beat | Goal for the dev | Pain it answers | How the map shows it |
 |---|---|---|---|
 | **1 · Plant a story** | Capture intent as one bounded, named unit before code | Orphaned architecture; no mental-model owner (13) | A seed grows into a tree with its **outcome on a label** — intent is a thing on the map, not buried in a chat log |

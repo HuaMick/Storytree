@@ -37,6 +37,13 @@ remain open, carried as that story's open modeling calls. Stays **proposed** —
 while the design settles. *(Overtaken later the same day at the attestation gate — see the accepted
 entry above: replay decided, the ADR accepted.)*
 
+**Update (2026-07-03, [ADR-0147](0147-act-2-grows-progressively-from-the-loved-single-island-to-th.md)):**
+§3's "five approved beats" is no longer the Act 2 spine. The owner directed a PROGRESSIVE EXPANSION —
+the loved single-island opening is KEPT verbatim (beats 1–4), then the forest grows to the full legible
+map (grow-forest → inter-story roads → pull-back), a SEVEN-beat arc. ADR-0147 amends this ADR (the
+two-act concept STANDS; only Act 2's beat count grows). The decided prose above is left as history per
+ADR-0139.
+
 ## Context
 
 The public site (`storytree-web` — an Astro static + Keystatic brochure, a consuming surface per
