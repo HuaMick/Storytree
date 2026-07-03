@@ -275,7 +275,7 @@ function asNumberOrNull(v: unknown): number | null {
   return typeof v === 'number' && Number.isFinite(v) ? v : null;
 }
 
-/** Normalise an incoming comment anchor (topic / section / text-quote / block). */
+/** Normalise an incoming comment anchor (topic / section / block). */
 function readAnchor(raw: Record<string, unknown>): CommentAnchor {
   const kindRaw = asString(raw.kind);
   const headingSlug = asString(raw.headingSlug).trim() || null;
@@ -284,8 +284,9 @@ function readAnchor(raw: Record<string, unknown>): CommentAnchor {
   let kind: CommentAnchor['kind'] = 'topic';
   // Block anchor (ADR-0140): carry the handle through — the store boundary's
   // normalizeCommentAnchor is the canonical wall and keeps kind:'block' + blockId.
+  // The old kind:'text' is retired (remove-text-selection-anchoring): a legacy text
+  // anchor now degrades to 'topic' (its span fields ride inert; the store strips them).
   if (kindRaw === 'block' && blockId) kind = 'block';
-  else if (kindRaw === 'text' && quote) kind = 'text';
   else if (kindRaw === 'section' && headingSlug) kind = 'section';
   return {
     kind,

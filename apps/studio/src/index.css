@@ -529,28 +529,6 @@ code {
 .md-heading:hover .md-anchor {
   opacity: 1;
 }
-.md-comment-btn {
-  margin-left: 10px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  border-radius: 12px;
-  padding: 1px 8px;
-  font-size: 12px;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.1s;
-  vertical-align: middle;
-}
-.md-heading:hover .md-comment-btn {
-  opacity: 1;
-}
-.md-comment-btn.has-comments {
-  opacity: 1;
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-weak);
-}
-
 .markdown p,
 .markdown ul,
 .markdown ol {
@@ -676,128 +654,12 @@ code {
   font-family: var(--mono);
 }
 
-.comments {
-  position: sticky;
-  top: 0;
-  align-self: start;
-  height: calc(100vh - 52px);
-  overflow-y: auto;
-  border-left: 1px solid var(--border);
-  background: var(--surface);
-  padding: 18px 16px 60px;
-}
-.comments-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-.comments-head h3 {
-  margin: 0;
-  font-size: 15px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 .toggle {
   font-size: 12px;
   color: var(--muted);
   display: flex;
   align-items: center;
   gap: 5px;
-}
-
-.composer {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px;
-  margin-bottom: 16px;
-}
-.target-select,
-.composer-body {
-  width: 100%;
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  font-family: inherit;
-  font-size: 13px;
-  padding: 6px 8px;
-  background: var(--surface);
-}
-.target-select {
-  margin-bottom: 8px;
-}
-.composer-body {
-  resize: vertical;
-  line-height: 1.5;
-}
-.composer-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 8px;
-}
-
-.comment-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.comment {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 12px;
-  background: var(--surface);
-}
-.comment.resolved {
-  opacity: 0.66;
-  background: var(--good-weak);
-  border-color: #cfe7d8;
-}
-.comment-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-.comment-author {
-  font-weight: 600;
-  font-size: 13px;
-}
-.section-tag {
-  display: inline-block;
-  font-size: 11.5px;
-  background: var(--accent-weak);
-  color: var(--accent);
-  border-radius: 5px;
-  padding: 1px 7px;
-  margin-bottom: 6px;
-}
-.comment-body {
-  font-size: 13.5px;
-}
-.comment-body p:last-child {
-  margin-bottom: 0;
-}
-.comment-actions {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
-}
-.pill {
-  font-size: 10.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 1px 7px;
-  border-radius: 10px;
-}
-.resolved-pill {
-  background: var(--good-weak);
-  color: var(--good);
 }
 
 /* ---------- buttons ---------- */
@@ -1256,206 +1118,9 @@ a.stat:hover {
   padding-right: 46px;
 }
 
-mark.st-hl {
-  background-color: color-mix(in srgb, var(--hl, #f5c542) 36%, transparent);
-  color: inherit;
-  border-radius: 2px;
-  padding: 0 1px;
-  cursor: pointer;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-  transition: background-color 0.12s;
-}
-mark.st-hl:hover {
-  background-color: color-mix(in srgb, var(--hl, #f5c542) 58%, transparent);
-}
-mark.st-hl[data-resolved] {
-  background-color: color-mix(in srgb, var(--hl, #f5c542) 13%, transparent);
-  text-decoration: line-through;
-  text-decoration-color: color-mix(in srgb, var(--hl, #f5c542) 55%, transparent);
-}
-mark.st-hl.flash {
-  animation: hlflash 1s ease;
-}
-@keyframes hlflash {
-  0%,
-  100% {
-    background-color: color-mix(in srgb, var(--hl, #f5c542) 36%, transparent);
-  }
-  30% {
-    background-color: color-mix(in srgb, var(--hl, #f5c542) 88%, transparent);
-  }
-}
-
-.gutter {
-  position: absolute;
-  top: 0;
-  right: 12px;
-  width: 14px;
-  height: 100%;
-  pointer-events: none;
-}
-.gutter-tick {
-  position: absolute;
-  right: 0;
-  width: 11px;
-  height: 7px;
-  border: none;
-  border-radius: 2px;
-  cursor: pointer;
-  pointer-events: auto;
-  opacity: 0.85;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
-}
-.gutter-tick:hover {
-  opacity: 1;
-  width: 14px;
-}
-.gutter-tick.resolved {
-  opacity: 0.38;
-}
-
-.sel-popover {
-  position: fixed;
-  transform: translate(-50%, calc(-100% - 9px));
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  background: #1f2430;
-  border-radius: 9px;
-  padding: 6px 8px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.32);
-  z-index: 60;
-}
-.sel-popover::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: -5px;
-  width: 10px;
-  height: 10px;
-  background: #1f2430;
-  transform: translateX(-50%) rotate(45deg);
-}
-.sel-colors {
-  display: flex;
-  gap: 5px;
-}
-.sel-color {
-  width: 16px;
-  height: 16px;
-  padding: 0;
-  border-radius: 50%;
-  border: 2px solid transparent;
-  cursor: pointer;
-}
-.sel-color.active {
-  border-color: #fff;
-}
-.sel-comment-btn {
-  border: none;
-  background: #fff;
-  color: #1f2430;
-  border-radius: 6px;
-  padding: 4px 10px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.sel-comment-btn:hover {
-  background: #e9e9ee;
-}
-
-.hovercard {
-  position: fixed;
-  transform: translateY(calc(-100% - 10px));
-  max-width: 280px;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  padding: 8px 10px;
-  box-shadow: var(--shadow);
-  z-index: 55;
-  pointer-events: none;
-  font-size: 12.5px;
-}
-.hovercard-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 3px;
-}
-.hovercard-body {
-  color: #374151;
-}
-.dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  display: inline-block;
-  flex: 0 0 auto;
-}
-
-.composer-hint {
-  margin: 0 0 10px;
-}
-.text-target {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  padding: 5px 8px;
-  margin-bottom: 8px;
-  font-size: 12.5px;
-}
-.text-target-quote {
-  flex: 1 1 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-style: italic;
-  color: #374151;
-}
-.text-target-clear {
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 16px;
-  line-height: 1;
-  color: var(--muted);
-  padding: 0 2px;
-}
-.quote-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  padding: 2px 8px;
-  margin-bottom: 6px;
-  font-size: 11.5px;
-  font-style: italic;
-  color: #374151;
-  cursor: pointer;
-}
-.quote-tag:hover {
-  border-color: var(--accent);
-}
-.comment.flash {
-  animation: cflash 1.2s ease;
-}
-@keyframes cflash {
-  0%,
-  100% {
-    box-shadow: none;
-  }
-  25% {
-    box-shadow: 0 0 0 2px var(--accent);
-  }
-}
+/* The old text-selection / quote-highlight commenting layer (the range highlight marks, the
+   gutter, the select-to-comment popover, the hovercard, and the quote-tag composer) was removed
+   with the clean swap to block placement (remove-text-selection-anchoring, ADR-0146). */
 
 /* category dots + sidebar sub-items */
 .cat-dot {
@@ -3812,6 +3477,14 @@ button.legend-tile:hover {
 .cm-save {
   margin-left: auto;
 }
+.cm-cancel {
+  margin-left: auto;
+}
+/* When Cancel + Save sit together, only the first (Cancel) takes the auto margin that
+   pushes the pair to the right; Save follows it with a small gap. */
+.cm-cancel + .cm-save {
+  margin-left: 0;
+}
 .cm-save-note {
   margin: -4px 0 10px;
   padding: 6px 10px;
@@ -3831,19 +3504,24 @@ button.legend-tile:hover {
   background: color-mix(in srgb, var(--danger) 8%, var(--surface));
 }
 
-/* The split — source | preview. Stacks below 860px. */
+/* The split — source | preview. Stacks below 860px. `align-items: stretch` makes the two
+   panes share the tallest row height so the source and preview always line up (the preview
+   grows with rendered content; the source textarea flexes to match — see below). */
 .review-split {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
-  align-items: start;
+  align-items: stretch;
 }
 @media (max-width: 860px) {
   .review-split {
     grid-template-columns: 1fr;
   }
 }
+/* Each pane is a flex column (label + body) so its body can fill the stretched row height. */
 .review-pane {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
 }
 .review-pane-label {
@@ -3858,6 +3536,9 @@ button.legend-tile:hover {
   display: block;
   width: 100%;
   box-sizing: border-box;
+  /* flex:1 fills the stretched pane so the source matches the preview's height; min-height
+     keeps a comfortable floor when the content is short. */
+  flex: 1 1 auto;
   min-height: 360px;
   padding: 12px 14px;
   font-family: var(--mono);
@@ -3876,6 +3557,7 @@ button.legend-tile:hover {
   box-shadow: 0 0 0 2px var(--accent-weak);
 }
 .review-preview-body {
+  flex: 1 1 auto;
   min-height: 360px;
   padding: 4px 14px 14px;
   border: 1px solid var(--border);

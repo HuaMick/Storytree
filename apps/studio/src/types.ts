@@ -13,18 +13,16 @@ export type TopicKind = 'doc' | 'asset';
  *
  * - `topic`   — the whole document/artifact.
  * - `section` — a specific heading (`headingSlug` matches the rendered id).
- * - `text`    — an exact span, anchored by the W3C Web Annotation **text-quote**
- *   model: the exact `quote` plus a little `prefix`/`suffix` context so it can be
- *   re-found after the doc re-renders or is edited. `headingSlug` scopes the
- *   search; `startOffset` is a position hint for disambiguation; `color` is the
- *   highlight tag.
  * - `block`   — a specific content block within the topic (`blockId` is the stable
- *   handle; ADR-0140 block-anchor model). The text-span fields stay null; the
- *   store boundary (`normalizeCommentAnchor`) strips them on write anyway. The
- *   `text` kind is retired by the remove-text-selection-anchoring capability.
+ *   handle; ADR-0140 block-anchor model). This is the live commenting model.
+ *
+ * The old `text` (W3C text-quote) kind is RETIRED (remove-text-selection-anchoring, ADR-0146):
+ * text-selection anchoring is a clean swap to block placement. The `quote`/`prefix`/`suffix`/
+ * `startOffset`/`color` fields remain only as inert nullable columns the store round-trips (the
+ * write boundary `normalizeCommentAnchor` strips them); no client code reads or writes them.
  */
 export interface CommentAnchor {
-  kind: 'topic' | 'section' | 'text' | 'block';
+  kind: 'topic' | 'section' | 'block';
   /** Stable block handle; present when kind === 'block'. */
   blockId?: string;
   headingSlug: string | null;
@@ -765,19 +763,3 @@ export interface BuildStatus {
   reason?: string;
 }
 
-/** Highlight colour palette for text-anchored comments. */
-export interface HighlightColor {
-  id: string;
-  label: string;
-  value: string;
-}
-
-export const HIGHLIGHT_COLORS: HighlightColor[] = [
-  { id: 'yellow', label: 'Yellow', value: '#f5c542' },
-  { id: 'green', label: 'Green', value: '#34c759' },
-  { id: 'blue', label: 'Blue', value: '#3b9eff' },
-  { id: 'pink', label: 'Pink', value: '#ff5fa2' },
-  { id: 'purple', label: 'Purple', value: '#af52de' },
-];
-
-export const DEFAULT_HIGHLIGHT = '#f5c542';

@@ -32,25 +32,31 @@ vi.mock('./Markdown', () => ({
 }));
 
 import { ReviewEditor } from './ReviewEditor';
-import { ReviewModeContext } from './ReviewToggle';
+import { ReviewModeContext, SetReviewModeContext } from './ReviewToggle';
 
 const BODY = 'First paragraph.\n\nSecond paragraph.';
 
 const flush = (): Promise<void> => act(async () => {});
 
-function renderEditor(mode: 'view' | 'review', body = BODY) {
+function renderEditor(
+  mode: 'view' | 'review',
+  body = BODY,
+  setMode: (m: 'view' | 'review') => void = () => {},
+) {
   return render(
     <ReviewModeContext.Provider value={mode}>
-      <ReviewEditor
-        asset={{
-          id: 'oq-x',
-          category: 'template',
-          title: 'T',
-          description: 'D',
-          body,
-          references: [],
-        }}
-      />
+      <SetReviewModeContext.Provider value={setMode}>
+        <ReviewEditor
+          asset={{
+            id: 'oq-x',
+            category: 'template',
+            title: 'T',
+            description: 'D',
+            body,
+            references: [],
+          }}
+        />
+      </SetReviewModeContext.Provider>
     </ReviewModeContext.Provider>,
   );
 }
@@ -119,5 +125,52 @@ describe('ReviewEditor', () => {
     const del = container.querySelector('del.cm-del');
     expect(del).toBeTruthy();
     expect(del?.textContent).toBe('gone');
+  });
+
+  it('re-toolbar-preserves-caret: a toolbar insert restores focus + selection to the wrapped text (the same path that restores scroll)', async () => {
+    renderEditor('review', 'hello world');
+    const source = screen.getByLabelText('Markdown source') as HTMLTextAreaElement;
+    // Select "hello", then wrap it — the value is rewritten, which would otherwise drop the
+    // caret and snap the scroll to the top.
+    source.focus();
+    source.setSelectionRange(0, 5);
+    fireEvent.click(screen.getByTitle('Insert {++ … ++}'));
+    await flush();
+    expect(source.value).toBe('{++hello++} world');
+    // Focus stayed in the textarea (the layout-effect restore ran)…
+    expect(document.activeElement).toBe(source);
+    // …and the selection is back on the wrapped inner text, not reset to the top (offset 0).
+    expect(source.value.slice(source.selectionStart, source.selectionEnd)).toBe('hello');
+    expect(source.selectionStart).toBe(3);
+  });
+
+  it('re-cancel-reverts-edits-and-exits: Cancel discards in-progress edits and returns to View', async () => {
+    const setMode = vi.fn();
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderEditor('review', BODY, setMode);
+    const source = screen.getByLabelText('Markdown source') as HTMLTextAreaElement;
+    fireEvent.change(source, { target: { value: 'scratch edits that should be discarded' } });
+    expect(source.value).toBe('scratch edits that should be discarded');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await flush();
+    // The source reverts to the original body…
+    expect((screen.getByLabelText('Markdown source') as HTMLTextAreaElement).value).toBe(BODY);
+    // …and the editor asks to switch back to View.
+    expect(setMode).toHaveBeenCalledWith('view');
+    confirmSpy.mockRestore();
+  });
+
+  it('re-cancel-guards-unsaved-edits: declining the confirm keeps the edits and stays in Edit', async () => {
+    const setMode = vi.fn();
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    renderEditor('review', BODY, setMode);
+    const source = screen.getByLabelText('Markdown source') as HTMLTextAreaElement;
+    fireEvent.change(source, { target: { value: 'keep me' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await flush();
+    // The edits survive and the mode is not switched.
+    expect((screen.getByLabelText('Markdown source') as HTMLTextAreaElement).value).toBe('keep me');
+    expect(setMode).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
   });
 });

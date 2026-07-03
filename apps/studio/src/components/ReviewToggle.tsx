@@ -24,6 +24,14 @@ export type ReviewMode = 'view' | 'review';
  */
 export const ReviewModeContext = createContext<ReviewMode>('view');
 
+/**
+ * A setter published alongside the mode so a child (e.g. the editor's Cancel button)
+ * can return the surface to View without owning the toggle. Default is a no-op so a
+ * consumer rendered outside a ReviewToggle tree stays inert. The toggle button's own
+ * click behaviour is unchanged — this only exposes the same state to descendants.
+ */
+export const SetReviewModeContext = createContext<(mode: ReviewMode) => void>(() => {});
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 interface ReviewToggleProps {
@@ -48,17 +56,19 @@ export function ReviewToggle({ children }: ReviewToggleProps) {
 
   return (
     <ReviewModeContext.Provider value={mode}>
-      <button
-        type="button"
-        className="review-mode-toggle"
-        onClick={toggle}
-        aria-label={inEdit ? 'Edit mode — switch to View' : 'View mode — switch to Edit'}
-        aria-pressed={inEdit}
-      >
-        <span className={`review-mode-seg${!inEdit ? ' is-active' : ''}`}>View</span>
-        <span className={`review-mode-seg${inEdit ? ' is-active' : ''}`}>Edit</span>
-      </button>
-      {children}
+      <SetReviewModeContext.Provider value={setMode}>
+        <button
+          type="button"
+          className="review-mode-toggle"
+          onClick={toggle}
+          aria-label={inEdit ? 'Edit mode — switch to View' : 'View mode — switch to Edit'}
+          aria-pressed={inEdit}
+        >
+          <span className={`review-mode-seg${!inEdit ? ' is-active' : ''}`}>View</span>
+          <span className={`review-mode-seg${inEdit ? ' is-active' : ''}`}>Edit</span>
+        </button>
+        {children}
+      </SetReviewModeContext.Provider>
     </ReviewModeContext.Provider>
   );
 }

@@ -21,11 +21,11 @@
  * FOLLOW-ON; it is NOT wired here. The suggestion store + routes are left intact.
  */
 
-import { useContext, useMemo, useRef, useState, useEffect } from 'react';
+import { useContext, useLayoutEffect, useMemo, useRef, useState, useEffect } from 'react';
 import { api } from '../api';
 import { useAppData } from '../lib/appData';
 import { Markdown } from './Markdown';
-import { ReviewModeContext } from './ReviewToggle';
+import { ReviewModeContext, SetReviewModeContext } from './ReviewToggle';
 import { parseCriticMarkup, type CriticSegment } from '../lib/criticmarkup';
 import type { GuidanceAsset } from '../types';
 
@@ -136,6 +136,7 @@ export function CriticPreview({ source }: { source: string }): React.JSX.Element
 export function ReviewEditor({ asset }: ReviewEditorProps): React.JSX.Element {
   const { id: topicId, body } = asset;
   const mode = useContext(ReviewModeContext);
+  const setMode = useContext(SetReviewModeContext);
   const { refreshAssets } = useAppData();
   const inEdit = mode === 'review';
 
@@ -157,17 +158,29 @@ export function ReviewEditor({ asset }: ReviewEditorProps): React.JSX.Element {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'local' | 'error'>('idle');
 
+  // A toolbar insert rewrites the whole `source` value, which re-renders the controlled
+  // textarea and would otherwise snap its scroll back to the top (and drop the selection).
+  // Capture the caret + scroll BEFORE the rewrite and restore them in a layout effect that
+  // runs after React commits the new value but before paint — so there is no visible jump.
+  const pendingRestore = useRef<{ selStart: number; selEnd: number; scrollTop: number } | null>(null);
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    const p = pendingRestore.current;
+    if (!el || !p) return;
+    pendingRestore.current = null;
+    el.focus();
+    el.setSelectionRange(p.selStart, p.selEnd);
+    el.scrollTop = p.scrollTop;
+  }, [source]);
+
   function runTool(tool: ToolAction): void {
     const el = textareaRef.current;
     if (!el) return;
     const { next, selStart, selEnd } = applyTool(source, el.selectionStart, el.selectionEnd, tool);
+    // Keep the author where they were: restore caret/selection AND scroll after the re-render.
+    pendingRestore.current = { selStart, selEnd, scrollTop: el.scrollTop };
     setSource(next);
     setDirty(true);
-    // Restore focus + selection after React commits the new value.
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(selStart, selEnd);
-    });
   }
 
   // A STRUCTURED asset (open-question, principle, …) has authoritative `fields`; its `body`
@@ -204,6 +217,17 @@ export function ReviewEditor({ asset }: ReviewEditorProps): React.JSX.Element {
       // The server refuses a non-admin write; the edit is not lost — it stays in the pane.
       setSaveState('error');
     }
+  }
+
+  // Cancel: discard the in-progress edits (revert the source pane to the original asset body)
+  // and return to View. Non-destructive-by-surprise — when there are unsaved edits it asks
+  // first, so a stray click never silently throws away work.
+  function cancel(): void {
+    if (dirty && !window.confirm('Discard your edits and return to View?')) return;
+    setSource(body);
+    setDirty(false);
+    setSaveState('idle');
+    setMode('view');
   }
 
   // ── VIEW mode — clean read-only prose ───────────────────────────────────────
@@ -246,6 +270,9 @@ export function ReviewEditor({ asset }: ReviewEditorProps): React.JSX.Element {
           ))}
         </div>
         <div className="cm-tool-spacer" />
+        <button type="button" className="btn small ghost cm-cancel" onClick={cancel}>
+          Cancel
+        </button>
         <button type="button" className="btn small cm-save" onClick={() => void save()}>
           {saveState === 'saving' ? 'Saving…' : 'Save'}
         </button>
