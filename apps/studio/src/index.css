@@ -3504,25 +3504,33 @@ button.legend-tile:hover {
   background: color-mix(in srgb, var(--danger) 8%, var(--surface));
 }
 
-/* The split — source | preview. Stacks below 860px. `align-items: stretch` makes the two
-   panes share the tallest row height so the source and preview always line up (the preview
-   grows with rendered content; the source textarea flexes to match — see below). */
+/* The split — source | preview. A BOUNDED, equal-height editor: the split has a fixed
+   viewport-relative height and BOTH panes scroll INTERNALLY (like a real code/split editor).
+   This is deliberate over content-driven stretch, which grew the textarea to the full document
+   height (so the whole PAGE scrolled — an insert snapped it to the bottom) and toggled a
+   page scrollbar on every reflow (the flicker). Fixed height + inner overflow fixes both, and
+   the two panes are exactly equal (each fills the same container height). Stacks below 860px. */
 .review-split {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
   align-items: stretch;
+  height: 68vh;
+  min-height: 420px;
 }
 @media (max-width: 860px) {
   .review-split {
     grid-template-columns: 1fr;
+    height: auto;
   }
 }
-/* Each pane is a flex column (label + body) so its body can fill the stretched row height. */
+/* Each pane is a flex column (label + body); min-height:0 lets the scrolling body shrink
+   inside the fixed-height pane instead of overflowing it. */
 .review-pane {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
 }
 .review-pane-label {
   display: block;
@@ -3536,10 +3544,13 @@ button.legend-tile:hover {
   display: block;
   width: 100%;
   box-sizing: border-box;
-  /* flex:1 fills the stretched pane so the source matches the preview's height; min-height
-     keeps a comfortable floor when the content is short. */
+  /* Fill the bounded pane and scroll internally; resize:none because the pane sets the height.
+     scrollbar-gutter:stable reserves the scrollbar's width so it never toggles the layout. */
   flex: 1 1 auto;
-  min-height: 360px;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  resize: none;
   padding: 12px 14px;
   font-family: var(--mono);
   font-size: 13px;
@@ -3548,7 +3559,6 @@ button.legend-tile:hover {
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: 8px;
-  resize: vertical;
   tab-size: 2;
 }
 .review-source-textarea:focus {
@@ -3558,12 +3568,21 @@ button.legend-tile:hover {
 }
 .review-preview-body {
   flex: 1 1 auto;
-  min-height: 360px;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
   padding: 4px 14px 14px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
   overflow-wrap: break-word;
+}
+@media (max-width: 860px) {
+  /* Stacked: give each pane a comfortable fixed height so they still scroll internally. */
+  .review-source-textarea,
+  .review-preview-body {
+    height: 52vh;
+  }
 }
 
 /* ---- CriticMarkup tracked-change rendering (the core of the preview) ---- */

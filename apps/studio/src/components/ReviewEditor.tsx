@@ -168,7 +168,10 @@ export function ReviewEditor({ asset }: ReviewEditorProps): React.JSX.Element {
     const p = pendingRestore.current;
     if (!el || !p) return;
     pendingRestore.current = null;
-    el.focus();
+    // preventScroll: refocusing must NOT scroll the page to the (tall) textarea — that was the
+    // "snaps to the bottom of the page" on insert. Restore the textarea's own scroll last so the
+    // caret stays exactly where the author was.
+    el.focus({ preventScroll: true });
     el.setSelectionRange(p.selStart, p.selEnd);
     el.scrollTop = p.scrollTop;
   }, [source]);
