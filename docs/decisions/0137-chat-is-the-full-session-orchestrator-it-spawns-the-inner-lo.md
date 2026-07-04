@@ -18,6 +18,14 @@ ADR-0108**; what is genuinely NEW is the ADR-authoring carve-out (decision 2), t
 ADR-0091. Built on since accept by ADR-0138 (the claim-at-spawn wall: the orchestrator takes the
 story-claim before any spawn; ADR-authoring is the sole claim-free act).
 
+> **Amended in part by [ADR-0152](0152-lift-the-phase-2-landing-wall-the-desktop-orchestrator-runs.md)**
+> — decision 3's clause "the human's button + merge are the direct gates" is **relaxed for the desktop
+> orchestrator**: it now runs the merge ceremony itself (run the gate, commit, push, open a **non-draft**
+> PR), at parity with the terminal session-orchestrator. The spine is still the sole verdict signer
+> (ADR-0091) and CI still re-proves before the trunk (ADR-0022). Decision 1's no-raw-`Write`/`Bash` wall
+> is **UPHELD** — the landing surface is scoped, fail-closed MCP tools, not a raw shell. The forest-map
+> Adopt/Build button and per-node accept-to-land in decision 3 are untouched.
+
 ## Context
 
 ADR-0108 already decided the shape the owner re-articulated here: a server-side session-orchestrator

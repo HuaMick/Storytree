@@ -21,6 +21,8 @@ import { buildOrientationTools } from "./orientation-tools.js";
 import type { OrientationRunner } from "./orientation-tools.js";
 import { buildSpawnTools, SPAWN_SERVER } from "./spawn-tool-surface.js";
 import type { SpawnSurfaceDeps } from "./spawn-tool-surface.js";
+import { buildLandingTools, LANDING_SERVER } from "./landing-tool-surface.js";
+import type { LandingSurfaceDeps } from "./landing-tool-surface.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -95,6 +97,19 @@ export interface HeadlessOrchestratorArgs {
    * Writes happen inside the SPAWNED sessions under their own per-scope fences.
    */
   spawn?: SpawnSurfaceDeps;
+  /**
+   * OPTIONAL landing surface deps (ADR-0152): when present, the session mounts `run_gate` and
+   * `open_landing_pr` as fail-closed MCP tools — the merge-ceremony surface the terminal
+   * session-orchestrator already has (gate → commit → push → NON-DRAFT PR; CI auto-merges,
+   * ADR-0022). Absent → the session is byte-identical to the propose+spawn surface (the same §7
+   * scale-down mirror as `spawn`).
+   *
+   * The chat keeps `tools: []` regardless — these are scoped, named actions, never a raw `Bash`
+   * surface (ADR-0137 d.1 upheld). The spine still signs verdicts out-of-band and CI re-proves
+   * before the trunk (ADR-0091 / ADR-0020 / ADR-0022): `run_gate` OBSERVES a pass/fail, it never
+   * authors a "healthy", and no landing tool carries a verdict-shaped payload.
+   */
+  landing?: LandingSurfaceDeps;
 }
 
 export interface HeadlessOrchestratorResult {
@@ -240,12 +255,18 @@ export async function runHeadlessOrchestrator(
     // orientation tools). Absent deps → no spawn tools advertised → byte-identical to Phase-1/2.
     const spawnTools = args.spawn !== undefined ? buildSpawnTools(args.spawn) : [];
 
+    // Landing tools are wired ONLY when landing deps are present (same §7 scale-down mirror as
+    // spawn tools, ADR-0152). Absent deps → no landing tools advertised → byte-identical to the
+    // propose+spawn surface.
+    const landingTools = args.landing !== undefined ? buildLandingTools(args.landing) : [];
+
     // MCP tool names follow the mcp__<server>__<tool> convention so the model can call them.
     // The propose_unit tool is always available (it is the non-spoofable declaration surface).
     const allowedTools = [
       `mcp__${PROPOSAL_SERVER}__propose_unit`,
       ...orientationTools.map((t) => `mcp__${ORIENTATION_SERVER}__${t.name}`),
       ...spawnTools.map((t) => `mcp__${SPAWN_SERVER}__${t.name}`),
+      ...landingTools.map((t) => `mcp__${LANDING_SERVER}__${t.name}`),
     ];
 
     const queryFn: SdkQueryFn = args.queryFn ?? ((q): AsyncIterable<unknown> => query(q));
@@ -312,6 +333,15 @@ export async function runHeadlessOrchestrator(
                 name: SPAWN_SERVER,
                 version: "1.0.0",
                 tools: spawnTools,
+              }),
+            }
+          : {}),
+        ...(landingTools.length > 0
+          ? {
+              [LANDING_SERVER]: createSdkMcpServer({
+                name: LANDING_SERVER,
+                version: "1.0.0",
+                tools: landingTools,
               }),
             }
           : {}),
