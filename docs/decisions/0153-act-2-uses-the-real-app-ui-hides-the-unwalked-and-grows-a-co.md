@@ -73,7 +73,7 @@ The refused build had it backwards; the data direction is settled and non-negoti
    (a second overlay, top-right) but must not overload the viewer — complexity stays scaffolded.
 
 The orchestrator-as-a-human-facing-planning-agent framing that steps 1/2 lean on is
-[ADR-0030](0030-all-in-on-the-claude-agent-sdk-as-the-live-runtime-pivot-out.md)'s (the human owns the
+[ADR-0030](0030-all-in-on-claude-agent-sdk.md)'s (the human owns the
 outer loop; the orchestrator is the planning agent that turns intent into routed work) — dramatised
 site-side as fictional content, never the operable studio. This is the same citation `act2-guided-walkthrough`
 already leans on for its scripted-orchestrator proposal.
@@ -148,7 +148,15 @@ the LOOK caps (appearance and feel never self-signed). Act 1 and the storm→lan
 
 **Two authoring calls made here (owner-tunable at the gate).**
 
-- **Architecture: 3-tier, not BaaS.** The revealed stack is `website → backend → database` with NO
+- **Architecture: 3-tier, not BaaS.** *(OVERTAKEN by
+  [ADR-0157](0157-act-2-reads-the-database-directly-and-teaches-plainly-retire.md) §1, 2026-07-05: the
+  owner CONFIRMED BaaS at the increment-H BUILD #2 gate — "in a real shopping app the frontend would
+  read directly from the database." The confirmed shape is the BaaS diamond: a direct `website →
+  database` read edge is ADDED in the corrected (dependent → prerequisite) direction, giving
+  `website.dependsOn=[backend, database]` (the backend edge STAYS — writes/checkout still need server
+  logic). This was exactly the owner's-call-at-the-gate this bullet flagged as "ALSO corpus-legal";
+  ADR-0153's corrected DIRECTION and the rest of its decision STAND. Noted in place per ADR-0139.)*
+  The revealed stack is `website → backend → database` with NO
   direct `website → database` edge — the website depends on the backend, which depends on the database.
   This is the layered-stack the owner's own narration teaches ("checkout needs server logic → a
   backend; carts need storage → a database"): each layer is the honest prerequisite of the one below
@@ -244,7 +252,12 @@ land AND continue). This records the as-built; it re-decides nothing (status sta
   submodule pin bumped `ff70222b` → `8f4e166c` (`ff70222b`); all three web gates OK,
   `packages/forest-world-r3f` 16/16 tests green.
 
-**Forward feedback drives a FOLLOW-ON re-spec (the next arc link — NOT decided here).** The owner
+**Forward feedback drives a FOLLOW-ON re-spec (the next arc link — NOT decided here).** *(That
+follow-on re-spec is now [ADR-0157](0157-act-2-reads-the-database-directly-and-teaches-plainly-retire.md),
+2026-07-05 — it captures all six directions below as the NEXT increment's brief: BaaS (the frontend
+reads the database directly), the storm metaphor retired from all surfaces, the pre-walk as our
+orchestrator + a first node born `proposed`, plain newcomer language, the honest TDD LOOP diagram
+(system-as-referee), and a moving wisp. Noted in place per ADR-0139.)* The owner
 attested this as an incremental step *with* directions for further change, which the story-author will
 turn into the next link's re-spec (this ADR does not encode them as decided): the storm analogy is to
 be removed from all surfaces; the pre-walk should read as talking to our system (a proposed story
@@ -291,7 +304,7 @@ structure, that is a later separate call.
   authority the corrected direction rests on.
 - [ADR-0010](0010-organism-model-story-bounded-context.md) — the organism/bounded-context model; its
   §Context uses "a frontend depends on a database" as the dependency archetype.
-- [ADR-0030](0030-all-in-on-the-claude-agent-sdk-as-the-live-runtime-pivot-out.md) — the human owns the
+- [ADR-0030](0030-all-in-on-claude-agent-sdk.md) — the human owns the
   outer loop; the orchestrator is the human-facing planning agent (the chat/orchestrator framing steps
   1/2 dramatise, site-side and fictional).
 - [ADR-0070](0070-frontend-as-an-inner-loop-role-the-two-stage-proof-for-visua.md) — the two-stage proof
