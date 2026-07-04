@@ -12,12 +12,12 @@
 //   • abd-green-only-on-signed-proof — a limb renders green only when its delta
 //     carries the signed-proof marker; a green-without-marker delta is refused
 //     loudly (the verification-gap answer, enforced at runtime, not a type hint).
-//   • abd-upstream-stories-carry-dependson-edges — add-upstream-story beats raise
+//   • abd-upstream-stories-carry-dependsOn-and-honest-status — add-upstream-story beats raise
 //     upstream stories with correct tri-state status, and the dependency edges
 //     flow FROM dependent TO prerequisite (website.dependsOn=[backend],
 //     backend.dependsOn=[database], database.dependsOn=[]) — the authoritative
 //     ADR-0058 / cross-story-dependency direction corrected by ADR-0153.
-//   • abd-default-script-is-the-six-beat-continuous-arc — the exported default
+//   • abd-default-script-is-the-one-continuous-arc — the exported default
 //     script validates against the exported BeatScript zod contract, is exactly
 //     the six-beat continuous arc (website walk → upstream dependency-layer
 //     reveal) in order, contains no add-roads / wrong-way-road beat (the
@@ -164,10 +164,10 @@ test('abd-green-only-on-signed-proof: green limbs carry the marker; a green-with
 });
 
 // ---------------------------------------------------------------------------
-// abd-upstream-stories-carry-dependson-edges
+// abd-upstream-stories-carry-dependsOn-and-honest-status
 // ---------------------------------------------------------------------------
 
-test('abd-upstream-stories-carry-dependson-edges: add-upstream-story builds the layered stack with correct dependsOn edges and tri-state status', () => {
+test('abd-upstream-stories-carry-dependsOn-and-honest-status: add-upstream-story builds the layered stack with correct dependsOn edges and tri-state status', () => {
   // Walk beats 1–3 (plant-story, attach-wisp, branch-caps) to set up the website.
   let state: DirectorState = initialState;
   state = advance(state, defaultScript); // beat 1: plant-story (website)
@@ -301,13 +301,50 @@ test('abd-upstream-stories-carry-dependson-edges: add-upstream-story builds the 
       `story '${story.id}' status must be tri-state (proven/building/broken), got '${story.status}'`,
     );
   }
+
+  // Beat 6 — pull back: the grown WEBSITE resolves to 'proven'; the upstream
+  // backend + database stay 'building' (proposed). This is the HONEST MIX
+  // (UAT 2): the upstream layers are NEVER green — only the anchor the visitor
+  // actually grew is proven, so the pull-back legend is backed by real statuses.
+  state = advance(state, defaultScript); // beat 6: pull-back
+  assert.equal(state.done, true, 'the walk is done after the six-beat continuous arc');
+
+  const byId = new Map<string, StoryNode>(
+    state.world.stories.map((s: StoryNode) => [s.id, s] as const),
+  );
+  const websiteEnd = byId.get(websiteNode.id)!;
+  const backendEnd = byId.get(backendNode.id)!;
+  const databaseEnd = byId.get(dbNode.id)!;
+  assert.equal(
+    websiteEnd.status,
+    'proven',
+    'the website (the grown anchor) resolves to proven at the pull-back',
+  );
+  assert.equal(
+    backendEnd.status,
+    'building',
+    'the backend stays building (proposed) — an upstream layer is NEVER green (UAT 2)',
+  );
+  assert.equal(
+    databaseEnd.status,
+    'building',
+    'the database stays building (proposed) — an upstream layer is NEVER green (UAT 2)',
+  );
+
+  // The final set is genuinely MIXED, not uniform amber — the legend is honest:
+  // one proven (green) anchor + two building (sapling) upstream layers.
+  const statuses = new Set(state.world.stories.map((s: StoryNode) => s.status));
+  assert.ok(
+    statuses.size > 1,
+    `the final status set is genuinely mixed, not uniform (got: ${[...statuses].join(', ')})`,
+  );
 });
 
 // ---------------------------------------------------------------------------
-// abd-default-script-is-the-six-beat-continuous-arc
+// abd-default-script-is-the-one-continuous-arc
 // ---------------------------------------------------------------------------
 
-test('abd-default-script-is-the-six-beat-continuous-arc: validates against BeatScript, six approved beats in order, no wrong-way-road beat, walks end-to-end to the CTA', () => {
+test('abd-default-script-is-the-one-continuous-arc: validates against BeatScript, six approved beats in order, no wrong-way-road beat, walks end-to-end to the CTA', () => {
   // The exported default script validates against the exported zod contract —
   // the SAME contract the site parses its beat copy against at build time.
   const parsed = BeatScript.safeParse(defaultScript);

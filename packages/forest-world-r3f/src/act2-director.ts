@@ -140,8 +140,19 @@ export const BeatDelta = z.discriminatedUnion('kind', [
       dependentId: z.string().min(1),
     })
     .strict(),
-  // pull-back: camera widens to the whole legible forest → done: true (CTA)
-  z.object({ kind: z.literal('pull-back') }).strict(),
+  // pull-back: camera widens to the whole legible forest → done: true (CTA).
+  // `proven` (optional) resolves the listed stories to 'proven' at the reveal —
+  // the website the visitor grew greens HERE; the upstream layers stay building
+  // (proposed/sapling — UAT 2, never green), so the legend has a real proven
+  // example AND real building examples (ADR-0150 honest legend).
+  z
+    .object({
+      kind: z.literal('pull-back'),
+      /** Story ids that resolve to 'proven' at the pull-back reveal (the grown
+       *  website). Absent/empty → a pure camera move. */
+      proven: z.array(z.string().min(1)).optional(),
+    })
+    .strict(),
 ]);
 export type BeatDelta = z.infer<typeof BeatDelta>;
 
@@ -313,9 +324,20 @@ function applyDelta(world: WorldState, delta: BeatDelta): WorldState {
       };
     }
 
-    case 'pull-back':
-      // The world is already complete — the pull-back just shifts the camera.
-      return world;
+    case 'pull-back': {
+      // The camera widens (advance() applies the beat's camera). Any story listed
+      // in `proven` resolves to 'proven' — the culminating reveal that the grown
+      // website is proven (green); the upstream layers stay building (proposed,
+      // UAT 2 — never green). No ids → a pure camera move.
+      if (delta.proven === undefined || delta.proven.length === 0) return world;
+      const proven = new Set(delta.proven);
+      return {
+        ...world,
+        stories: world.stories.map((s) =>
+          proven.has(s.id) ? { ...s, status: 'proven' as const } : s,
+        ),
+      };
+    }
   }
 }
 
@@ -449,8 +471,9 @@ export const defaultScript: BeatScript = [
 
   // Beat 5 — Grow upstream: the database story the backend depends on.
   // The edge is backend.dependsOn=[database]. The forest now holds the layered
-  // stack website → backend → database with a genuinely mixed status set, so
-  // the legend is honest (green = proven, sapling = building, withered = broken).
+  // stack website → backend → database. The database is 'building' — PROPOSED,
+  // never green (UAT 2: the upstream layers are the work you build next). The
+  // honest mix completes at the pull-back, where the grown WEBSITE resolves proven.
   {
     id: 'beat-5-add-upstream-database',
     narrationKey: 'act2.beat5.addUpstreamDatabase',
@@ -459,18 +482,21 @@ export const defaultScript: BeatScript = [
       kind: 'add-upstream-story',
       id: 'story-database',
       label: 'Persistent data store',
-      status: 'proven',
+      status: 'building',
       dependentId: 'story-backend',
     },
   },
 
-  // Beat 6 — Pull back: camera widens to the whole legible forest.
-  // Green = proven, sapling = in-progress, withered = broken. → done: true (CTA).
+  // Beat 6 — Pull back: camera widens to the whole legible forest AND the website
+  // the visitor grew resolves to 'proven' (the culminating reveal). Final honest
+  // mix: website = proven (green), backend + database = building (the proposed
+  // layers above it — never green, UAT 2). Green = proven, sapling = building,
+  // withered = broken — the legend is backed by real statuses. → done: true (CTA).
   {
     id: 'beat-6-pull-back',
     narrationKey: 'act2.beat6.pullBack',
     camera: { focus: 'full-forest', zoom: 0.1 },
-    delta: { kind: 'pull-back' },
+    delta: { kind: 'pull-back', proven: ['story-website'] },
   },
 ];
 
