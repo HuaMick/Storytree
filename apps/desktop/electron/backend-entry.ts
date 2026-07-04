@@ -42,6 +42,7 @@ import { createChatSseMount } from "../src/backend/chat-sse-mount.js";
 import { createBuildRouteMount } from "../src/backend/build-route.js";
 import { createAcceptDispatchMount } from "../src/backend/accept-dispatch.js";
 import { credentialedBuildRunner } from "../src/backend/credentialed-build-runner.js";
+import { resolveSpawnMaxTurns } from "../src/backend/spawn-turns.js";
 import { CredentialBroker } from "../src/credential/broker.js";
 import { CREDENTIAL_ENV_VAR } from "../src/credential/kinds.js";
 import { NapiKeychain } from "../src/keychain/napi-adapter.js";
@@ -490,6 +491,11 @@ async function main(): Promise<void> {
         await claims.bumpHeartbeat(unitId, identity.sessionId);
       },
     };
+    // Give the chat-spawned story-author a realistic authoring budget: buildSpawnDeps applies maxTurns
+    // to the story-author path ONLY (the builder dispatch is unaffected — it keeps the generic 16-turn
+    // brake), so raising it here does not weaken the runaway brake elsewhere (ADR-0130). Env-tunable via
+    // STORYTREE_SPAWN_MAX_TURNS; defaults to DEFAULT_STORY_AUTHOR_MAX_TURNS because authoring against the
+    // whole corpus reliably overruns 16 and returns a false ✗ after already writing valid stories/**.
     const composed = await buildSpawnDeps({
       store: library,
       claimStore,
@@ -497,6 +503,7 @@ async function main(): Promise<void> {
       branch: identity.branch,
       cwd: repoRoot,
       build,
+      maxTurns: resolveSpawnMaxTurns(process.env.STORYTREE_SPAWN_MAX_TURNS),
     });
     if (composed.ok) {
       spawn = composed.deps;
