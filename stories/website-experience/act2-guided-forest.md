@@ -68,6 +68,17 @@ walk it grows from exists.
 > `frontend-builder` in `storytree-web` (branch off ITS `origin/main`, its own CD) and witnessed by
 > the owner on the live/preview site — appearance and feel are never self-signed (ADR-0070). A HALT
 > point for the driving session.
+>
+> **Owner direction at the G gate (2026-07-04) — pending story-author re-spec.** Attesting increment
+> G, the owner sharpened H's shape and asked that the next session build it: (1) **integrate "grow the
+> backend" into the ONE continuous tutorial** — H must not read as a separate step behind G's
+> "grow the backend next →" CTA/destination; the upstream forest is the same walk continuing, not a
+> new phase ("it shouldnt be separate"). (2) **Retire beat 4's wrong-way flag** — replace "wrong way —
+> skips the payment service" with the **dependency-layer-as-advantage** reframe shown on the actual map
+> ("show the advantage of the dependency layer using the actual map"). These re-shape H's spec (and may
+> touch G's beat 4 + the CTA seam), so the next session routes them through `story-author` before
+> building — recorded here so the direction is not lost; the build is chipped, not done in the G
+> close-out.
 
 ## Guidance
 

@@ -82,7 +82,16 @@ over fictional data (the teaching-diorama boundary, ADR-0056/0066/0093, holds).
    awkward; this completes ADR-0145's R3F retreat — Act 2 is now pure 2.5D SVG/DOM, zero WebGL). The
    **classic front page is removed as a destination** — the tutorial is the front door for capable
    visitors; the no-JS / reduced-motion accessibility fallback and skip affordance STAY (ADR-0134,
-   gate-enforced) as graceful degradation, not as an opt-out a capable visitor is offered. The **finale
+   gate-enforced) as graceful degradation, not as an opt-out a capable visitor is offered. *(As built,
+   web main `ff70222b`, 2026-07-04: this §5 principle is realised in the skip's routing itself — the
+   persistent top-left "show me a better way" control (`data-experience-skip`) jumps a **capable (JS)
+   visitor STRAIGHT into the 2.5D tutorial** via `window.__stormSkipToTutorial` (`index.astro:73–75`,
+   which carries this ADR-0148 §5 rationale inline); it falls through to the `#calm-view`
+   `data-experience-fallback` page **only with no JS / a failed engine**. So the skip is not merely a
+   degradation exit — for a capable visitor it is a fast-path INTO the primary experience, and the
+   classic/calm page is reachable by them only as the accessibility fallback tier. This tightens, not
+   changes, the decision: the tutorial is the front door; the classic page is never an opt-out offered
+   to a capable visitor. Noted in place per ADR-0139.)* The **finale
    copy** turns to address the visitor directly — it is waiting on *them*, it names their likely
    overwhelm, and it offers a better way that "feels like playing a game" (replacing the earlier cryptic
    "the bottleneck is not the agents" monologue).
