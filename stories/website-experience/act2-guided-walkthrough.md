@@ -55,7 +55,8 @@ over fictional data, never the operable studio.
 on; [`act2-beat-director`](act2-beat-director.md) — the script it walks;
 [`web-experience-sync`](web-experience-sync.md) — the artifact rail both ride to the site.
 
-> **Proof status (honest) — `proposed`, operator-attested (ADR-0070).** The teaching claims are
+> **Proof status (honest) — BUILT + OWNER-ATTESTED, LIVE (2026-07-04); the authored `status` stays
+> `proposed` — `healthy` is earned through the whole-story gate, never authored (ADR-0020).** The teaching claims are
 > deliberately NOT left to this attestation: "green only on signed proof" and "the wrong-way road
 > is flagged" are DATA CONTRACTS the parent spine already holds in `act2-beat-director` — the site
 > cannot walk a script that contradicts the thesis. What a human must witness is what remains: the
@@ -84,6 +85,42 @@ on; [`act2-beat-director`](act2-beat-director.md) — the script it walks;
 > **re-directed to the website-first framing above** (ADR-0148) — the walk stands, the narrative
 > grew. The closed PR's renderer-agnostic pieces (narration copy, the `act2-validate` build-time
 > wall, the pacing/beat UI logic) are salvage carried into every rebuild.
+>
+> **Attested + landed (2026-07-04, web main `ff70222b`).** The website-first walk (ADR-0148 increment
+> G) reached its owner gate on the reshaped substrate; the owner walked it live and attested it — the
+> reused shopping prompt, the new finale copy, "show me the better way" (AND the top-left skip) routing
+> straight into the 2.5D tutorial, the orchestrator's mock-website proposal, the five-beat walk, and
+> the "what's next" CTA. Merged storytree-web PR #22 → web main `ff70222b`, CD green, LIVE (all three
+> `data-experience-*` markers on `https://crisp-globe-bf6v.here.now/`); attestation recorded as an
+> owner-relayed comment on PR #22 (ADR-0044 §4 / ADR-0082). Two follow-ups the owner named at the gate
+> are deferred to increment H ([`act2-guided-forest`](act2-guided-forest.md)): replace beat 4's
+> wrong-way-flag framing with the dependency-layer-as-advantage reframe on the real map, and integrate
+> "grow the backend" into the ONE continuous tutorial rather than a separate CTA/destination.
+
+## As built (web main `ff70222b`)
+
+The verified anchors in the pinned tree (cite these, not the older sketches):
+
+- **The reused prompt + the two entries into the tutorial** — `web/src/pages/index.astro`: the storm
+  entry carries `data-experience-entry`; the finale fork's primary button binds `[data-storm-transform]`
+  (index.astro:173), and the persistent top-left skip `[data-experience-skip]` (index.astro:96) now
+  routes a capable visitor STRAIGHT into the tutorial via the inline handler
+  (`window.__stormSkipToTutorial`, index.astro:73–75) — falling back to `#calm-view` only with no JS.
+  The `data-experience-fallback` calm view (index.astro:212) stays as the no-JS / reduced-motion
+  degradation (ADR-0148 §5; `check:web-experience` green).
+- **One shared mount, two ways in** — `web/src/scripts/act1-storm.ts`: `beginTransform` (the finale
+  transform, :567) and `jumpToTutorial` (the skip-straight-in, :674) both mount through the shared
+  `resolveToLand` (:526); `window.__stormSkipToTutorial` is registered at :683. Zero WebGL on the path.
+- **The tutorial mount** — `web/src/scripts/inflection.ts`: `mountForestLand` (:63) mounts the 2.5D
+  walk (`mountWalkthrough`) then the orchestrator's proposal (`mountOrchestrator`) — pure SVG/DOM.
+- **The orchestrator's mock-website proposal** — `web/src/scripts/act2-orchestrator.ts`: the scripted
+  `PROPOSAL_LINES` (:39) and `mountOrchestrator` (:114) — the felt planning/pushback moment.
+- **The five-beat walk over the shopping fiction** — `web/src/scripts/act2-walkthrough.ts` (the 2.5D
+  fold + pacing UI), `web/src/scripts/act2-script.ts` (`walkthroughScript` / `story-checkout`, :33/:42),
+  `web/src/scripts/act2-narration.ts` + `act2-validate.ts` (plain-language copy + build-time key wall).
+- **The black-blob map-render fix** — `web/src/styles/tree-world-map.css`: the shared 2.5D map paint
+  CSS index.astro now pulls in, so the `buildScene` SVG renders as the real green tiled island (not a
+  black blob) even though the page never mounts `<TreeWorld/>`.
 
 ## Guidance
 

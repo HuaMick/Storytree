@@ -189,8 +189,13 @@ whole (owner decision 6):
   the **ship-now** increment. *(History: the first build — over the R3F island — was refused at its
   2026-07-03 attestation gate and re-decided onto the real 2.5D map, ADR-0145; the 2.5D build then
   reached its gate 2026-07-03, was judged good progress, and was re-directed to this website-first
-  framing, ADR-0148. Web draft PR #20 closed superseded, its machine floor recorded there. The
-  walkthrough HALT stands until G is attested.)*
+  framing, ADR-0148. Web draft PR #20 closed superseded, its machine floor recorded there.)* **BUILT +
+  OWNER-ATTESTED + LIVE (2026-07-04, web main `ff70222b`) — the walkthrough HALT is CLEARED.** The
+  owner walked the cohesive tutorial live and directed it to land (storytree-web PR #22, merged, CD
+  green); a late owner-priority addition made the top-left "show me a better way" skip jump straight
+  into the tutorial too (not the static page). Two follow-ups the owner named are deferred to increment
+  H: reframe beat 4's wrong-way flag as the dependency-layer-advantage, and integrate "grow the
+  backend" into the ONE continuous tutorial (not a separate CTA). See the cap's proof status.
 - **Increment H — `act2-guided-forest`, the GUIDED FOREST (ADR-0148).** From G's "what's next," the
   orchestrator guides the user UPSTREAM to a PROPOSED database + backend (stories at every DAG level,
   not just leaves), each inspectable (what/why) and walked green progressively; complexity scaffolded,
