@@ -350,20 +350,36 @@ framing. The re-build UNIFIES with it, it does not rebuild from scratch:
 
 ## Guidance — the slice that earns the signed verdict
 
-The re-build rung (ADR-0057 §3; the original NET-NEW build stands as history @ `2358bc4`):
+The re-build rung (ADR-0057 §3). The ADR-0150/0153 multi-story grow is ALREADY LANDED + LEAF-PROVEN on
+main (verdict `deb235e`; the 3-tier spine `website.dependsOn=[backend]`, `backend.dependsOn=[database]`,
+`database.dependsOn=[]`). THIS re-build is the **ADR-0157 BaaS-diamond WIDENING** on top of that landed
+baseline — do NOT rebuild the grow from scratch:
 
 - **The test —** `packages/forest-world-r3f/src/act2-director.test.ts` (`node:test` +
   `node:assert/strict`). Import `{ advance, defaultScript, BeatScript }` from `"./act2-director.js"`.
-  Name each test for its contract id (`abd-…`). The re-build grows the tests to the new contract set
-  (contract 3 is the new upstream/`dependsOn`/honest-status assertion; the wrong-way-road test is
-  removed).
-- **The RED the spine observes —** the grown tests fail at the pre-re-spec HEAD: the single-story
-  `WorldState` has no `stories` array / no `dependsOn` / no `add-upstream-story` delta, so the new
-  contract-3 assertions and the one-continuous-arc script assertion are red until the grown module lands.
-- **The GREEN —** grow the pure module to the multi-story-with-`dependsOn` vocabulary, the
-  `add-upstream-story` delta, the tri-state status, and the one continuous default script (website walk
-  → upstream forest). After it, the package suite + typecheck stay green; the artifact reaches the site
-  through `web-experience-sync` unchanged.
+  Name each test for its contract id (`abd-…`). **MIGRATE the carried tests** (an editsExisting rebuild
+  that changes the delta shape breaks the carried tests — migrate them, do NOT stop while red at
+  CONFIRM_GREEN). The ONLY contract whose assertions change is contract 3
+  (`abd-upstream-stories-carry-dependsOn-and-honest-status`): grow it to assert the **DIAMOND** —
+  `website.dependsOn` includes BOTH the backend AND the database, `backend.dependsOn` includes the
+  database, `database.dependsOn=[]` (acyclic; the upstream stories carry NO edge back to the website) —
+  AND that a SINGLE `add-upstream-story` delta can attach one upstream story as a prerequisite of MORE
+  THAN ONE existing story (the widened `dependentId`). Contract 2 (`abd-green-only-on-signed-proof`) is
+  PRESERVED VERBATIM. Contracts 1 and 4 stay green unchanged (still six beats, same delta kinds, honest
+  status mix website=proven / backend+database=building at the pull-back).
+- **The RED the spine observes —** at the pre-widen HEAD (the landed 3-tier spine), the migrated
+  contract-3 test is red: the `add-upstream-story` delta's `dependentId` is a single `string`, so the
+  database delta (beat 5) can only wire ONE dependent's `dependsOn` — `website.dependsOn` is `[backend]`,
+  NOT `[backend, database]`, so the diamond assertion fails (and a `dependentId: string[]` beat is
+  rejected by the current single-string zod schema).
+- **The GREEN —** widen the `add-upstream-story` delta's `dependentId` to `string | string[]` (or an
+  equivalent direct-edge mechanism), fan `applyDelta` so the new upstream id is added to EACH named
+  dependent's `dependsOn`, and raise the database (beat 5) once with the dependent spanning BOTH the
+  backend AND the website → `website.dependsOn=[backend, database]`, `backend.dependsOn=[database]`,
+  `database.dependsOn=[]` (the diamond, the database the shared sink). Keep the edge direction dependent
+  → prerequisite for each; keep `green-only-on-signed-proof` and the pull-back `proven: ['story-website']`
+  honest mix. After it, the package suite + typecheck stay green; the artifact reaches the site through
+  `web-experience-sync` unchanged (then `pnpm sync:web-engine`).
 
 Rules:
 
