@@ -3,13 +3,14 @@ id: "terminal-chat"
 tier: story
 title: "The desktop chat panel feels like a terminal"
 outcome: "The desktop chat panel reads and behaves like one continuous terminal — a persistent multi-turn scrollback of prompt-and-reply, an input that grows to its content and resets cleanly — so a member converses with the agent as they would in a shell, not through a single replace-on-send exchange."
-# status: mapped — HONEST brownfield (ADR-0097 / ADR-0094). The three thin-client caps landed with a real,
-# passing studio VITEST suite (apps/studio/src/components/ChatPanel.test.tsx) but storytree's prove-it-gate
-# never DROVE them red→green — they are built-but-unregistered (no signed `--real` verdict), which is the
-# `mapped` (brownfield) state, NOT `proposed` (authored-but-unbuilt). Off `mapped` via the Adopt path
-# (`storytree adopt terminal-chat --pg`, ADR-0097 brown → proposed → green), which observe-and-signs the
-# `## Reliability Gates` observe gate below and flips this line mapped → proposed ("adoption underway").
-status: mapped
+# status: proposed — "ADOPTION UNDERWAY" (ADR-0097 brown → proposed → green). This was HONEST brownfield
+# (`mapped`): the three thin-client caps landed with a real, passing studio VITEST suite
+# (apps/studio/src/components/ChatPanel.test.tsx) but storytree's prove-it-gate never DROVE them red→green —
+# built-but-unregistered (no signed `--real` verdict), the `mapped` state, NOT `proposed`
+# (authored-but-unbuilt). The Adopt path (`storytree adopt terminal-chat --pg`) observe-and-signed the
+# `## Reliability Gates` observe gate below (greening the 3 caps via coverage) and flipped this line
+# mapped → proposed. The crown DERIVES green from signed verdicts (ADR-0020), NOT this authored line.
+status: proposed
 proof_mode: UAT
 # uat_witness ABSENT → human (ADR-0040 fail-closed signpost): the whole-story UAT — "does the panel read
 # like one continuous terminal" — is APPEARANCE/FEEL, operator-attested (ADR-0070). The machine-driven
