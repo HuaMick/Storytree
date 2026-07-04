@@ -3,12 +3,12 @@ id: "spawn-visibility"
 tier: story
 title: "A spawn is visible where it happens — the operator SEES the subagent in the chat transcript AND on the forest map (ADR-0137 Phase-3 follow-on)"
 outcome: "During a live spawn from the desktop chat, the operator can SEE that a subagent was spawned (a spawn line in the chat transcript) and WHERE it is working (the just-authored story's island appears live on the forest map, and its claim wisp lights) — the spawn is no longer invisible."
-# status: mapped (ADR-0097) — the four capabilities LANDED in PR #567 with passing real-arm tests across
-# three offline suites, but that merge ran through DB-free CI, so the prove-it-gate never signed a
-# `--real --store pg` verdict; the honest current status is BROWNFIELD (built, tested, gate never drove
-# it). Adopt observe-and-signs the `## Reliability Gates` below + the four machine UAT legs, then flips
-# this mapped → proposed ("adoption underway"). NOT a `--real` build (the green base has no red to drive).
-status: mapped
+# status: proposed = ADR-0097 "adoption underway". The four capabilities LANDED in PR #567 with passing
+# real-arm tests across three offline suites, but that merge ran through DB-free CI, so the prove-it-gate
+# never signed a `--real --store pg` verdict — it was BROWNFIELD (built, tested, gate never drove it).
+# `storytree adopt spawn-visibility` observe-and-signed the `## Reliability Gates` below + the four
+# machine UAT legs and flipped mapped → proposed; NOT a `--real` build (the green base had no red to drive).
+status: proposed
 proof_mode: UAT
 # Per-leg witness (ADR-0106): the offline mechanics legs (the typed spawn trace threaded onto the chat
 # stream, the SSE frame carrying it, the frontend geometry that renders the spawn line and triggers the
