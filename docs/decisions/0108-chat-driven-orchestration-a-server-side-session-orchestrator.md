@@ -29,6 +29,13 @@ surface's APPEARANCE is operator-attested under ADR-0070 when built.
 > the turn cap (16) with `--budget` the opt-in. ADR-0131 also extends the same rule to the post-green
 > curator (ADR-0067). The single-session guard and the accept-to-land gate stay the load-bearing brakes.
 
+> **Built out in part by [ADR-0152](0152-lift-the-phase-2-landing-wall-the-desktop-orchestrator-runs.md)**
+> — the whole-loop authority above ("orient → decide → decompose → build → curate → **open the landing
+> PR**", decision 3) is **completed for the desktop-chat path**: ADR-0152 builds the scoped, fail-closed
+> landing tool surface so the desktop orchestrator runs the merge ceremony (gate → commit → push →
+> non-draft PR) end to end, at parity with the terminal agent. Accept-to-land (d.3) and the single-session
+> guard (d.6) are untouched; the spine still signs (ADR-0091) and CI still re-proves (ADR-0022).
+
 ## Context
 
 Today the session-orchestrator is a *generated prompt* (ADR-0051) that a human-run Claude Code session
