@@ -195,7 +195,7 @@ the landing PR. `[ ]` = open · `[~]` = in progress · `[x]` = landed.
   pull-based knowledge model are untouched. `storytree onboarding budgets` prints the SLA table.
   Red→green offline tests (`onboarding-budget.test.ts` / `onboarding.test.ts`) cover the classifier,
   the prefix-sum (incl. idle-exclusion), the budget compare, the breach-vs-within-budget signal, and
-  the end-to-end `run` dispatch. **The arc is DELIVERED — no further increment.** _(PR: #TICK5.)_
+  the end-to-end `run` dispatch. **The arc is DELIVERED — no further increment.** _(PR: #625.)_
 
 ## How this arc runs
 
