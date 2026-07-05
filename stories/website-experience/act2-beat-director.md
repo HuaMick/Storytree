@@ -79,10 +79,10 @@ as the teach** (no longer a beat in the default script).
 **Depends on —** [`r3f-world-spike`](r3f-world-spike.md) — the director lives in the mapper's
 package and emits the World / scene inputs the mapper draws.
 
-> **Proof status (honest) — BUILT + LEAF-PROVEN at the grown, direction-corrected vocabulary
-> (`--real` PASS, run `real-mr6bktin`, `--store pg`; verdict commit `deb235e` / origin `30be855`;
-> consolidation `4fa1a69` / `c474582`; `storytree coverage act2-beat-director` = 4/4; the
-> `@storytree/forest-world-r3f` suite 16/16 green). The authored status stays `proposed`
+> **Proof status (honest) — BUILT + LEAF-PROVEN at the BaaS-diamond vocabulary (ADR-0157)
+> (`--real` PASS, run `real-mr6ycu73`, `--store pg`; verdict commit `f9ae9b8`;
+> `storytree coverage act2-beat-director` = 4/4; the `@storytree/forest-world-r3f` suite 16/16 green;
+> live at web main `d761eadc`). The authored status stays `proposed`
 > (the whole STORY is not yet green).** History: the gated SDK leaf first authored the NET-NEW
 > single-story director through the real prove-it-gate (run `real-mr32b6ib`, signed PASS @ `2358bc4`
 > 2026-07-02; the five-beat website walk, the `green-only-on-signed-proof` refine, the wrong-way-road
@@ -126,21 +126,35 @@ package and emits the World / scene inputs the mapper draws.
 > `add-upstream-story` with `dependsOn` in the CORRECTED direction. That branch died unlanded; ADR-0147's
 > number is orphaned in the store.
 >
-> **RE-OPENED toward `building` by ADR-0157 (owner-directed at the H BUILD #2 gate 2026-07-05).** H#2's
-> re-build (still the 3-tier `website → backend → database` spine) was attested "as a step forward" and
-> landed live (web main `8f4e166c`); at that gate the owner CONFIRMED the **BaaS** architecture ADR-0153
-> had left open — *"the frontend would read directly from the database."* That adds a **direct
-> `website → database` edge** in the SAME corrected direction (dependent → prerequisite), so the graph
-> becomes the **diamond** `website.dependsOn=[backend, database]`, `backend.dependsOn=[database]`,
-> `database.dependsOn=[]`. The as-built delta carries a single `dependentId` (line 132) — the diamond
-> needs the delta to let one upstream story be a prerequisite of **more than one** existing story
-> (`dependentId: string | string[]`, or an equivalent direct-edge mechanism: raise the database once
-> with `dependentId` spanning both the website and the backend). This RE-OPENS the cap toward `building`
-> for the widened vocabulary; the H#2 `deb235e` verdict + the as-built above stay TRUE HISTORY
-> (copy-on-write). `green-only-on-signed-proof` is PRESERVED verbatim through the change; the wrong-way
-> road stays retired. The widen is a re-build red→green under the EXISTING contract
-> (`defects-amend-the-owning-story`) — a NEXT build link, not authored green here; `healthy` is earned
-> through the gate, never authored (ADR-0020).
+> **BUILT + LEAF-PROVEN at the BaaS diamond (ADR-0157, owner-directed at the H BUILD #2 gate
+> 2026-07-05).** History: H#2's re-build (still the 3-tier `website → backend → database` spine) was
+> attested "as a step forward" and landed live (web main `8f4e166c`); at that gate the owner CONFIRMED
+> the **BaaS** architecture ADR-0153 had left open — *"the frontend would read directly from the
+> database."* That adds a **direct `website → database` edge** in the SAME corrected direction
+> (dependent → prerequisite), giving the **diamond** `website.dependsOn=[backend, database]`,
+> `backend.dependsOn=[database]`, `database.dependsOn=[]`. The BaaS-diamond widening is now BUILT and
+> leaf-proven — it is NOT a follow-on link.
+>
+> **As built (2026-07-05, verdict `f9ae9b8`, run `real-mr6ycu73`, coverage 4/4) —
+> `packages/forest-world-r3f/src/act2-director.ts`:** the `add-upstream-story` delta's `dependentId`
+> widened from a single `string` to `z.union([z.string().min(1), z.array(z.string().min(1)).min(1)])`
+> (line 145), so one upstream raise can name MORE THAN ONE dependent; `applyDelta` normalises it to a
+> `string[]` (`typeof delta.dependentId === 'string' ? [delta.dependentId] : delta.dependentId`, line
+> 323) and fans the new upstream id into EACH named dependent's `dependsOn` (`dependentIds.includes(s.id)`,
+> line 328); beat 5 raises the database once with `dependentId: ['story-backend', 'story-website']`
+> (lines 495–498) → `website.dependsOn=[backend, database]`, `backend.dependsOn=[database]`,
+> `database.dependsOn=[]` (the diamond, the database the shared sink). Contract 3
+> (`abd-upstream-stories-carry-dependsOn-and-honest-status`) asserts the diamond, the direct
+> `website → database` edge, the acyclic sink, and the mixed status set; beat 6
+> `pull-back proven: ['story-website']` keeps the honest mix (website = proven, backend + database =
+> building). `abd-green-only-on-signed-proof` (contract 2) is PRESERVED VERBATIM through the change; the
+> wrong-way road stays retired. Per `defects-amend-the-owning-story` this was a re-build red→green under
+> the EXISTING contract (not a new unit); `healthy` is earned through the gate, never authored (ADR-0020).
+> The prior H#2 `deb235e` verdict (run `real-mr6bktin`, the 3-tier spine) and the "As built (2026-07-05,
+> verdict `deb235e`)" record above stay TRUE HISTORY (copy-on-write). LIVE at web main `d761eadc`
+> (storytree-web PR #26). The authored `status:` stays `proposed` — the whole STORY is not yet green
+> (increment `info-pages-triage` unbuilt), and the owner directed a follow-on redesign for a future arc
+> link.
 
 ## Guidance
 
