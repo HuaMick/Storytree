@@ -28,6 +28,7 @@ export const CLI_AREAS = [
   "drift",
   "adr",
   "desktop",
+  "onboarding",
 ] as const;
 
 export type CliArea = (typeof CLI_AREAS)[number];
