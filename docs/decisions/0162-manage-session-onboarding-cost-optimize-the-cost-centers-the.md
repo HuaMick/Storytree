@@ -181,8 +181,21 @@ the landing PR. `[ ]` = open · `[~]` = in progress · `[x]` = landed.
   path-gated extension is warranted either: the package tour already supplies the "which files?"
   search-time index (it names `prove-it-gate.ts`, `sdk-author.ts`, `phase-machine.ts`, …). Agent-decidable
   per the criterion the owner fixed in this ADR — not an owner fork. _(PR: this one.)_
-- [ ] **5. Maintenance & monitoring system** (Phase 2) — per-agent-type onboarding-budget SLA,
-  post-session breach signal → remediation (ADR-0032). The owner-process. Arc completes when this lands.
+- [x] **5. Maintenance & monitoring system** (Phase 2) — the per-agent-type onboarding-budget SLA
+  monitor, the arc's terminal deliverable. `storytree onboarding` (`packages/cli/src/onboarding*.ts`):
+  a POST-SESSION, offline, store-free command that reads a Claude Code transcript, MEASURES active
+  onboarding cost (the baseline's prefix-sum — summed per-tool latency up to the first real-work
+  action, so idle/thinking is excluded by construction), tags each pre-work call to a cost center
+  (ENV / CLI / BOOT / SOURCE / KNOWLEDGE), COMPARES the total to the agent-type's budget (`AGENT_BUDGETS`
+  — analysis/read agents low, build/verify higher, the interactive orchestrator highest; provisional
+  per §Consequences), and on breach EMITS an `onboarding-budget-breach` signal that names the dominant
+  cost center and routes remediation via the ADR-0032 signal-loop (the report's `next:` points at this
+  charter + the owning Phase-1 fix). It FLAGS, never HALTS (§Why-not-a-gate) — the envelope stays
+  `ok:true`; nothing runs on a session's hot path, the no-build-step convention (ADR-0023) and the
+  pull-based knowledge model are untouched. `storytree onboarding budgets` prints the SLA table.
+  Red→green offline tests (`onboarding-budget.test.ts` / `onboarding.test.ts`) cover the classifier,
+  the prefix-sum (incl. idle-exclusion), the budget compare, the breach-vs-within-budget signal, and
+  the end-to-end `run` dispatch. **The arc is DELIVERED — no further increment.** _(PR: #TICK5.)_
 
 ## How this arc runs
 

@@ -31,6 +31,7 @@ import { CLI_AREAS } from "./cli-areas.js";
 import { adoptCommand, adoptHelp, type AdoptDispatchDeps } from "./adopt.js";
 import { branchNext, branchHelp } from "./branch.js";
 import { desktopHelp, desktopLaunch, type DesktopSpawnFn } from "./desktop.js";
+import { onboardingCommand, onboardingHelp } from "./onboarding.js";
 import type { AdoptPlanStory } from "./adopt-plan.js";
 import { coverageCommand, type CoverageUnit } from "./coverage.js";
 import { agentsCommand, agentStepCommand, agentsHelp } from "./agents.js";
@@ -1483,6 +1484,7 @@ export async function run(argv: readonly string[], deps: RunDeps): Promise<Envel
     readings?: string;
     write?: boolean;
     step?: string;
+    "agent-type"?: string;
   };
   try {
     const parsed = parseArgs({
@@ -1528,6 +1530,7 @@ export async function run(argv: readonly string[], deps: RunDeps): Promise<Envel
         readings: { type: "string" },
         write: { type: "boolean", default: false },
         step: { type: "string" },
+        "agent-type": { type: "string" },
       },
     });
     positionals = parsed.positionals;
@@ -1960,6 +1963,16 @@ export async function run(argv: readonly string[], deps: RunDeps): Promise<Envel
       repoRoot: deps.desktop?.repoRoot ?? repoRoot(),
       ...(deps.desktop?.spawn !== undefined ? { spawn: deps.desktop.spawn } : {}),
       ...(deps.desktop?.platform !== undefined ? { platform: deps.desktop.platform } : {}),
+    });
+  }
+
+  if (area === "onboarding") {
+    // The post-session onboarding-budget monitor (ADR-0162 Phase 2). Fully offline: it reads a host
+    // transcript file, never the store — no --pg, nothing on any session's hot path. It FLAGS a
+    // budget breach, never halts (ADR-0162 §Why-not-a-gate).
+    if (help && sub === undefined) return onboardingHelp();
+    return onboardingCommand(positionals.slice(1), {
+      ...(values["agent-type"] !== undefined ? { agentType: values["agent-type"] } : {}),
     });
   }
 
