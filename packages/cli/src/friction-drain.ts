@@ -15,12 +15,10 @@
 // current date are INJECTED by the caller so this is deterministic and unit-testable against a
 // synthetic worklist — the live read + `new Date()` live in the thin `check-friction-drain.ts` shell.
 
-/**
- * A friction item's DERIVED lifecycle (ADR-0168 D2 — derived, not a state machine): **open** (no
- * route) → **routed** (route set to a real destination) → **archived** (`route: nothing`, a
- * tombstone). Only OPEN items are un-adjudicated backlog; the ceiling gates those.
- */
-export type FrictionLifecycle = "open" | "routed" | "archived";
+// The lifecycle projection (open/routed/archived from `route`) is SHARED with the capture CLI's
+// `friction list` worklist (`friction.ts`) via `friction-lifecycle.ts` — one definition so the gate
+// counts a backlog the same way the worklist shows it.
+import { lifecycleOf } from "./friction-lifecycle.js";
 
 /**
  * The minimal projection of a `friction` doc the ceiling needs — deliberately decoupled from the full
@@ -104,16 +102,6 @@ export interface FrictionDrainVerdict {
   config: FrictionDrainConfig;
 }
 
-/**
- * Derive a friction item's lifecycle from its `route` (ADR-0168 D2). Open (no route) is the only
- * state the ceiling counts.
- */
-export function frictionLifecycle(route: string | undefined | null): FrictionLifecycle {
-  if (route === undefined || route === null || route === "") return "open";
-  if (route === "nothing") return "archived";
-  return "routed";
-}
-
 /** Whole-day age of `fromIso` relative to `currentIso`; `null` if either is absent/unparseable. */
 function ageInDays(fromIso: string | undefined, currentIso: string): number | null {
   if (fromIso === undefined) return null;
@@ -140,7 +128,7 @@ export function evaluateFrictionDrain(
   const routable: { id: string; ageDays: number | null }[] = [];
 
   for (const item of items) {
-    const life = frictionLifecycle(item.route);
+    const life = lifecycleOf(item.route);
     if (life === "routed") {
       routedCount += 1;
       continue;

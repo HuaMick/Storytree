@@ -32,6 +32,7 @@ import type { Store, StoredDoc } from "@storytree/storage-protocol";
 import { upcastAndValidate, Friction, FrictionRoute } from "@storytree/library";
 
 import type { Envelope } from "./envelope.js";
+import { lifecycleOf, type FrictionLifecycle } from "./friction-lifecycle.js";
 
 /** The narrowed write surface the friction verbs need (a structural subset of `RunDeps`). */
 export interface FrictionDeps {
@@ -80,15 +81,10 @@ export function hasConcreteEvidence(text: string): boolean {
   return CONCRETE_EVIDENCE_PATTERNS.some((re) => re.test(text));
 }
 
-/** The derived lifecycle of a friction item (ADR-0168 D2): a projection of `route`, never stored. */
-export type FrictionLifecycle = "open" | "routed" | "archived";
-
-/** Project a friction item's lifecycle from its `route` (open = no route; nothing = archived tombstone). */
-export function lifecycleOf(route: string | undefined): FrictionLifecycle {
-  if (route === undefined) return "open";
-  if (route === "nothing") return "archived";
-  return "routed";
-}
+// The lifecycle projection is shared with the drain-ceiling gate (`friction-drain.ts`) so the two
+// cannot drift — see `./friction-lifecycle.ts`. Re-exported here so existing consumers keep importing
+// it from `./friction.js`.
+export { lifecycleOf, type FrictionLifecycle };
 
 /** Read the `route` string off a stored friction doc, or undefined. */
 function routeOf(doc: Record<string, unknown>): string | undefined {

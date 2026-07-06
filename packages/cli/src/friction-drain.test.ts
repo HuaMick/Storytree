@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 
 import {
   evaluateFrictionDrain,
-  frictionLifecycle,
   DEFAULT_FRICTION_DRAIN_CONFIG,
   type FrictionWorklistItem,
   type FrictionDrainContext,
 } from "./friction-drain.js";
+import { lifecycleOf } from "./friction-lifecycle.js";
 
 // The gate runs in some session S on branch `me` today. Its own just-filed items are dated today.
 const CTX: FrictionDrainContext = { currentBranch: "me", currentDate: "2026-07-06" };
@@ -23,14 +23,14 @@ function otherOpen(count: number, date = "2026-07-05"): FrictionWorklistItem[] {
   }));
 }
 
-test("frictionLifecycle derives open/routed/archived from route (ADR-0168 D2)", () => {
-  assert.equal(frictionLifecycle(undefined), "open");
-  assert.equal(frictionLifecycle(""), "open");
-  assert.equal(frictionLifecycle(null), "open");
-  assert.equal(frictionLifecycle("nothing"), "archived");
-  assert.equal(frictionLifecycle("principle"), "routed");
-  assert.equal(frictionLifecycle("adr"), "routed");
-  assert.equal(frictionLifecycle("edit-existing"), "routed");
+test("lifecycleOf derives open/routed/archived from route (ADR-0168 D2)", () => {
+  assert.equal(lifecycleOf(undefined), "open");
+  assert.equal(lifecycleOf(""), "open");
+  assert.equal(lifecycleOf(null), "open");
+  assert.equal(lifecycleOf("nothing"), "archived");
+  assert.equal(lifecycleOf("principle"), "routed");
+  assert.equal(lifecycleOf("adr"), "routed");
+  assert.equal(lifecycleOf("edit-existing"), "routed");
 });
 
 test("empty worklist is OK — nothing to drain", () => {
