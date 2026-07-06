@@ -58,10 +58,12 @@ field on a coarse world grid:
   seeded value-noise cost term (organic wander); a small turn penalty (no staircase zigzag).
 - **Search:** 8-connected A* with stable tie-breaking (f, then g, then cell index).
 - **Canonical order + merging:** edges route longest-chord-first (tie-break lexicographic
-  `from→to` ids). After each route, traversed cells (+ a 1-cell halo) get a reuse discount
-  (~×0.4, clamped floor) so later routes snap onto existing trails and peel off near their
-  destination — trunk trails emerge procedurally, the way footpaths form in a field. Per-cell
-  usage counts accumulate.
+  `from→to` ids). After each route, its traversed cells get a strong reuse discount (a
+  clamped floor); the surrounding halo is a *tunable* shaping band — originally a weaker
+  discount, now (item 4, 2026-07-07) a slight MOAT (cost above base) so there is no
+  comfortable parallel lane a cell over — so later routes snap onto the existing trunk and
+  peel off near their destination rather than running side-by-side. Trunk trails emerge
+  procedurally, the way footpaths form in a field. Per-cell usage counts accumulate.
 - **Cave fallback:** an edge routes first with islands hard-blocked; only if unroutable does it
   re-route with island interiors passable at very high cost. Where the resulting path crosses an
   island rim, the crossing (position + bearing) is emitted as a **cave portal**; the under-island
