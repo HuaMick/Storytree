@@ -10,10 +10,10 @@ import { PgLibraryStore } from "./pg-store.js";
  * The corpus migration (ADR-0017 / ADR-0019 Phase 2, ADR-0021): seed the runtime store from the
  * studio data files so the DB holds the COMPLETE Library — every artifact the studio shows.
  *
- *  - The 74 structured knowledge units in `apps/studio/data/knowledge.json` (definition / principle /
- *    pattern / guardrail / techstack / open-question) are upserted as artifacts in their STRUCTURED
- *    form (kind = the unit's `kind`).
- *  - The 7 generated `template` units (the 6 `template-<kind>` + `template-adr`) are read from the
+ *  - The structured knowledge units in `apps/studio/data/knowledge.json` (every `KIND_SPECS` kind)
+ *    are upserted as artifacts in their STRUCTURED form (kind = the unit's `kind`).
+ *  - The generated `template` units (the per-kind `template-<kind>` scaffolds + `template-adr`,
+ *    which scaffolds the ADR source layer, not a knowledge kind) are read from the
  *    GENERATED `apps/studio/data/assets.json` (they have no structured source) and upserted in their
  *    rendered form (kind = `template`). Validation accepts both via `validateLibraryDoc`.
  *  - Comments (`apps/studio/data/comments.json`) are loaded into the dedicated `events.comment`
