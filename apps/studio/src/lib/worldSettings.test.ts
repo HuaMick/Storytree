@@ -86,21 +86,23 @@ describe('worldSettings — schema (docked-line roads, ADR-0076)', () => {
   });
 });
 
-describe('worldSettings — layout control (solar-system, ADR-0074 §6)', () => {
-  it('defaults to dag and writing dag REMOVES the param (byte-identical world)', () => {
-    expect(readControlValue('', ctl('layout'))).toBe('dag');
-    expect(setControlValue('?layout=solar', ctl('layout'), 'dag')).toBe('');
+describe('worldSettings — layout control (ADR-0171 stress default / ADR-0074 §6 solar)', () => {
+  it('defaults to stress and writing stress REMOVES the param (ADR-0171 attested default)', () => {
+    expect(readControlValue('', ctl('layout'))).toBe('stress');
+    expect(setControlValue('?layout=dag', ctl('layout'), 'stress')).toBe('');
   });
 
-  it('writes layout=solar when the radial world is picked', () => {
+  it('writes layout=dag / layout=solar when a non-default world is picked', () => {
+    expect(setControlValue('', ctl('layout'), 'dag')).toBe('?layout=dag');
+    expect(readControlValue('?layout=dag', ctl('layout'))).toBe('dag');
     expect(setControlValue('', ctl('layout'), 'solar')).toBe('?layout=solar');
     expect(readControlValue('?layout=solar', ctl('layout'))).toBe('solar');
   });
 
-  it('normalizes aliases and unknowns to dag', () => {
+  it('normalizes aliases and unknowns to the stress default', () => {
     expect(readControlValue('?layout=radial', ctl('layout'))).toBe('solar');
     expect(readControlValue('?layout=rows', ctl('layout'))).toBe('dag');
-    expect(readControlValue('?layout=whatever', ctl('layout'))).toBe('dag');
+    expect(readControlValue('?layout=whatever', ctl('layout'))).toBe('stress');
   });
 });
 

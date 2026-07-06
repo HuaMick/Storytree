@@ -1,11 +1,11 @@
 ---
-status: proposed
+status: accepted
 ---
 # ADR-0171: Island placement is dependency-aware: stress-majorization layout with a soft hierarchy anchor
 
 ## Status
 
-proposed (2026-07-06) — owner DIRECTED the goal in conversation on 2026-07-06: *"some
+accepted (2026-07-07) — owner DIRECTED the goal in conversation on 2026-07-06: *"some
 pathways travel a long way to reach their island (e.g. the `agent` island having a
 pathway to the very top of the forest feels wrong) … what system determines island
 placement today? … if there is no principled procedural placement that reflects the
@@ -13,11 +13,14 @@ dependency hierarchy, research an appropriate procedural layout system … still
 HIERARCHY, but the hierarchy IS the dependency chain — so a dependency-adjacent pair
 should be spatially near and trails should be short."* The owner ratified the DIRECTION
 (dependency-aware placement that shortens trails while keeping hierarchy). This ADR
-proposes the specific ALGORITHM answering it; it stays `proposed` behind a default-OFF
-flag until the owner attests the LOOK in the studio (ADR-0070 two-stage — geometry
-red-green machine-side, appearance owner-attested), at which point it flips `accepted`
-and the default may move (a follow-up). The current layered `dag` layout stays the
-default and the fallback until then.
+records the specific ALGORITHM answering it. It shipped `proposed` behind a default-OFF
+`?layout=stress` flag (PR #641) for the ADR-0070 two-stage proof — geometry red-green
+machine-side, appearance owner-attested. On **2026-07-07 the owner attested the LOOK**
+in the studio and directed that stress become the DEFAULT, so this ADR flips `accepted`
+and the studio default moves from `dag` to `stress` (an absent `?layout` param now
+renders the dependency-aware world; `?layout=dag` opts back to the old strict-layered
+rows, kept as the fallback). Follow-up: item 4 of the same owner round — pushing trail
+merging harder in the ADR-0169 router — re-tunes against this tighter placement.
 
 ## Context
 
@@ -45,12 +48,14 @@ anchor spring to the ideal level rather than a hard quadratic-program constraint
 
 ## Decision
 
-**1. A new studio placement mode `stress` (`?layout=stress`), default-OFF.** It joins
-the existing `dag` (default, unchanged) and `solar` modes as a third `LayoutMode`, a
-gear-panel option ("Dependency-aware"). Only WHERE islands are seeded changes; seeds
-flow into the SAME hex-snap / growth-floor / territory-growth / trail-routing pipeline,
-so the world reads as the same forest — the `dag` default stays byte-identical (the
-param is absent).
+**1. A new studio placement mode `stress`, shipped default-OFF then promoted to
+DEFAULT on attestation.** It joins the existing `dag` and `solar` modes as a third
+`LayoutMode`, a gear-panel option ("Dependency-aware"). It shipped behind `?layout=stress`
+with `dag` as the default (PR #641); on the owner's 2026-07-07 look-attestation stress
+became the DEFAULT (an absent `?layout` param), with `?layout=dag` kept as the explicit
+opt-back. Only WHERE islands are seeded changes; seeds flow into the SAME hex-snap /
+growth-floor / territory-growth / trail-routing pipeline, so the world reads as the same
+forest — and `?layout=dag` still reproduces the byte-identical old layered world.
 
 **2. The algorithm: localized stress majorization with a soft y-hierarchy anchor**
 (`apps/studio/src/lib/stressLayout.ts`, `stressSeeds`), a pure function of

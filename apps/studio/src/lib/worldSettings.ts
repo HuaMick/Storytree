@@ -104,13 +104,16 @@ function normalizeSubstrate(raw: string | null): string {
   return 'mesh';
 }
 
-/** layout aliases, mirroring readLayoutMode. Default = `dag` (the byte-identical world). */
+/** layout aliases, mirroring readLayoutMode. Default = `stress` (ADR-0171,
+ *  owner-attested 2026-07-07): an absent/unknown param renders the dependency-aware
+ *  placement that shortens trails. `?layout=dag` opts back to the old layered world. */
 function normalizeLayout(raw: string | null): string {
   if (raw === 'solar' || raw === 'solar-system' || raw === 'radial') return 'solar';
-  // ADR-0171: dependency-aware stress-majorization placement (shortens trails).
-  if (raw === 'stress' || raw === 'stress-majorization' || raw === 'force') return 'stress';
-  // 'dag' | 'rows' | 'tree' | unknown | null → dag (the current world).
-  return 'dag';
+  // explicit opt-back to the old strict-layered rows
+  if (raw === 'dag' || raw === 'rows' || raw === 'tree') return 'dag';
+  // ADR-0171: dependency-aware stress-majorization placement (shortens trails) is now
+  // the default — 'stress' | 'stress-majorization' | 'force' | unknown | null → stress.
+  return 'stress';
 }
 
 // The forest-map dials (owner ask 2026-06-18). Since the river-trail road system was
@@ -119,19 +122,20 @@ function normalizeLayout(raw: string | null): string {
 // Each control's `hint` is the visible plain-English description shown UNDER the control.
 export const CONTROLS: readonly ControlSpec[] = [
   // ---- Layout ----
-  // ADR-0074 §6 / `solar-system-world`: the RADIAL hub-and-spoke world (cli/store at
-  // the centre, organisms orbiting by rank). Default `dag` writes NO param, so the
-  // current world stays byte-identical until the owner picks `solar`.
+  // ADR-0171 (owner-attested 2026-07-07): dependency-aware `stress` placement is now the
+  // DEFAULT — it writes NO param, so a clean URL renders the trail-shortening world.
+  // `?layout=dag` opts back to the old layered rows; `?layout=solar` the radial world
+  // (ADR-0074 §6: cli/store hubs at the centre, organisms orbiting by rank).
   {
     kind: 'select',
     key: 'layout',
     label: 'Layout',
     group: GROUP_LAYOUT,
-    hint: 'How islands are arranged — DAG rows, a dependency-aware layout that shortens trails, or a solar-system with the cli/store hubs at the centre.',
-    default: 'dag',
+    hint: 'How islands are arranged — a dependency-aware layout that shortens trails (default), DAG rows, or a solar-system with the cli/store hubs at the centre.',
+    default: 'stress',
     options: [
-      { value: 'dag', label: 'DAG rows' },
       { value: 'stress', label: 'Dependency-aware' },
+      { value: 'dag', label: 'DAG rows' },
       { value: 'solar', label: 'Solar system' },
     ],
     normalize: normalizeLayout,
