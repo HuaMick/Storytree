@@ -416,6 +416,14 @@ share, run 1; [`act2-guided-forest`](../../stories/website-experience/act2-guide
 share, run 2). Per ADR-0070 this is a step-forward attestation at this gate ("many steps forward",
 directed to land for inner-circle feedback), not a terminal close of the LOOK.
 
+**Default 8's how-it-works half shipped 2026-07-06** via the
+[ADR-0167](0167-info-page-triage-the-signed-disposition-set-and-the-keystati.md) info-page triage
+(storytree-web PR #28 → web main `be960873`, live): the industry terms are NAMED + cited once on the
+kept `/how-it-works/` page — the generation–verification loop Karpathy described, the verification
+gap (Sonar Jan-2026, "fully" kept), second brain (Forte's term) — in a section marked
+`data-grounds="ADR-0165"`, with §9's honesty rules binding on the wording (a Sonar-date error riding
+the same copy was corrected to January 2026). Noted in place per ADR-0139.
+
 ## References
 
 - [ADR-0153](0153-act-2-uses-the-real-app-ui-hides-the-unwalked-and-grows-a-co.md) — AMENDED:

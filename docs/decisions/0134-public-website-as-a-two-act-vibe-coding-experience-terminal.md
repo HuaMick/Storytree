@@ -178,7 +178,12 @@ can read.*
    tech split*. It deliberately **does not** fix (handed to the concept doc + `story-author`): the Act 2
    **level ladder** and the dev-goal→map-example mapping; the **scope of the surrounding informational
    pages** (home / how-it-works / roadmap / landscape / constitution — fold into Act 2, keep as a calm
-   linked reference, or retire; this decides whether **Keystatic/CMS survives**); the R3F mapper's
+   linked reference, or retire; this decides whether **Keystatic/CMS survives**) *(that deferred triage
+   is now CLOSED — [ADR-0167](0167-info-page-triage-the-signed-disposition-set-and-the-keystati.md),
+   2026-07-06, amending this §5: the owner signed + executed the per-page disposition set (KEEP
+   how-it-works / get-involved / contact / constitution / the 404; DISCARD roadmap + landscape with
+   redirect stubs) and Keystatic does NOT survive — it RETIRED, the hosted editor decommissioned,
+   ADR-0101 superseded. Noted in place per ADR-0139.)*; the R3F mapper's
    **package home** (a `story-author` call per
    [ADR-0123](0123-webgl-forest-world-renderer-via-react-three-fiber-website-fi.md)); the **asset / perf
    / mobile budget**, LOD strategy, and shader art direction; and **replay/skip UX** and whether Act 2
@@ -214,7 +219,9 @@ can read.*
   true cost centres.
 - **The immersive front door changes the site's character** and may displace the CMS-edited brochure —
   the surrounding-pages scope (deferred above) decides whether Keystatic stays, and is load-bearing for
-  the build shape.
+  the build shape. *(Decided 2026-07-06 —
+  [ADR-0167](0167-info-page-triage-the-signed-disposition-set-and-the-keystati.md): Keystatic does not
+  stay; the kept pages are plain static files edited by ordinary PRs. Noted in place per ADR-0139.)*
 - **Accessibility / SEO inside the experience must be bought back** with the mandatory fallback and skip
   — a standing obligation, not a one-off.
 - A **returning-visitor story** is required so the storm isn't re-imposed every visit. *(Resolved

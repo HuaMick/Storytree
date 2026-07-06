@@ -63,7 +63,11 @@ owner call on "presentable" (a HALT point, story open call 5).
 > (verbatim: *"This is also a step forward, so land it"*). Scoping LEFT to the owner's call (flagged, not
 > enacted): the cap id / `title:` / `outcome:` internal handles keep "storm" (machine handles the visitor
 > never sees), and `/how-it-works` mock-data "reconnect storm" is a NETWORKING term (`info-pages-triage`
-> territory), not the metaphor. This LOOK is NOT terminally closed (a further redesign is directed); the
+> territory), not the metaphor. *(The mock-data half of that flag is now CLOSED — scrubbed 2026-07-06
+> via ADR-0167 rider (b), the executed triage, web main `be960873`: `mockSystem.json`'s networking
+> jargon reads plainly ("Recovering dropped connections", "Keeping up under load", the rowan session →
+> "fixing the Monday outage"); Cohoot fiction, statuses, and DAG shape intact. The internal-handles
+> half stays as decided — the ids keep "storm" per ADR-0157 §2.)* This LOOK is NOT terminally closed (a further redesign is directed); the
 > "As built" records below keep their historical "storm" prose as true history (copy-on-write). The
 > authored `status:` stays `proposed`.
 
