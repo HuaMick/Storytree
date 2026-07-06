@@ -111,7 +111,10 @@ Fork B), machine-judged (the cross-repo drift checks are a machine's job, not a 
 This node declares the two gates that ALREADY guard the site parent-side and flip it off `mapped`; both
 run today in `pnpm gate`. The list is the **expandable floor** — the visual appearance proof and the
 content/roadmap gates ([ADR-0066](../../docs/decisions/0066-wire-the-website-into-the-system-a-tracked-corpus-grounded-s.md)
-Decision 4) land as their own capabilities below, not before.
+Decision 4) land as their own capabilities below, not before. *(The roadmap half of that floor is
+OVERTAKEN since 2026-07-06 —
+[ADR-0167](../../docs/decisions/0167-info-page-triage-the-signed-disposition-set-and-the-keystati.md)
+discarded `/roadmap/`, so no `check:web-roadmap` gate is owed unless the page returns.)*
 
 1. **The synced render core matches its source** _(gate: observe)_ `pnpm check:web-engine`. The spine
    runs the drift guard at a clean committed HEAD and OBSERVES it green — the site's
@@ -166,7 +169,11 @@ Fork A), a green website crown will MEAN both the render-core edge and the claim
    expandable). The obvious next capabilities are the site's **content/pages** as
    corpus-grounded claims ([ADR-0066](../../docs/decisions/0066-wire-the-website-into-the-system-a-tracked-corpus-grounded-s.md)
    Decision 4a/4b), the **generated roadmap** projected from the story tier behind a `check:web-roadmap`
-   drift gate (Decision 4c, NOT built), and the **visual appearance** proof (call 1) — author them as
+   drift gate (Decision 4c, NOT built — and OVERTAKEN 2026-07-06:
+   [ADR-0167](../../docs/decisions/0167-info-page-triage-the-signed-disposition-set-and-the-keystati.md)
+   discarded `/roadmap/` (salvage: `docs/research/retired-web-roadmap-2026-07.md`), so this capability
+   is owed only if the page ever returns, and generate-from-source is then its required shape), and the
+   **visual appearance** proof (call 1) — author them as
    capabilities under this surface when each lands.
 
 3. **Deploy stays on the web repo's here.now CD.** The public repo's `deploy.yml` (merge = publish)

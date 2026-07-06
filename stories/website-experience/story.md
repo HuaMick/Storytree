@@ -57,8 +57,9 @@ consumed_by: []
 # owner-approved Act-2 opening redesign, approved AS PRESENTED — one growing system diagram (Phase D)
 # advanced through the orchestrator chat (the separate Next button retires), a persistent docked
 # mini-map replacing the corner drive-machinery overlays, an orbiting wisp, TWO upstream beats, and a
-# Phase-Z zoom-out to the real studio; web-repo-only, the director untouched (165).
-decisions: [93, 123, 134, 145, 148, 150, 153, 157, 165]
+# Phase-Z zoom-out to the real studio; web-repo-only, the director untouched (165); the signed
+# info-page disposition set + the Keystatic retirement — the triage's own sign-off record (167).
+decisions: [93, 123, 134, 145, 148, 150, 153, 157, 165, 167]
 ---
 
 # The two-act vibe-coding experience — the public site's front door enacts chaos → calm
@@ -309,7 +310,16 @@ whole (owner decision 6):
 - **Increment I — `info-pages-triage`** — the surrounding pages fold in, retire, or stay; the
   Keystatic call falls out of the disposition set. It lands after H because the fold targets (e.g. the
   roadmap's "what's coming" behind the pull-back / "what's next") are only concrete once both Act 2
-  increments exist.
+  increments exist. **EXECUTED + OWNER-ATTESTED + LIVE (2026-07-06, web main `be960873`) — the arc's
+  LAST increment; the triage HALT is CLEARED.** The owner signed the per-page disposition set at the
+  gate and attested the executed result the same session (storytree-web PR #28, CD green): KEEP static
+  `how-it-works` (+ the ADR-0165 §8 terms section + the mock-data jargon scrub) / `get-involved` /
+  `contact` / `constitution` / the 404; DISCARD `/roadmap/` + `/landscape/` with redirect stubs
+  (substance salvaged to `docs/research/retired-web-*-2026-07.md`); Keystatic RETIRED (the hosted
+  editor decommissioned; ADR-0101 superseded) — recorded as
+  [ADR-0167](../../docs/decisions/0167-info-page-triage-the-signed-disposition-set-and-the-keystati.md)
+  (open call 4 CLOSED); see [`info-pages-triage`](info-pages-triage.md)'s proof status + As-built for
+  the record.
 
 Within-story edges, with the reason each exists: `web-experience-sync → r3f-world-spike` (you cannot
 sync a package that does not exist); `act2-beat-director → r3f-world-spike` (the director lives in
@@ -454,9 +464,13 @@ Surfaced rather than guessed — none blocks the first increments:
    visitors; rollout makes visitors real EARLY). The fallback path is the authored floor for weak
    devices; a formal budget (bundle size, texture compression, frame floor) is an owner call —
    candidate future reliability gate on this story once numbers exist.
-4. **Keystatic / CMS survival** is deliberately NOT pre-decided: it falls out of `info-pages-triage`
-   (if no surviving page needs CMS editing, Keystatic retires). Record the outcome as its own ADR
-   when the triage lands (ADR-0134 flags it as load-bearing for the build shape).
+4. **Keystatic / CMS survival** — **CLOSED (owner, 2026-07-06, at the info-pages-triage disposition
+   gate, [ADR-0167](../../docs/decisions/0167-info-page-triage-the-signed-disposition-set-and-the-keystati.md)):
+   Keystatic RETIRES.** Every surviving page is low-churn reference edited as plain files; the
+   hosted editor (Cloud Run `storytree-web-editor`, ADR-0101 — superseded) was decommissioned with
+   owner approval at the same gate. The signed per-page disposition set (discard `/roadmap/` +
+   `/landscape/` with redirects, keep the rest) is recorded in the same ADR; see
+   [`info-pages-triage`](info-pages-triage.md)'s proof status for the attestation record.
 5. **The home-flip moment** ("as soon as presentable", increment D) is an owner attestation by
    definition — the driving session HALTs and asks rather than deciding presentability itself.
    **DONE (owner-attested 2026-07-02):** the storm was attested presentable (UAT legs 1–4, audio

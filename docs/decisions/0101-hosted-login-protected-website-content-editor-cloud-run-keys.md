@@ -1,10 +1,19 @@
 ---
-status: accepted
+status: superseded
 decided: 2026-06-24
 ---
 # ADR-0101: Hosted login-protected website content editor — Cloud Run + Keystatic GitHub mode
 
 ## Status
+
+**Superseded by [ADR-0167](0167-info-page-triage-the-signed-disposition-set-and-the-keystati.md)**
+(2026-07-06) — the info-page triage's owner call B retired Keystatic entirely: every surviving page
+is low-churn reference whose copy changes were already landing as ordinary file-edit PRs, so the
+editor's config, deps, scripts, image, and CD were removed web-side, and the live Cloud Run service
+`storytree-web-editor` was decommissioned with explicit owner approval at the same gate
+(`gcloud run services delete`, verified gone, 2026-07-06). Content editing is plain repo file edits;
+if in-browser editing is ever wanted again it is a NEW decision, not a revert. The original accepted
+body is retained below as history.
 
 accepted (2026-06-24) — direct owner decision this session: the storytree-web content editor gets a
 **hosted, login-protected** deployment so the owner can edit page copy from any browser, no local

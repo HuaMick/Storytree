@@ -130,7 +130,15 @@ materials is routed to the proof that fits it. Concretely:
      the repo**, citing these ids, in the site's public voice.
    - **(c) The roadmap is generated from the story tier.** `roadmap.json` becomes a projection of the
      real story DAG + statuses (public subset) behind a `check:web-roadmap` drift gate — the sharpest
-     drift-kill, and literally the corpus rendering itself.
+     drift-kill, and literally the corpus rendering itself. *(OVERTAKEN in this web-page expression,
+     2026-07-06 — never wired, and the
+     [ADR-0167](0167-info-page-triage-the-signed-disposition-set-and-the-keystati.md) triage DISCARDED
+     `/roadmap/` (redirect → `/get-involved/`), so there is no public roadmap page to generate. The
+     page's substance is salvaged at
+     [`docs/research/retired-web-roadmap-2026-07.md`](../research/retired-web-roadmap-2026-07.md); if
+     the page ever comes back to life, this D4(c) generate-from-source shape is the one it must take.
+     The route-content-to-drift-gates decision this bullet instantiates stands. Noted in place per
+     ADR-0139.)*
 
    Generation widens the *grounded* surface and the gate keeps it honest; the crafted explainer copy
    remains a human deliverable (Decision 5). Authoring these gates is itself inner-loop-shaped
