@@ -1680,12 +1680,15 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
 
   // ADR-0169 §3: trails are hidden by default and GROW on island focus. The plan is the
   // pure selector (lib/trailReveal): which segments, in what stagger order, from which
-  // end, in which direction tint. Focus is the EXISTING island focus state (hover ??
-  // selected — hovering previews the reveal, clicking pins it). The scene stays
-  // focus-agnostic; the plan rides the mapper ctx + the mask defs below.
+  // end, in which direction tint. Reveal is CLICK/SELECT ONLY — keyed on `selectedStory`,
+  // NOT `focusStoryId` (owner feedback 2026-07-06): hover keeps the cheap territory
+  // upstream/downstream highlight (`storyRelations`), but must never BUILD trails — every
+  // mousemove re-ran the reveal plan + re-rendered the growth masks, the reported lag.
+  // Clicking an island reveals the UNION of its incident edges (§5 honesty — never a
+  // subset); the scene stays focus-agnostic; the plan rides the mapper ctx + mask defs.
   const revealPlan = useMemo(
-    () => trailRevealPlan(world?.trails ?? null, focusStoryId),
-    [world, focusStoryId],
+    () => trailRevealPlan(world?.trails ?? null, selectedStory),
+    [world, selectedStory],
   );
   const trailSegById = useMemo(
     () => new Map((world?.trails.segments ?? []).map((s) => [s.id, s])),
