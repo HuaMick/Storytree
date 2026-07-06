@@ -1036,12 +1036,11 @@ function readBuildings(search: string = defaultSearch()): boolean {
 
 type LayoutMode = 'dag' | 'solar' | 'stress';
 
-/** `?layout=solar` ⇒ the RADIAL hub-and-spoke world; `?layout=stress` ⇒ the
- *  dependency-aware stress-majorization placement (ADR-0171, shortens trails while
- *  keeping hierarchy — owner-attested before it can become default); default `dag` =
- *  the current layered world (byte-identical — the param is absent). Gear-panel managed
- *  (worldSettings, the single source of truth for the default), so the panel + this
- *  reader never drift. */
+/** DEFAULT (param absent) ⇒ the dependency-aware stress-majorization placement
+ *  (ADR-0171, owner-attested 2026-07-07 — shortens trails while keeping hierarchy);
+ *  `?layout=dag` ⇒ the old strict-layered world; `?layout=solar` ⇒ the RADIAL
+ *  hub-and-spoke world. Gear-panel managed (worldSettings, the single source of truth
+ *  for the default), so the panel + this reader never drift. */
 function readLayoutMode(search: string = defaultSearch()): LayoutMode {
   const v = readControlValue(search, LAYOUT_CTL);
   return v === 'solar' ? 'solar' : v === 'stress' ? 'stress' : 'dag';
