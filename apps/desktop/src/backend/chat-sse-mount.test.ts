@@ -388,6 +388,125 @@ test(
   },
 );
 
+// CONTINUITY SEAM (ADR-0170, amending ADR-0108 — the ADR-0163 gap-D fix): a `resume` field in the
+// POST body is forwarded through the mount → startChatStream → orchestrate → runHeadlessOrchestrator
+// into the SDK options, so the send CONTINUES the prior conversation instead of spawning a memoryless
+// fresh session; and the terminal `done` SSE frame carries the run's sessionId — the handle the thin
+// client threads back as `resume` on its next send.
+//
+// DELETION TEST: dropping the resume parse/forward in the mount removes `resume` from the captured
+// session options; dropping the sessionId pass-through empties the done frame's sessionId.
+test(
+  "csm-threads-resume: a resume in the POST body reaches the SDK options; the done frame carries the run's sessionId",
+  async () => {
+    let capturedOptions: unknown;
+    const capturingQuery: QueryFn = ({ options }) => {
+      capturedOptions = options;
+      return (async function* () {
+        yield { ...OK_SDK_RESULT, session_id: "sess-this-run" };
+      })();
+    };
+
+    const handler = createChatSseMount({ queryFn: capturingQuery });
+
+    await withServer(handler, async (base) => {
+      const res = await fetch(`${base}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ intent: "proceed to reauthor it", resume: "sess-prior-run" }),
+      });
+      assert.equal(res.status, 200, "a resumed send is still a 200 SSE response");
+      const events = parseSseFrames(await res.text());
+
+      const last = events[events.length - 1];
+      assert.equal(last?.type, "done", `resumed session must reach a terminal 'done' (got '${last?.type}')`);
+      assert.equal(
+        last?.type === "done" ? (last as { sessionId?: string }).sessionId : undefined,
+        "sess-this-run",
+        "the done frame must carry the run's sessionId — the continuity handle for the next send",
+      );
+    });
+
+    assert.ok(capturedOptions !== undefined, "the scripted queryFn must have been called");
+    assert.equal(
+      (capturedOptions as { resume?: string }).resume,
+      "sess-prior-run",
+      "the POST body's resume must be threaded all the way into the SDK session options",
+    );
+  },
+);
+
+// CONTINUITY SEAM (baseline): without a resume field the session options carry NO resume key at all —
+// a fresh session, byte-identical to the pre-ADR-0170 behaviour.
+test(
+  "csm-threads-resume: without a resume field, the session options carry no resume key (fresh session)",
+  async () => {
+    let capturedOptions: unknown;
+    const capturingQuery: QueryFn = ({ options }) => {
+      capturedOptions = options;
+      return (async function* () {
+        yield OK_SDK_RESULT;
+      })();
+    };
+
+    const handler = createChatSseMount({ queryFn: capturingQuery });
+
+    await withServer(handler, async (base) => {
+      const res = await fetch(`${base}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ intent: "a fresh conversation" }),
+      });
+      assert.equal(res.status, 200);
+      await res.text();
+    });
+
+    assert.ok(capturedOptions !== undefined, "the scripted queryFn must have been called");
+    assert.ok(
+      !("resume" in (capturedOptions as object)),
+      "with no resume in the body, the SDK options must carry no resume key — a fresh session",
+    );
+  },
+);
+
+// FAIL-CLOSED: a present-but-malformed resume (non-string or blank) is rejected 400 BEFORE any
+// session starts — silently ignoring it would restart a fresh memoryless session, which is exactly
+// the ADR-0163 gap-D bug the field exists to fix.
+test(
+  "csm-threads-resume: a malformed resume field is rejected 400 (fail-closed, never a silent fresh session)",
+  async () => {
+    let sdkCalled = false;
+    const sentinelQuery: QueryFn = () => {
+      sdkCalled = true;
+      return (async function* () {
+        yield OK_SDK_RESULT;
+      })();
+    };
+
+    const handler = createChatSseMount({ queryFn: sentinelQuery });
+
+    await withServer(handler, async (base) => {
+      // non-string resume
+      const res1 = await fetch(`${base}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ intent: "continue please", resume: 42 }),
+      });
+      assert.equal(res1.status, 400, "a non-string resume must be rejected 400");
+
+      // blank resume
+      const res2 = await fetch(`${base}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ intent: "continue please", resume: "   " }),
+      });
+      assert.equal(res2.status, 400, "a blank resume must be rejected 400");
+    });
+
+    assert.ok(!sdkCalled, "a malformed resume must never reach the SDK — the guard fires before any session");
+  },
+);
+
 // ERROR PATH: when the scripted SDK throws on iteration, startChatStream catches it and
 // emits a terminal `error` event; the mount streams it as an SSE frame (never a 500).
 //

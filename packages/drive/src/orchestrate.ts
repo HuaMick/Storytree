@@ -34,6 +34,14 @@ export interface OrchestrateArgs {
   /** The store to render the `session-orchestrator` agent from (seed corpus or live pg store). */
   store: Store;
   /**
+   * OPTIONAL prior-session id to RESUME (ADR-0170, amending ADR-0108: chat continuity). Threaded
+   * to the headless runner, whose SDK session loads the prior conversation — so a follow-up send
+   * remembers the exchange it continues instead of spawning a memoryless fresh session (the
+   * ADR-0163 gap-D fix). Absent → a fresh session, byte-identical to before (the §7 mirror). The
+   * result's `sessionId` is what a caller threads back here on the next send.
+   */
+  resume?: string;
+  /**
    * Injectable SDK query function — an offline scripted double proves the composition without live
    * spend (ADR-0010 §5). OMIT for a live run: `runHeadlessOrchestrator` then defaults to the real SDK
    * `query()` (which lives in @storytree/agent — the single-import-site, ADR-0004 — so the CLI never
@@ -139,6 +147,7 @@ let compositionInFlight = false;
 export async function orchestrate({
   intent,
   store,
+  resume,
   queryFn,
   runner,
   model,
@@ -179,6 +188,7 @@ export async function orchestrate({
     return await runHeadlessOrchestrator({
       systemPrompt: renderResult.agent.prompt,
       userPrompt: intent,
+      ...(resume !== undefined ? { resume } : {}),
       ...(queryFn !== undefined ? { queryFn } : {}),
       ...(runner !== undefined ? { runner } : {}),
       ...(model !== undefined ? { model } : {}),

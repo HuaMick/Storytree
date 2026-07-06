@@ -68,12 +68,16 @@ export interface ChatDeltaEvent {
   type: 'delta';
   text: string;
 }
-/** The terminal success frame — the authoritative proposal text plus optional session metrics. */
+/** The terminal success frame — the authoritative proposal text plus optional session metrics.
+ *  `sessionId` is the SDK session this exchange ran in (ADR-0170 chat continuity): the panel
+ *  threads it back as `resume` on its next send so the conversation genuinely continues; the
+ *  reset ("new chat") drops it — the explicit context boundary. */
 export interface ChatDoneEvent {
   type: 'done';
   proposal: string;
   costUsd?: number;
   turns?: number;
+  sessionId?: string;
 }
 /** The terminal failure frame — a dead/errored session, rendered as a distinct error state. */
 export interface ChatErrorEvent {
@@ -127,13 +131,21 @@ function isChatEvent(value: unknown): value is ChatEvent {
  * down), leaving no zombie stream settling into a cleared panel. Threading a fetch option stays inside
  * the thin-client wall — no agent/drive/model import, no wire-shape change. The existing two-arg
  * callers keep working (the parameter is optional).
+ *
+ * `resume` — an OPTIONAL prior-session id (ADR-0170 chat continuity): the `sessionId` a prior `done`
+ * frame carried, sent in the POST body so this exchange CONTINUES that conversation instead of
+ * spawning a memoryless fresh session (the ADR-0163 gap-D fix). Omitted → a fresh session.
  */
 async function chatStream(
   intent: string,
   onEvent: (event: ChatEvent) => void,
   signal?: AbortSignal,
+  resume?: string,
 ): Promise<void> {
-  const res = await fetch('/api/chat', { ...jsonInit('POST', { intent }), ...(signal ? { signal } : {}) });
+  const res = await fetch('/api/chat', {
+    ...jsonInit('POST', { intent, ...(resume !== undefined ? { resume } : {}) }),
+    ...(signal ? { signal } : {}),
+  });
   if (!res.ok || res.body === null) {
     // Absent route / fail-closed backend (e.g. studio-standalone 404, or the intent guard's 400).
     throw new Error(`chat unavailable (${res.status} ${res.statusText})`);

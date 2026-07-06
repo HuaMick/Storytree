@@ -31,17 +31,25 @@ import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 // here too so the scripted seam yields exactly what the route emits — the panel re-declares its own.
 type ChatEvent =
   | { type: 'delta'; text: string }
-  | { type: 'done'; proposal: string; costUsd?: number; turns?: number }
+  | { type: 'done'; proposal: string; costUsd?: number; turns?: number; sessionId?: string }
   | { type: 'error'; error: string }
   | { type: 'refused'; reason: string };
 
 // The streaming seam: api.chatStream(intent, onEvent) POSTs /api/chat, parses each SSE frame, and
 // calls onEvent per typed event. It resolves when the stream ends and rejects when the route is
 // absent (404 / fetch error). The mock lets each test script the frames (and the rejection) across
-// MULTIPLE sends (the transcript model).
+// MULTIPLE sends (the transcript model). `resume` is the continuity handle (ADR-0170): the panel
+// threads the last done frame's sessionId back so the follow-up send continues the conversation.
 const apiMock = vi.hoisted(() => ({
   chatStream:
-    vi.fn<(intent: string, onEvent: (event: ChatEvent) => void, signal?: AbortSignal) => Promise<void>>(),
+    vi.fn<
+      (
+        intent: string,
+        onEvent: (event: ChatEvent) => void,
+        signal?: AbortSignal,
+        resume?: string,
+      ) => Promise<void>
+    >(),
 }));
 vi.mock('../api', () => ({ api: apiMock }));
 
@@ -619,5 +627,75 @@ describe('ChatPanel — transcript reset', () => {
 
     settle();
     await flush();
+  });
+});
+
+describe('ChatPanel — session continuity (ADR-0170, the ADR-0163 gap-D fix)', () => {
+  /** Find the reset ("new chat") control by its accessible name. */
+  const resetButton = (): HTMLElement => screen.getByRole('button', { name: /new chat/i });
+
+  // ── cc-threads-resume-across-sends ──────────────────────────────────────────
+  it('cc-threads-resume-across-sends: the first send carries no resume; each later send threads the last done frame\'s sessionId back as resume — the conversation continues', async () => {
+    apiMock.chatStream
+      .mockImplementationOnce(async (_intent, onEvent) => {
+        onEvent({ type: 'done', proposal: 'first answer', turns: 2, sessionId: 'sess-1' });
+      })
+      .mockImplementationOnce(async (_intent, onEvent) => {
+        onEvent({ type: 'done', proposal: 'second answer', turns: 3, sessionId: 'sess-2' });
+      })
+      .mockImplementationOnce(async (_intent, onEvent) => {
+        // A done frame WITHOUT a sessionId — the panel keeps the last KNOWN handle in place.
+        onEvent({ type: 'done', proposal: 'third answer', turns: 1 });
+      })
+      .mockImplementationOnce(async (_intent, onEvent) => {
+        onEvent({ type: 'done', proposal: 'fourth answer', turns: 1 });
+      });
+
+    render(<ChatPanel />);
+
+    // First send: a fresh conversation — NO resume (4th arg undefined).
+    typeAndSubmit('what is the plan?');
+    await flush();
+    expect(apiMock.chatStream.mock.calls[0]?.[3]).toBeUndefined();
+
+    // Second send: threads the first exchange's sessionId back — the follow-up continues it.
+    typeAndSubmit('can you proceed to reauthor it?');
+    await flush();
+    expect(apiMock.chatStream.mock.calls[1]?.[3]).toBe('sess-1');
+
+    // Third send: the handle advanced to the latest settled session.
+    typeAndSubmit('and then?');
+    await flush();
+    expect(apiMock.chatStream.mock.calls[2]?.[3]).toBe('sess-2');
+
+    // Fourth send: the third done carried NO sessionId → the last known handle is kept, not dropped.
+    typeAndSubmit('keep going');
+    await flush();
+    expect(apiMock.chatStream.mock.calls[3]?.[3]).toBe('sess-2');
+  });
+
+  // ── cc-reset-is-the-context-boundary ────────────────────────────────────────
+  it('cc-reset-is-the-context-boundary: clicking reset ("new chat") drops the continuity handle — the next send starts a brand-new session (no resume)', async () => {
+    apiMock.chatStream
+      .mockImplementationOnce(async (_intent, onEvent) => {
+        onEvent({ type: 'done', proposal: 'settled with a session', turns: 2, sessionId: 'sess-old' });
+      })
+      .mockImplementationOnce(async (_intent, onEvent) => {
+        onEvent({ type: 'done', proposal: 'a fresh conversation', turns: 1, sessionId: 'sess-new' });
+      });
+
+    render(<ChatPanel />);
+
+    typeAndSubmit('establish some context');
+    await flush();
+
+    // Reset IS the context boundary: the transcript clears AND the continuity handle is dropped.
+    fireEvent.click(resetButton());
+    await flush();
+
+    typeAndSubmit('a brand new topic');
+    await flush();
+    expect(apiMock.chatStream).toHaveBeenCalledTimes(2);
+    expect(apiMock.chatStream.mock.calls[1]?.[3]).toBeUndefined();
   });
 });
