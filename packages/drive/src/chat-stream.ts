@@ -67,12 +67,15 @@ export interface ChatStreamSpawnEvent {
   ok?: boolean;
 }
 
-/** A terminal done event — the proposal text plus session metrics. */
+/** A terminal done event — the proposal text plus session metrics. `sessionId` is the SDK session
+ *  this exchange ran in (ADR-0170 chat continuity): a thin client threads it back as `resume` on the
+ *  next send so the follow-up genuinely continues the conversation; a "new chat" reset drops it. */
 export interface ChatStreamDoneEvent {
   type: "done";
   proposal: string;
   costUsd: number | undefined;
   turns: number | undefined;
+  sessionId: string | undefined;
 }
 
 /** A terminal error event — emitted instead of throwing when the session fails. */
@@ -111,6 +114,13 @@ export interface StartChatStreamArgs {
   intent: string;
   /** The store to render the `session-orchestrator` agent from (seed corpus or live pg store). */
   store: Store;
+  /**
+   * OPTIONAL prior-session id to RESUME (ADR-0170, amending ADR-0108: chat continuity) — the
+   * `sessionId` a prior `done` event carried, threaded back so this send continues that
+   * conversation (tool memory included) instead of spawning a memoryless fresh session (the
+   * ADR-0163 gap-D fix). Absent → a fresh session, byte-identical to before.
+   */
+  resume?: string;
   /**
    * Injectable SDK query function — an offline scripted double proves the adapter without live
    * spend (ADR-0010 §5). Omit for a live run.
@@ -242,6 +252,7 @@ export async function* startChatStream(
   const session: Promise<SessionOutcome> = orchestrate({
     intent: args.intent,
     store: args.store,
+    ...(args.resume !== undefined ? { resume: args.resume } : {}),
     onDelta: (text: string) => {
       if (text.length === 0) return;
       queue.push({ kind: "delta", text });
@@ -309,5 +320,8 @@ export async function* startChatStream(
     proposal: result.proposal ?? "",
     costUsd: result.costUsd,
     turns: result.turns,
+    // The SDK session this exchange ran in — the thin client threads it back as `resume` on the
+    // next send (ADR-0170 chat continuity); a reset ("new chat") drops it.
+    sessionId: result.sessionId,
   };
 }

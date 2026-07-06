@@ -36,6 +36,17 @@ export interface HeadlessOrchestratorArgs {
   systemPrompt: string;
   /** The user prompt: the session's task (orient and propose). */
   userPrompt: string;
+  /**
+   * OPTIONAL prior-session id to RESUME (ADR-0170, amending ADR-0108: chat continuity). When
+   * present, the SDK loads the prior session's conversation history — assistant turns, tool calls
+   * and results included — so a follow-up send genuinely remembers the exchange it continues
+   * (the ADR-0163 gap-D fix: each send used to spawn a brand-new session with no memory). Absent →
+   * a fresh session, and the options handed to the SDK are byte-identical to before (the same §7
+   * scale-down mirror as the optional tool surfaces). Sequential resume never trips the
+   * single-session guard (ADR-0108 d.6): each resumed run is a NEW query() that terminates with its
+   * own result; the guard holds only while one run is in flight.
+   */
+  resume?: string;
   /** Working directory for the SDK session. Defaults to process.cwd(). */
   cwd?: string;
   /**
@@ -126,6 +137,12 @@ export interface HeadlessOrchestratorResult {
   costUsd?: number;
   /** Number of turns the SDK ran (present on success). */
   turns?: number;
+  /**
+   * The SDK session id of THIS run (present on success), read from the result message's
+   * `session_id`. A caller threads it back as {@link HeadlessOrchestratorArgs.resume} to continue
+   * the conversation on the next send (ADR-0170 chat continuity).
+   */
+  sessionId?: string;
   /** Error description when `ok` is false. */
   error?: string;
 }
@@ -149,6 +166,8 @@ interface ResultLike {
   total_cost_usd: number;
   /** The final assistant text on a successful result. */
   result?: string;
+  /** The session id of the run — resumable via Options.resume (ADR-0170). */
+  session_id?: string;
   errors?: string[];
 }
 
@@ -252,6 +271,10 @@ export async function runHeadlessOrchestrator(
       // No USD ceiling by default (ADR-0131, completing ADR-0130): subscription-funded (ADR-0030), so a
       // metered dollar cap is a phantom. Pass maxBudgetUsd ONLY when set.
       ...(args.maxBudgetUsd !== undefined ? { maxBudgetUsd: args.maxBudgetUsd } : {}),
+      // Resume the prior session when the caller threads one back (ADR-0170 chat continuity) — the
+      // SDK loads its conversation history, so the follow-up send remembers the exchange. Absent →
+      // a fresh session; no `resume` key is handed to the SDK at all.
+      ...(args.resume !== undefined ? { resume: args.resume } : {}),
       // Surface assistant token deltas as they generate (live chat) — see onDelta/extractTextDelta.
       ...(wantsDeltas ? { includePartialMessages: true } : {}),
       // No Write/Edit/Bash in tools or allowedTools — the chat session carries no raw write verbs
@@ -372,6 +395,11 @@ export async function runHeadlessOrchestrator(
       proposal: result.result ?? "",
       costUsd,
       turns,
+      // Surface the run's session id so the caller can thread it back as `resume` on the next
+      // send (ADR-0170 chat continuity). Only when the SDK reported one (exactOptionalPropertyTypes).
+      ...(typeof result.session_id === "string" && result.session_id.length > 0
+        ? { sessionId: result.session_id }
+        : {}),
     };
   } finally {
     inFlight = false;

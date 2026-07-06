@@ -319,6 +319,70 @@ test(
 );
 
 // ---------------------------------------------------------------------------
+// 3c. Chat continuity (ADR-0170, amending ADR-0108): the done event carries the
+//     run's sessionId, and an injected `resume` is threaded down to the SDK
+//     options — so a follow-up send continues the SAME conversation (the
+//     ADR-0163 gap-D fix). Absent resume → no resume key (fresh session).
+// ---------------------------------------------------------------------------
+
+test(
+  "startChatStream: the done event carries the run's sessionId — what the thin client threads back as resume (ADR-0170)",
+  async () => {
+    const store = new InMemoryStore();
+    await loadCorpus(store);
+
+    const events = await drain(
+      startChatStream({
+        intent: "Orient and propose.",
+        store,
+        queryFn: queryYielding([{ ...OK_SDK_RESULT, session_id: "sess-first-run" }]),
+      }),
+    );
+
+    const done = events.find((e) => e.type === "done");
+    assert.ok(done !== undefined, "stream must contain a terminal `done` event");
+    assert.equal(
+      done.type === "done" ? done.sessionId : undefined,
+      "sess-first-run",
+      "the done event must surface the SDK session_id — the continuity handle the next send resumes with",
+    );
+  },
+);
+
+test(
+  "startChatStream: an injected resume is threaded down to the SDK options; absent → no resume key (ADR-0170)",
+  async () => {
+    const store = new InMemoryStore();
+    await loadCorpus(store);
+
+    // With resume: the prior session id must reach the SDK options.
+    const withResume = capturingQueryFn();
+    await drain(
+      startChatStream({
+        intent: "proceed to reauthor it",
+        store,
+        queryFn: withResume.fn,
+        resume: "sess-first-run",
+      }),
+    );
+    assert.equal(
+      withResume.lastOptions()["resume"],
+      "sess-first-run",
+      "the resume id must be threaded startChatStream → orchestrate → runHeadlessOrchestrator → SDK options",
+    );
+
+    // Without resume: a fresh session — the options carry no resume key at all.
+    const fresh = capturingQueryFn();
+    await drain(startChatStream({ intent: "Orient and propose.", store, queryFn: fresh.fn }));
+    assert.equal(
+      "resume" in fresh.lastOptions(),
+      false,
+      "without a resume arg the SDK options must carry no `resume` key — byte-identical fresh session",
+    );
+  },
+);
+
+// ---------------------------------------------------------------------------
 // 4. Drives the REAL orchestrate composition (not a fork): the rendered system
 //    prompt names `session-orchestrator`
 //    (contract `cs-drives-the-real-orchestrate-not-a-fork`, ADR-0108 d.2)

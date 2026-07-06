@@ -128,6 +128,76 @@ test("runHeadlessOrchestrator: passes an explicit maxBudgetUsd through (the opt-
 });
 
 // ---------------------------------------------------------------------------
+// 1c. Session continuity (ADR-0170, amending ADR-0108): `resume` is threaded to
+//     the SDK options when present, ABSENT otherwise (byte-identical fresh
+//     session); the result surfaces the run's session_id so the caller can
+//     thread it back on the next send.
+// ---------------------------------------------------------------------------
+
+test("runHeadlessOrchestrator: threads an explicit resume to the SDK options (ADR-0170 chat continuity)", async () => {
+  let opts: { resume?: string } | undefined;
+  const queryFn: SdkQueryFn = (q) => {
+    opts = (q as { options: { resume?: string } }).options;
+    return (async function* () {
+      yield okResult;
+    })();
+  };
+  const r = await runHeadlessOrchestrator({
+    systemPrompt: "SYS",
+    userPrompt: "proceed to reauthor it",
+    resume: "sess-prior-uuid",
+    queryFn,
+  });
+  assert.equal(r.ok, true);
+  assert.equal(
+    opts?.resume,
+    "sess-prior-uuid",
+    "the prior session id must reach the SDK options as `resume` — the follow-up send continues the conversation",
+  );
+});
+
+test("runHeadlessOrchestrator: hands NO resume key to the SDK by default — a fresh session (the §7 mirror)", async () => {
+  let hasResumeKey = true;
+  const queryFn: SdkQueryFn = (q) => {
+    hasResumeKey = "resume" in (q as { options: object }).options;
+    return (async function* () {
+      yield okResult;
+    })();
+  };
+  const r = await runHeadlessOrchestrator({ systemPrompt: "SYS", userPrompt: "orient", queryFn });
+  assert.equal(r.ok, true);
+  assert.equal(
+    hasResumeKey,
+    false,
+    "without a resume arg the options must carry no `resume` key at all — byte-identical to the pre-ADR-0170 fresh session",
+  );
+});
+
+test("runHeadlessOrchestrator: surfaces the result message's session_id so the caller can resume the next send", async () => {
+  const r = await runHeadlessOrchestrator({
+    systemPrompt: "SYS",
+    userPrompt: "orient",
+    queryFn: queryYielding([{ ...okResult, session_id: "sess-this-run" }]),
+  });
+  assert.equal(r.ok, true);
+  assert.equal(
+    r.sessionId,
+    "sess-this-run",
+    "the run's session_id must surface on the result — it is what the caller threads back as `resume` (ADR-0170)",
+  );
+});
+
+test("runHeadlessOrchestrator: a result without a session_id yields no sessionId (no invented id)", async () => {
+  const r = await runHeadlessOrchestrator({
+    systemPrompt: "SYS",
+    userPrompt: "orient",
+    queryFn: queryYielding([okResult]), // okResult carries no session_id
+  });
+  assert.equal(r.ok, true);
+  assert.equal(r.sessionId, undefined, "no session_id on the result message → no sessionId invented");
+});
+
+// ---------------------------------------------------------------------------
 // 2. Fail-closed — stream carries no result message
 // ---------------------------------------------------------------------------
 

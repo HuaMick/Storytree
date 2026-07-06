@@ -46,6 +46,13 @@ surface's APPEARANCE is operator-attested under ADR-0070 when built.
 > (ADR-0091), CI still lands (ADR-0022). The story detail panel's explicit Build/Adopt affordance is a
 > separate surface and is kept.
 
+> **Amended by [ADR-0170](0170-chat-continuity-via-sdk-session-resume.md)** (accepted, 2026-07-06) —
+> the chat surface gains **conversational continuity across sends** via SDK session resume (ADR-0163
+> dogfood gap D): each send resumes the prior SDK session instead of starting fresh, and the panel's
+> reset button is the explicit context boundary. Additive — the single-session guard (d.6) is
+> unchanged (sequential resumed runs each terminate before the next starts), and the one-loop-definition
+> shape stands.
+
 ## Context
 
 Today the session-orchestrator is a *generated prompt* (ADR-0051) that a human-run Claude Code session

@@ -254,6 +254,7 @@ export interface ChatSseMountDeps {
 type BridgedStartStream = (args: {
   intent: string;
   store: SeedStore;
+  resume?: string;
   queryFn?: SseMountQueryFn;
   runner?: SseOrientationRunner;
   spawn?: SpawnSurfaceDeps;
@@ -303,6 +304,19 @@ export function createChatSseMount(
       return true;
     }
 
+    // Parse the OPTIONAL resume field (ADR-0170 chat continuity): the sessionId a prior `done`
+    // frame carried, threaded back so this send continues that conversation. FAIL-CLOSED on a
+    // present-but-malformed value — silently ignoring it would restart a fresh memoryless session,
+    // which is exactly the ADR-0163 gap-D bug this field exists to fix.
+    const rawResume = body["resume"];
+    if (rawResume !== undefined && (typeof rawResume !== "string" || !rawResume.trim())) {
+      res.statusCode = 400;
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.end(JSON.stringify({ error: "resume, when present, must be a non-empty string" }));
+      return true;
+    }
+    const resume = typeof rawResume === "string" ? rawResume.trim() : undefined;
+
     // Resolve the lazy-loaded seed corpus store (created once per process).
     const store = await getDefaultStore();
 
@@ -317,6 +331,7 @@ export function createChatSseMount(
     const streamArgs: {
       intent: string;
       store: SeedStore;
+      resume?: string;
       queryFn?: SseMountQueryFn;
       runner?: SseOrientationRunner;
       spawn?: SpawnSurfaceDeps;
@@ -325,6 +340,7 @@ export function createChatSseMount(
     } = {
       intent,
       store,
+      ...(resume !== undefined ? { resume } : {}),
       ...(deps.queryFn !== undefined ? { queryFn: deps.queryFn } : {}),
       ...(deps.runner !== undefined ? { runner: deps.runner } : {}),
       ...(deps.spawn !== undefined ? { spawn: deps.spawn } : {}),

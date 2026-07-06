@@ -4,7 +4,10 @@
 // event stream, and APPENDS the exchange to a persistent, scrollable TRANSCRIPT — each send adds a
 // `› <prompt>` echo then its reply as a new entry, flowing top-to-bottom like one continuous terminal
 // scrollback (multi-turn-transcript, owner feedback from the ADR-0137 Phase-3 UAT walk, 2026-07-03).
-// Prior exchanges stay rendered; the surface auto-scrolls to the newest entry as it grows. Each entry
+// Prior exchanges stay rendered; the surface auto-scrolls to the newest entry as it grows. The
+// transcript is REAL continuity, not just scrollback (ADR-0170, the ADR-0163 gap-D fix): each send
+// threads the last done frame's sessionId back as `resume`, so the backend session remembers the
+// prior exchanges; the reset button is the explicit context boundary (new chat = new session). Each entry
 // settles to its terminal render:
 //
 //   • a `done` frame   → the streamed proposal text (the success journey),
@@ -158,6 +161,12 @@ export function ChatPanel({ onSpawnFinished }: ChatPanelProps = {}): React.JSX.E
   // tears down) — no zombie stream settling a terminal frame into a cleared transcript. Null when no
   // send is in flight.
   const abortRef = useRef<AbortController | null>(null);
+  // The CONTINUITY handle (ADR-0170, amending ADR-0108 — the ADR-0163 gap-D fix): the SDK session id
+  // the last settled `done` frame carried. Each send threads it back as `resume` so the follow-up
+  // genuinely continues the conversation (tool memory included) instead of spawning a memoryless
+  // fresh session. Null = no prior session (a fresh conversation). The reset button is the EXPLICIT
+  // context boundary: it nulls this ref, so the next send starts a brand-new session.
+  const sessionRef = useRef<string | null>(null);
   // The scrollback surface — auto-scrolled to its bottom (the newest entry) on every append and as
   // tokens stream into the tail entry. jsdom lays out nothing, so the recompute (scrollTop =
   // scrollHeight) is the observable the test pins via a spied ref, NOT the laid-out pixels
@@ -238,6 +247,10 @@ export function ChatPanel({ onSpawnFinished }: ChatPanelProps = {}): React.JSX.E
     abortRef.current = controller;
     const { signal } = controller;
 
+    // Continue the prior SDK session when one settled (ADR-0170) — undefined on a fresh conversation
+    // (first send, or right after the reset's context boundary).
+    const resume = sessionRef.current ?? undefined;
+
     api
       .chatStream(
         trimmed,
@@ -289,6 +302,7 @@ export function ChatPanel({ onSpawnFinished }: ChatPanelProps = {}): React.JSX.E
           terminal = event;
         },
         signal,
+        resume,
       )
       .then(() => {
         // A reset aborted this send — the transcript is already cleared; do NOT settle a ghost reply
@@ -301,6 +315,10 @@ export function ChatPanel({ onSpawnFinished }: ChatPanelProps = {}): React.JSX.E
         }
         switch (terminal.type) {
           case 'done': {
+            // Hold the settled exchange's session id as the continuity handle for the next send
+            // (ADR-0170). A done frame without one leaves the prior handle in place — resuming the
+            // last KNOWN session is still the honest continuation.
+            if (terminal.sessionId !== undefined) sessionRef.current = terminal.sessionId;
             patchTailReply({
               kind: 'done',
               proposal: terminal.proposal,
@@ -344,6 +362,9 @@ export function ChatPanel({ onSpawnFinished }: ChatPanelProps = {}): React.JSX.E
       abortRef.current = null;
     }
     inFlight.current = false;
+    // The reset IS the context boundary (ADR-0170): drop the continuity handle so the next send
+    // starts a brand-new SDK session — "new chat" means new memory, not a resumed one.
+    sessionRef.current = null;
     setTranscript([]); // empty the scrollback back to the idle resting state
     setSpawns([]); // clear the in-flight spawn lines too — a reset starts clean
     setIntent(''); // clear the input
