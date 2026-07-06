@@ -1,0 +1,214 @@
+// The friction-drain ceiling — the PURE, DB-free core of `check:friction-drain` (ADR-0168 D4).
+//
+// ADR-0168's load-bearing lesson (Context): a WARN-backed worklist with no drain OBLIGATION rots —
+// `check:graduation-worklist` grew 31→58 in one session and drained nothing. The friction tier
+// inherits that failure unless the drain is fail-closed. So this computes a VERDICT over the live
+// friction worklist that flips WARN → **red** at a ceiling: past the cap, landing requires a board
+// drain session (a spawned adjudicator pass, D5) before the gate goes green again.
+//
+// It gates QUEUE HYGIENE ONLY. No count or age here ever decides what GRADUATES — worth is undiluted
+// adjudicator judgment (ADR-0032 §3/§5, reaffirmed by ADR-0168 D8). This is the ADR-0130 turn-cap
+// posture applied to the backlog (`meter-fail-closed-caps-in-real-cost`): a fail-closed brake on
+// unbounded growth, not a worth threshold.
+//
+// PURE by construction: no `node:` import, no DB, no clock. The current session (branch) and the
+// current date are INJECTED by the caller so this is deterministic and unit-testable against a
+// synthetic worklist — the live read + `new Date()` live in the thin `check-friction-drain.ts` shell.
+
+/**
+ * A friction item's DERIVED lifecycle (ADR-0168 D2 — derived, not a state machine): **open** (no
+ * route) → **routed** (route set to a real destination) → **archived** (`route: nothing`, a
+ * tombstone). Only OPEN items are un-adjudicated backlog; the ceiling gates those.
+ */
+export type FrictionLifecycle = "open" | "routed" | "archived";
+
+/**
+ * The minimal projection of a `friction` doc the ceiling needs — deliberately decoupled from the full
+ * `Friction` schema so this core (and its test) carry no library dependency. The shell projects live
+ * `StoredDoc`s down to this shape.
+ */
+export interface FrictionWorklistItem {
+  id: string;
+  /**
+   * The adjudication `route` body field, if set. Derives the lifecycle: `undefined`/empty → open,
+   * `"nothing"` → archived, anything else → routed.
+   */
+  route?: string | undefined;
+  /**
+   * The filing session's branch (session identity — a branch dies on merge, so one branch ≈ one
+   * session, ADR-0142). `undefined` on docs filed before provenance existed.
+   */
+  branch?: string | undefined;
+  /** ISO date (`YYYY-MM-DD`) the item was filed, from provenance. `undefined` when unattributed. */
+  date?: string | undefined;
+}
+
+/** The tunable ceiling constants (ADR-0168 D4: N≈12 / M≈21 days, tunable on evidence). */
+export interface FrictionDrainConfig {
+  /** N — the open-routable-count ceiling. Strictly above this reds the gate. */
+  openCeiling: number;
+  /** M — the oldest-routable ceiling in days. Strictly above this reds the gate. */
+  ageCeilingDays: number;
+  /** Advisory floor: routable count at/above this (but ≤ ceiling) WARNs — the bounded climb. */
+  warnAtOpen: number;
+  /** Advisory floor: oldest-routable age at/above this (but ≤ ceiling) WARNs. */
+  warnAtAgeDays: number;
+  /** K — how many oldest routable items the pre-merge librarian pass drains per merge (informational). */
+  drainBatch: number;
+}
+
+/**
+ * ADR-0168 D4 constants. N=12 / M=21d are the ceiling; the WARN band opens at two-thirds of each so
+ * the climb is visible well before it blocks a landing. K=3 is the bounded per-merge drain.
+ */
+export const DEFAULT_FRICTION_DRAIN_CONFIG: FrictionDrainConfig = {
+  openCeiling: 12,
+  ageCeilingDays: 21,
+  warnAtOpen: 8,
+  warnAtAgeDays: 14,
+  drainBatch: 3,
+};
+
+/** The context the ceiling is evaluated from: WHO is running the gate, and WHEN. */
+export interface FrictionDrainContext {
+  /** The current session's branch — its own just-filed items are not yet routable (see below). */
+  currentBranch: string;
+  /** Today, ISO `YYYY-MM-DD` — the reference point for item age. */
+  currentDate: string;
+}
+
+/** The computed verdict — `level` drives the gate: `red` ⇒ non-zero exit ⇒ landing needs a drain. */
+export interface FrictionDrainVerdict {
+  level: "ok" | "warn" | "red";
+  /** Every friction item read. */
+  total: number;
+  /** Un-adjudicated (no route). */
+  openCount: number;
+  /** Routed to a real destination. */
+  routedCount: number;
+  /** Tombstoned (`route: nothing`). */
+  archivedCount: number;
+  /**
+   * Open items filed by a session OTHER than the current one — the genuinely DRAINABLE backlog the
+   * ceiling gates. The current session's own just-filed items are excluded (no marking your own
+   * homework, ADR-0168 D4), so a retro that files its cap-3 can never trip its own ceiling.
+   */
+  routableCount: number;
+  /** Age in days of the oldest routable item (`null` when there are none, or none carry a date). */
+  oldestRoutableAgeDays: number | null;
+  oldestRoutableId: string | null;
+  /** Ceiling breaches — non-empty iff `level === "red"`. */
+  breaches: string[];
+  /** Advisory climb messages — non-empty iff `level === "warn"`. */
+  warnings: string[];
+  config: FrictionDrainConfig;
+}
+
+/**
+ * Derive a friction item's lifecycle from its `route` (ADR-0168 D2). Open (no route) is the only
+ * state the ceiling counts.
+ */
+export function frictionLifecycle(route: string | undefined | null): FrictionLifecycle {
+  if (route === undefined || route === null || route === "") return "open";
+  if (route === "nothing") return "archived";
+  return "routed";
+}
+
+/** Whole-day age of `fromIso` relative to `currentIso`; `null` if either is absent/unparseable. */
+function ageInDays(fromIso: string | undefined, currentIso: string): number | null {
+  if (fromIso === undefined) return null;
+  const from = Date.parse(fromIso);
+  const now = Date.parse(currentIso);
+  if (Number.isNaN(from) || Number.isNaN(now)) return null;
+  const days = Math.floor((now - from) / 86_400_000);
+  return days < 0 ? 0 : days;
+}
+
+/**
+ * Evaluate the friction-drain ceiling over a worklist. Pure — inject the session/date. The ceiling is
+ * on the ROUTABLE open backlog (open minus the current session's own items): count > N or oldest > M
+ * days ⇒ `red`; approaching either ⇒ `warn`; otherwise `ok`. Routed/archived items never count.
+ */
+export function evaluateFrictionDrain(
+  items: readonly FrictionWorklistItem[],
+  ctx: FrictionDrainContext,
+  config: FrictionDrainConfig = DEFAULT_FRICTION_DRAIN_CONFIG,
+): FrictionDrainVerdict {
+  let openCount = 0;
+  let routedCount = 0;
+  let archivedCount = 0;
+  const routable: { id: string; ageDays: number | null }[] = [];
+
+  for (const item of items) {
+    const life = frictionLifecycle(item.route);
+    if (life === "routed") {
+      routedCount += 1;
+      continue;
+    }
+    if (life === "archived") {
+      archivedCount += 1;
+      continue;
+    }
+    // Open — un-adjudicated backlog.
+    openCount += 1;
+    // Aged: the filing session never adjudicates its OWN items (ADR-0168 D4). An item filed by this
+    // session (same branch) is not yet routable; an item with no attributable branch is treated as
+    // older, other-session backlog (routable), so unattributed items still register as pressure.
+    const isOwnItem = item.branch !== undefined && item.branch === ctx.currentBranch;
+    if (!isOwnItem) {
+      routable.push({ id: item.id, ageDays: ageInDays(item.date, ctx.currentDate) });
+    }
+  }
+
+  const routableCount = routable.length;
+
+  let oldest: { id: string; ageDays: number } | null = null;
+  for (const r of routable) {
+    if (r.ageDays === null) continue;
+    if (oldest === null || r.ageDays > oldest.ageDays) oldest = { id: r.id, ageDays: r.ageDays };
+  }
+  const oldestRoutableAgeDays = oldest === null ? null : oldest.ageDays;
+  const oldestRoutableId = oldest === null ? null : oldest.id;
+
+  const breaches: string[] = [];
+  const warnings: string[] = [];
+
+  // Count axis — fail-closed above N, advisory in the warn band below it.
+  if (routableCount > config.openCeiling) {
+    breaches.push(
+      `routable open backlog ${routableCount} exceeds the ceiling (N=${config.openCeiling})`,
+    );
+  } else if (routableCount >= config.warnAtOpen) {
+    warnings.push(
+      `routable open backlog ${routableCount} is approaching the ceiling (N=${config.openCeiling})`,
+    );
+  }
+
+  // Age axis — an item that has sat un-adjudicated past M days is a stale queue, red.
+  if (oldestRoutableAgeDays !== null && oldestRoutableAgeDays > config.ageCeilingDays) {
+    breaches.push(
+      `oldest routable item ${oldestRoutableId ?? "?"} is ${oldestRoutableAgeDays}d old, past the ceiling (M=${config.ageCeilingDays}d)`,
+    );
+  } else if (oldestRoutableAgeDays !== null && oldestRoutableAgeDays >= config.warnAtAgeDays) {
+    warnings.push(
+      `oldest routable item ${oldestRoutableId ?? "?"} is ${oldestRoutableAgeDays}d old, approaching the ceiling (M=${config.ageCeilingDays}d)`,
+    );
+  }
+
+  const level: FrictionDrainVerdict["level"] =
+    breaches.length > 0 ? "red" : warnings.length > 0 ? "warn" : "ok";
+
+  return {
+    level,
+    total: items.length,
+    openCount,
+    routedCount,
+    archivedCount,
+    routableCount,
+    oldestRoutableAgeDays,
+    oldestRoutableId,
+    breaches,
+    warnings,
+    config,
+  };
+}
