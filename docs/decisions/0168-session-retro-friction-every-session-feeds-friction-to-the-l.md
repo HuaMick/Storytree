@@ -2,6 +2,7 @@
 status: accepted
 decided: 2026-07-06
 amends: [32, 95]
+load_bearing: true
 ---
 # ADR-0168: Session-retro friction: every session feeds friction to the Library through a justification-gated graduation loop
 
