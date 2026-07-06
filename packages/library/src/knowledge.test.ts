@@ -228,6 +228,152 @@ test("process kind: the branch-edge graph (ADR-0154 follow-on / ADR-0161) valida
   assert.throws(() => validateLibraryDoc(onAPrinciple), "branchEdges on a non-process kind must be rejected");
 });
 
+test("friction kind (ADR-0168 D2/D3): evidence is required, fail-closed", () => {
+  // A minimal friction doc (statement + evidence + impact) validates; the lifecycle fields
+  // (route / routeReason / provenance / reinforcedBy) are all optional at capture.
+  assert.doesNotThrow(() => validateLibraryDoc(minimalDoc("friction")), "minimal friction doc validates");
+
+  // An evidence-free doc is refused strict-parse — the structural anti-slop floor (D3).
+  const noEvidence: Record<string, unknown> = { ...minimalDoc("friction") };
+  delete noEvidence["evidence"];
+  assert.throws(() => validateLibraryDoc(noEvidence), "an evidence-free friction doc must be rejected");
+
+  // An empty-string evidence is refused too (Markdown is min(1)).
+  const emptyEvidence = { ...minimalDoc("friction"), evidence: "" };
+  assert.throws(() => validateLibraryDoc(emptyEvidence), "empty evidence must be rejected");
+});
+
+test("friction kind: route is the closed adjudication enum, never free prose", () => {
+  // Every route ADR-0168 D2 names validates.
+  for (const route of [
+    "adr",
+    "tool",
+    "principle",
+    "guardrail",
+    "process",
+    "definition",
+    "edit-existing",
+    "nothing",
+  ]) {
+    assert.doesNotThrow(
+      () => validateLibraryDoc({ ...minimalDoc("friction"), route }),
+      `route ${route} must validate`,
+    );
+  }
+
+  // Free prose in route fails closed — classification is adjudication's, and only from the enum.
+  const prose = { ...minimalDoc("friction"), route: "probably an ADR?" };
+  assert.throws(() => validateLibraryDoc(prose), "a non-enum route must be rejected");
+
+  // routeReason is plain optional markdown.
+  assert.doesNotThrow(() =>
+    validateLibraryDoc({
+      ...minimalDoc("friction"),
+      route: "nothing",
+      routeReason: "reconstructible from ADR-0162 just-in-time (justification question 2)",
+    }),
+  );
+});
+
+test("friction kind: structured provenance {branch, date, source} replaces the prose provenance", () => {
+  // The capture provenance is STRUCTURED on this kind (ADR-0168 D2) — unlike the commonShape
+  // markdown attribution line every other kind carries.
+  const valid = {
+    ...minimalDoc("friction"),
+    provenance: { branch: "claude/example-1", date: "2026-07-06", source: "retro" },
+  };
+  const parsed = validateLibraryDoc(valid) as {
+    provenance?: { branch: string; date: string; source: string };
+  };
+  assert.deepEqual(parsed.provenance, {
+    branch: "claude/example-1",
+    date: "2026-07-06",
+    source: "retro",
+  });
+
+  // Both capture sources validate; anything else fails closed (D2 names exactly two).
+  assert.doesNotThrow(() =>
+    validateLibraryDoc({
+      ...minimalDoc("friction"),
+      provenance: { branch: "b", date: "2026-07-06", source: "run-analysis" },
+    }),
+  );
+  const badSource = {
+    ...minimalDoc("friction"),
+    provenance: { branch: "b", date: "2026-07-06", source: "vibes" },
+  };
+  assert.throws(() => validateLibraryDoc(badSource), "an unknown provenance source must be rejected");
+
+  // A prose (string) provenance on friction fails closed — the structured shape is the field.
+  const proseProvenance = { ...minimalDoc("friction"), provenance: "filed by a retro" };
+  assert.throws(() => validateLibraryDoc(proseProvenance), "string provenance on friction must be rejected");
+
+  // Regression: the override must not leak — every OTHER kind keeps the markdown provenance line.
+  assert.doesNotThrow(() =>
+    validateLibraryDoc({ ...minimalDoc("principle"), provenance: "graduated from memory, 2026-06-14" }),
+  );
+
+  // A stray field inside provenance fails closed (FrictionProvenance is .strict()).
+  const stray = {
+    ...minimalDoc("friction"),
+    provenance: { branch: "b", date: "2026-07-06", source: "retro", severity: "high" },
+  };
+  assert.throws(() => validateLibraryDoc(stray), "a stray provenance field must be rejected");
+});
+
+test("friction kind: a reinforcement without its own evidence is refused (ADR-0168 D2)", () => {
+  // Recurrence reinforces, never duplicates — and each reinforcement carries ITS OWN evidence.
+  const valid = {
+    ...minimalDoc("friction"),
+    reinforcedBy: [
+      { branch: "claude/example-2", date: "2026-07-07", evidence: "same TS2307 after merge, PR #999" },
+    ],
+  };
+  const parsed = validateLibraryDoc(valid) as {
+    reinforcedBy?: ReadonlyArray<{ branch: string; date: string; evidence: string }>;
+  };
+  assert.deepEqual(parsed.reinforcedBy, [
+    { branch: "claude/example-2", date: "2026-07-07", evidence: "same TS2307 after merge, PR #999" },
+  ]);
+
+  // A reinforcement entry with NO evidence fails closed.
+  const noEvidence = {
+    ...minimalDoc("friction"),
+    reinforcedBy: [{ branch: "b", date: "2026-07-07" }],
+  };
+  assert.throws(() => validateLibraryDoc(noEvidence), "a reinforcement without evidence must be rejected");
+
+  // Empty-string evidence fails closed too.
+  const emptyEvidence = {
+    ...minimalDoc("friction"),
+    reinforcedBy: [{ branch: "b", date: "2026-07-07", evidence: "" }],
+  };
+  assert.throws(() => validateLibraryDoc(emptyEvidence), "empty reinforcement evidence must be rejected");
+
+  // A stray field inside an entry fails closed (FrictionReinforcement is .strict()).
+  const stray = {
+    ...minimalDoc("friction"),
+    reinforcedBy: [{ branch: "b", date: "2026-07-07", evidence: "e", votes: 3 }],
+  };
+  assert.throws(() => validateLibraryDoc(stray), "a stray reinforcement field must be rejected");
+
+  // Regression guard for the .extend() approach: the friction object stays .strict().
+  const strayTopLevel = { ...valid, notInTheSpec: "drift" };
+  assert.throws(
+    () => validateLibraryDoc(strayTopLevel),
+    ".extend() must preserve .strict(): an unknown top-level friction field is still rejected",
+  );
+
+  // The lifecycle fields are friction-only: a non-friction kind must reject them.
+  const onAPrinciple = {
+    ...minimalDoc("principle"),
+    reinforcedBy: [{ branch: "b", date: "2026-07-07", evidence: "e" }],
+  };
+  assert.throws(() => validateLibraryDoc(onAPrinciple), "reinforcedBy on a non-friction kind must be rejected");
+  const routeOnAPrinciple = { ...minimalDoc("principle"), route: "nothing" };
+  assert.throws(() => validateLibraryDoc(routeOnAPrinciple), "route on a non-friction kind must be rejected");
+});
+
 test("renderBody: an unknown kind throws a DIAGNOSTIC error, not `specs is not iterable`", () => {
   // The stale-server incident (2026-06-11): code older than the data met a kind it had no
   // KIND_SPECS entry for and threw a bare iteration error deep in /api/assets.

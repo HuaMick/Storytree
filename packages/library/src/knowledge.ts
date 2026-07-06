@@ -5,7 +5,8 @@ import { Markdown } from "./schema.js";
  * The cross-cutting knowledge tier (ADR-0017), encoded as a schema.
  *
  * A knowledge unit is a curated markdown body whose structure is fixed per kind
- * (definition / principle / pattern / guardrail / techstack / process / open-question / agent).
+ * (definition / principle / pattern / guardrail / techstack / process / open-question / agent /
+ * proposal / friction).
  * Round-1
  * authored every body against a per-kind template; Phase 1 makes that template the
  * *derived* artifact rather than the source.
@@ -64,7 +65,8 @@ export type KnowledgeKind =
   | "process"
   | "open-question"
   | "agent"
-  | "proposal";
+  | "proposal"
+  | "friction";
 
 /**
  * The per-kind field tables. ORDER IS SIGNIFICANT: the renderer emits fields in this order
@@ -456,6 +458,56 @@ export const KIND_SPECS: Readonly<Record<KnowledgeKind, readonly KindFieldSpec[]
         "_What could go wrong and the mitigation — half-applied renames, dangling references, data loss. Omit only if genuinely low-risk._",
     },
   ],
+  // A `friction` item is the employees' upward voice channel (ADR-0168 D2): a session files WHAT
+  // FOUGHT IT — with evidence, fail-closed — and a dedicated adjudicator later routes it. It joins
+  // `open-question` and `proposal` in the Library's LIFECYCLE tier (transient-by-design, mandatory
+  // drain): raw friction never graduates as itself; only its durable essence is extracted into
+  // 'able' artifacts (ADR-0095 D5). Capture never classifies — there is no severity enum and no
+  // taxonomy field; `route` is set only at adjudication (see FrictionRoute below, enum-fenced via
+  // `.extend()`). The structured lifecycle fields (`provenance` / `reinforcedBy`) live OUTSIDE this
+  // body table, on the schema — see the Friction schema below.
+  friction: [
+    {
+      field: "statement",
+      lead: true,
+      heading: "**The friction.**",
+      required: true,
+      placeholder:
+        "_What fought you, in one sentence — the obstacle itself, not the lesson you took from it._",
+    },
+    {
+      field: "evidence",
+      lead: false,
+      heading: "Evidence",
+      required: true,
+      placeholder:
+        "_Concrete citations — a command and its output excerpt, a file path, a PR#, a quoted error. An evidence-free item is refused at capture, fail-closed (ADR-0168 D3)._",
+    },
+    {
+      field: "impact",
+      lead: false,
+      heading: "Impact",
+      required: true,
+      placeholder:
+        "_What it cost — time, a red gate, a wrong build — and who hits it next._",
+    },
+    {
+      field: "route",
+      lead: false,
+      heading: "Route",
+      required: false,
+      placeholder:
+        "_Set only at adjudication, never at capture: adr | tool | principle | guardrail | process | definition | edit-existing | nothing._",
+    },
+    {
+      field: "routeReason",
+      lead: false,
+      heading: "Route reason",
+      required: false,
+      placeholder:
+        "_The justification-gate answers behind the route — or the archive-with-reason when the route is `nothing`._",
+    },
+  ],
 } as const;
 
 /**
@@ -534,6 +586,63 @@ export const ProcessBranchEdge = z
 export type ProcessBranchEdge = z.infer<typeof ProcessBranchEdge>;
 
 /**
+ * The closed set of adjudication routes a `friction` item can take (ADR-0168 D2/D5). The `route`
+ * body field is enum-fenced to exactly these at the schema (via `.extend()` below) so a free-prose
+ * classification can never be written — capture never classifies, and adjudication picks from the
+ * D5 routing table, never invents. `nothing` is the archive-with-reason tombstone.
+ */
+export const FrictionRoute = z.enum([
+  "adr",
+  "tool",
+  "principle",
+  "guardrail",
+  "process",
+  "definition",
+  "edit-existing",
+  "nothing",
+]);
+export type FrictionRoute = z.infer<typeof FrictionRoute>;
+
+/**
+ * A `friction` item's capture provenance (ADR-0168 D2): which branch/session filed it, when, and
+ * through which producer — `retro` (the session-orchestrator's capped session retro, D1) or
+ * `run-analysis` (the per-run `friction-analyst`). STRUCTURED on this kind: it REPLACES the
+ * commonShape markdown `provenance` attribution line via `.extend()` (friction provenance is data
+ * the adjudicator and the staleness tripwires read, not prose). Like `stepRefs`/`branchEdges` it is
+ * schema-level metadata, never a KIND_SPECS body section — it does not round-trip through markdown.
+ */
+export const FrictionProvenance = z
+  .object({
+    /** The branch (session) that filed the item. */
+    branch: z.string().min(1),
+    /** When it was filed (ISO date). */
+    date: z.string().min(1),
+    /** Which producer filed it (ADR-0168 D1: the retro, or the per-run friction-analyst). */
+    source: z.enum(["retro", "run-analysis"]),
+  })
+  .strict();
+export type FrictionProvenance = z.infer<typeof FrictionProvenance>;
+
+/**
+ * One reinforcement of an existing `friction` item (ADR-0168 D2): recurrence reinforces, never
+ * duplicates — a session that re-hits a filed trap appends here instead of minting a twin.
+ * `evidence` is REQUIRED on every entry (the D3 fail-closed floor applies to reinforcements too;
+ * an evidence-free "me too" is exactly the slop the capture fence exists to refuse).
+ * `reinforcedBy.length` is testimony the adjudicator weighs — never a threshold.
+ */
+export const FrictionReinforcement = z
+  .object({
+    /** The branch (session) that re-hit the trap. */
+    branch: z.string().min(1),
+    /** When (ISO date). */
+    date: z.string().min(1),
+    /** The reinforcing session's OWN concrete evidence — required, fail-closed. */
+    evidence: z.string().min(1),
+  })
+  .strict();
+export type FrictionReinforcement = z.infer<typeof FrictionReinforcement>;
+
+/**
  * Build a per-kind zod object from its field spec table. Required fields are `Markdown`;
  * optional fields are `Markdown.optional()`; `refList` fields are `asset:` ref arrays
  * (required => non-empty). The `kind` literal discriminates the union.
@@ -585,6 +694,20 @@ export const Agent = buildKindSchema("agent").extend({
   stepRefs: z.array(AgentStepRef).optional(),
 });
 export const Proposal = buildKindSchema("proposal");
+// The `friction` kind (ADR-0168 D2) tightens THREE fields beyond its KIND_SPECS table via
+// `.extend()` (the `stepRefs`/`branchEdges` precedent — `.strict()` and the `kind` literal are
+// preserved): `route` is enum-fenced to the closed adjudication set (a body field, so it still
+// renders/templates from KIND_SPECS — the schema just refuses free prose); `provenance` is the
+// STRUCTURED capture record {branch, date, source}, REPLACING the commonShape markdown attribution
+// line for this kind only; `reinforcedBy` is the recurrence log (evidence required per entry).
+// All three are optional at capture, so no `CURRENT_SCHEMA_VERSION` bump and zero migration — a
+// NEW kind touches no existing doc (verified against migrations.ts: every registered migration is
+// a per-doc transform that no-ops on a fresh friction doc).
+export const Friction = buildKindSchema("friction").extend({
+  route: FrictionRoute.optional(),
+  provenance: FrictionProvenance.optional(),
+  reinforcedBy: z.array(FrictionReinforcement).optional(),
+});
 
 /** A knowledge unit at any kind. The discriminator is `kind` (ADR-0017). */
 export const Knowledge = z.discriminatedUnion("kind", [
@@ -597,6 +720,7 @@ export const Knowledge = z.discriminatedUnion("kind", [
   OpenQuestion,
   Agent,
   Proposal,
+  Friction,
 ]);
 
 export type Knowledge = z.infer<typeof Knowledge>;
@@ -609,3 +733,4 @@ export type Process = z.infer<typeof Process>;
 export type OpenQuestion = z.infer<typeof OpenQuestion>;
 export type Agent = z.infer<typeof Agent>;
 export type Proposal = z.infer<typeof Proposal>;
+export type Friction = z.infer<typeof Friction>;
