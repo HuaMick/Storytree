@@ -66,7 +66,7 @@ their docking/meander helpers, the `riverGeometry` module, and the four trail-ro
 dials all go. (Solar mode already drew docked lines and is unchanged.)
 
 *(This §1 road rendering was later overtaken: the docked-line rendering flipped to procedural
-reveal-on-focus trails — cost-field routing in the shared render core — under
+cost-field trails in the shared render core — under
 [ADR-0169](0169-pathways-are-procedural-reveal-on-focus-trails-cost-field-ro.md), which amends this
 ADR the same way this ADR amended 0073: roads stay the one world, only their rendering changes.
 `dockedRoads` retired with that flip; `dockedEdgePath` survives only for the solar `consumed_by`
