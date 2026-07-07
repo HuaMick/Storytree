@@ -298,6 +298,59 @@ test('opposite-side approaches keep their own dock — merging never forces a de
   for (const edge of net.edges) assertChainContinuous(net, islands, edge);
 });
 
+test('a moderate ~95° fan docks as ONE trunk (dockMergeSpan 100°, owner 2026-07-08)', () => {
+  // Owner feedback 2026-07-08 ("pathways split unnecessarily when joining together"): the
+  // old 90° span cap cut a moderate fan into two docks, and that split rendered as a Y-fork
+  // right at the rim. Three sources fanning ~±47° (94° total) around C must now dock as ONE
+  // trunk — under the old 90° cap this same fan would have split into two docks.
+  const C = isle('C', 0, 0, 45);
+  const islands = [isle('A', 546, -585, 30), isle('B', 800, 0, 30), isle('D', 546, 585, 30), C];
+  const net = routeTrails(
+    islands,
+    [
+      { from: 'A', to: 'C' },
+      { from: 'B', to: 'C' },
+      { from: 'D', to: 'C' },
+    ],
+    'seed-fan-95',
+  );
+  const docks = new Set<string>();
+  for (const e of net.edges) {
+    const p = dockPointOn(net, e, C);
+    docks.add(`${p.x.toFixed(4)},${p.y.toFixed(4)}`);
+  }
+  assert.equal(docks.size, 1, 'the ~94° fan shares ONE dock (would be two under the old 90° cap)');
+  assert.ok(net.segments.some((s) => s.usage === 3), 'a usage-3 trunk carries the merged fan');
+  assert.equal(net.dropped.length, 0);
+  // determinism: byte-identical network on a re-route
+  assert.deepEqual(routeTrails(islands, [{ from: 'A', to: 'C' }, { from: 'B', to: 'C' }, { from: 'D', to: 'C' }], 'seed-fan-95'), net);
+});
+
+test('a genuinely wide ~110° fan keeps ≥2 docks — the span cap still bites (no rim-wrap)', () => {
+  // The anti-detour cap survives the widening: a fan wider than 100° is NOT force-merged
+  // onto one dock (which would bend an extreme edge into a rim-wrap). Sources fanning ~±55°
+  // (110° total, gaps 55° < dockMergeGap so only the SPAN cap can split them) keep 2 docks.
+  const C = isle('C', 0, 0, 45);
+  const islands = [isle('A', 459, -655, 30), isle('B', 800, 0, 30), isle('D', 459, 655, 30), C];
+  const net = routeTrails(
+    islands,
+    [
+      { from: 'A', to: 'C' },
+      { from: 'B', to: 'C' },
+      { from: 'D', to: 'C' },
+    ],
+    'seed-fan-110',
+  );
+  const docks = new Set<string>();
+  for (const e of net.edges) {
+    const p = dockPointOn(net, e, C);
+    docks.add(`${p.x.toFixed(4)},${p.y.toFixed(4)}`);
+  }
+  assert.ok(docks.size >= 2, `a 110° fan keeps ≥2 docks (got ${docks.size})`);
+  assert.equal(net.dropped.length, 0);
+  for (const edge of net.edges) assertChainContinuous(net, islands, edge);
+});
+
 test('the reuse-halo MOAT knob threads through — routes join the trunk or clear it, no 1-cell lane (item 4)', () => {
   // Owner feedback re-pushed 2026-07-07: still too many side-by-side parallel trails a
   // cell apart. The default halo is now a MOAT (reuseHaloInner > 1): the ring beside a
