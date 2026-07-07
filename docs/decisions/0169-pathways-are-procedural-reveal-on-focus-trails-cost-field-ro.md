@@ -3,7 +3,15 @@ status: accepted
 decided: 2026-07-06
 amends: [76]
 ---
-# ADR-0169: Pathways are procedural reveal-on-focus trails: cost-field routing, trail merging, and caves (docked-line roads superseded)
+# ADR-0169: Pathways are procedural trails: cost-field routing, trail merging, and caves (docked-line roads superseded)
+
+<!-- Filename slug retains "reveal-on-focus" as a stable identity anchor (ADRs 0073/0076/0102/0171
+link by it); the reveal-on-focus DEFAULT was retired 2026-07-07 → always-drawn with growth-on-arrival,
+corrected in place per ADR-0139 (see §3). Title/body prose updated to match. -->
+
+> **NOTE (2026-07-07):** §3's original "hidden by default / reveal-on-click" model was retired by
+> owner direction — pathways are now ALWAYS drawn and the growth animation plays on island
+> ARRIVAL. Corrected in place per ADR-0139 (the routing/merging/cave/honesty core stands). See §3.
 
 ## Status
 
@@ -33,8 +41,10 @@ We have been near here before: ADR-0073 drew every edge as a routed island-skirt
 (`riverGeometry.ts`, ~1.3k lines + 110 tests — MST/basin, bundling, meander, island routing), and
 ADR-0076 retired it for the docked lines ("flip + retire", owner-attested). This decision is not
 its revival: the noise problem that system could not solve (every edge visible at once, routed or
-not) is solved here by reveal-on-focus, and the machinery lives in the shared render core so all
-three surfaces inherit it, where the trail system was studio-side. The retired implementation
+not) is answered here structurally — island-avoiding routes, the item-4 reuse moat that merges
+near-parallels onto one trunk, and ADR-0171 stress placement that spaces the islands (the original
+cut leaned on reveal-on-focus for this, retired 2026-07-07 per §3) — and the machinery lives in
+the shared render core so all three surfaces inherit it, where the trail system was studio-side. The retired implementation
 remains reference-only prior art (`git show 7dcf297^:apps/studio/src/lib/riverGeometry.ts`).
 
 Since ADR-0093 the render core (`@storytree/forest-world`) owns geometry + scene-graph and each
@@ -58,10 +68,12 @@ field on a coarse world grid:
   seeded value-noise cost term (organic wander); a small turn penalty (no staircase zigzag).
 - **Search:** 8-connected A* with stable tie-breaking (f, then g, then cell index).
 - **Canonical order + merging:** edges route longest-chord-first (tie-break lexicographic
-  `from→to` ids). After each route, traversed cells (+ a 1-cell halo) get a reuse discount
-  (~×0.4, clamped floor) so later routes snap onto existing trails and peel off near their
-  destination — trunk trails emerge procedurally, the way footpaths form in a field. Per-cell
-  usage counts accumulate.
+  `from→to` ids). After each route, its traversed cells get a strong reuse discount (a
+  clamped floor); the surrounding halo is a *tunable* shaping band — originally a weaker
+  discount, now (item 4, 2026-07-07) a slight MOAT (cost above base) so there is no
+  comfortable parallel lane a cell over — so later routes snap onto the existing trunk and
+  peel off near their destination rather than running side-by-side. Trunk trails emerge
+  procedurally, the way footpaths form in a field. Per-cell usage counts accumulate.
 - **Cave fallback:** an edge routes first with islands hard-blocked; only if unroutable does it
   re-route with island interiors passable at very high cost. Where the resulting path crosses an
   island rim, the crossing (position + bearing) is emitted as a **cave portal**; the under-island
@@ -90,36 +102,44 @@ dependency edge keeps its ordered chain of segment refs. `buildScene` grows acco
 - Every segment carries the edge ids that use it plus per-edge `data-from`/`data-to`, so surfaces
   reveal by selection without re-walking the graph.
 
-**3. Pathways are hidden by default and grow on island focus.**
-The default map draws NO visible road strokes. Focusing an island reveals the whole dependency
-chain it participates in — the union of segments routed by its full transitive closure both
-directions (every island it transitively depends on, unioned with everything that transitively
-depends on it), growing outward from the island hop-by-hop, segment-by-segment in topological
-order (spur first, the trunk continues from the junction — tributaries joining a river).
-(Owner-directed 2026-07-06, broadening the original incident-edges-only reveal; §5's honesty
-invariant is unchanged and still holds by construction — the plan is the union of REAL edges
-reachable along the graph, never a curated subset and never an invented edge.) SVG mechanism: per-segment solid mask stroke animated via `pathLength="1"` + CSS
-`stroke-dashoffset` 1→0 (~350ms/segment, ease-out) masking the real cased/dashed strokes; the
-unselected world dims. Incoming vs outgoing edges take two selection tints. A segment shared by
-k≥2 revealed edges steps its width up, so merging stays legible under multi-reveal. Clearing
-focus retracts the reveal.
+**3. Pathways are always drawn; growth animates on island arrival.**
+(Owner-re-directed 2026-07-07, item 4 round — reveal-on-click retired: "see the pathways
+without clicking everywhere". The original decision here was hidden-by-default with
+reveal-on-focus; it is corrected in place per ADR-0139, the decision element genuinely
+overtaken. The routing/merging/cave/honesty core below and in §§1–2, 5–6 stands unchanged;
+only the reveal *trigger* flipped.) The map draws every trail at rest — one quiet
+faded-brown line, no direction tints, no spur dash (viable without noise now because the
+item-4 reuse MOAT merges near-parallels and ADR-0171 stress placement spaces the islands).
+The draw-on growth animation moves to WHERE it means something: a story island being
+PLACED. When an island ARRIVES, its DIRECT incident segments draw on, growing outward from
+the new island (existing trails elsewhere stay statically drawn) — direct-incident only,
+not the transitive chain, since it is the NEW connections that draw in. SVG mechanism
+(unchanged): per-segment solid mask stroke animated via `pathLength="1"` + CSS
+`stroke-dashoffset` 1→0 (~350ms/segment, ease-out) masking the real cased/dashed strokes;
+when the arrival ends the masks drop and the strokes stay drawn. A segment shared by k≥2
+edges still steps its width up, so merging stays legible.
+(Prior art, retained pure + tested but UNWIRED from the app in case click-to-highlight
+returns: `trailRevealPlan` — the focus-rooted full-transitive-closure-both-directions
+selector from the reveal-on-click era, `apps/studio/src/lib/trailReveal.ts`. §5's honesty
+invariant holds for both selectors by construction — every plan is a subset of REAL edges,
+never a curated subset and never an invented edge.)
 
 **4. All three surfaces inherit through the one scene-graph.**
-Studio: React mapper + CSS animation + the existing focus/hit-test state. Website: the synced
-string mapper renders the same scene (default-hidden degrades gracefully where there is no focus
-interaction — the public map shows clean islands). Desktop R3F: segments become ground-plane
-ribbon strips (width by the same rule), caves an arch + unlit dark disc at the rim bearing;
-reveal may land as show/hide-by-focus first (shader-cutoff growth is polish, not gate).
+Studio: React mapper + CSS animation + the existing arrival-diff state. Website: the synced
+string mapper renders the same scene (always-drawn trails render statically where there is no
+arrival animation — the public map shows the trail network). Desktop R3F: segments become
+ground-plane ribbon strips (width by the same rule), caves an arch + unlit dark disc at the rim
+bearing; the arrival growth may land as show/hide first (shader-cutoff growth is polish, not
+gate).
 
 **5. The honesty invariant.**
 Everything above is procedural and seeded from ids, with no per-map hand-tuning surface: a messy
 dependency graph routes messy (more forced caves, thicker tangles, more crossings) and a clean one
-routes clean. The reveal shows the focused island's WHOLE reachable dependency chain (the full
-transitive closure both directions, §3) — the union of REAL edges reachable along the graph,
-never a curated subset and never an invented edge. Reveal-
-on-focus organizes complexity; it must never hide an edge that exists or draw one that doesn't.
-Our own system is the baseline and is expected to render clean — if it doesn't, the finding is
-about the system, not the renderer.
+routes clean. Every trail drawn is a REAL edge (§3, always-drawn); the arrival growth and the
+retained focus selector both animate only subsets of real edges — never a curated subset and
+never an invented edge. The rendering organizes complexity; it must never hide an edge that
+exists or draw one that doesn't. Our own system is the baseline and is expected to render clean —
+if it doesn't, the finding is about the system, not the renderer.
 
 **6. Retirement.** `dockedRoads` and the road use of `dockedEdgePath` retire with the flip
 (ADR-0073's remove-don't-shelve discipline); `dockedEdgePath` itself stays for the solar
@@ -128,20 +148,26 @@ about the system, not the renderer.
 ## Consequences
 
 - **Good.** Each named noise source is answered structurally, not cosmetically: overlay noise →
-  hidden-by-default + island-avoiding routes; crossing confusion → reveal-on-focus + trunk merging
-  + direction tints; beeline sterility → cost-field wander + clearance falloff + spline smoothing.
+  island-avoiding routes + the item-4 reuse moat (near-parallels merge onto one trunk) + ADR-0171
+  stress placement (islands spaced); crossing confusion → trunk merging + one quiet line;
+  beeline sterility → cost-field wander + clearance falloff + spline smoothing. (The original
+  cut leaned on hidden-by-default + reveal-on-focus for the overlay/crossing noise; those were
+  retired 2026-07-07 per §3, the structural remedies above carry it now.)
   Routing joins the render core, so the studio, website, and desktop can never drift apart on it.
   The engine is a pure function — red-green testable invariants (determinism, avoidance,
   merge-emergence, cave-only-when-forced, meander-bounded-by-clearance).
 - **Cost / risk.** ~600 lines of new core machinery + tests — the class of subsystem ADR-0076
-  deleted; the differences are stated in Context (reveal-on-focus default + shared-core ownership)
-  and the honesty invariant plus owner attestation gate the look. Layout-time routing cost is
+  deleted; the differences are stated in Context (shared-core ownership; and now always-drawn
+  trails with growth-on-arrival, §3) and the honesty invariant plus owner attestation gate the
+  look. Layout-time routing cost is
   bounded (one grid, tens of islands, ~10² edges — sub-100ms budget). A `forest-world/src` change
   trips the web-engine drift gate: landing requires `sync:web-engine` + web publish + pin bump
   (the publish is outward-facing — owner approves that leg).
 - **Reversibility.** The flip is one PR over the shared core + mappers; the docked-line helper
-  survives in git and in the solar spokes. The reveal default, width curve, discount, and cave
-  thresholds are named constants in one module — tunable without re-deciding this ADR.
+  survives in git and in the solar spokes. The always-drawn/growth-on-arrival choice, width curve,
+  discount, moat, and cave thresholds are named constants / plan selectors in one module — tunable
+  without re-deciding this ADR (and the reveal-on-click selector `trailRevealPlan` is retained
+  unwired, so restoring click-to-highlight is a wiring change, not a rewrite).
 
 ## References
 
