@@ -128,10 +128,20 @@ function resolveTuning(o?: Partial<TrailTuning>): TrailTuning {
     // shared docks (owner feedback item 1, 2026-07-07): several edges converging on
     // one island from nearly the same direction snap to ONE dock bearing so they
     // dock as a single thicker trunk, not separate approach lines fanning at the rim.
-    // `dockMergeGap` (60°) groups adjacent approaches; `dockMergeSpan` (90°) caps a
-    // cluster so opposite-side approaches keep their own dock (no forced detour).
+    // `dockMergeGap` (60°) groups adjacent approaches; `dockMergeSpan` caps a cluster's
+    // total angular spread so opposite-side approaches keep their own dock (no forced
+    // detour).
+    // Owner feedback 2026-07-08 ("pathways split unnecessarily when joining together"):
+    // the 90° cap was UNNECESSARILY splitting moderate fans — a 6-edge fan spanning ~100°
+    // to one island was cut into two docks, and that split boundary rendered as a Y-fork
+    // right at the rim. Widened to 100° (a ~50° half-angle from the shared bearing — the
+    // widest an edge bends toward the shared dock before the approach reads as a detour).
+    // A general rule, not per-map tuning: fans up to ~100° dock as one trunk; genuinely
+    // wide fans (>100°) still keep multiple docks, so the reuse funnel — not a rim-wrap —
+    // carries them. Halved the Y-fork pairs on the real 28-story stress graph (40 → 25),
+    // no new rim-wraps, caves/drops unchanged.
     dockMergeGap: o?.dockMergeGap ?? Math.PI / 3,
-    dockMergeSpan: o?.dockMergeSpan ?? Math.PI / 2,
+    dockMergeSpan: o?.dockMergeSpan ?? (5 * Math.PI) / 9,
     interiorCost: o?.interiorCost ?? 40,
     // derived from the RESOLVED clearance so the amp<clearance invariant holds
     // under a clearance override too; an EXPLICIT amp is clamped below clearance
