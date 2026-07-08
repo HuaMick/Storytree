@@ -424,6 +424,53 @@ test('meander stays on open runs but is suppressed at junctions and near other t
   );
 });
 
+test('near-coincident junctions weld into one — the ~1-cell merge stub is gone (owner 2026-07-08)', () => {
+  // Owner feedback 2026-07-08: where trunks converge, edges can join at ADJACENT grid cells
+  // rather than one shared cell, leaving a ~1-cell stub between two junctions that reads as a
+  // hook. The weld collapses junction nodes closer than `junctionWeld` into ONE shared point.
+  const islands = [
+    isle('H', 0, 0, 50),
+    isle('A', -600, -300, 30),
+    isle('B', -600, 0, 30),
+    isle('D', -600, 300, 30),
+    isle('E', 600, -200, 30),
+    isle('F', 600, 200, 30),
+  ];
+  const edges: TrailEdgeIn[] = [
+    { from: 'A', to: 'H' }, { from: 'B', to: 'H' }, { from: 'D', to: 'H' },
+    { from: 'E', to: 'H' }, { from: 'F', to: 'H' }, { from: 'A', to: 'E' }, { from: 'D', to: 'F' },
+  ];
+  const junctionsOf = (net: TrailNetwork): { x: number; y: number }[] => {
+    const count = new Map<string, number>();
+    for (const s of net.segments) {
+      if (s.hidden || s.points.length < 2) continue;
+      for (const p of [s.points[0]!, s.points[s.points.length - 1]!]) {
+        const k = `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+        count.set(k, (count.get(k) ?? 0) + 1);
+      }
+    }
+    return [...count.entries()].filter(([, n]) => n >= 3).map(([k]) => {
+      const [x, y] = k.split(',').map(Number);
+      return { x: x!, y: y! };
+    });
+  };
+  const minJunctionGap = (js: { x: number; y: number }[]): number => {
+    let m = Infinity;
+    for (let i = 0; i < js.length; i++)
+      for (let j = i + 1; j < js.length; j++) m = Math.min(m, Math.hypot(js[i]!.x - js[j]!.x, js[i]!.y - js[j]!.y));
+    return m;
+  };
+  const WELD = 200;
+  const off = routeTrails(islands, edges, 'seed-weld', { junctionWeld: 0 });
+  const on = routeTrails(islands, edges, 'seed-weld', { junctionWeld: WELD });
+  assert.ok(minJunctionGap(junctionsOf(off)) < WELD, 'without welding, junctions sit within the weld radius (the stub)');
+  assert.ok(minJunctionGap(junctionsOf(on)) > WELD, 'after welding, no two junctions sit within the weld radius');
+  assert.ok(on.segments.length < off.segments.length, 'welding removes the tiny stub segments');
+  assert.equal(on.dropped.length, 0, '§5 honesty: welding drops no edge');
+  for (const edge of on.edges) assertChainContinuous(on, islands, edge); // chains stay connected through the weld
+  assert.deepEqual(routeTrails(islands, edges, 'seed-weld', { junctionWeld: WELD }), on); // deterministic
+});
+
 test('the reuse-halo MOAT knob threads through — routes join the trunk or clear it, no 1-cell lane (item 4)', () => {
   // Owner feedback re-pushed 2026-07-07: still too many side-by-side parallel trails a
   // cell apart. The default halo is now a MOAT (reuseHaloInner > 1): the ring beside a

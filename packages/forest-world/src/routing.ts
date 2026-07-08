@@ -54,6 +54,7 @@ export interface TrailTuning {
   meanderTaper: number; // arc-length band near each junction/dock end over which meander ramps 0→full
   meanderClearInner: number; // ≤ this distance from ANOTHER trail, meander is fully suppressed
   meanderClearOuter: number; // ≥ this distance from another trail, meander is at full amplitude
+  junctionWeld: number; // weld JUNCTION nodes within this distance into one (kills the ~1-cell merge stub)
 }
 
 export interface TrailSegment {
@@ -172,6 +173,10 @@ function resolveTuning(o?: Partial<TrailTuning>): TrailTuning {
     meanderTaper: o?.meanderTaper ?? 4 * HEX_R,
     meanderClearInner: o?.meanderClearInner ?? clearance,
     meanderClearOuter: o?.meanderClearOuter ?? clearance + 2 * (o?.cellSize ?? HEX_R / 2),
+    // owner feedback 2026-07-08: where several trunks converge they can touch at ADJACENT grid
+    // cells rather than one shared cell, leaving a ~1-cell stub between two junctions that reads
+    // as a hook. Weld junction nodes (degree ≥ 3) closer than ~1.4 cells into one shared point.
+    junctionWeld: o?.junctionWeld ?? 1.4 * (o?.cellSize ?? HEX_R / 2),
   };
 }
 
@@ -1090,6 +1095,95 @@ export function routeTrails(
     }
     grid = buildGrid(islands, seed, t); // fresh grid — pass 1 mutated the reuse costs
     routed = routePass(clusterDocks(apprIncident));
+  }
+
+  // ---------- weld near-coincident junctions (owner feedback 2026-07-08) ----------
+  // Where trunks converge, different edges can join at ADJACENT grid cells rather than the same
+  // cell, leaving a ~1-cell stub between two junction nodes that renders as a hook. Weld surface
+  // junction nodes (degree ≥ 3 — a merge/split, never a straight-through degree-2 trail cell, so
+  // trail resolution is untouched) within `junctionWeld` into ONE shared key + centroid position.
+  // Deterministic: keys are processed in sorted order; the union-find always keeps the smaller key.
+  if (t.junctionWeld > 0) {
+    const nbrs = new Map<string, Set<string>>(); // key -> distinct neighbour keys (degree)
+    const posOf = new Map<string, Pt>();
+    for (const re of routed) {
+      for (let i = 0; i < re.nodes.length; i++) {
+        const nd = re.nodes[i]!;
+        if (!posOf.has(nd.key)) posOf.set(nd.key, { x: nd.x, y: nd.y });
+        if (nd.underOf !== -1) continue; // never weld hidden/under-island nodes (cave portals)
+        const set = nbrs.get(nd.key) ?? nbrs.set(nd.key, new Set()).get(nd.key)!;
+        const prev = re.nodes[i - 1];
+        const next = re.nodes[i + 1];
+        if (prev) set.add(prev.key);
+        if (next) set.add(next.key);
+      }
+    }
+    const junctionKeys = [...nbrs.entries()].filter(([, s]) => s.size >= 3).map(([k]) => k).sort();
+    if (junctionKeys.length > 1) {
+      const parent = new Map<string, string>(junctionKeys.map((k) => [k, k]));
+      const find = (k: string): string => {
+        let root = k;
+        while (parent.get(root) !== root) root = parent.get(root)!;
+        while (parent.get(k) !== root) {
+          const up = parent.get(k)!;
+          parent.set(k, root);
+          k = up;
+        }
+        return root;
+      };
+      const union = (a: string, b: string): void => {
+        const ra = find(a);
+        const rb = find(b);
+        if (ra === rb) return;
+        if (ra < rb) parent.set(rb, ra);
+        else parent.set(ra, rb);
+      };
+      const weld2 = t.junctionWeld * t.junctionWeld;
+      for (let i = 0; i < junctionKeys.length; i++) {
+        const a = posOf.get(junctionKeys[i]!)!;
+        for (let j = i + 1; j < junctionKeys.length; j++) {
+          const b = posOf.get(junctionKeys[j]!)!;
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          if (dx * dx + dy * dy <= weld2) union(junctionKeys[i]!, junctionKeys[j]!);
+        }
+      }
+      // canonical position = cluster centroid (deterministic — members sorted)
+      const members = new Map<string, string[]>();
+      for (const k of junctionKeys) (members.get(find(k)) ?? members.set(find(k), []).get(find(k))!).push(k);
+      const canonPos = new Map<string, Pt>();
+      for (const [root, ms] of members) {
+        let sx = 0;
+        let sy = 0;
+        for (const m of ms) {
+          const p = posOf.get(m)!;
+          sx += p.x;
+          sy += p.y;
+        }
+        canonPos.set(root, { x: sx / ms.length, y: sy / ms.length });
+      }
+      // remap welded junctions to their canonical key + centroid, then drop any degenerate
+      // run this weld created: consecutive duplicates (A A) and one-node spikes (A X A → A)
+      for (const re of routed) {
+        const mapped: NodeRec[] = re.nodes.map((nd) => {
+          if (nd.underOf !== -1 || !parent.has(nd.key)) return nd;
+          const root = find(nd.key);
+          const cp = canonPos.get(root)!;
+          return { key: root, x: cp.x, y: cp.y, underOf: -1 };
+        });
+        const out: NodeRec[] = [];
+        for (const nd of mapped) {
+          const prev = out[out.length - 1];
+          if (prev && prev.key === nd.key) continue; // A A → A (drop nd)
+          if (out.length >= 2 && out[out.length - 2]!.key === nd.key) {
+            out.pop(); // A X A → A: drop X; out end is now A === nd, so drop nd too
+            continue;
+          }
+          out.push(nd);
+        }
+        re.nodes = out;
+      }
+    }
   }
 
   // ---------- segmentization: split where the co-travelling edge set changes ----------
