@@ -36,10 +36,16 @@ export type DriverFn = (
 export class CredentialBridge {
   readonly #broker: CredentialBroker;
   readonly #driver: DriverFn;
+  readonly #env: Record<string, string | undefined>;
 
-  constructor(broker: CredentialBroker, driver: DriverFn) {
+  constructor(
+    broker: CredentialBroker,
+    driver: DriverFn,
+    env: Record<string, string | undefined> = process.env,
+  ) {
     this.#broker = broker;
     this.#driver = driver;
+    this.#env = env;
   }
 
   /**
@@ -61,10 +67,14 @@ export class CredentialBridge {
       );
     }
 
-    const env: Record<string, string> = {
-      [CREDENTIAL_ENV_VAR[kind]]: token,
-    };
-
-    return this.#driver(unitId, env, sink);
+    const envName = CREDENTIAL_ENV_VAR[kind];
+    const previous = this.#env[envName];
+    this.#env[envName] = token;
+    try {
+      return await this.#driver(unitId, { [envName]: token }, sink);
+    } finally {
+      if (previous === undefined) delete this.#env[envName];
+      else this.#env[envName] = previous;
+    }
   }
 }
