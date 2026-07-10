@@ -5,7 +5,7 @@ title: "The drive machinery"
 outcome: "The spine drives any registered node through a genuine red→green proof and lands the proven commit through the merge gate."
 status: mapped
 proof_mode: UAT
-capabilities: [halt-aware-sequence, red-green-phase-machine, work-verdict-event-log, phase-scoped-write-wall, shell-test-observer, prove-it-gate, owned-loop-phase-author, real-build-worktree, prove-spec-resolution, spec-borne-proof-config, proof-command-vocabulary, story-topo-build, story-real-chain, multi-file-existing-source, gate-as-proof-authoring, oq-hygiene-gate, build-drive-cli, adoption-pocket-classifier]
+capabilities: [halt-aware-sequence, red-green-phase-machine, work-verdict-event-log, phase-scoped-write-wall, shell-test-observer, prove-it-gate, owned-loop-phase-author, real-build-worktree, prove-spec-resolution, spec-borne-proof-config, proof-command-vocabulary, story-topo-build, story-real-chain, multi-file-existing-source, gate-as-proof-authoring, oq-hygiene-gate, build-drive-cli, adoption-pocket-classifier, uat-machine-proof-binding]
 # Story-level edge (ADR-0010 §4, code-import-evidenced; ADR-0036): the drive consumes the
 # library story's store connection seam — createPool/closePool/applySchema in
 # packages/drive/src/node-build.ts:41-44 (events.work_event/verdict are its OWN tables), and the
@@ -107,7 +107,7 @@ and this story's frontmatter carries the `agent` edge in `depends_on`. The coupl
 documented prose — it is a first-class declared, world-visible edge (the boundary gate, ADR-0074,
 now sees the spine↔leaf seam).
 
-## Capabilities (18)
+## Capabilities (19)
 
 Listed roots-first (a capability appears after everything it depends on). `mapped` = a real
 passing offline suite observationally verifies the dominant behaviour; the Proof blockquote in
@@ -133,6 +133,7 @@ each file pins the `proposed` pockets.
 | 16 | [`multi-file-existing-source`](multi-file-existing-source.md) | A node declares a multi-file scope + an edit-existing-source regression red→green (bug-fixes/refactors), keeping test-author ≠ code-author. | mapped | `spec-borne-proof-config`, `proof-command-vocabulary` |
 | 17 | [`gate-as-proof-authoring`](gate-as-proof-authoring.md) | Authoring an ADR earns a signed verdict through the unchanged gate by reducing to edit-existing with a structural-completeness check — the machine witnesses hygiene, never acceptance. | mapped | `multi-file-existing-source`, `spec-borne-proof-config` |
 | 18 | [`adoption-pocket-classifier`](adoption-pocket-classifier.md) | The spine turns each uncovered brownfield pocket into a proposed reliability gate with a build-tests classification and the key forks the human must settle. | mapped | `build-drive-cli` |
+| 19 | [`uat-machine-proof-binding`](uat-machine-proof-binding.md) | Each machine-witnessed Story UAT leg is observed and signed only through its explicitly declared reliability-gate proof command, and an unbound or invalid machine leg is refused. | proposed | `build-drive-cli` |
 
 ## Dependency graph (code-derived)
 
@@ -227,6 +228,12 @@ coupling) and marked.
     command for both the CONFIRM observations and the `run_proof` feedback tool) and threads the
     command's display into `realPrompts`. The 7 default nodes are unchanged (the A parity guard stays
     green). No `test-command-registry.ts` change; no new ADR (ships under ADR-0057 §3 + ADR-0020).
+- `uat-machine-proof-binding` → `build-drive-cli` *(PROPOSED — not yet built)*
+  - extends the existing `runAdopt` drive entry with one explicit per-UAT-leg binding carried by the
+    parsed Library model: the library parser/resolver owns which reliability gate a machine leg names;
+    the drive observes that gate's proof command and signs only that UAT id. The unit is inherently
+    cross-package and uses the current inner loop's explicit multi-file scope plus a combined
+    `@storytree/library` + `@storytree/drive` proof command; see the capability's `proof:` block.
 
 **Cross-story:** the `library` edge (the store-connection seam + the OQ loader's library stores),
 the `storage-protocol` + `proof-protocol` root-port edges (ADR-0075), and the **`agent`** edge — the
@@ -269,6 +276,13 @@ drives a registered node from spec to a landed, signed, persisted proof.
 > standing test. Step 7 (an agent actually USES it without coaching) is likewise operator-attested —
 > the paid blind dogfood, 2026-06-15, 3/3 probes end to end. So the story's own acceptance proof is
 > **part-scripted, part-attested**.
+>
+> **Machine re-authoring is intentionally held.** The owner wants legs 3, 4, and 7 to become
+> machine-witnessed, but their labels remain `human` until
+> [`uat-machine-proof-binding`](uat-machine-proof-binding.md) is built. After it lands, a separate
+> story-author edit adds an explicit gate binding to every machine leg (including existing legs 1,
+> 2, 5, and 6) and flips 3, 4, and 7 only with bindings to suites that demonstrably prove them.
+> Pointing every leg at the first observe gate would forge coverage, so no witness changes occur here.
 
 **Goal —** Drive one registered node through a genuine red→green proof and land the proven commit
 through the merge gate, refusing every dishonest shortcut along the way.
@@ -335,12 +349,16 @@ CLI-resident build-drive + ADR-authoring integration tests (`@storytree/cli`), a
 package (`@storytree/drive`, ADR-0112) — so its reliability floor adopts all three, **one consolidated
 observe gate each**, every gate naming the capabilities it `(covers:)` (ADR-0097 — three gates over 18
 capabilities reads cleaner than 18 per-cap gates, the same multi-cover shape the `library` story uses).
-The three gates cover all 18 capabilities. The 18th — [`adoption-pocket-classifier`](adoption-pocket-classifier.md)
+The three gates cover the 18 already-built capabilities. The 18th —
+[`adoption-pocket-classifier`](adoption-pocket-classifier.md)
 — was authored `proposed` (would-be) and deliberately left uncovered; its behaviour has since been
 BUILT outer-loop (2026-06-27, `assembleProposal` + `adopt plan --readings`, commit `2c170db`) with a
 real offline suite in the orchestrator package, so it is now honestly brownfield (`mapped`) and
 gate-1 `(covers:)` it alongside the other spine-resident caps (ADR-0097 d.5 holds: the crown's green
-still MEANS every pocket got real coverage — this one's coverage is real, not a placeholder).
+still MEANS every built pocket got real coverage — this one's coverage is real, not a placeholder).
+The 19th, [`uat-machine-proof-binding`](uat-machine-proof-binding.md), is genuinely `proposed` and
+uncovered while awaiting its declared red→green build; it must not be folded into an observe gate
+over suites that do not yet contain its tests.
 
 Distinct from `## Story UAT` above (the part-scripted/part-attested drive-a-node-to-a-landed-proof
 journey): the gates are the author's **expandable floor**, GROWING a `_(gate: build-tests)_` regression
