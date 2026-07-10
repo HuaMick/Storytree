@@ -1,18 +1,19 @@
 ---
-status: accepted
+status: superseded
 decided: 2026-06-27
 amends: [113]
-load_bearing: true
 ---
 # ADR-0119: Thick-local desktop backend: a tsx sidecar serving the studio's boot read route table
 
 ## Status
 
-accepted (2026-06-27) — decided/directed by the owner in conversation while attempting to wire and test
-the thick-local desktop (ADR-0113). Two integration findings surfaced when the `local-backend-boot`
-factory met the real Electron shell + the real studio frontend; the owner directed they be landed as a
-decision before chipping a fresh build session. Design-time alignment IS the ratification (ADR-0110).
-The desktop's APPEARANCE / "feels like one app" remains operator-attested (ADR-0070).
+**Superseded by
+[ADR-0176](0176-the-desktop-app-requires-a-reachable-db-and-a-git-checkout-t.md) (2026-07-09).**
+ADR-0176 genuinely re-decides this sidecar's launch posture: a git checkout and reachable DB are now
+hard preconditions, with bounded auto-wake then refuse+Retry; the degraded read shell is retired.
+Under ADR-0139's binary lifecycle, ADR-0176 is the complete current replacement and carries forward
+this ADR's still-live tsx-sidecar topology, boot read set, re-compose-not-import boundary, and proof
+split. The body below is retained as browsable history and is no longer a current deciding source.
 
 ## Context
 

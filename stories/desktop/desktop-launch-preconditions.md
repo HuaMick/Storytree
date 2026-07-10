@@ -7,13 +7,13 @@ outcome: "Before the desktop sidecar wires any backend, a pure launch-preconditi
 status: proposed
 proof_mode: integration-test
 depends_on: []
-# Deciding ADRs (ADR-0037 §2): 176 is the decision this realizes (hard-require DB + git at launch,
-# block-until-ready with a bounded auto-wake, retire the degraded read shell); 119 is the sidecar this
-# gate front-runs (its launch-time degrade-to-a-read-shell posture is what 176 supersedes in part; the
-# tsx-sidecar / re-compose boundary stands); 60/63 supply `ensureLiveDb` (probe → REST auto-wake →
+# Deciding ADRs (ADR-0037 §2): 176 is the complete replacement decision this realizes: hard-require DB
+# + git at launch, block-until-ready with a bounded auto-wake, retire the degraded read shell, and carry
+# forward the tsx-sidecar / boot-read / re-compose boundary from superseded ADR-0119. 60/63 supply
+# `ensureLiveDb` (probe → REST auto-wake →
 # bounded poll → refuse), reused verbatim as the injected DB half; 70 is the operator-attested block /
 # refuse appearance.
-decisions: [176, 119, 60, 63, 70]
+decisions: [176, 60, 63, 70]
 # Node-borne proof config (ADR-0057 keystone): authoring THIS block is what makes the capability
 # inner-loop buildable — no NODE_BUILD_REGISTRY edit. NET-NEW (no editsExisting): the leaf authors a
 # test that imports NOT-YET-EXISTING symbols (`ensureLaunchPreconditions` / `describeLaunchRefusal`)
@@ -129,7 +129,7 @@ refuse screen renders them):
   precondition-naming messages.
 
 THE CI-PROVABLE CORE IS ELECTRON-FREE; THE LAUNCH EXPERIENCE IS OPERATOR-ATTESTED GLUE (ADR-0158 /
-ADR-0070 / ADR-0119 §3): the following are **un-asserted connective code within the story** — proven
+ADR-0070 / ADR-0176 §5): the following are **un-asserted connective code within the story** — proven
 transitively and operator-attested (the look), NOT a machine leg of this cap, exactly as the sidecar's
 build / spawn / overlay wiring already is:
 - DELETING `serveDegraded` (`backend-entry.ts`) and `degradedBackend` (`sidecar-startup.ts`) — the
@@ -244,7 +244,7 @@ Rules:
 - **Pure, Electron-free core** — no `pg` / `git` / `electron` / `dom` import; only a TYPE-ONLY
   `EnsureDbResult` import. The shell wiring (the gate in `main()`, the splash / refuse window) is the
   operator-attested binding, proven transitively under Story UAT leg 8 — NOT a machine leg here
-  (ADR-0158 / ADR-0070 / ADR-0119 §3).
+  (ADR-0158 / ADR-0070 / ADR-0176 §5).
 - **Refuse cleanly, never degrade** — a refusal is a typed outcome the sidecar exits on; there is no
   partial read shell. `serveDegraded` / `degradedBackend` are deleted in the glue that consumes this
   gate (the change that kills the drift class, ADR-0176 §2).

@@ -1,7 +1,7 @@
 ---
 status: accepted
 decided: 2026-07-09
-supersedes_in_part: [119]
+supersedes: [119]
 load_bearing: true
 ---
 # ADR-0176: The desktop app requires a reachable DB and a git checkout to launch — retire the degraded read shell
@@ -10,10 +10,11 @@ load_bearing: true
 
 accepted (2026-07-09) — decided/directed by the owner in conversation on 2026-07-09, out of a
 root-cause session on the recurring *"UAT tests unavailable: unknown endpoint"* bug in the desktop
-app. Design-time alignment IS the ratification (ADR-0110); no second end-of-flow ask. **Supersedes in
-part [ADR-0119](0119-thick-local-desktop-backend-a-tsx-sidecar-serving-the-studio.md)** — its
-launch-time *degrade-to-a-read-shell* posture is retired for the desktop; 0119's tsx-sidecar
-architecture, its boot read route table, and its re-compose-not-import boundary **stand**. The
+app. Design-time alignment IS the ratification (ADR-0110); no second end-of-flow ask. **Supersedes
+[ADR-0119](0119-thick-local-desktop-backend-a-tsx-sidecar-serving-the-studio.md) in full** under
+ADR-0139's binary lifecycle: this replacement retires 0119's launch-time
+*degrade-to-a-read-shell* posture and carries forward its still-live tsx-sidecar architecture, boot
+read route table, re-compose-not-import boundary, and proof split in Decisions 3–5 below. The
 APPEARANCE of the block / refuse experience remains operator-attested (ADR-0070).
 
 ## Context
@@ -36,6 +37,14 @@ The git repo was ALSO effectively optional: the code-stamp freshness signal
 no repo, so ADR-0164's *"checkout moved → rebuild & relaunch"* trigger silently never fires and a stale
 build runs invisibly. The desktop runs a **dev-mode build from the member's checkout** (ADR-0113 §7),
 so a git checkout is a real architectural precondition today, not an optional nicety.
+
+ADR-0119 had already settled the sidecar's viable topology and the minimum read surface the studio
+needs to boot. Those findings remain constraints on the replacement: the CJS Electron main cannot
+bundle the raw-TS drive machinery without breaking `import.meta`; the studio boot-gates on `/api/me`
+and loads docs/assets/comments together; and the desktop may re-compose organism packages but may
+not import `apps/studio/server`. The re-decision is the launch posture, not those constraints. Because
+ADR-0139 no longer permits an accepted ADR to remain "live in part", this ADR repeats the still-live
+decisions explicitly and supersedes ADR-0119 as one complete current decision.
 
 Two facts made "require it" cheap and safe:
 
@@ -72,14 +81,32 @@ shell.**
    typed reason (surfaced through `describeSidecarExit`); it never serves a subset of routes. This is
    the change that kills the drift class — there is now exactly one fully-wired backend, or none.
 
-3. **The Electron main process is the launch surface** (Rail 1, ADR-0164). While the sidecar comes up
+3. **The backend remains a main-owned `tsx` sidecar, never a bundled-in-main server.** The Electron
+   main spawns a child Node process through the Electron binary in Node mode
+   (`ELECTRON_RUN_AS_NODE=1`, `--import tsx`), proxies `/api/*` to its `127.0.0.1` port, and reaps it
+   on quit. This preserves real `import.meta` for the raw-TS drive/library machinery and preserves the
+   ADR-0004 boundary by topology: the renderer never imports `@storytree/agent`.
+
+4. **The one full backend serves the studio BOOT read set and re-composes packages, never the studio
+   server.** The boot READ set remains `me` / `health` / `docs` / `tree` / `assets` / `comments`;
+   later build/adopt/chat routes layer onto that same backend. The desktop owns its router and
+   re-composes `@storytree/drive`, `@storytree/orchestrator`, and `@storytree/library/store` exactly as
+   the studio backend does, but never imports `apps/studio/server`. Verbatim route-table sharing remains
+   a possible consolidation, not part of this decision.
+
+5. **Keep the proof split honest.** Pure routing and launch-gate behavior are headlessly proven over
+   injected seams. The Electron sidecar spawn/proxy/lifecycle and splash/refuse window are
+   operator-attested integration glue (ADR-0070); a headless test does not pretend to prove a native
+   shell.
+
+6. **The Electron main process is the launch surface** (Rail 1, ADR-0164). While the sidecar comes up
    it shows a *"starting — connecting to the database"* splash (the block-until-ready surface); on the
    port handshake it loads the studio (fully wired); on a **pre-handshake sidecar exit** it shows a
    clear **refuse screen** naming the unmet precondition with a **Retry** that re-runs the gate. No
    half-wired forest, ever. The splash / refuse window flow is the operator-attested glue (the look),
-   like the rest of the sidecar wiring (ADR-0119 §3).
+   like the rest of the sidecar wiring (Decision 5).
 
-4. **Scope: the DESKTOP launch posture only.** ADR-0033's per-read advisory contract is **unchanged for
+7. **Scope: the DESKTOP launch posture only.** ADR-0033's per-read advisory contract is **unchanged for
    a running app** — a DB that blips MID-SESSION still nulls overlays (the tree under-claims, never a
    throw). What changes is LAUNCH: you cannot START half-wired. Remote web/VM sessions (ADR-0063) and
    the DB-free gate / CI never run this sidecar, so the requirement cannot brick them.
@@ -94,6 +121,8 @@ shell.**
   code-stamp always resolves.
 - Reuses `ensureLiveDb`'s proven auto-wake + bounded-wait (ADR-0060 / ADR-0063) rather than reinventing
   a retry loop — the launch gate is a thin, headlessly-provable composition (git-gate → `ensureDb`).
+- Preserves the only viable raw-TS topology and the complete boot read surface established by
+  ADR-0119, now in the same current decision as the launch gate.
 
 **Bad / accepted costs.**
 - A cold DB start adds a visible wait (up to the ceiling) before the app is usable — surfaced as a
@@ -102,16 +131,19 @@ shell.**
   the shared forest, ADR-0113). Offline READ is the CLI's job (in-memory seed), not the desktop app's.
 - The splash + refuse+retry window flow is new operator-attested glue (the look), owner-attested per
   ADR-0070.
+- The main owns a second process (spawn, handshake, proxy, reap), and the desktop still duplicates a
+  slice of the studio's read handlers. Those remain accepted costs; a shared read-route organism is a
+  separate consolidation.
 - A future **packaged** desktop build (past dev-mode-from-checkout, ADR-0113 §7 / ADR-0119) would
   revisit the git-checkout requirement (a precompiled sidecar has no checkout); today's decision is
   scoped to the dev-mode-from-checkout app that ships now.
 
 ## References
 
-- [ADR-0119](0119-thick-local-desktop-backend-a-tsx-sidecar-serving-the-studio.md) — the thick-local
-  desktop sidecar; **superseded in part**: its launch-time degrade-to-a-read-shell posture is retired
-  for the desktop. The tsx-sidecar architecture, the boot read route table, and the
-  re-compose-not-import boundary **stand**.
+- [ADR-0119](0119-thick-local-desktop-backend-a-tsx-sidecar-serving-the-studio.md) — **superseded in
+  full** under ADR-0139's binary lifecycle. Its rationale remains browsable history; Decisions 3–5
+  above carry forward its still-live sidecar topology, boot read set, re-compose-not-import boundary,
+  and proof split while Decisions 1–2 and 6–7 replace its degraded-launch posture.
 - [ADR-0033](0033-session-presence-notice-board.md) — the per-read advisory-null contract is unchanged
   for a RUNNING app; only launch-time degrade is retired.
 - [ADR-0164](0164-the-desktop-app-self-restarts-to-apply-a-merged-fix-the-elec.md) — Rail 1 (the

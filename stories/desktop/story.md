@@ -70,9 +70,10 @@ artifact_edges: [studio, headless-orchestrator, studio-cloud]
 # proof-off-tether sanction the local backend rides (and the broker holds no signing key); 0004 the
 # orchestrator/agent boundary preserved by topology (main IS the boundary); 0108 the chat surface that
 # ships here; 0021 keyless Cloud SQL IAM (the per-friend grant ADR-0117 REMOVES for friends); 0070 the
-# operator-attested appearance (and the live `builder` grant); 0119 (amends 113) the tsx-sidecar local
-# backend + the studio boot read route table.
-decisions: [109, 111, 113, 117, 119, 90, 91, 4, 108, 21, 70]
+# operator-attested appearance (and the live `builder` grant); 0176 supersedes 0119 and is the complete
+# current sidecar decision: tsx-sidecar + studio boot reads + re-compose boundary, with DB/git launch
+# preconditions and no degraded shell.
+decisions: [109, 111, 113, 117, 176, 90, 91, 4, 108, 21, 70]
 ---
 
 # Desktop client — a trusted member runs the whole storytree loop on their own machine
@@ -168,7 +169,7 @@ deleted).
 > the build path's `tsx` resolution); (2) the read route table is the studio's **boot set** —
 > `me` / `health` / `docs` / `tree` / `assets` / `comments` — NOT just health/tree/assets, because the
 > studio frontend boot-gates on `/api/me` and `Promise.all`s docs+assets+comments (a 404 → an error
-> screen, not the forest). The "minimal route table" described below is **superseded in part** by that
+> screen, not the forest). The "minimal route table" described below is **replaced** by that
 > boot set; the re-compose-don't-import boundary call STANDS. The read router is headlessly provable (so
 > its green flips like any capability); the Electron sidecar-spawn + proxy is the operator-attested leg.
 
@@ -216,7 +217,7 @@ pulled into this story, to keep the thick-client journey small.
 >    and its initial load is `Promise.all([/api/docs, /api/assets, /api/comments])` — ANY `404` rejects
 >    the whole load → an error screen, not the forest. So the boot READ set is
 >    `me`/`health`/`docs`/`tree`/`assets`/`comments`. The "minimal route table" above is therefore
->    **superseded in part** by this boot set (ADR-0119 §2); the new
+>    **replaced** by this boot set (historically ADR-0119 §2; carried forward by ADR-0176 §4); the new
 >    [`boot-read-routes`](boot-read-routes.md) capability adds the three `local-backend-boot` did not
 >    (`me`/`docs`/`comments`). **The re-compose-don't-import boundary call is UNCHANGED** — the desktop
 >    OWNS a read router that re-composes the organism drivers (and re-reads `<repo>/docs` over `node:fs`)
@@ -403,7 +404,7 @@ credential never leaving the machine.
    (`serveDegraded` / `degradedBackend` deleted), so the *"UAT tests unavailable: unknown endpoint"*
    half-wired-forest failure cannot recur. (`desktop-launch-preconditions`'s contract test proves the
    git-first refusal + the never-wake fence + the DB passthrough over injected git/DB doubles; the
-   splash + refuse+retry window flow is operator-attested, ADR-0070 / ADR-0119 §3.) *(This is the
+   splash + refuse+retry window flow is operator-attested, ADR-0070 / ADR-0176 §5.) *(This is the
    defect-driven regression case ADR-0176 was root-caused from — the Story UAT grows by appending a
    permanent case per real failure, never speculative breadth.)*
 
@@ -510,7 +511,7 @@ operator-attested GLUE in item 1 below and in `chat-sse-mount.md`; THIS open ite
    (`me`/`health`/`docs`/`tree`/`assets`/`comments`) — composed from the organism drivers and a read-only
    `<repo>/docs` walk, NOT imported from the studio server — because the frontend boot-gates on `/api/me`
    and `Promise.all`s docs+assets+comments (a minimal table that omitted these boots to an error screen,
-   ADR-0119 finding 2). This SUPERSEDES IN PART ADR-0113's "minimal route table" ([`boot-read-routes`](boot-read-routes.md)
+   ADR-0119 finding 2, carried forward by ADR-0176 §4). This REPLACES ADR-0113's "minimal route table" ([`boot-read-routes`](boot-read-routes.md)
    adds the three `local-backend-boot` did not). The backend itself runs as a **tsx sidecar** the Electron
    main spawns and proxies `/api/*` to (bundling raw-TS drivers into the CJS main breaks `import.meta`,
    ADR-0119 finding 1 / §1). Extracting the studio's FULL route table into a shared read-route organism

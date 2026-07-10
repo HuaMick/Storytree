@@ -34,6 +34,48 @@ const broker = new CredentialBroker(new NapiKeychain());
 let studioUrl: string | null = null;
 let backendChild: ChildProcess | null = null;
 let backendPort: number | null = null;
+let startupInFlight: Promise<void> | null = null;
+
+const RETRY_URL = "storytree-retry://start";
+
+function escapeHtml(text: string): string {
+  return text.replace(/[&<>"']/g, (char) => {
+    switch (char) {
+      case "&": return "&amp;";
+      case "<": return "&lt;";
+      case ">": return "&gt;";
+      case '"': return "&quot;";
+      default: return "&#39;";
+    }
+  });
+}
+
+function launchPage(title: string, detail: string, retry: boolean): string {
+  const action = retry
+    ? `<a href="${RETRY_URL}">Retry</a>`
+    : `<div class="spinner" aria-hidden="true"></div>`;
+  return `data:text/html;charset=utf-8,${encodeURIComponent(`<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>${escapeHtml(title)}</title>
+<style>
+  :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #111827; color: #f9fafb; }
+  body { min-height: 100vh; margin: 0; display: grid; place-items: center; }
+  main { width: min(38rem, calc(100vw - 3rem)); padding: 2rem; border: 1px solid #374151;
+    border-radius: 1rem; background: #1f2937; box-shadow: 0 1rem 3rem #0006; }
+  h1 { margin-top: 0; font-size: 1.5rem; }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; color: #d1d5db; font: inherit; line-height: 1.5; }
+  a { display: inline-block; margin-top: 1rem; padding: .65rem 1rem; border-radius: .5rem;
+    background: #e5e7eb; color: #111827; font-weight: 650; text-decoration: none; }
+  .spinner { width: 1.25rem; height: 1.25rem; margin-top: 1rem; border: 2px solid #6b7280;
+    border-top-color: #f9fafb; border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+<main><h1>${escapeHtml(title)}</h1><pre>${escapeHtml(detail)}</pre>${action}</main></html>`)}`;
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
 
 /**
  * Spawn the thick-local backend sidecar as a child Node process via the Electron binary in Node mode
@@ -77,6 +119,7 @@ function startBackend(): Promise<number> {
       errBuf = tailText(errBuf + text, 40);
     });
     child.once("error", (err) => {
+      if (backendChild === child) backendChild = null;
       if (!settled) {
         settled = true;
         rejectPort(err);
@@ -94,28 +137,44 @@ function startBackend(): Promise<number> {
 
 async function ensureStudioServed(): Promise<string> {
   if (studioUrl === null) {
-    if (backendPort === null) {
-      try {
-        backendPort = await startBackend();
-      } catch (err) {
-        // Fall back to the Step-1 shell (serveStudio's 503) so the window still opens and shows the
-        // store-unavailable banner rather than failing to launch.
-        console.error(
-          `[main] thick-local backend failed to start: ${err instanceof Error ? err.message : String(err)}`,
-        );
-      }
-    }
-    const served = await serveStudio(
-      STUDIO_DIST,
-      backendPort !== null ? { backendPort } : {},
-    );
+    if (backendPort === null) throw new Error("backend port is unavailable");
+    const served = await serveStudio(STUDIO_DIST, { backendPort });
     studioUrl = served.url;
   }
   return studioUrl;
 }
 
+function launchBackendForWindow(win: BrowserWindow, showStarting = true): Promise<void> {
+  if (startupInFlight !== null) return startupInFlight;
+  const attempt = (async () => {
+    try {
+      if (showStarting) {
+        await win.loadURL(launchPage("Starting storytree", "Checking the checkout and database…", false));
+      }
+      backendPort = await startBackend();
+      const url = await ensureStudioServed();
+      if (!win.isDestroyed()) await win.loadURL(url);
+    } catch (err) {
+      const reason = errorMessage(err);
+      console.error(`[main] thick-local backend failed to start: ${reason}`);
+      if (!win.isDestroyed()) {
+        await win.loadURL(
+          launchPage(
+            "storytree could not start",
+            `The local backend refused to launch.\n\n${reason}`,
+            true,
+          ),
+        );
+      }
+    }
+  })();
+  startupInFlight = attempt.finally(() => {
+    startupInFlight = null;
+  });
+  return startupInFlight;
+}
+
 async function createWindow(): Promise<void> {
-  const url = await ensureStudioServed();
   const win = new BrowserWindow({
     width: 1280,
     height: 860,
@@ -126,7 +185,13 @@ async function createWindow(): Promise<void> {
       nodeIntegration: false,
     },
   });
-  await win.loadURL(url);
+  win.webContents.on("will-navigate", (event, url) => {
+    if (url !== RETRY_URL) return;
+    event.preventDefault();
+    void launchBackendForWindow(win);
+  });
+  await win.loadURL(launchPage("Starting storytree", "Checking the checkout and database…", false));
+  void launchBackendForWindow(win, false);
 }
 
 // Auth IPC — the renderer asks the MAIN process to broker the credential. The raw token

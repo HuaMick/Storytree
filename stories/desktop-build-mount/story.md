@@ -92,8 +92,9 @@ artifact_edges: [studio-build, desktop]
 # build INTENT, never a verdict-in; the spine inside runBuildJob observes RED→GREEN and signs; the agent holds
 # no key); 4 (the chat thin client imports no agent/drive/model — its only route is the api seam; the desktop
 # renderer is held too); 100 (an app may not import another app's server — the WALL that FORCES the relocation,
-# the reason the worker must move to a package); 119 (the desktop backend re-composes from PACKAGES — the
-# established pattern the build mount follows); 90 (the build worker reused verbatim — routedBuildRunner →
+# the reason the worker must move to a package); 176 (the complete current sidecar decision, carrying
+# forward 119's re-compose-from-PACKAGES boundary — the established pattern the build mount follows);
+# 90 (the build worker reused verbatim — routedBuildRunner →
 # story build --real, the single agent boundary); 22 (CI re-proves green before the trunk — the backstop for
 # the deferred-broker risk + what lands the PR the worker opens). Context: 0048 (the build wisp the dispatched
 # run blooms) / 0070 (the live driven appearance is operator-attested, chat-drive-bridge's legs 5–6).
@@ -101,7 +102,7 @@ artifact_edges: [studio-build, desktop]
 # `node build --real` with persist semantics instead of the synthetic `--live` smoke; landing stays the
 # human gate over the parked branch, ADR-0136 amended in degree). Capability routed-node-real-dispatch;
 # the story's other caps and its own status are untouched.
-decisions: [133, 108, 113, 117, 91, 4, 100, 119, 90, 22, 144]
+decisions: [133, 108, 113, 117, 91, 4, 100, 176, 90, 22, 144]
 ---
 
 # The desktop build mount — relocate the build worker into @storytree/drive, mount build + accept→dispatch on the desktop
