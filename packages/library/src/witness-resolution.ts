@@ -21,13 +21,17 @@ import type { UatTest, UatTestWitness } from "./uat-tests.js";
  * the human exactly as ADR-0106 warns ("a `machine` leg with nothing behind it would re-create the
  * orphan bug in reverse, going green *without* the human silently").
  *
- * **A `machine` label is a PROMISE of a real test (ADR-0106 d.2/d.3), never a bare flag.** Once a leg
- * is declared `machine`, the classifier ROUTES it — it never greens it:
- *  - `observe`     — the story already declares an `observe` reliability gate (an existing green suite,
- *                    ADR-0085); adopt observe-and-signs the leg against that suite NOW (the cheap step).
- *  - `build-tests` — no existing suite covers it yet; the leg becomes a `build-tests` obligation the
- *                    Build step authors red→green later (ADR-0098). It stays UNPROVEN (no verdict) until
- *                    then, so it holds the crown at `proposed` — it can never green without a real test.
+ * **A `machine` label is a PROMISE of a real test (ADR-0106 d.2/d.3), never a bare flag — and the
+ * binding is EXACT (`uat-machine-gate-resolution`).** Once a leg is declared `machine`, the classifier
+ * looks up exactly `leg.proofGateId` (parsed verbatim by `uat-tests.ts`'s `(proof-gate: story-id#gate-n)`
+ * annotation, never inferred from ordering, title, package, or `(covers:)`) and resolves it ONLY when
+ * that full id names a declared `observe` reliability gate carrying a proof command:
+ *  - `observe`  — the named gate is a command-bearing `observe` gate → adopt observe-and-signs the leg
+ *                 against THAT gate's exact command NOW (the cheap step, ADR-0085).
+ *  - `refused`  — no binding, an unknown id, a non-observe gate, or a commandless observe gate. There is
+ *                 no first-observe fallback, no ordering inference, no covers-based inference, and no
+ *                 silent downgrade to `human` — a refusal is a binding defect the author must fix, not a
+ *                 quiet reclassification.
  * Either way a `machine` leg only ever greens through a SIGNED verdict over a real run, never a flag.
  */
 
@@ -45,51 +49,53 @@ export const RESOLVED_WITNESSES = ["human", "machine"] as const;
 export type ResolvedWitnessKind = (typeof RESOLVED_WITNESSES)[number];
 
 /**
- * For a `machine` leg, HOW its promised real test is supplied (ADR-0106 d.3):
- *  - `observe`     — an existing `observe` reliability-gate suite already covers it → adopt
- *                    observe-and-signs it now (ADR-0085 / ADR-0097, the cheap first step);
- *  - `build-tests` — no existing suite covers it → the Build step authors the test red→green
- *                    (ADR-0098); the leg stays unproven until then.
+ * For a `machine` leg, HOW resolution came out (`uat-machine-gate-resolution`):
+ *  - `observe` — `leg.proofGateId` names a declared, command-bearing `observe` reliability gate →
+ *                adopt observe-and-signs it now (ADR-0085 / ADR-0097, the cheap first step);
+ *  - `refused` — no binding, an unknown id, a non-observe gate, or a commandless observe gate. A
+ *                refusal names the defect (`reason`) — it is never a silent downgrade to `human` or
+ *                to some other gate.
  */
-export const WITNESS_COVERAGES = ["observe", "build-tests"] as const;
+export const WITNESS_COVERAGES = ["observe", "refused"] as const;
 export type WitnessCoverage = (typeof WITNESS_COVERAGES)[number];
 
 /**
  * The classifier's per-leg verdict. A `human` leg is left for operator attestation (the "I saw it
- * work" verdict, ADR-0082); a `machine` leg is routed to adopt-now (`observe`, carrying the covering
- * gate's id so the adopt pass knows which suite to observe) or defer-to-Build (`build-tests`).
+ * work" verdict, ADR-0082); a `machine` leg either resolves to the EXACT observe gate it is bound to
+ * (carrying that gate's id and command so the adopt pass knows what to observe) or is explicitly
+ * `refused` with a `reason` (`uat-machine-gate-resolution`).
  */
 export type WitnessResolution =
   | { witness: "human" }
-  | { witness: "machine"; coverage: "observe"; observedBy: string }
-  | { witness: "machine"; coverage: "build-tests" };
+  | { witness: "machine"; coverage: "observe"; observedBy: string; proofCommand: string }
+  | { witness: "machine"; coverage: "refused"; reason: string };
 
 // ---------------------------------------------------------------------------
 // The pure classifier
 // ---------------------------------------------------------------------------
 
-/** The fields of a UAT leg the classifier reads — only its declared witness permission. */
-export type ClassifierLeg = Pick<UatTest, "witness">;
-/** The fields of a reliability gate the classifier reads — its id and kind (to find the observe suite). */
-export type ClassifierGate = Pick<ReliabilityGate, "id" | "kind">;
+/** The fields of a UAT leg the classifier reads — its declared witness permission and exact proof-gate binding. */
+export type ClassifierLeg = Pick<UatTest, "witness" | "proofGateId">;
+/** The fields of a reliability gate the classifier reads — its id, kind, and declared proof command. */
+export type ClassifierGate = Pick<ReliabilityGate, "id" | "kind" | "proofCommand">;
 
 /**
  * PURE: resolve a UAT leg's declared `witness` into a concrete BINARY witness (ADR-0106 d.1/d.2),
- * given the story's reliability gates (so a `machine` leg can be routed `observe` vs `build-tests`).
+ * given the story's reliability gates (so an explicit `machine` leg can be resolved against its exact
+ * binding — `uat-machine-gate-resolution`).
  *
  * The asymmetric rule, fail-closed toward the human:
  *  - `human`  (explicit)   → `human` — the author declared it experiential.
  *  - `either` (UNDECIDED)  → `human` — no positive evidence to back a machine check; the conservative
  *                            resolution (ADR-0040 *when in doubt, ask the human*). NEVER promoted to
  *                            `machine` from coverage alone (that would fail open and drop the human).
- *  - `machine` (explicit)  → `machine`, ROUTED by the story's coverage:
- *      · ≥1 `observe` gate declared → `{ observe, observedBy: <first observe gate id> }` (adopt signs it now);
- *      · otherwise                  → `build-tests` (a promise the Build step authors red→green).
+ *  - `machine` (explicit)  → looks up EXACTLY `leg.proofGateId`, never the first `observe` gate found,
+ *                            never by ordering, never by `(covers:)` inference:
+ *      · that id names a declared, command-bearing `observe` gate → `{ observe, observedBy, proofCommand }`;
+ *      · no binding, an unknown id, a non-observe gate, or a commandless observe gate → `{ refused, reason }`.
  *
- * Deterministic and total — every leg resolves; a `machine` leg is never refused, only routed (it can
- * still only green through a signed verdict, never a flag). When several `observe` gates exist the FIRST
- * (declared order) is named the cover — a documented simplification mirroring `classifyAdoption`'s trust
- * model (no per-leg→suite measurement; that is named follow-on).
+ * Deterministic and total — every leg resolves, to a routing or an explicit refusal (never a silent
+ * downgrade). A refusal is a binding defect the author must fix, never quietly reclassified.
  */
 export function resolveWitness(
   leg: ClassifierLeg,
@@ -99,11 +105,44 @@ export function resolveWitness(
   // `human` and the UNDECIDED `either` both resolve to `human` (ADR-0106 d.2 / ADR-0040).
   if (leg.witness !== "machine") return { witness: "human" };
 
-  // A declared `machine` leg is a PROMISE of a real test — route it, never green it (ADR-0106 d.3).
-  const observeGate = gates.find((g) => g.kind === "observe");
-  return observeGate !== undefined
-    ? { witness: "machine", coverage: "observe", observedBy: observeGate.id }
-    : { witness: "machine", coverage: "build-tests" };
+  // A declared `machine` leg is a PROMISE of a real test — resolved ONLY against its exact binding
+  // (ADR-0106 d.3 / `uat-machine-gate-resolution`), never routed by coverage inference.
+  const gateId = leg.proofGateId;
+  if (gateId === undefined) {
+    return {
+      witness: "machine",
+      coverage: "refused",
+      reason:
+        "no proof-gate binding — a machine leg must name the exact observe gate it proves against, e.g. (proof-gate: story-id#gate-n)",
+    };
+  }
+
+  const bound = gates.find((g) => g.id === gateId);
+  if (bound === undefined) {
+    return {
+      witness: "machine",
+      coverage: "refused",
+      reason: `bound gate "${gateId}" is not among this story's declared reliability gates`,
+    };
+  }
+
+  if (bound.kind !== "observe") {
+    return {
+      witness: "machine",
+      coverage: "refused",
+      reason: `bound gate "${gateId}" is a "${bound.kind}" gate, not an observe gate — a machine leg can only bind to a command-bearing observe gate`,
+    };
+  }
+
+  if (bound.proofCommand === undefined) {
+    return {
+      witness: "machine",
+      coverage: "refused",
+      reason: `bound gate "${gateId}" declares no proof command to observe`,
+    };
+  }
+
+  return { witness: "machine", coverage: "observe", observedBy: bound.id, proofCommand: bound.proofCommand };
 }
 
 /**
