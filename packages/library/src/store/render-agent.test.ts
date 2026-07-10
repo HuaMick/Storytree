@@ -210,7 +210,7 @@ test("renderAgentFile wraps the assembled prompt in Claude Code subagent frontma
   const res = await renderAgentFile(store, "clean-agent");
   assert.equal(res.ok, true);
   if (!res.ok) return;
-  // model tier defaults to `inherit` when the agent doc carries none (ADR-0181, amending ADR-0178 §3).
+  // model tier defaults to `inherit` when the agent doc carries none (ADR-0182, amending ADR-0178 §3).
   assert.match(
     res.content,
     /^---\nname: clean-agent\ndescription: "a role whose refs all resolve"\nmodel: inherit\n---\n\n/,
@@ -223,7 +223,7 @@ test("renderAgentFile wraps the assembled prompt in Claude Code subagent frontma
   assert.deepEqual(res.missingRefs, []);
 });
 
-test("both harness renderers emit the same model tier over the same essentials (ADR-0181)", async () => {
+test("both harness renderers emit the same model tier over the same essentials (ADR-0182)", async () => {
   const store = await seeded();
   const cursor = await renderCursorAgentFile(store, "clean-agent");
   const claude = await renderAgentFile(store, "clean-agent");
@@ -242,7 +242,7 @@ test("both harness renderers emit the same model tier over the same essentials (
   assert.deepEqual(cursor.missingRefs, []);
 });
 
-test("a pinned model tier flows into both harness frontmatter surfaces (ADR-0181)", async () => {
+test("a pinned model tier flows into both harness frontmatter surfaces (ADR-0182)", async () => {
   const store = await seeded();
   await store.upsertDoc({
     id: "sonnet-agent",

@@ -4,7 +4,7 @@ decided: 2026-07-11
 amends: [178]
 load_bearing: true
 ---
-# ADR-0181: Delegatable Library agents carry a model tier
+# ADR-0182: Delegatable Library agents carry a model tier
 
 ## Status
 

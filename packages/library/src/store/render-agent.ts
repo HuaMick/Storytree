@@ -569,7 +569,7 @@ export type RenderAgentFileResult =
   | { ok: false; reason: string; available: string[] };
 
 /**
- * The `model:` frontmatter value a harness subagent file pins (ADR-0181, amending ADR-0178 §3). The
+ * The `model:` frontmatter value a harness subagent file pins (ADR-0182, amending ADR-0178 §3). The
  * agent's `model` TIER is authoritative; absent → `inherit` (the ADR-0178 default: the spawning
  * session's model). `sonnet`/`opus` are the workhorse/judgment split, and both harness frontmatter
  * contracts (`.claude/agents`, `.cursor/agents`) accept these literal `model:` values, so one resolved
@@ -585,7 +585,7 @@ export function agentModelFrontmatter(stored: StoredDoc): string {
  * (`name` / `description` / `model`) + the generated marker + the ESSENTIALS system prompt (via
  * {@link renderAgentEssentials} — ADR-0156 §6ii re-decided this off the full-inline `renderAgentPrompt`
  * so the machine-only subagent files stay thin, DRY, and fresh). One trailing newline, for
- * deterministic on-disk content. The `model:` line is the ADR-0181 tier pin (workhorse/judgment split);
+ * deterministic on-disk content. The `model:` line is the ADR-0182 tier pin (workhorse/judgment split);
  * absent tier renders `inherit`, the prior ADR-0052/0178 behaviour. `tools` is intentionally OMITTED —
  * the subagent inherits the full surface and the prose Tools section carries the guidance; mapping the
  * prose grant to a structured allow-list is future work (ADR-0052).
@@ -622,7 +622,7 @@ export async function renderAgentFile(store: Store, name: string): Promise<Rende
 
 /**
  * Render the committed `.cursor/agents/<id>.md` view of the same Library agent. Cursor receives the
- * identical essentials prompt plus the explicit `model` tier (ADR-0181, amending ADR-0178 §3's
+ * identical essentials prompt plus the explicit `model` tier (ADR-0182, amending ADR-0178 §3's
  * `inherit`-only minimum — the same tier the Claude view pins, both harnesses accept the value);
  * readonly/background policy remains absent until the Library carries those grants structurally.
  */

@@ -564,7 +564,7 @@ export const AgentStepRef = z
 export type AgentStepRef = z.infer<typeof AgentStepRef>;
 
 /**
- * The model TIER a delegatable agent runs on when a harness spawns it (ADR-0181, amending ADR-0178 §3
+ * The model TIER a delegatable agent runs on when a harness spawns it (ADR-0182, amending ADR-0178 §3
  * which fixed every subagent at `inherit`). A tier, NOT a raw model id — so it survives model-version
  * bumps and maps cleanly onto both harness frontmatter contracts (`.claude/agents` and `.cursor/agents`
  * both accept these `model:` values). `inherit` keeps the ADR-0178 default (the spawning session's
@@ -704,7 +704,7 @@ export const OpenQuestion = buildKindSchema("open-question");
 // still fail closed) and the `kind` literal (the discriminated union is unaffected).
 export const Agent = buildKindSchema("agent").extend({
   stepRefs: z.array(AgentStepRef).optional(),
-  // The model TIER this delegatable agent's harness subagent file pins (ADR-0181, amending ADR-0178
+  // The model TIER this delegatable agent's harness subagent file pins (ADR-0182, amending ADR-0178
   // §3's `inherit`-only minimum). OPTIONAL — an agent without it renders `model: inherit` exactly as
   // before, so every existing agent doc still validates with NO `CURRENT_SCHEMA_VERSION` bump /
   // migration, and the discriminated union + `.strict()` fail-closed are preserved (the `stepRefs`
