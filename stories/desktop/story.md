@@ -14,7 +14,7 @@ proof_mode: UAT
 # as SSE — IS a desktop capability (`chat-sse-mount`), the thin glue chat-session-stream's Guidance
 # names. The renderer chat PANEL is a `studio` frontend component (consumed compiled), not a capability
 # here (see the Cross-story boundary section + "Renderer chat panel placement").
-capabilities: [credential-broker, electron-shell, local-backend-boot, boot-read-routes, chat-sse-mount, local-credential-wiring, shared-forest-connection, desktop-launch-preconditions]
+capabilities: [credential-broker, electron-shell, local-backend-boot, boot-read-routes, chat-sse-mount, local-credential-wiring, shared-forest-connection, brokered-local-uat-signing, desktop-launch-preconditions]
 # Story-level edges (ADR-0010 §4 / ADR-0074 — these are the cross-story `depends_on` the boundary
 # gate (`check:boundaries`) enforces against apps/desktop/package.json's @storytree/* deps, ADR-0100;
 # ADR-0113 §8 requires the desktop → studio-server/drive edges to be DECLARED here or CI goes red):
@@ -227,7 +227,7 @@ pulled into this story, to keep the thick-client journey small.
 >    sharing stays deferred (a shared read-route organism touching the `studio` story is the clean
 >    follow-on, ADR-0119 "Bad / accepted costs").
 
-## Capabilities (8)
+## Capabilities (9)
 
 Listed roots-first (a capability appears after everything it depends on).
 
@@ -240,7 +240,8 @@ Listed roots-first (a capability appears after everything it depends on).
 | 5 | [`chat-sse-mount`](chat-sse-mount.md) | The local backend adds a `POST /api/chat` route that starts an `orchestrate`-driven session (the CONSUMED headless-orchestrator `chat-session-stream` core, `startChatStream`) and streams its events to the renderer as SSE — re-composed from `@storytree/drive` (never importing the studio server), read/propose only (no signing, no build, no PR; ADR-0091). | contract-test (CI red→green) | `local-backend-boot` |
 | 6 | [`local-credential-wiring`](local-credential-wiring.md) | The keychain-brokered credential is fed to the in-process local backend's build/orchestrate drivers (no TLS hop), and the renderer never receives the raw token. | contract-test (CI red→green) | `credential-broker`, `local-backend-boot` |
 | 7 | [`shared-forest-connection`](shared-forest-connection.md) | The local backend BROKERS its verdict/presence writes to the hosted studio's members-gated write-broker (no local DB connection; ADR-0117), with a readiness probe that fails closed (and clear guidance) when the broker is unreachable or the member is not an authorized `builder`. | contract-test (CI red→green) + operator-attested live broker/builder-grant | `local-backend-boot` |
-| 8 | [`desktop-launch-preconditions`](desktop-launch-preconditions.md) | Before the sidecar wires ANY backend, a pure gate proves two launch preconditions — an available git checkout and a reachable live store (auto-waking it if asleep, bounded) — and refuses with a clear reason naming the unmet precondition, so the sidecar wires the ONE full backend or refuses cleanly, never degrading to a partial read shell (ADR-0176). | contract-test (CI red→green) + operator-attested refuse UX | — (independent root; front-runs the backend boot) |
+| 8 | [`brokered-local-uat-signing`](brokered-local-uat-signing.md) | A local human's observation of a declared human-witness UAT leg becomes a real operator-attested verdict pinned to a clean git HEAD and persisted through the injected forest broker writer; machine legs, blank/agent signers, dirty/malformed state, unknown tests, and broker refusals fail closed. | integration-test (CI red→green) | `shared-forest-connection`, `boot-read-routes` |
+| 9 | [`desktop-launch-preconditions`](desktop-launch-preconditions.md) | Before the sidecar wires ANY backend, a pure gate proves two launch preconditions — an available git checkout and a reachable live store (auto-waking it if asleep, bounded) — and refuses with a clear reason naming the unmet precondition, so the sidecar wires the ONE full backend or refuses cleanly, never degrading to a partial read shell (ADR-0176). | contract-test (CI red→green) + operator-attested refuse UX | — (independent root; front-runs the backend boot) |
 
 The **chat surface** the member talks to has THREE layers, split across two stories:
 - its provable streaming **BACKEND** (the SSE/intake core that drives `orchestrate`, `startChatStream`)
@@ -275,6 +276,9 @@ any backend is wired at all, and consumes only `@storytree/drive`'s `ensureLiveD
 - `local-credential-wiring` → `credential-broker`, `local-backend-boot` (it feeds the broker's credential
   into the backend the boot capability stands up — so it couples to both).
 - `shared-forest-connection` → `local-backend-boot` (the connection/readiness is the backend's store seam).
+- `brokered-local-uat-signing` → `shared-forest-connection`, `boot-read-routes` (it consumes the
+  brokered `ForestWriter` persistence boundary and the declared local UAT test context; `LOCAL_ME`
+  remains deliberately `member`, while the signer is a separately injected local operator identity).
 
 `credential-broker` (Step 1's CI-proven core) and `local-backend-boot` (the thick keystone) share no
 edge — Step 1's safety boundary and Step 2's backend boot are independent roots that
