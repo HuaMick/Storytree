@@ -24,8 +24,11 @@ import type { BuildEnvelope, BuildRunner } from "@storytree/drive/build-worker";
 
 import type { CredentialBroker } from "../credential/broker.js";
 import type { CredentialKind } from "../credential/kinds.js";
-import { CREDENTIAL_ENV_VAR, CREDENTIAL_KINDS } from "../credential/kinds.js";
+import { CREDENTIAL_ENV_VAR } from "../credential/kinds.js";
 import { CredentialBridge } from "./credential-bridge.js";
+
+type ClaudeCredentialKind = Extract<CredentialKind, "oauth" | "api-key">;
+const CLAUDE_CREDENTIAL_KINDS: readonly ClaudeCredentialKind[] = ["oauth", "api-key"];
 
 export interface CredentialedBuildRunnerOpts {
   /** The keychain-backed broker (the ADR-0109 Step-1 core). */
@@ -57,14 +60,14 @@ export function credentialedBuildRunner(opts: CredentialedBuildRunnerOpts): Buil
 
   return async (unitId, sink) => {
     // Tier 1 — explicit env wins: the operator set a credential; the keychain never overrides it.
-    if (CREDENTIAL_KINDS.some((k) => explicit.has(CREDENTIAL_ENV_VAR[k]))) {
+    if (CLAUDE_CREDENTIAL_KINDS.some((k) => explicit.has(CREDENTIAL_ENV_VAR[k]))) {
       return opts.runner(unitId, sink);
     }
 
     // Tier 2 — the keychain, kind-picked fresh PER BUILD (sign-in after launch just works;
     // sign-out fails the next build closed). Oauth preferred over the metered key.
-    let kind: CredentialKind | null = null;
-    for (const k of CREDENTIAL_KINDS) {
+    let kind: ClaudeCredentialKind | null = null;
+    for (const k of CLAUDE_CREDENTIAL_KINDS) {
       if ((await opts.broker.read(k)) !== null) {
         kind = k;
         break;
@@ -73,7 +76,7 @@ export function credentialedBuildRunner(opts: CredentialedBuildRunnerOpts): Buil
 
     if (kind === null) {
       // Tier 3 — the secrets-file tier: loadLocalSecrets already hydrated the ambient env.
-      if (CREDENTIAL_KINDS.some((k) => isSet(env, CREDENTIAL_ENV_VAR[k]))) {
+      if (CLAUDE_CREDENTIAL_KINDS.some((k) => isSet(env, CREDENTIAL_ENV_VAR[k]))) {
         return opts.runner(unitId, sink);
       }
       // No credential anywhere: route through the bridge so its typed fail-closed rejection
@@ -86,23 +89,11 @@ export function credentialedBuildRunner(opts: CredentialedBuildRunnerOpts): Buil
     // BridgeResult carries only {ok, body}, so the driver captures the full envelope
     // (incl. `next`) and the wrapper returns that.
     let captured: BuildEnvelope | null = null;
-    const bridge = new CredentialBridge(opts.broker, async (id, credentialEnv, driverSink) => {
-      const saved = new Map<string, string | undefined>();
-      for (const [name, value] of Object.entries(credentialEnv)) {
-        saved.set(name, env[name]);
-        env[name] = value;
-      }
-      try {
-        const envelope = await opts.runner(id, driverSink);
-        captured = envelope;
-        return { ok: envelope.ok, body: envelope.body };
-      } finally {
-        for (const [name, value] of saved) {
-          if (value === undefined) delete env[name];
-          else env[name] = value;
-        }
-      }
-    });
+    const bridge = new CredentialBridge(opts.broker, async (id, _credentialEnv, driverSink) => {
+      const envelope = await opts.runner(id, driverSink);
+      captured = envelope;
+      return { ok: envelope.ok, body: envelope.body };
+    }, env);
 
     const result = await bridge.build(unitId, kind, sink);
     return captured !== null ? captured : result;

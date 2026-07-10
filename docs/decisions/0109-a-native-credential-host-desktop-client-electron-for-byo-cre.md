@@ -14,6 +14,13 @@ app ADR-0090 rejected. Amends ADR-0090 by promoting its "optional native wrapper
 BYO-credential delivery vehicle for the hosted phase. The client's APPEARANCE is operator-attested
 under ADR-0070 when built.
 
+**Correction (2026-07-10, per
+[ADR-0139](0139-the-accepted-adr-set-carries-no-stale-prose-correct-in-place.md)):**
+[ADR-0177](0177-open-the-leaf-runtime-seam-to-cursor-while-keeping-the-deter.md) admits Cursor as a
+second live harness and requires `CURSOR_API_KEY`. The credential-host boundary decided here is
+unchanged; the stale two-Claude-kind wording is corrected below to include the independently
+namespaced Cursor key and operation-specific selection.
+
 ## Context
 
 ADR-0090 split orchestration into a thin client + a server-side build-capable worker, with three
@@ -42,10 +49,12 @@ rejected. Bringing it back is exercising the option ADR-0090 parked, not reopeni
 1. **Ship a thin native desktop client (Electron).** It renders the SAME compiled studio frontend bundle
    and carries NO source, NO build engine, NO stories — only the compiled UI (ADR-0090 d.4 preserved).
 
-2. **Its added job over the browser is credential hosting.** It stores the member's credential in the
-   **OS keychain**, supports BOTH `CLAUDE_CODE_OAUTH_TOKEN` (subscription — runs the login + refresh
-   flow) and `ANTHROPIC_API_KEY`, and **brokers it to the worker per build over TLS, never persisted
-   server-side** (ADR-0090 d.3 preserved verbatim).
+2. **Its added job over the browser is credential hosting.** It stores the member's credentials in the
+   **OS keychain** as independently namespaced kinds: `CLAUDE_CODE_OAUTH_TOKEN` (subscription — runs
+   the login + refresh flow), `ANTHROPIC_API_KEY`, and — under ADR-0177 — `CURSOR_API_KEY`. It brokers
+   only the credential requested by an operation; a Claude build may select only the first two, while
+   a Cursor operation may select only `CURSOR_API_KEY`. The credential is never persisted server-side
+   (ADR-0090 d.3 preserved).
 
 3. **The client never imports the agent and holds no model path** (ADR-0090 d.2 / ADR-0004). A build is
    still requested as an INTENT over the gated API; the worker is the single orchestrator boundary. The
@@ -66,12 +75,14 @@ rejected. Bringing it back is exercising the option ADR-0090 parked, not reopeni
 ## Build (small, two steps)
 
 - **Step 1 — the shell + keychain broker.** An Electron shell that loads the compiled studio bundle and
-  a credential module that stores / reads the token in the OS keychain and runs the subscription OAuth
-  flow. Provable: the token round-trips the keychain and never touches `localStorage` or plaintext disk.
-- **Step 2 — wire to the worker.** The shell injects the held credential into each build intent over TLS
-  to the (eventually hosted) worker. Lands alongside ADR-0090 Phase 3 / ADR-0108 Phase 5 hosting.
+  a credential module that stores / reads each tagged credential in the OS keychain and runs the
+  subscription OAuth flow. Provable: each kind round-trips independently and never touches
+  `localStorage` or plaintext disk.
+- **Step 2 — wire to the operation.** The shell injects only the selected credential for the lifetime
+  of the requested operation. For the inner-circle phase this is local and in-process; the deferred
+  hosted form sends it per operation over TLS to the worker.
 
-  **Correction (2026-07-02, per
+  **Earlier correction (2026-07-02, per
   [ADR-0139](0139-the-accepted-adr-set-carries-no-stale-prose-correct-in-place.md)):** Step 2 was
   **redefined by [ADR-0113](0113-thick-local-desktop-for-the-inner-circle-the-drive-machinery.md) §5**
   for the inner-circle phase — the worker boots locally, so the hand-off is local and in-process on the
@@ -87,6 +98,8 @@ rejected. Bringing it back is exercising the option ADR-0090 parked, not reopeni
 **Good**
 - Devs use their Claude subscription safely (keychain-held OAuth), instead of being forced onto a
   metered API key or re-pasting a token.
+- Cursor credentials use the same OS-keychain safety boundary without becoming valid Claude
+  credentials or entering an unrelated operation.
 - No long-lived owner credential sits in the cloud; each member funds their own usage (ADR-0090's BYO
   posture, delivered).
 - ADR-0090's source-server-side and worker-is-the-boundary guards hold unchanged — the desktop client
@@ -122,3 +135,7 @@ rejected. Bringing it back is exercising the option ADR-0090 parked, not reopeni
   runtime the same credential broker serves when hosted.
 - [ADR-0042](0042-hosted-studio-demo-cloud-run-iap.md) — the hosted studio + IAP the desktop client
   signs into.
+- [ADR-0177](0177-open-the-leaf-runtime-seam-to-cursor-while-keeping-the-deter.md) — admits Cursor as a
+  second live harness and requires the independently selected `CURSOR_API_KEY`.
+- [ADR-0139](0139-the-accepted-adr-set-carries-no-stale-prose-correct-in-place.md) — permits this
+  in-place truth-maintenance correction because the credential-host decision did not change.

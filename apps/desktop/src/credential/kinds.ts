@@ -1,14 +1,17 @@
-// The two credential kinds the desktop client hosts (ADR-0109 §Decision 2): the
-// long-lived subscription OAuth token and the metered API key. Each names the env
-// var the worker reads when the credential is later brokered to it per build (Step 2,
-// out of scope here) — named now so the dual support the ADR requires is explicit.
+// The credential kinds the desktop client hosts. Each names the env var its
+// operation reads when the credential is brokered from the OS keychain.
 
-export type CredentialKind = "oauth" | "api-key";
+export type CredentialKind = "oauth" | "api-key" | "cursor-api-key";
 
-/** The env var each kind populates downstream (Step 2 wiring); the dual support, named. */
+/** The env var each kind populates for its scoped operation. */
 export const CREDENTIAL_ENV_VAR: Record<CredentialKind, string> = {
   oauth: "CLAUDE_CODE_OAUTH_TOKEN",
   "api-key": "ANTHROPIC_API_KEY",
+  "cursor-api-key": "CURSOR_API_KEY",
 };
 
-export const CREDENTIAL_KINDS: readonly CredentialKind[] = ["oauth", "api-key"];
+export const CREDENTIAL_KINDS: readonly CredentialKind[] = [
+  "oauth",
+  "api-key",
+  "cursor-api-key",
+];

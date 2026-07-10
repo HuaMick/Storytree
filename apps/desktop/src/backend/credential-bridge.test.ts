@@ -64,7 +64,7 @@ test("credential-bridge: brokered oauth token reaches the driver env under CLAUD
   await broker.store("oauth", testToken);
 
   const { capturedEnvs, driver } = makeStubDriver();
-  const bridge = new CredentialBridge(broker, driver);
+  const bridge = new CredentialBridge(broker, driver, {});
 
   const result = await bridge.build("some-unit-id", "oauth", () => undefined);
 
@@ -91,7 +91,7 @@ test("credential-bridge: brokered api-key token reaches the driver env under ANT
   await broker.store("api-key", apiKey);
 
   const { capturedEnvs, driver } = makeStubDriver();
-  const bridge = new CredentialBridge(broker, driver);
+  const bridge = new CredentialBridge(broker, driver, {});
 
   await bridge.build("some-unit-id", "api-key", () => undefined);
 
@@ -115,7 +115,7 @@ test("credential-bridge: no renderer-reachable path returns the raw token", asyn
   await broker.store("oauth", secret);
 
   const { driver } = makeStubDriver();
-  const bridge = new CredentialBridge(broker, driver);
+  const bridge = new CredentialBridge(broker, driver, {});
 
   // The build() return value must not carry the raw token.
   const buildResult = await bridge.build("some-unit-id", "oauth", () => undefined);
@@ -153,7 +153,7 @@ test("credential-bridge: build rejects with a typed error when no credential is 
   // No token stored — keychain is empty.
 
   const { capturedEnvs, driver } = makeStubDriver();
-  const bridge = new CredentialBridge(broker, driver);
+  const bridge = new CredentialBridge(broker, driver, {});
 
   await assert.rejects(
     () => bridge.build("some-unit-id", "oauth", () => undefined),
@@ -176,4 +176,50 @@ test("credential-bridge: build rejects with a typed error when no credential is 
     0,
     "the driver must NOT be invoked when no credential is held",
   );
+});
+
+test("credential-bridge: cursor key is scoped to CURSOR_API_KEY for the driver call", async () => {
+  const broker = new CredentialBroker(new InMemoryKeychain());
+  await broker.store("cursor-api-key", "cursor-test-value");
+  const env: Record<string, string | undefined> = {};
+  let during: Record<string, string | undefined> = {};
+
+  const bridge = new CredentialBridge(
+    broker,
+    async () => {
+      during = { ...env };
+      return { ok: true, body: "stub: ok" };
+    },
+    env,
+  );
+
+  await bridge.build("some-unit-id", "cursor-api-key", () => undefined);
+
+  assert.equal(during.CURSOR_API_KEY, "cursor-test-value");
+  assert.equal(during.CLAUDE_CODE_OAUTH_TOKEN, undefined);
+  assert.equal(during.ANTHROPIC_API_KEY, undefined);
+  assert.equal(env.CURSOR_API_KEY, undefined);
+});
+
+test("credential-bridge: restores the target env after a thrown driver", async () => {
+  const broker = new CredentialBroker(new InMemoryKeychain());
+  await broker.store("cursor-api-key", "cursor-test-value");
+  const env: Record<string, string | undefined> = {
+    CURSOR_API_KEY: "previous-value",
+  };
+
+  const bridge = new CredentialBridge(
+    broker,
+    async () => {
+      assert.equal(env.CURSOR_API_KEY, "cursor-test-value");
+      throw new Error("driver failed");
+    },
+    env,
+  );
+
+  await assert.rejects(
+    () => bridge.build("some-unit-id", "cursor-api-key", () => undefined),
+    /driver failed/,
+  );
+  assert.equal(env.CURSOR_API_KEY, "previous-value");
 });
