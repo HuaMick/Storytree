@@ -37,14 +37,18 @@ import {
   buildSpawnDeps,
   buildLandingDeps,
   buildInspectDeps,
+  ensureLiveDb,
 } from "@storytree/drive";
 import type { SpawnSurfaceDeps, LandingSurfaceDeps, InspectSurfaceDeps } from "@storytree/drive";
 
 import { createAdvisoryReader } from "../src/backend/advisory.js";
-import { createCodeStampProbe } from "../src/apply/code-stamp.js";
+import { createCodeStampProbe, gitHead } from "../src/apply/code-stamp.js";
 import { createLocalBackend } from "../src/backend/local-backend.js";
 import type { LocalBackendBackend } from "../src/backend/local-backend.js";
-import { acquireBackendStore, degradedBackend } from "../src/backend/sidecar-startup.js";
+import {
+  describeLaunchRefusal,
+  ensureLaunchPreconditions,
+} from "../src/backend/launch-preconditions.js";
 import { createBootReadRoutes } from "../src/backend/boot-read-routes.js";
 import { createChatSseMount } from "../src/backend/chat-sse-mount.js";
 import { createBuildRouteMount } from "../src/backend/build-route.js";
@@ -146,7 +150,7 @@ const advisory = createAdvisoryReader({ timeoutMs: ADVISORY_TIMEOUT_MS });
 const toIso = (at: Date | string): string =>
   at instanceof Date ? at.toISOString() : new Date(at).toISOString();
 
-// ---------- listen / shutdown (shared by the live + degraded paths) ----------
+// ---------- listen / shutdown ----------
 
 /** Bind the server to an ephemeral 127.0.0.1 port and print the ONE handshake line main.ts parses. */
 async function announce(server: import("node:http").Server): Promise<number> {
@@ -178,91 +182,6 @@ function installShutdown(
   process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
-/**
- * Serve the DEGRADED read shell when the store could not be acquired (down/unreachable DB, missing IAM
- * user). The window still OPENS: the boot read routes serve docs (comments empty), the local backend
- * renders the authored tree with no proof overlays, and /api/health reports `unreachable` — which the
- * studio turns into its "Start DB" banner rather than the old "sidecar not started" dead-end. No chat /
- * build / spawn surface (those need the live stores); they return 404 until the DB is back and the app
- * is relaunched. This is the graceful-degrade counterpart to `main()`'s full wiring.
- */
-async function serveDegraded(reason: string): Promise<void> {
-  console.error(
-    `[backend-entry] store unavailable — serving the DEGRADED read shell (no chat/build/spawn) ` +
-      `until the DB is reachable: ${reason}`,
-  );
-  const bootRoutes = createBootReadRoutes({ docsDir, listComments: async () => [] });
-  // Even with the store down, a moved checkout must still surface the rebuild affordance (the banner
-  // outranks the DB phase, ADR-0164) — so the degraded health carries the same code stamp.
-  const degraded = degradedBackend();
-  const localHandler = createLocalBackend({
-    storiesDir,
-    docsDir,
-    backend: {
-      ...degraded,
-      health: async () => {
-        const code = (await codeStampProbe()) ?? undefined;
-        return { db: "unreachable" as const, ...(code !== undefined ? { code } : {}) };
-      },
-    },
-    store: "pg",
-  });
-  const server = createServer((req: IncomingMessage, res: ServerResponse) => {
-    void (async () => {
-      try {
-        const pathname = new URL(req.url ?? "/", "http://localhost").pathname;
-        if (await bootRoutes(req, res, pathname)) return;
-        // Disk-only attestations: the full attestationsMount needs a live pool; in the degraded
-        // shell we serve the spec-parsed tests with resolved witnesses but no proven state (no DB
-        // = no verdict layer). Returns the same shape the full handler does — storyUat and proven
-        // are simply absent so the UI shows tests without crown colouring rather than 404-ing.
-        if (pathname === "/api/attestations") {
-          const urlObj = new URL(req.url ?? "/", "http://localhost");
-          const storyId = (urlObj.searchParams.get("storyId") ?? "").trim();
-          if (!storyId) {
-            res.statusCode = 400;
-            res.setHeader("Content-Type", "application/json; charset=utf-8");
-            res.end(JSON.stringify({ error: "storyId query param is required" }));
-            return;
-          }
-          const { findNodeSpecFile, loadNodeSpec, resolvedWitnessOf, unresolvedUatLegs } =
-            await import("@storytree/orchestrator");
-          const storySpecFile = findNodeSpecFile(storiesDir, storyId);
-          const spec = storySpecFile !== null
-            ? (() => { try { return loadNodeSpec(storySpecFile); } catch { return null; } })()
-            : null;
-          const tests = spec?.uatTests ?? [];
-          const gates = spec?.reliabilityGates ?? [];
-          const status = spec?.status ?? "";
-          const resolved = tests.map((t) => ({ ...t, witness: resolvedWitnessOf(t, gates) }));
-          const adopted = status !== "" && status !== "mapped" && status !== "retired";
-          const unresolvedWitnesses = adopted ? unresolvedUatLegs(tests).map((t) => t.id) : [];
-          res.statusCode = 200;
-          res.setHeader("Content-Type", "application/json; charset=utf-8");
-          res.end(JSON.stringify({
-            storyId,
-            tests: resolved,
-            ...(unresolvedWitnesses.length > 0 ? { unresolvedWitnesses } : {}),
-          }));
-          return;
-        }
-        await localHandler(req, res);
-      } catch (err) {
-        if (!res.headersSent) {
-          res.statusCode = 500;
-          res.setHeader("Content-Type", "application/json; charset=utf-8");
-        }
-        res.end(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }));
-      }
-    })();
-  });
-  const port = await announce(server);
-  console.error(
-    `[backend-entry] DEGRADED backend listening on 127.0.0.1:${port} (repo ${repoRoot}) — DB unreachable`,
-  );
-  installShutdown(server, () => Promise.resolve());
-}
-
 // ---------- main ----------
 
 async function main(): Promise<void> {
@@ -274,21 +193,19 @@ async function main(): Promise<void> {
     Object.values(CREDENTIAL_ENV_VAR).filter((name) => (process.env[name] ?? "").trim() !== ""),
   );
 
-  // Fill STORYTREE_DB_USER (the keyless IAM principal) from ~/.storytree/secrets.json when unset —
-  // env always wins (ADR-0021 / the drive secrets seam). createPool needs it to authenticate.
-  loadLocalSecrets();
+  const preconditions = await ensureLaunchPreconditions({
+    probeGitRepo: async () => (await gitHead(repoRoot)) !== null,
+    ensureDb: async () => {
+      // Fill STORYTREE_DB_USER before the DB preflight authenticates. The git probe above remains the
+      // first launch precondition, so a non-checkout never wakes the database.
+      loadLocalSecrets();
+      return ensureLiveDb((message) => console.error(`[backend-entry] ${message}`));
+    },
+    log: (message) => console.error(`[backend-entry] ${message}`),
+  });
+  if (!preconditions.ok) throw new Error(describeLaunchRefusal(preconditions));
 
-  // Acquire the store TOLERANTLY: createPool throws on a missing IAM user or an unreachable instance
-  // (its connector.getOptions is an eager network call). Rather than let that kill the sidecar before it
-  // ever listens — the old silent exit-1 — degrade to a read-only shell so the window still opens with a
-  // "Start DB" banner (ADR-0119: /api/health NEVER 503; the advisory contract, ADR-0033, extended to
-  // pool creation). A stale-node_modules import failure still surfaces via main.ts's stderr capture.
-  const store = await acquireBackendStore(() => createPool());
-  if (!store.ok) {
-    await serveDegraded(store.reason);
-    return;
-  }
-  const { pool, connector } = store.handle;
+  const { pool, connector } = await createPool();
   const library = new PgLibraryStore(pool);
   const comments = new PgCommentStore(pool);
   const presence = new PgPresenceStore(pool);

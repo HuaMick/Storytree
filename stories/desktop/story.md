@@ -14,7 +14,7 @@ proof_mode: UAT
 # as SSE — IS a desktop capability (`chat-sse-mount`), the thin glue chat-session-stream's Guidance
 # names. The renderer chat PANEL is a `studio` frontend component (consumed compiled), not a capability
 # here (see the Cross-story boundary section + "Renderer chat panel placement").
-capabilities: [credential-broker, electron-shell, local-backend-boot, boot-read-routes, chat-sse-mount, local-credential-wiring, shared-forest-connection]
+capabilities: [credential-broker, electron-shell, local-backend-boot, boot-read-routes, chat-sse-mount, local-credential-wiring, shared-forest-connection, desktop-launch-preconditions]
 # Story-level edges (ADR-0010 §4 / ADR-0074 — these are the cross-story `depends_on` the boundary
 # gate (`check:boundaries`) enforces against apps/desktop/package.json's @storytree/* deps, ADR-0100;
 # ADR-0113 §8 requires the desktop → studio-server/drive edges to be DECLARED here or CI goes red):
@@ -70,9 +70,10 @@ artifact_edges: [studio, headless-orchestrator, studio-cloud]
 # proof-off-tether sanction the local backend rides (and the broker holds no signing key); 0004 the
 # orchestrator/agent boundary preserved by topology (main IS the boundary); 0108 the chat surface that
 # ships here; 0021 keyless Cloud SQL IAM (the per-friend grant ADR-0117 REMOVES for friends); 0070 the
-# operator-attested appearance (and the live `builder` grant); 0119 (amends 113) the tsx-sidecar local
-# backend + the studio boot read route table.
-decisions: [109, 111, 113, 117, 119, 90, 91, 4, 108, 21, 70]
+# operator-attested appearance (and the live `builder` grant); 0176 supersedes 0119 and is the complete
+# current sidecar decision: tsx-sidecar + studio boot reads + re-compose boundary, with DB/git launch
+# preconditions and no degraded shell.
+decisions: [109, 111, 113, 117, 176, 90, 91, 4, 108, 21, 70]
 ---
 
 # Desktop client — a trusted member runs the whole storytree loop on their own machine
@@ -168,7 +169,7 @@ deleted).
 > the build path's `tsx` resolution); (2) the read route table is the studio's **boot set** —
 > `me` / `health` / `docs` / `tree` / `assets` / `comments` — NOT just health/tree/assets, because the
 > studio frontend boot-gates on `/api/me` and `Promise.all`s docs+assets+comments (a 404 → an error
-> screen, not the forest). The "minimal route table" described below is **superseded in part** by that
+> screen, not the forest). The "minimal route table" described below is **replaced** by that
 > boot set; the re-compose-don't-import boundary call STANDS. The read router is headlessly provable (so
 > its green flips like any capability); the Electron sidecar-spawn + proxy is the operator-attested leg.
 
@@ -216,7 +217,7 @@ pulled into this story, to keep the thick-client journey small.
 >    and its initial load is `Promise.all([/api/docs, /api/assets, /api/comments])` — ANY `404` rejects
 >    the whole load → an error screen, not the forest. So the boot READ set is
 >    `me`/`health`/`docs`/`tree`/`assets`/`comments`. The "minimal route table" above is therefore
->    **superseded in part** by this boot set (ADR-0119 §2); the new
+>    **replaced** by this boot set (historically ADR-0119 §2; carried forward by ADR-0176 §4); the new
 >    [`boot-read-routes`](boot-read-routes.md) capability adds the three `local-backend-boot` did not
 >    (`me`/`docs`/`comments`). **The re-compose-don't-import boundary call is UNCHANGED** — the desktop
 >    OWNS a read router that re-composes the organism drivers (and re-reads `<repo>/docs` over `node:fs`)
@@ -224,7 +225,7 @@ pulled into this story, to keep the thick-client journey small.
 >    sharing stays deferred (a shared read-route organism touching the `studio` story is the clean
 >    follow-on, ADR-0119 "Bad / accepted costs").
 
-## Capabilities (7)
+## Capabilities (8)
 
 Listed roots-first (a capability appears after everything it depends on).
 
@@ -237,6 +238,7 @@ Listed roots-first (a capability appears after everything it depends on).
 | 5 | [`chat-sse-mount`](chat-sse-mount.md) | The local backend adds a `POST /api/chat` route that starts an `orchestrate`-driven session (the CONSUMED headless-orchestrator `chat-session-stream` core, `startChatStream`) and streams its events to the renderer as SSE — re-composed from `@storytree/drive` (never importing the studio server), read/propose only (no signing, no build, no PR; ADR-0091). | contract-test (CI red→green) | `local-backend-boot` |
 | 6 | [`local-credential-wiring`](local-credential-wiring.md) | The keychain-brokered credential is fed to the in-process local backend's build/orchestrate drivers (no TLS hop), and the renderer never receives the raw token. | contract-test (CI red→green) | `credential-broker`, `local-backend-boot` |
 | 7 | [`shared-forest-connection`](shared-forest-connection.md) | The local backend BROKERS its verdict/presence writes to the hosted studio's members-gated write-broker (no local DB connection; ADR-0117), with a readiness probe that fails closed (and clear guidance) when the broker is unreachable or the member is not an authorized `builder`. | contract-test (CI red→green) + operator-attested live broker/builder-grant | `local-backend-boot` |
+| 8 | [`desktop-launch-preconditions`](desktop-launch-preconditions.md) | Before the sidecar wires ANY backend, a pure gate proves two launch preconditions — an available git checkout and a reachable live store (auto-waking it if asleep, bounded) — and refuses with a clear reason naming the unmet precondition, so the sidecar wires the ONE full backend or refuses cleanly, never degrading to a partial read shell (ADR-0176). | contract-test (CI red→green) + operator-attested refuse UX | — (independent root; front-runs the backend boot) |
 
 The **chat surface** the member talks to has THREE layers, split across two stories:
 - its provable streaming **BACKEND** (the SSE/intake core that drives `orchestrate`, `startChatStream`)
@@ -253,8 +255,11 @@ The **chat surface** the member talks to has THREE layers, split across two stor
 ## Within-story dependency graph
 
 Authored from the intended data-flow; re-derive from the real imports/calls when the units are built
-(ADR-0010 §3) and correct if the code disagrees. The graph is acyclic; `credential-broker` and
-`local-backend-boot` are the two roots.
+(ADR-0010 §3) and correct if the code disagrees. The graph is acyclic; `credential-broker`,
+`local-backend-boot`, and `desktop-launch-preconditions` are the roots (`desktop-launch-preconditions`,
+the ADR-0176 launch gate, has no in-story edge — it front-runs the sidecar's launch, deciding whether
+any backend is wired at all, and consumes only `@storytree/drive`'s `ensureLiveDb` + `code-stamp.ts`'s
+`gitHead` as injected effects).
 
 - `electron-shell` → `credential-broker` (the shell supplies the real keychain adapter to the broker port).
 - `boot-read-routes` → `local-backend-boot` (it EXTENDS the keystone's `/api/*` backend with the studio's
@@ -388,6 +393,20 @@ credential never leaving the machine.
    panel (the consumed headless-orchestrator Phase-2 surface), and the approval-to-land gate read as one
    coherent native application. **Success —** the owner's two-stage visual verdict (ADR-0070 / ADR-0113
    §9): the appearance is witnessed, not machine-asserted.
+8. **Launch refuses cleanly when a precondition is unmet — no half-wired shell (ADR-0176).**
+   _(witness: machine for the gate outcome; human for the splash / refuse+retry window)_ Before the
+   sidecar wires any backend, the launch-precondition gate runs: with no git checkout it refuses
+   IMMEDIATELY naming the unmet precondition and NEVER wakes the DB; with a checkout it reuses
+   `ensureLiveDb` to probe and bounded-auto-wake the live store, proceeding to the ONE fully-wired
+   backend only when both hold, else refusing with the DB reason surfaced unchanged. **Success —** the
+   sidecar either wires the single full backend or refuses with a clear reason (through the Electron
+   splash → refuse+retry window); it NEVER serves the retired degraded read shell
+   (`serveDegraded` / `degradedBackend` deleted), so the *"UAT tests unavailable: unknown endpoint"*
+   half-wired-forest failure cannot recur. (`desktop-launch-preconditions`'s contract test proves the
+   git-first refusal + the never-wake fence + the DB passthrough over injected git/DB doubles; the
+   splash + refuse+retry window flow is operator-attested, ADR-0070 / ADR-0176 §5.) *(This is the
+   defect-driven regression case ADR-0176 was root-caused from — the Story UAT grows by appending a
+   permanent case per real failure, never speculative breadth.)*
 
 End state — a trusted member ran the whole storytree loop on their own machine through a native app,
 their credential held in the OS keychain and never leaving the machine, their builds signed locally from
@@ -492,7 +511,7 @@ operator-attested GLUE in item 1 below and in `chat-sse-mount.md`; THIS open ite
    (`me`/`health`/`docs`/`tree`/`assets`/`comments`) — composed from the organism drivers and a read-only
    `<repo>/docs` walk, NOT imported from the studio server — because the frontend boot-gates on `/api/me`
    and `Promise.all`s docs+assets+comments (a minimal table that omitted these boots to an error screen,
-   ADR-0119 finding 2). This SUPERSEDES IN PART ADR-0113's "minimal route table" ([`boot-read-routes`](boot-read-routes.md)
+   ADR-0119 finding 2, carried forward by ADR-0176 §4). This REPLACES ADR-0113's "minimal route table" ([`boot-read-routes`](boot-read-routes.md)
    adds the three `local-backend-boot` did not). The backend itself runs as a **tsx sidecar** the Electron
    main spawns and proxies `/api/*` to (bundling raw-TS drivers into the CJS main breaks `import.meta`,
    ADR-0119 finding 1 / §1). Extracting the studio's FULL route table into a shared read-route organism
