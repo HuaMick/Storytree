@@ -198,8 +198,9 @@ test("ADR-0106: adopt observe-signs a machine leg, leaves human + either legs fo
   const store = recordingStore();
   const story: AdoptStory = {
     status: "mapped",
-    reliabilityGates: [gate(1)], // one observe gate → a machine leg routes to observe
-    uatTests: [leg(1, "machine"), leg(2, "human"), leg(3, "either")],
+    reliabilityGates: [gate(1)], // one observe gate
+    // the machine leg names its binding explicitly (uat-bound-command-adoption: no sole-gate fallback)
+    uatTests: [leg(1, "machine", { proofGateId: "library#gate-1" }), leg(2, "human"), leg(3, "either")],
   };
   const env = await runAdopt("library", {}, deps({ store: store as unknown as AdoptDeps["store"], loadStory: () => story }));
   assert.equal(env.ok, true);
@@ -222,7 +223,12 @@ test("ADR-0106: the shared observe suite runs ONCE for the gate + the machine le
   const story: AdoptStory = {
     status: "mapped",
     reliabilityGates: [gate(1)],
-    uatTests: [leg(1, "machine"), leg(2, "machine"), leg(3, "machine")],
+    // all three legs explicitly share the same binding (uat-bound-command-adoption: no sole-gate fallback)
+    uatTests: [
+      leg(1, "machine", { proofGateId: "library#gate-1" }),
+      leg(2, "machine", { proofGateId: "library#gate-1" }),
+      leg(3, "machine", { proofGateId: "library#gate-1" }),
+    ],
   };
   const env = await runAdopt("library", {}, deps({
     store: store as unknown as AdoptDeps["store"],
@@ -245,7 +251,7 @@ test("ADR-0106: a machine leg whose covering observe gate declares no command is
   const story: AdoptStory = {
     status: "mapped",
     reliabilityGates: [gate(1, { proofCommand: undefined })], // observe gate, but no command to observe
-    uatTests: [leg(1, "machine")],
+    uatTests: [leg(1, "machine", { proofGateId: "library#gate-1" })], // explicitly bound to it
   };
   const env = await runAdopt("library", {}, deps({ store: store as unknown as AdoptDeps["store"], loadStory: () => story }));
   assert.equal(env.ok, false);
@@ -292,4 +298,22 @@ test("uat-bound-command-adoption: an unbound machine leg fails the whole UAT-sig
   // another gate, and no partial UAT verdict set, once any machine leg in the story is unbound.
   assert.ok(!ids.includes("library#uat-1"));
   assert.ok(!ids.includes("library#uat-2"));
+});
+
+test("uat-bound-command-adoption: a machine leg with NO explicit proof-gate binding is refused even when the story declares exactly ONE observe gate — runAdopt consumes only a leg's resolved binding, never an independently re-derived sole-gate fallback (mirrors resolveWitness's own no-fallback contract, witness-resolution.test.ts)", async () => {
+  const store = recordingStore();
+  const story: AdoptStory = {
+    status: "mapped",
+    reliabilityGates: [gate(1)], // exactly one observe gate — must NOT be used as an implicit fallback
+    uatTests: [leg(1, "machine")], // no proofGateId: an unbound machine leg
+  };
+  const env = await runAdopt("library", {}, deps({ store: store as unknown as AdoptDeps["store"], loadStory: () => story }));
+  // the envelope fails — an unbound machine leg is never signed via a fallback to "the story's only gate"
+  assert.equal(env.ok, false);
+  const ids = appendedUnitIds(store);
+  // reliability-gate signing stays a separate behaviour: the gate itself still signs its own verdict …
+  assert.deepEqual(ids, ["library#gate-1"]);
+  // … but the unbound leg is NEVER rescued by there being only one observe gate to fall back to.
+  assert.ok(!ids.includes("library#uat-1"));
+  assert.match(env.body, /library#uat-1 \(machine\) — no proof-gate binding/);
 });

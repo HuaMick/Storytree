@@ -213,13 +213,11 @@ export async function runAdopt(
   // (non-`wouldBe`) `machine` leg, resolve its EXACT covering observe-gate command through the
   // library's pure classifier (`resolveWitness`) — consuming the command from that resolution
   // directly, never independently re-deriving it and never falling back to the first observe gate
-  // found. A leg's own declared `(proof-gate: story-id#gate-n)` binding always wins; a story where
-  // NO real machine leg has yet declared one keeps the pre-binding convenience (the story's single
-  // declared observe gate covers every undeclared machine leg) — but the instant ANY leg opts into an
-  // explicit binding, that convenience retires for the WHOLE story: every other machine leg must then
-  // bind explicitly too. A `human` (or undecided `either`) leg is left for the operator's "I saw it
-  // work" attestation (ADR-0082); aspirational `wouldBe` legs (ADR-0097) are not obligations, so they
-  // are skipped (mirroring the crown roll-up's `!wouldBe` filter).
+  // found (there is no sole-observe-gate convenience: every machine leg must name its own
+  // `(proof-gate: story-id#gate-n)` binding, mirroring `resolveWitness`'s own no-fallback contract).
+  // A `human` (or undecided `either`) leg is left for the operator's "I saw it work" attestation
+  // (ADR-0082); aspirational `wouldBe` legs (ADR-0097) are not obligations, so they are skipped
+  // (mirroring the crown roll-up's `!wouldBe` filter).
   //
   // ALL real machine legs are resolved BEFORE any is signed: an invalid or unbound machine leg fails
   // the WHOLE UAT-signing pass — no fallback to another gate, and no partial UAT verdict set, even for
@@ -228,8 +226,6 @@ export async function runAdopt(
   const reliabilityGates = story.reliabilityGates;
   const realLegs = story.uatTests.filter((t) => !t.wouldBe);
   const realMachineLegs = realLegs.filter((t) => t.witness === "machine");
-  const anyExplicitBinding = realMachineLegs.some((t) => t.proofGateId !== undefined);
-  const soleObserveGate = observeGates.length === 1 ? observeGates[0] : undefined;
 
   type LegOutcome =
     | { kind: "human" }
@@ -238,20 +234,16 @@ export async function runAdopt(
 
   function resolveLeg(t: UatTest, gates: ReliabilityGate[]): LegOutcome {
     if (t.witness !== "machine") return { kind: "human" };
-    // A leg's own binding always wins; absent one, the sole-observe-gate convenience applies ONLY
-    // while no OTHER machine leg in the story has opted into an explicit binding.
-    const gateId = t.proofGateId ?? (anyExplicitBinding ? undefined : soleObserveGate?.id);
-    const r = resolveWitness(
-      gateId !== undefined ? { witness: "machine", proofGateId: gateId } : { witness: "machine" },
-      gates,
-    );
+    // Consume ONLY the leg's own resolved binding — never the first/sole observe gate found, and
+    // never an independently re-derived binding.
+    const r = resolveWitness(t, gates);
     if (r.witness === "machine" && r.coverage === "observe") {
       return { kind: "observe", observedBy: r.observedBy, proofCommand: r.proofCommand };
     }
-    const bound = gateId !== undefined ? gates.find((g) => g.id === gateId) : undefined;
+    const bound = t.proofGateId !== undefined ? gates.find((g) => g.id === t.proofGateId) : undefined;
     const reason =
       bound !== undefined && bound.kind === "observe" && bound.proofCommand === undefined
-        ? `covering gate ${gateId} declares no command to observe`
+        ? `covering gate ${t.proofGateId} declares no command to observe`
         : r.witness === "machine"
           ? r.reason
           : "no proof-gate binding resolved";
