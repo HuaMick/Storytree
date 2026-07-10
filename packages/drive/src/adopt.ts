@@ -209,42 +209,75 @@ export async function runAdopt(
     }
   }
 
-  // ADR-0106: classify each UAT leg's witness and ROUTE it (the adopt story-writer pass). A `machine`
-  // leg an existing observe suite covers is observe-and-signed NOW (the cheap step — reusing the SAME
-  // observation as its covering gate, memoized above); an uncovered `machine` leg is recorded as a
-  // `build-tests` obligation Build authors red→green later (ADR-0098); a `human` leg is left for the
-  // operator's "I saw it work" attestation (ADR-0082). Adopt STAYS CHEAP — it classifies and
-  // observe-signs, it never authors a new test. Aspirational `wouldBe` legs (ADR-0097) are not
-  // obligations, so they are skipped (mirroring the crown roll-up's `!wouldBe` filter).
+  // ADR-0106 / uat-bound-command-adoption: classify each UAT leg's witness and, for a real
+  // (non-`wouldBe`) `machine` leg, resolve its EXACT covering observe-gate command through the
+  // library's pure classifier (`resolveWitness`) — consuming the command from that resolution
+  // directly, never independently re-deriving it and never falling back to the first observe gate
+  // found (there is no sole-observe-gate convenience: every machine leg must name its own
+  // `(proof-gate: story-id#gate-n)` binding, mirroring `resolveWitness`'s own no-fallback contract).
+  // A `human` (or undecided `either`) leg is left for the operator's "I saw it work" attestation
+  // (ADR-0082); aspirational `wouldBe` legs (ADR-0097) are not obligations, so they are skipped
+  // (mirroring the crown roll-up's `!wouldBe` filter).
+  //
+  // ALL real machine legs are resolved BEFORE any is signed: an invalid or unbound machine leg fails
+  // the WHOLE UAT-signing pass — no fallback to another gate, and no partial UAT verdict set, even for
+  // a sibling leg that would otherwise resolve fine on its own. Reliability-gate signing (above) and
+  // the mapped→proposed adoption decision (below) stay separate behaviours, unaffected by this.
+  const reliabilityGates = story.reliabilityGates;
   const realLegs = story.uatTests.filter((t) => !t.wouldBe);
-  const machineObserveLegs = realLegs.filter((t) => {
-    const r = resolveWitness(t, story.reliabilityGates);
-    return r.witness === "machine" && r.coverage === "observe";
-  });
+  const realMachineLegs = realLegs.filter((t) => t.witness === "machine");
+
+  type LegOutcome =
+    | { kind: "human" }
+    | { kind: "observe"; observedBy: string; proofCommand: string }
+    | { kind: "refused"; reason: string };
+
+  function resolveLeg(t: UatTest, gates: ReliabilityGate[]): LegOutcome {
+    if (t.witness !== "machine") return { kind: "human" };
+    // Consume ONLY the leg's own resolved binding — never the first/sole observe gate found, and
+    // never an independently re-derived binding.
+    const r = resolveWitness(t, gates);
+    if (r.witness === "machine" && r.coverage === "observe") {
+      return { kind: "observe", observedBy: r.observedBy, proofCommand: r.proofCommand };
+    }
+    const bound = t.proofGateId !== undefined ? gates.find((g) => g.id === t.proofGateId) : undefined;
+    const reason =
+      bound !== undefined && bound.kind === "observe" && bound.proofCommand === undefined
+        ? `covering gate ${t.proofGateId} declares no command to observe`
+        : r.witness === "machine"
+          ? r.reason
+          : "no proof-gate binding resolved";
+    return { kind: "refused", reason };
+  }
+
+  const legResolutions = realLegs.map((t) => ({ leg: t, outcome: resolveLeg(t, reliabilityGates) }));
+  const anyMachineRefused = legResolutions.some((lr) => lr.outcome.kind === "refused");
+
   const legLines: string[] = [];
   let signedLegs = 0;
   let humanLegs = 0;
-  let buildTestsLegs = 0;
-  for (const leg of realLegs) {
-    const r = resolveWitness(leg, story.reliabilityGates);
-    if (r.witness === "human") {
+  const buildTestsLegs = 0; // resolveWitness no longer routes to a `build-tests` coverage (retired)
+
+  for (const { leg, outcome } of legResolutions) {
+    if (outcome.kind === "human") {
       humanLegs += 1;
       legLines.push(`  ◻ ${leg.id} (human) — awaits your "I saw it work" verdict (ADR-0082)`);
       continue;
     }
-    if (r.coverage === "build-tests") {
-      buildTestsLegs += 1;
-      legLines.push(`  ⋯ ${leg.id} (machine) — no existing suite covers it; deferred to Build as a build-tests obligation (ADR-0098)`);
+    if (outcome.kind === "refused") {
+      legLines.push(`  ✗ ${leg.id} (machine) — ${outcome.reason}`);
       continue;
     }
-    // machine / observe: observe-and-sign the leg against its covering gate's command (the suite).
-    const coverCmd = observeGates.find((g) => g.id === r.observedBy)?.proofCommand;
-    if (coverCmd === undefined) {
-      legLines.push(`  ✗ ${leg.id} (machine) — covering gate ${r.observedBy} declares no command to observe`);
+    // outcome.kind === "observe": would resolve fine on its own — but ANY invalid/unbound sibling
+    // machine leg refuses the WHOLE UAT-signing pass (uat-bound-command-adoption: no partial verdict).
+    if (anyMachineRefused) {
+      legLines.push(
+        `  ✗ ${leg.id} (machine) — not signed: an invalid/unbound sibling machine leg refuses the whole UAT-signing pass (no partial verdict)`,
+      );
       continue;
     }
     const res = await observeAndSign({
-      gate: { id: leg.id, kind: "observe", proofCommand: coverCmd },
+      gate: { id: leg.id, kind: "observe", proofCommand: outcome.proofCommand },
       gitState,
       observe,
       approverInputs,
@@ -254,7 +287,7 @@ export async function runAdopt(
     });
     if (res.ok) {
       signedLegs += 1;
-      legLines.push(`  ✓ ${leg.id} (machine) adopted — observed via ${r.observedBy} (\`${coverCmd}\`)`);
+      legLines.push(`  ✓ ${leg.id} (machine) adopted — observed via ${outcome.observedBy} (\`${outcome.proofCommand}\`)`);
     } else {
       legLines.push(`  ✗ ${leg.id} (machine) — ${res.reason}`);
     }
@@ -269,7 +302,7 @@ export async function runAdopt(
       : "  → status already proposed (adoption underway)"
     : `  → status NOT flipped — ${flip.reason}`;
 
-  const allSigned = signedGates === observeGates.length && signedLegs === machineObserveLegs.length;
+  const allSigned = signedGates === observeGates.length && signedLegs === realMachineLegs.length;
   const body = [
     `Adopt "${id}": ${signedGates}/${observeGates.length} observe gate(s) signed an \`adopted\` verdict.`,
     `  signer:     ${SPINE_PRINCIPAL} (the spine principal — the machine that witnessed the green)`,
@@ -280,7 +313,7 @@ export async function runAdopt(
     ...(realLegs.length > 0
       ? [
           "",
-          `UAT legs (ADR-0106): ${signedLegs}/${machineObserveLegs.length} machine observe-signed · ${humanLegs} await your witness · ${buildTestsLegs} deferred to Build.`,
+          `UAT legs (ADR-0106): ${signedLegs}/${realMachineLegs.length} machine observe-signed · ${humanLegs} await your witness · ${buildTestsLegs} deferred to Build.`,
           ...legLines,
         ]
       : []),

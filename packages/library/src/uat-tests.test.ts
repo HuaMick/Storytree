@@ -139,3 +139,63 @@ test("witness-kind-validated: an explicit but invalid prose tag is refused (not 
 test("witness-kind-validated: the schema is strict — unknown fields rejected", () => {
   assert.throws(() => UatTest.parse({ id: "s#uat-1", title: "t", witness: "human", extra: 1 }));
 });
+
+// ── proof-gate binding (uat-machine-proof-binding) ──────────────────────────
+//
+// A real, non-aspirational `_(witness: machine)_` leg must name the reliability gate it is
+// observed/signed against via `_(proof-gate: story-id#gate-n)_`. The parser preserves that id
+// EXACTLY — it never infers a gate from ordering, title, package, or `(covers:)`.
+
+test("proof-gate binding: a `_(proof-gate: story-id#gate-n)_` annotation is captured on the leg", () => {
+  const body =
+    "## Story UAT\n\n1. **A driven leg** _(witness: machine)_ _(proof-gate: demo-story#gate-2)_: a real scripted leg.\n";
+  const tests = parseUatTests(STORY, body);
+  assert.equal(tests.length, 1);
+  assert.equal(
+    tests[0]!.proofGateId,
+    "demo-story#gate-2",
+    "the prose annotation binds the machine leg to its declared gate",
+  );
+});
+
+test("proof-gate binding: the captured id is preserved exactly, not case-normalized", () => {
+  const body =
+    "## Story UAT\n\n1. **A driven leg** _(witness: machine)_ _(proof-gate: Demo-Story#Gate-10)_: a real scripted leg.\n";
+  const tests = parseUatTests(STORY, body);
+  assert.equal(
+    tests[0]!.proofGateId,
+    "Demo-Story#Gate-10",
+    "the id is preserved verbatim — unlike the witness tag, it is never lowercased",
+  );
+});
+
+test("proof-gate binding: a leg with no annotation leaves proofGateId undefined (human/either legs may omit it)", () => {
+  const body = "## Story UAT\n\n1. **A human leg** _(witness: human)_: the owner watches it work.\n";
+  const tests = parseUatTests(STORY, body);
+  assert.equal(tests[0]!.proofGateId, undefined, "no (proof-gate:) tag → undefined, never inferred");
+});
+
+test("proof-gate binding: the schema accepts and round-trips an explicit proofGateId field", () => {
+  const parsed = UatTest.parse({ id: "s#uat-1", title: "t", proofGateId: "s#gate-1" });
+  assert.equal(parsed.proofGateId, "s#gate-1", "an explicit proofGateId round-trips through the schema");
+});
+
+test("proof-gate binding: a malformed proof-gate id (not shaped story-id#gate-n) is refused, not silently accepted", () => {
+  const body =
+    "## Story UAT\n\n1. **A driven leg** _(witness: machine)_ _(proof-gate: not-a-valid-gate-id)_: a real scripted leg.\n";
+  assert.throws(
+    () => parseUatTests(STORY, body),
+    /malformed proof-gate/i,
+    "an id not shaped story-id#gate-n fails at this parsing boundary, it is not passed through verbatim",
+  );
+});
+
+test("proof-gate binding: duplicate proof-gate annotations on the same leg are refused, not silently first-wins", () => {
+  const body =
+    "## Story UAT\n\n1. **A driven leg** _(witness: machine)_ _(proof-gate: demo-story#gate-2)_ _(proof-gate: demo-story#gate-3)_: a real scripted leg.\n";
+  assert.throws(
+    () => parseUatTests(STORY, body),
+    /duplicate proof-gate/i,
+    "two proof-gate annotations on one leg fails at this parsing boundary, the second is not silently dropped",
+  );
+});
