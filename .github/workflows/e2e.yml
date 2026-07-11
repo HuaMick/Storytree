@@ -70,6 +70,14 @@ jobs:
           node-version: 24
           cache: pnpm
 
+      # node-pty (the embedded terminal's native pty, ADR-0174) ships no linux-x64 prebuild, so its
+      # install script falls back to `node-gyp rebuild` — and the Playwright image carries python3
+      # but NOT make/g++, so pnpm install dies with `gyp ERR! not found: make`. Install the compiler
+      # toolchain first. (--ignore-scripts is NOT an alternative: the Electron main imports node-pty
+      # at startup — bundled --external — so an unbuilt node-pty just moves the crash to launch.)
+      - name: Install the native build toolchain (node-pty compiles via node-gyp)
+        run: apt-get update && apt-get install -y --no-install-recommends build-essential
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
