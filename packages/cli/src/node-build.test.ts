@@ -248,21 +248,17 @@ test("node build without an id, and bare `node`, are help/guidance", async () =>
   // api.ts; and the OPTIONAL/STRETCH backend-chat-reset-route (a desktop node:test arm over the
   // sidecar reset route — buildable but HELD, so it lands separately). The terminal FEEL is the
   // story's operator-attested UAT legs, not a capability.
-  // And the three `scoped-glue-actuator`-story capabilities (stories/scoped-glue-actuator/*.md —
-  // ADR-0160, the desktop chat gains a fenced, write-scoped, claim-gated spawn_glue_worker that
-  // honours a task prompt): glue-worker-spawn (the write-scoped runner GENERALISED to a
-  // caller-declared path fence — an editsExisting `real:` arm over spawn-story-author.ts),
-  // spawn-glue-tool (the spawn_glue_worker tool mounted on buildSpawnTools + the spawn_builder
-  // userPrompt-drop honesty fix, editsExisting over spawn-tool-surface.ts) and glue-deps-composition
-  // (the drive-side render of the glue-worker library agent + spawnGlueWorker wiring, editsExisting
-  // over spawn-deps.ts). All three carry `real:` arms (authored, awaiting their drives); the live
-  // scoped-edit walk + the sidecar wiring are the story's operator-attested UAT legs, not capabilities.
+  // (The `scoped-glue-actuator`-story capabilities glue-worker-spawn / spawn-glue-tool /
+  // glue-deps-composition are NO LONGER here: ADR-0175 retired the desktop chat's spawn_glue_worker
+  // actuator as redundant — the embedded terminal (ADR-0174) makes glue edits natively — so their
+  // story specs + `real:` arms were removed; only the glue-worker *agent definition* optionally
+  // survives as a fenced subagent, which carries no `real:` arm.)
   // And credential-broker (stories/desktop/credential-broker.md — ADR-0179): the desktop-only
   // Credentials panel vitest `real:` arm over CredentialsPanel.tsx (geometry/behaviour); the real
   // OS-keychain Cursor-key leg is operator-attested, not machine-asserted.
   assert.match(
     bare.body,
-    /REAL-buildable nodes: +accept-reject-suggestion-api, act2-beat-director, ambient-integration, auto-grow-input, backend-chat-reset-route, block-position-comment-anchor, boot-read-routes, boundhash-on-verdict, brokered-local-uat-signing, builder-role, builder-spawn-dispatch, change-event-store, change-store-pg, chat-panel, chat-panel-spawn-render, chat-session-stream, chat-spawn-trace-events, chat-sse-mount, claim-gated-spawn, claim-store-work-time, claim-wisp-cold-start, cloud-sql-admin-rest, collapsed-suggestion-view, colour-by-subagent, credential-broker, declare-presence, declared-edge-drift-report, desktop-build-route, desktop-launch-preconditions, dogfood-probe-mrfuze9m, drift-reads-store, event-sourced-store-seam, experience-rollout-guardrails, gate-emits-change, glue-deps-composition, glue-worker-spawn, headless-session-runner, inline-comment-thread, leaf-tool-surface, live-story-island-refresh, local-backend-boot, local-credential-wiring, member-suggest-write-policy, model-runtime-seam, multi-turn-transcript, node-resolve-report, noticeboard-cli, orchestrator-composition, orientation-tool-surface, owned-turn-loop, presence-store, r3f-world-spike, render-claim-as-wisp, review-mode-toggle, review-refresh-feed, routed-node-real-dispatch, seed-corpus-scripts, shared-forest-connection, source-drift, spawn-deps-composition, spawn-glue-tool, spawn-tool-surface, story-author-spawn, suggestion-edit-store, take-claim-at-spawn, transcript-reset, tree-view, uat-bound-command-adoption, uat-machine-gate-resolution, uat-machine-proof-binding, verdict-glyphs, verdict-line, web-experience-sync, witnessable-verdict, worker-relocation, write-broker/,
+    /REAL-buildable nodes: +accept-reject-suggestion-api, act2-beat-director, ambient-integration, auto-grow-input, backend-chat-reset-route, block-position-comment-anchor, boot-read-routes, boundhash-on-verdict, brokered-local-uat-signing, builder-role, builder-spawn-dispatch, change-event-store, change-store-pg, chat-panel, chat-panel-spawn-render, chat-session-stream, chat-spawn-trace-events, chat-sse-mount, claim-gated-spawn, claim-store-work-time, claim-wisp-cold-start, cloud-sql-admin-rest, collapsed-suggestion-view, colour-by-subagent, credential-broker, declare-presence, declared-edge-drift-report, desktop-build-route, desktop-launch-preconditions, dogfood-probe-mrfuze9m, drift-reads-store, event-sourced-store-seam, experience-rollout-guardrails, gate-emits-change, headless-session-runner, inline-comment-thread, leaf-tool-surface, live-story-island-refresh, local-backend-boot, local-credential-wiring, member-suggest-write-policy, model-runtime-seam, multi-turn-transcript, node-resolve-report, noticeboard-cli, orchestrator-composition, orientation-tool-surface, owned-turn-loop, presence-store, r3f-world-spike, render-claim-as-wisp, review-mode-toggle, review-refresh-feed, routed-node-real-dispatch, seed-corpus-scripts, shared-forest-connection, source-drift, spawn-deps-composition, spawn-tool-surface, story-author-spawn, suggestion-edit-store, take-claim-at-spawn, transcript-reset, tree-view, uat-bound-command-adoption, uat-machine-gate-resolution, uat-machine-proof-binding, verdict-glyphs, verdict-line, web-experience-sync, witnessable-verdict, worker-relocation, write-broker/,
   );
 
   const noId = await run(["node", "build", "--dry-run"], deps);

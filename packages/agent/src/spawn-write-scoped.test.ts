@@ -1,12 +1,11 @@
 /**
- * Integration tests for the glue-worker spawn runner (glue-worker-spawn capability,
- * scoped-glue-actuator / ADR-0160 D1/D2).
+ * Integration tests for the ROLE-NEUTRAL write-scoped spawn core (`runSpawnWriteScoped`,
+ * ADR-0160 D2).
  *
- * The write-scoped runner is GENERALISED to a role-neutral core (`runSpawnWriteScoped`) whose write
- * fence is a CALLER-DECLARED predicate — not `stories/**`. The glue worker is fenced to the caller's
- * declared source scope (e.g. `apps/desktop/electron/backend-entry.ts`) and HONOURS its task prompt,
- * so "add these 3 routes and stop" reaches the worker. There is no second fence: the story-author
- * spawn calls the SAME core with its own `stories/**` predicate (contract 4 pins that it stayed green).
+ * The write-scoped runner's fence is a CALLER-DECLARED predicate — not hard-wired to `stories/**`.
+ * A caller fences the session to whatever source scope it declares and threads its task prompt
+ * verbatim. There is no second fence: the story-author wrapper (`runSpawnStoryAuthor`) calls the
+ * SAME core with its own `stories/**` predicate (the last test pins that the wrapper stayed green).
  *
  * Every test is OFFLINE: the queryFn seam is injected, so no live SDK spend. The tests fire the
  * write-fence PreToolUse hook directly (the pattern from spawn-story-author.test.ts).
@@ -25,8 +24,8 @@ import type { SdkQueryFn } from "./sdk-author.js";
 
 const CWD = path.resolve("/workspace");
 
-/** A caller-declared glue fence: only the desktop sidecar surface is writable. */
-const DESKTOP_FENCE = (rel: string): boolean => rel.startsWith("apps/desktop/");
+/** A caller-declared write scope: only the desktop sidecar surface is writable. */
+const CALLER_FENCE = (rel: string): boolean => rel.startsWith("apps/desktop/");
 
 // ---------------------------------------------------------------------------
 // Shared helpers (mirror spawn-story-author.test.ts)
@@ -125,21 +124,21 @@ function sessionAttemptingWrites(
 }
 
 // ---------------------------------------------------------------------------
-// gws-writes-fenced-to-caller-declared-paths
+// sws-writes-fenced-to-caller-declared-scope
 // ---------------------------------------------------------------------------
 
-test("gws-writes-fenced-to-caller-declared-paths: a write inside the caller-declared path scope is permitted; one outside it — INCLUDING stories/** — is denied fail-closed before landing and recorded as a typed violation; Bash is never in the tool surface", async () => {
+test("sws-writes-fenced-to-caller-declared-scope: a write inside the caller-declared scope is permitted; one outside it — INCLUDING stories/** — is denied fail-closed before landing and recorded as a typed violation; Bash is never in the tool surface", async () => {
   const { fn, hookOutputs, capturedOptions } = sessionAttemptingWrites([
     { tool: "Write", filePath: "apps/desktop/electron/backend-entry.ts" }, // inside the fence
-    { tool: "Edit", filePath: "packages/agent/src/evil.ts" }, // outside — code, not glue-scoped
-    { tool: "Write", filePath: "stories/demo/story.md" }, // outside — a glue worker is NOT a story author
+    { tool: "Edit", filePath: "packages/agent/src/evil.ts" }, // outside — not the declared scope
+    { tool: "Write", filePath: "stories/demo/story.md" }, // outside — the caller did not declare it
   ]);
 
   const r = await runSpawnWriteScoped({
-    systemPrompt: "You are the glue worker.",
+    systemPrompt: "You are a write-scoped author.",
     userPrompt: "add 3 routes to backend-entry.ts",
     cwd: CWD,
-    isWriteAllowed: DESKTOP_FENCE,
+    isWriteAllowed: CALLER_FENCE,
     queryFn: fn,
   });
 
@@ -150,7 +149,7 @@ test("gws-writes-fenced-to-caller-declared-paths: a write inside the caller-decl
   assert.equal(
     denyOf(hookOutputs[2]).decision,
     "deny",
-    "stories/** is NOT a glue worker's scope — it must be denied (the two roles cannot bleed)",
+    "stories/** is not in this caller's declared scope — it must be denied (the fence is caller-declared, not story-wide)",
   );
 
   // …and recorded as typed violations on the result.
@@ -170,18 +169,18 @@ test("gws-writes-fenced-to-caller-declared-paths: a write inside the caller-decl
 });
 
 // ---------------------------------------------------------------------------
-// gws-honours-the-task-prompt-verbatim
+// sws-honours-the-task-prompt-verbatim
 // ---------------------------------------------------------------------------
 
-test("gws-honours-the-task-prompt-verbatim: the injected userPrompt is threaded to the spawned session verbatim (the affordance the chat lacked, ADR-0160 D1)", async () => {
+test("sws-honours-the-task-prompt-verbatim: the injected userPrompt is threaded to the spawned session verbatim (ADR-0160 D1)", async () => {
   const TASK = "add these 3 routes to apps/desktop/electron/backend-entry.ts and stop";
   const { fn, req } = capturingQuery([SUCCESS_RESULT]);
 
   const r = await runSpawnWriteScoped({
-    systemPrompt: "You are the glue worker.",
+    systemPrompt: "You are a write-scoped author.",
     userPrompt: TASK,
     cwd: CWD,
-    isWriteAllowed: DESKTOP_FENCE,
+    isWriteAllowed: CALLER_FENCE,
     queryFn: fn,
   });
 
@@ -189,20 +188,20 @@ test("gws-honours-the-task-prompt-verbatim: the injected userPrompt is threaded 
   assert.equal(
     req().prompt,
     TASK,
-    "the scoped task prompt must reach the spawned session verbatim — unlike spawn_builder's phantom knob (ADR-0160 D5.i)",
+    "the caller's task prompt must reach the spawned session verbatim",
   );
 });
 
 // ---------------------------------------------------------------------------
-// gws-typed-result-never-a-verdict
+// sws-typed-result-never-a-verdict
 // ---------------------------------------------------------------------------
 
-test("gws-typed-result-never-a-verdict: a successful session returns { ok: true, summary, violations }; a dead/empty session returns { ok: false, error, violations } — never a throw, never a forged success; the shape carries no verdict/signing/proof field", async () => {
+test("sws-typed-result-never-a-verdict: a successful session returns { ok: true, summary, violations }; a dead/empty session returns { ok: false, error, violations } — never a throw, never a forged success; the shape carries no verdict/signing/proof field", async () => {
   const ok = await runSpawnWriteScoped({
     systemPrompt: "SYS",
     userPrompt: "x",
     cwd: CWD,
-    isWriteAllowed: DESKTOP_FENCE,
+    isWriteAllowed: CALLER_FENCE,
     queryFn: queryYielding([SUCCESS_RESULT]),
   });
   assert.equal(ok.ok, true, "a successful session must return ok: true");
@@ -215,7 +214,7 @@ test("gws-typed-result-never-a-verdict: a successful session returns { ok: true,
     systemPrompt: "SYS",
     userPrompt: "x",
     cwd: CWD,
-    isWriteAllowed: DESKTOP_FENCE,
+    isWriteAllowed: CALLER_FENCE,
     queryFn: queryYielding([{ type: "assistant" }]),
   });
   assert.equal(dead.ok, false, "a session with no result message must never forge a success");
@@ -230,10 +229,10 @@ test("gws-typed-result-never-a-verdict: a successful session returns { ok: true,
 });
 
 // ---------------------------------------------------------------------------
-// gws-generalisation-keeps-the-story-author-caller-green
+// sws-story-author-wrapper-keeps-its-default-scope
 // ---------------------------------------------------------------------------
 
-test("gws-generalisation-keeps-the-story-author-caller-green: the story-author entry drives the SAME core with its default stories/** predicate — a stories/** write permitted, a non-stories/** write denied — so the role-neutralisation did not fork the fence or break the existing caller", async () => {
+test("sws-story-author-wrapper-keeps-its-default-scope: the story-author entry drives the SAME core with its default stories/** predicate — a stories/** write permitted, a non-stories/** write denied — so the role-neutralisation did not fork the fence or break the existing caller", async () => {
   const { fn, capturedOptions } = sessionAttemptingWrites([]);
   // Prime the options capture by running the wrapper once.
   await runSpawnStoryAuthor({ systemPrompt: "SYS", userPrompt: "author", cwd: CWD, queryFn: fn });

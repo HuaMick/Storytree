@@ -5,10 +5,11 @@
  * scope-building are spawn-deps-composition's contract — keeping this module library-free and the
  * agent package's boundary clean).
  *
- * ONE CORE, TWO ROLES (ADR-0160 D2 — generalise, never fork): `runSpawnWriteScoped` is the shared
- * write-fence core. `runSpawnStoryAuthor` is the thin wrapper defaulting the scope to the
- * work-hierarchy surface (stories/**); the glue-worker spawn (glue-deps-composition) calls the SAME
- * core with a caller-declared PATH predicate. There is no second fence and no copy of the hook.
+ * ROLE-NEUTRAL CORE (ADR-0160 D2 — generalise, never fork): `runSpawnWriteScoped` is the shared
+ * write-fence core, whose scope is a CALLER-DECLARED predicate. `runSpawnStoryAuthor` is the thin
+ * wrapper defaulting that scope to the work-hierarchy surface (stories/**); a caller needing a
+ * different scope injects its own predicate against the SAME core. There is no second fence and no
+ * copy of the hook.
  *
  * Write fence: a fail-closed PreToolUse hook denies every Write/Edit whose workspace-relative
  * path fails the injected `isWriteAllowed` predicate BEFORE the write lands. Bash is never in the
@@ -169,8 +170,8 @@ function extractFilePath(input: unknown): string | null {
  * workspace-relative path fails the injected `isWriteAllowed` is DENIED before the write lands.
  * Bash is not in the tool surface (a shell write would bypass the hook).
  *
- * Both spawn roles call this ONE core: the story-author wrapper below (stories/** default) and the
- * glue-worker spawn (a caller-declared path fence, built in spawn-deps-composition).
+ * The story-author wrapper below calls this ONE core with the stories/** default; any other caller
+ * injects its own caller-declared write-scope predicate against the SAME core.
  */
 export async function runSpawnWriteScoped(
   args: SpawnWriteScopedArgs,
@@ -290,10 +291,10 @@ export async function runSpawnWriteScoped(
 
 /**
  * Run a write-scoped STORY-AUTHOR SDK session — a thin wrapper over {@link runSpawnWriteScoped}
- * that defaults the write fence to the work-hierarchy surface (stories/**). One of the two callers
- * of the shared core (ADR-0160 D2): the generalisation kept this entry byte-compatible, so the
- * existing story-author spawn (and its tests) are unchanged. The glue-worker spawn is the other
- * caller (a caller-declared path fence, built in spawn-deps-composition).
+ * that defaults the write fence to the work-hierarchy surface (stories/**). A thin caller over the
+ * shared role-neutral core (ADR-0160 D2): the generalisation kept this entry byte-compatible, so the
+ * existing story-author spawn (and its tests) are unchanged. Any caller needing a different scope
+ * injects its own predicate against the same core.
  */
 export async function runSpawnStoryAuthor(
   args: SpawnStoryAuthorArgs,

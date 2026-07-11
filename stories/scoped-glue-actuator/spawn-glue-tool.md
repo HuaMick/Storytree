@@ -4,10 +4,17 @@ tier: capability
 story: scoped-glue-actuator
 title: "The spawn_glue_worker tool — a third claim-gated spawn on the chat surface, plus the spawn_builder userPrompt honesty fix"
 outcome: "spawn_glue_worker mounts on buildSpawnTools as a third claim-gated spawn tool (schema { unitId, paths, userPrompt }) — claim-gated on the owning story, the path fence threaded to the runner, the chat keeping NO write tool and no verdict crossing back — AND spawn_builder's phantom userPrompt param is dropped from its schema (ADR-0160 D5.i)."
-status: proposed
+status: retired
 proof_mode: integration-test
 depends_on: [glue-worker-spawn]
 decisions: [160, 158, 137, 138, 91, 4, 30]
+# RETIRED by ADR-0175 (2026-07-11), with the whole scoped-glue-actuator story. The spawn_glue_worker tool
+# (ADR-0160) is redundant now that ADR-0174 embeds an in-app terminal running Claude Code that makes glue
+# edits natively. The `real:` arm is dropped, so this capability is no longer REAL-buildable
+# (buildableNodeIds keys on proof.real). NOTE: buildSpawnTools and the existing spawn_story_author /
+# spawn_builder tools (packages/agent/src/spawn-tool-surface.ts) are OWNED BY chat-subagent-spawn and are
+# NOT retired — only the spawn_glue_worker mount + the ADR-0160 D5.i spawn_builder userPrompt-drop this cap
+# carried retire. The Node-borne proof-config comment + body below are kept as history.
 # Node-borne proof config (ADR-0057 keystone). EDIT-EXISTING (editsExisting: true): buildSpawnTools
 # (packages/agent/src/spawn-tool-surface.ts — owned by chat-subagent-spawn's spawn-tool-surface, edited
 # here additively under the declared edge) gains a THIRD gate-wrapped tool spawn_glue_worker (schema
@@ -32,20 +39,8 @@ proof:
   scope:
     testGlobs: ["packages/agent/src/**/*.test.ts"]
     sourceGlobs: ["packages/agent/src/**/*.ts"]
-  real:
-    testFile: "packages/agent/src/spawn-glue-tool.test.ts"
-    sourceFile: "packages/agent/src/spawn-tool-surface.ts"
-    scope:
-      testGlobs: ["packages/agent/src/spawn-glue-tool.test.ts", "packages/agent/src/spawn-tool-surface.test.ts"]
-      sourceGlobs: ["packages/agent/src/spawn-tool-surface.ts"]
-    editsExisting: true
-    install: true
-    proofCommand:
-      file: pnpm
-      args: ["--filter", "@storytree/agent", "test"]
-    typecheck:
-      file: pnpm
-      args: ["--filter", "@storytree/agent", "typecheck"]
+# The `real:` arm was dropped on retirement (ADR-0175) — see the RETIRED note above. proof.command +
+# proof.scope are kept as history (the cap stays visible as a non-real node, never REAL-buildable).
 ---
 
 # The spawn_glue_worker tool — a third claim-gated spawn, plus the spawn_builder honesty fix

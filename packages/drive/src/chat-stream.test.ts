@@ -114,7 +114,6 @@ function spawnDepsDouble(): SpawnSurfaceDeps {
     branch: "claude/sess-chat",
     spawnStoryAuthor: async () => "story-author spawn summary",
     spawnBuilder: async () => "builder dispatched",
-    spawnGlueWorker: async () => "glue worker edited 1 file",
   };
 }
 

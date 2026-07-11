@@ -3,7 +3,17 @@ id: "scoped-glue-actuator"
 tier: story
 title: "The desktop chat gains a scoped glue actuator — a fenced, write-scoped, claim-gated spawn_glue_worker that honours a task prompt (ADR-0160)"
 outcome: "From a desktop chat conversation a scoped glue intent ('add 3 routes to backend-entry.ts') is delegated to a path-fenced spawn_glue_worker — claim-gated on the owning story, writing only inside caller-declared paths, honouring the task prompt verbatim — and landed through the existing run_gate / open_landing_pr gate→CI path, while the chat itself keeps no write tool, the worker signs nothing, and the glue never over-routes into a whole-story story build --real."
-status: proposed
+# RETIRED by ADR-0175 (2026-07-11). This whole story built the desktop chat's scoped-glue actuator — the
+# fenced, write-scoped, claim-gated spawn_glue_worker (ADR-0160). ADR-0174 embeds a real in-app terminal
+# running Claude Code that makes glue edits NATIVELY, so ADR-0175 retires this chat-driven scoped-write
+# rung as REDUNDANT — "THE ONE EXCEPTION" to ADR-0175's "repurpose, don't delete". All three capabilities
+# (glue-worker-spawn, spawn-glue-tool, glue-deps-composition) retire with ADR-0175 as their deciding
+# record; their `real:` arms are dropped (so the story + its caps are no longer REAL-buildable —
+# buildableNodeIds keys on proof.real), and a parallel code-removal drops the actuator's source/tests.
+# NOT retired: the glue CONCEPT (ADR-0158 — un-asserted code within a story) and the shared write-scoped
+# spawn runner in packages/agent (runSpawnWriteScoped / runSpawnStoryAuthor, owned by chat-subagent-spawn's
+# story-author-spawn) — only THIS actuator's spawn_glue_worker rung retires. Body kept as history.
+status: retired
 proof_mode: UAT
 # Per-leg witness (ADR-0106): the offline mechanics legs (the generalised write-scoped runner over an
 # injected queryFn honouring a caller-declared path fence + userPrompt, the claim-gated spawn_glue_worker
@@ -117,6 +127,16 @@ decisions: [160, 158, 137, 152, 138, 108, 91, 51, 55, 30, 22, 70]
 story, writing only inside caller-declared `paths`, honouring the task prompt verbatim) and landed
 through the existing `run_gate` / `open_landing_pr` gate→CI path — while the chat itself keeps no write
 tool, the worker signs nothing, and the glue never over-routes into a whole-story `story build --real`.
+
+> **RETIRED — ADR-0175 (2026-07-11).** The `spawn_glue_worker` scoped-glue actuator retires as
+> **redundant**. ADR-0174 embeds a real in-app terminal running Claude Code that makes glue edits
+> natively, so the chat-driven scoped-write rung this story built is superseded — ADR-0175's *"THE ONE
+> EXCEPTION"* to its own *"repurpose, don't delete"*. What does **NOT** retire: the **glue concept**
+> (ADR-0158 — un-asserted connective code proven transitively within a story) and the shared
+> **write-scoped spawn runner** (`runSpawnWriteScoped` / `runSpawnStoryAuthor` in `packages/agent`, owned
+> by `chat-subagent-spawn`) — only this actuator (the `spawn_glue_worker` rung and its three capabilities)
+> is retired. The three capabilities have their `real:` arms dropped, so the story is no longer
+> REAL-buildable; the body below is kept as history.
 
 ## What this is
 
