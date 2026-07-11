@@ -92,6 +92,7 @@ import { BuildSection } from './BuildSection.js';
 import { WorldSettingsPanel } from './WorldSettingsPanel.js';
 import { LibraryDrawer } from './LibraryDrawer.js';
 import { LibraryFinder } from './LibraryFinder.js';
+import { LibraryFocusGraph } from './LibraryFocusGraph.js';
 import type { SearchResult } from '../lib/librarySearch.js';
 import { TerminalDock, type TerminalDockSeed } from './TerminalDock.js';
 import { RepoPicker } from './RepoPicker.js';
@@ -1287,6 +1288,15 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
   // and proves in isolation — TreeView is the composition point where AppData is available.
   const { assets, docs } = useAppData();
   const [librarySelection, setLibrarySelection] = useState<SearchResult | null>(null);
+  // The focus subgraph (inc 3) walks `GuidanceAsset.references` both ways. The wire type
+  // declares `references: string[]`, but the served corpus can violate it (e.g. the `planner`
+  // agent artifact ships no `references` field). Normalise to the declared type at this
+  // composition boundary so the proven subgraph always receives conformant input — the signed
+  // source assumes an iterable `references` and stays byte-untouched.
+  const libraryAssets = useMemo(
+    () => assets.map((a) => (Array.isArray(a.references) ? a : { ...a, references: [] })),
+    [assets],
+  );
   // ADR-0074 §6: `?layout=solar` reskins the world radially with cli/store hubs at the
   // centre. Gear-panel managed, so it's reactive on `search` (live, no reload). In solar
   // mode the synthetic hub islands are injected ONLY into buildWorld's input — the
@@ -2168,12 +2178,25 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
             search={search}
             onCommitSearch={commitSearch}
             peekSlot={
-              <LibraryFinder
-                assets={assets}
-                docs={docs}
-                onSelect={setLibrarySelection}
-                {...(librarySelection ? { selectedId: librarySelection.id } : {})}
-              />
+              // Two-pane peek (ADR-0185 dec 2, inc 3): the finder (left) drives the focus
+              // subgraph (right). Selection lives here in TreeView — the finder LIFTS its pick
+              // via onSelect, and the subgraph RE-CENTRES via onFocus (a neighbour click is just
+              // a new selection). Composed as a single peekSlot node so the proven drawer shell
+              // stays byte-untouched.
+              <div className="library-peek-panes">
+                <LibraryFinder
+                  assets={assets}
+                  docs={docs}
+                  onSelect={setLibrarySelection}
+                  {...(librarySelection ? { selectedId: librarySelection.id } : {})}
+                />
+                <LibraryFocusGraph
+                  assets={libraryAssets}
+                  docs={docs}
+                  selection={librarySelection}
+                  onFocus={setLibrarySelection}
+                />
+              </div>
             }
           />
           {/* The embedded terminal overlays the MAP (absolute within .world-frame), not the whole app —
