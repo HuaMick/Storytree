@@ -24,6 +24,7 @@ const apiMock = vi.hoisted(() => ({
 vi.mock('../api', () => ({ api: apiMock }));
 
 import { BuildSection, BUILD_POLL_MS } from './BuildSection';
+import { composeBuildCommand } from '../lib/buildCommand';
 
 /** Flush the async chain that a click/timer kicked off. */
 const flush = () => act(async () => {});
@@ -600,5 +601,46 @@ describe('AdoptPanel (BuildSection adopt scope)', () => {
     expect(screen.getByText(/already in flight/)).toBeTruthy();
     // the Adopt button returns so the operator can retry once the other run ends
     expect(screen.getByRole('button', { name: 'Adopt' })).toBeTruthy();
+  });
+});
+
+// ── map-build-seeds-terminal ────────────────────────────────────────────────────
+//
+// On the desktop, the Build button SEEDS the terminal (window.desktopTerminal, the same
+// contextBridge feature-detect TerminalDock uses) instead of dispatching in-app — bridge-absent
+// keeps the existing api.build → poll dispatch untouched (see the BuildSection describe block above).
+describe('BuildSection — desktop terminal seed (map-build-seeds-terminal)', () => {
+  const bridgeMock = {
+    spawn: vi.fn(),
+    write: vi.fn(),
+    resize: vi.fn(),
+    dispose: vi.fn(),
+    onData: vi.fn(),
+    onExit: vi.fn(),
+  };
+
+  afterEach(() => {
+    delete (window as unknown as { desktopTerminal?: typeof bridgeMock }).desktopTerminal;
+  });
+
+  it('when the desktop bridge is present and onSeedTerminal is wired, clicking Build seeds the terminal instead of POSTing api.build', async () => {
+    (window as unknown as { desktopTerminal?: typeof bridgeMock }).desktopTerminal = bridgeMock;
+    const onSeedTerminal = vi.fn();
+
+    render(
+      <BuildSection unitId="drive-machinery" buildable scope="node" onSeedTerminal={onSeedTerminal} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Build' }));
+    await flush();
+
+    // the composed command matches the real composer, tying the seed to the journey it claims
+    expect(onSeedTerminal).toHaveBeenCalledTimes(1);
+    expect(onSeedTerminal).toHaveBeenCalledWith(
+      composeBuildCommand({ unitId: 'drive-machinery', scope: 'node' }),
+    );
+    // the dispatch is SUPPRESSED on the seed path — never both a seed AND an in-app POST
+    expect(apiMock.build).not.toHaveBeenCalled();
+    expect(apiMock.buildStatus).not.toHaveBeenCalled();
   });
 });
