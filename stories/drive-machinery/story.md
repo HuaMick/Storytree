@@ -35,8 +35,8 @@ consumed_by: [cli]
 # inner-loop-expansion keystone — node-borne proof config (57) — gate-as-proof authoring (59),
 # the drive-package extraction that gave this story its own @storytree/drive home (112), the
 # fail-closed per-UAT-leg proof binding required by ADR-0180 d.5, and the machine-witness conversion
-# of Story UAT legs 3/4/7 (184 — leg 4 landed now as the observe ancestry gate-5; legs 3 and 7
-# authored-accepted with their harnesses pending).
+# of Story UAT legs 3/4/7 (184 — leg 4 landed as the observe ancestry gate-5, leg 3 as the
+# live-artifact witnessable-verdict gate-6; leg 7's cold-start harness still pending).
 decisions: [5, 20, 30, 31, 35, 37, 57, 59, 60, 112, 180, 184]
 ---
 
@@ -275,7 +275,9 @@ owned" section above for the now-settled modeling call.
   leg-3 observe gate (`drive-machinery#gate-6`): it selects the newest spine-driven **DRIVEN-tier**
   passing verdict for a drive-machinery node that is recent and lands in `main`'s ancestry (or reports
   why none qualifies), so a cheap gate can witness that a real `--real` build happened without
-  re-running it. Authored `proposed`; its own `--real` verdict (leg 3's live proof) is pending.
+  re-running it. Authored `proposed`; its own `--real` verdict — leg 3's live proof — is a signed
+  DRIVEN `contract` PASS (run `real-mrftf7c3`, commit `69590a6`, persisted to `events.verdict`),
+  folded into the tree by promotion (PR #679).
 
 File-per-unit here is the **registered-buildable grain** (the drive loads one spec file per
 buildable node); the authored capability files above follow the seed's contracts-inline convention
@@ -295,7 +297,7 @@ drives a registered node from spec to a landed, signed, persisted proof.
 > the paid blind dogfood, 2026-06-15, 3/3 probes end to end. So the story's own acceptance proof is
 > **part-scripted, part-attested**.
 >
-> **Legs 3/4/7 convert to machine (ADR-0184) — leg 4 now, legs 3 and 7 harness-pending.** The
+> **Legs 3/4/7 convert to machine (ADR-0184) — legs 4 and 3 now, only leg 7 harness-pending.** The
 > parser [`uat-machine-proof-binding`](uat-machine-proof-binding.md), exact resolver
 > [`uat-machine-gate-resolution`](uat-machine-gate-resolution.md), and drive consumption
 > [`uat-bound-command-adoption`](uat-bound-command-adoption.md) established the strict no-fallback
@@ -303,12 +305,15 @@ drives a registered node from spec to a landed, signed, persisted proof.
 > remain `human`" call (ADR-0180): that call conflated a genuine judgment gap (no compiler for the
 > claim) with cost — but the `--real` leaf is subscription-funded (ADR-0030), not the metered Cursor
 > leaf (ADR-0177) the "no paid inner loop" reasoning named, so cost is never a reason to keep a leg
-> human. **Leg 4 is converted now**: its free, deterministic observe gate-5
+> human. **Leg 4 is converted**: its free, deterministic observe gate-5
 > (`promotion-ancestry.check.ts`) machine-witnesses that the attested REAL-proof commits reached
-> `main` non-squash. **Legs 3 and 7 are authored-accepted but their harnesses are still pending** —
-> leg 3 wants a live-artifact gate verifying a deliberate `--real` verdict, leg 7 a cold-start probe
-> harness — so they remain `human` AT REST until those land. An honest in-flight state, never a forged
-> machine label pointed at an offline mechanics suite.
+> `main` non-squash. **Leg 3 is now converted too**: its live-artifact observe gate-6
+> (`witnessable-verdict.check.ts`) machine-witnesses that a recent spine-driven DRIVEN-tier passing
+> verdict for a drive-machinery node exists in `events.verdict` and landed in `main`'s ancestry (the
+> deliberate `--real` run that produces that verdict stays out-of-band, ADR-0010 §5). **Only leg 7
+> remains `human` AT REST** — its cold-start probe harness is still pending, so it stays human until
+> that lands. An honest in-flight state, never a forged machine label pointed at an offline mechanics
+> suite.
 
 **Goal —** Drive one registered node through a genuine red→green proof and land the proven commit
 through the merge gate, refusing every dishonest shortcut along the way.
@@ -318,14 +323,19 @@ through the merge gate, refusing every dishonest shortcut along the way.
 2. **Prove the glue first** _(witness: machine)_ _(proof-gate: drive-machinery#gate-2)_: `pnpm storytree node build verdict-line --dry-run`. **Success —** the
    full phase trail, a signed (in-memory) verdict, a derived rollup, and the honest dry-run
    framing. *(proven: `node-build.test.ts:17`, `:74`)*
-3. **The REAL build** _(witness: human)_: `pnpm storytree node build <id> --real --store pg`. **Success —** a fresh
+3. **The REAL build** _(witness: machine)_ _(proof-gate: drive-machinery#gate-6)_: `pnpm storytree node build <id> --real --store pg`. **Success —** a fresh
    detached worktree; the live leaf authors the REAL test under the write wall; the spine observes
    the genuine red, the leaf implements, the spine observes the genuine green, commits the
    authored files, signs on the genuinely clean tree; the verdict persists to `events.verdict`;
    the proven commit is parked on `claude/real/<id>-<run>` and pushed (typecheck + regression
-   green first for install-bearing nodes). *(mechanics proven offline:
-   `resolve-prove-spec.test.ts:539` (scripted author), `build-worktree.test.ts:28-219`; the live
-   leg attested once: run `real-mq7ky4ck`)*
+   green first for install-bearing nodes). *(proven: `drive-machinery#gate-6` —
+   `witnessable-verdict.check.ts` reads `events.verdict` and asserts a spine-driven DRIVEN-tier
+   (`contract`/`capability`/`story`, never `adopted`) passing verdict for a drive-machinery node
+   exists, recent (≤90d, the ADR-0016 ageing floor) and on a commit in `main`'s ancestry; the
+   deliberate subscription-funded live run that PRODUCES the artifact stays out-of-band (ADR-0010 §5)
+   — minted for this conversion via `witnessable-verdict` itself: run `real-mrftf7c3`, commit
+   `69590a6`, a genuine red→green; the earlier `verdict-line` run `real-mq7ky4ck` is the historical
+   first.)*
 4. **Land it** _(witness: machine)_ _(proof-gate: drive-machinery#gate-5)_: open the PR from the promotion branch; CI auto-merges on green, NON-SQUASH, so the
    verdict's `commitSha` stays an ancestor of `main` (ADR-0031/0022). **Success —** the proven
    commit is reachable from `main`. *(proven: `drive-machinery#gate-5` —
@@ -382,8 +392,11 @@ capability-covering gates over 18 capabilities reads cleaner than 18 per-cap gat
 shape the `library` story uses). A fourth, command-bearing observe gate runs the CLI and drive suites
 together solely for Story UAT leg 6, whose two refusal assertions span those packages; a fifth,
 command-bearing observe gate runs the drive-package ancestry check solely for Story UAT leg 4 (the
-proven REAL commits reached `main` non-squash, ADR-0184). Neither carries a `(covers:)` — the first
-three gates already cover the capabilities, and gates 4 and 5 each prove a UAT leg, not a capability.
+proven REAL commits reached `main` non-squash, ADR-0184); and a sixth, command-bearing observe gate
+runs the live-artifact `witnessable-verdict` check solely for Story UAT leg 3 (a recent spine-driven
+DRIVEN verdict for a drive-machinery node, landed in `main`'s ancestry, ADR-0184). None of gates 4–6
+carries a `(covers:)` — the first three gates already cover the capabilities, and gates 4, 5, and 6
+each prove a UAT leg, not a capability.
 The first three gates cover the 18 already-built capabilities. The 18th —
 [`adoption-pocket-classifier`](adoption-pocket-classifier.md)
 — was authored `proposed` (would-be) and deliberately left uncovered; its behaviour has since been
@@ -458,8 +471,19 @@ the existing green is the honest brownfield floor.
    commits a shallow CI checkout lacks); observe-and-signed during a deliberate adoption in a full clone
    (`storytree gate run drive-machinery#gate-5 --pg`). Its pure teeth are covered offline by
    `promotion-ancestry.test.ts`. Carries no `(covers:)` — it proves a UAT leg, not a capability.
+6. **A recent REAL build is signed, driven, and landed** _(gate: observe)_ `pnpm --filter @storytree/drive exec node --import tsx src/witnessable-verdict.check.ts`.
+   The machine witness for Story UAT leg 3 (ADR-0184): a live-artifact check that a spine-driven
+   DRIVEN-tier (`contract`/`capability`/`story`, never the observe-and-sign `adopted` mode) passing
+   verdict for a drive-machinery node exists in `events.verdict`, is recent (≤90 days — the ADR-0016
+   ageing floor that forces a periodic deliberate re-run, so a stale artifact reds the gate), and pins
+   a commit that is an ancestor of HEAD (it landed non-squash, reusing gate-5's ancestry primitive). The
+   heavy live `--real` run that produces the artifact is OUT-OF-BAND (ADR-0010 §5 — never on a gate
+   pass); this cheap command only WITNESSES the persisted signed pass. Kept OUT of `pnpm -r test` (it
+   needs the live store + a full clone); observe-and-signed during a deliberate adoption (`storytree gate
+   run drive-machinery#gate-6 --pg`). Its pure teeth are covered offline by `witnessable-verdict.test.ts`.
+   Carries no `(covers:)` — it proves a UAT leg, not a capability.
 
-Adopting all five flips the tier off `mapped`. `healthy` stays non-authorable
+Adopting all six flips the tier off `mapped`. `healthy` stays non-authorable
 ([ADR-0020](../../docs/decisions/0020-red-green-enforcement-on-the-owned-loop.md)) — the authored
 frontmatter `status:` stays `mapped`; the world's crown DERIVES green from the signed verdicts
 ([ADR-0040](../../docs/decisions/0040-verdict-derived-green-and-the-human-witness-signpost.md)) and only
