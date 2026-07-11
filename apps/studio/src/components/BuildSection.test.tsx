@@ -623,7 +623,7 @@ describe('BuildSection — desktop terminal seed (map-build-seeds-terminal)', ()
     delete (window as unknown as { desktopTerminal?: typeof bridgeMock }).desktopTerminal;
   });
 
-  it('when the desktop bridge is present and onSeedTerminal is wired, clicking Build seeds the terminal instead of POSTing api.build', async () => {
+  it('mbt-desktop-build-seeds-not-dispatches: bridge present + onSeedTerminal wired → a Build click seeds the terminal and SUPPRESSES api.build (never both)', async () => {
     (window as unknown as { desktopTerminal?: typeof bridgeMock }).desktopTerminal = bridgeMock;
     const onSeedTerminal = vi.fn();
 
@@ -642,5 +642,64 @@ describe('BuildSection — desktop terminal seed (map-build-seeds-terminal)', ()
     // the dispatch is SUPPRESSED on the seed path — never both a seed AND an in-app POST
     expect(apiMock.build).not.toHaveBeenCalled();
     expect(apiMock.buildStatus).not.toHaveBeenCalled();
+  });
+
+  it('mbt-seeds-scoped-command: a STORY-scope Build seeds the story command (node scope covered above) — the seed matches composeBuildCommand for the unit scope', async () => {
+    (window as unknown as { desktopTerminal?: typeof bridgeMock }).desktopTerminal = bridgeMock;
+    const onSeedTerminal = vi.fn();
+
+    // A proposed story (goGreen === 'build') shows the same Build button, at story scope.
+    // A story has no node-level `buildable` (goGreen drives the affordance) — pass it undefined.
+    render(
+      <BuildSection
+        unitId="map-terminal-build"
+        buildable={undefined}
+        scope="story"
+        goGreen="build"
+        onSeedTerminal={onSeedTerminal}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Build' }));
+    await flush();
+
+    expect(onSeedTerminal).toHaveBeenCalledWith(
+      composeBuildCommand({ unitId: 'map-terminal-build', scope: 'story' }),
+    );
+  });
+
+  it('mbt-without-bridge-dispatches-as-today: NO desktop bridge → a Build click POSTs api.build as today and never seeds (the hosted/dev-studio fallback)', async () => {
+    // No window.desktopTerminal (the afterEach cleared it) — a plain browser, no Electron preload.
+    apiMock.build.mockResolvedValue({ runId: 'run-1' });
+    apiMock.buildStatus.mockResolvedValue(building());
+    const onSeedTerminal = vi.fn();
+
+    render(
+      <BuildSection unitId="drive-machinery" buildable scope="node" onSeedTerminal={onSeedTerminal} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Build' }));
+    await flush();
+
+    // the bridge-absent fallback: the existing in-app dispatch, never a seed (a Build click is never a no-op)
+    expect(apiMock.build).toHaveBeenCalledTimes(1);
+    expect(apiMock.build).toHaveBeenCalledWith('drive-machinery');
+    expect(onSeedTerminal).not.toHaveBeenCalled();
+  });
+
+  it('mbt-adopt-path-unaffected: a mapped story Adopt still POSTs api.adopt — the re-point touches only Build, bridge or not', async () => {
+    (window as unknown as { desktopTerminal?: typeof bridgeMock }).desktopTerminal = bridgeMock;
+    apiMock.adopt.mockResolvedValue({ runId: 'adopt-1' });
+    apiMock.buildStatus.mockResolvedValue(building({ runId: 'adopt-1', unitId: 'library' }));
+    const onSeedTerminal = vi.fn();
+
+    render(<BuildSection {...adoptProps} adoptGates={adoptGates} onSeedTerminal={onSeedTerminal} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Adopt' }));
+    await flush();
+
+    // Adopt is not re-pointed — it dispatches api.adopt as today and never seeds the terminal.
+    expect(apiMock.adopt).toHaveBeenCalledTimes(1);
+    expect(onSeedTerminal).not.toHaveBeenCalled();
   });
 });

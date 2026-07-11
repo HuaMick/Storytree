@@ -14,19 +14,19 @@ import { describe, it, expect } from 'vitest';
 import { composeBuildCommand } from './buildCommand';
 
 describe('composeBuildCommand — the CLI command a Build click seeds into the terminal', () => {
-  it('scope: story → pnpm storytree story build <unitId> --real --store pg', () => {
+  it('cbc-composes-story-real-build: scope story → pnpm storytree story build <unitId> --real --store pg', () => {
     expect(composeBuildCommand({ unitId: 'story-alpha', scope: 'story' })).toBe(
       'pnpm storytree story build story-alpha --real --store pg',
     );
   });
 
-  it('scope: node → pnpm storytree node build <unitId> --real --store pg', () => {
+  it('cbc-composes-node-real-build: scope node → pnpm storytree node build <unitId> --real --store pg', () => {
     expect(composeBuildCommand({ unitId: 'node-beta', scope: 'node' })).toBe(
       'pnpm storytree node build node-beta --real --store pg',
     );
   });
 
-  it('interpolates the CLICKED unit id, not a hardcoded stand-in — proven with a distinct id per scope', () => {
+  it('cbc-embeds-the-unit-id-verbatim: interpolates the CLICKED unit id, not a hardcoded stand-in — a distinct id per scope', () => {
     expect(composeBuildCommand({ unitId: 'compose-build-command', scope: 'story' })).toBe(
       'pnpm storytree story build compose-build-command --real --store pg',
     );
