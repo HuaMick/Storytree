@@ -4,10 +4,17 @@ tier: capability
 story: scoped-glue-actuator
 title: "The glue-deps composition — render the real glue-worker agent, build the caller-declared path fence, wire spawnGlueWorker"
 outcome: "The drive-side composition renders the REAL glue-worker library agent (fail-closed BEFORE any SDK call when absent) and wires spawnGlueWorker({ unitId, paths, userPrompt }) calling the generalised runner with the caller-declared path predicate + the rendered glue prompt, threaded through buildSpawnDeps / orchestrate() without forking the spawn chain."
-status: proposed
+status: retired
 proof_mode: integration-test
 depends_on: [glue-worker-spawn, spawn-glue-tool]
 decisions: [160, 158, 51, 55, 112, 138, 91]
+# RETIRED by ADR-0175 (2026-07-11), with the whole scoped-glue-actuator story. The glue-deps composition
+# (ADR-0160) is redundant now that ADR-0174 embeds an in-app terminal running Claude Code that makes glue
+# edits natively. The `real:` arm is dropped, so this capability is no longer REAL-buildable
+# (buildableNodeIds keys on proof.real). NOTE: buildSpawnDeps and the orchestrate() spawn chain
+# (packages/drive/src/spawn-deps.ts) are OWNED BY chat-subagent-spawn and are NOT retired — only the
+# glue-worker render + spawnGlueWorker wiring this cap added retire. The Node-borne proof-config comment +
+# body below are kept as history.
 # Node-borne proof config (ADR-0057 keystone). EDIT-EXISTING (editsExisting: true): buildSpawnDeps
 # (packages/drive/src/spawn-deps.ts — owned by chat-subagent-spawn's spawn-deps-composition, edited here
 # additively under the declared edge) renders the REAL glue-worker library agent
@@ -31,20 +38,8 @@ proof:
   scope:
     testGlobs: ["packages/drive/src/**/*.test.ts"]
     sourceGlobs: ["packages/drive/src/**/*.ts"]
-  real:
-    testFile: "packages/drive/src/glue-deps-composition.test.ts"
-    sourceFile: "packages/drive/src/spawn-deps.ts"
-    scope:
-      testGlobs: ["packages/drive/src/glue-deps-composition.test.ts", "packages/drive/src/spawn-deps.test.ts"]
-      sourceGlobs: ["packages/drive/src/spawn-deps.ts"]
-    editsExisting: true
-    install: true
-    proofCommand:
-      file: pnpm
-      args: ["--filter", "@storytree/drive", "test"]
-    typecheck:
-      file: pnpm
-      args: ["--filter", "@storytree/drive", "typecheck"]
+# The `real:` arm was dropped on retirement (ADR-0175) — see the RETIRED note above. proof.command +
+# proof.scope are kept as history (the cap stays visible as a non-real node, never REAL-buildable).
 ---
 
 # The glue-deps composition — render the real glue-worker agent, build the fence, wire spawnGlueWorker

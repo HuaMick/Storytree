@@ -4,10 +4,17 @@ tier: capability
 story: scoped-glue-actuator
 title: "The glue-worker spawn runner — the write-scoped SDK runner generalised to a caller-declared path fence honouring a task prompt"
 outcome: "The write-scoped SDK runner is generalised to a role-neutral core: a spawned session runs an injected glue-worker prompt with its writes fenced fail-closed to a caller-declared path scope (NOT stories/**), honours the task prompt verbatim, and returns a typed spawn result that is never a verdict — and the existing story-author spawn calls the SAME core with its own predicate."
-status: proposed
+status: retired
 proof_mode: integration-test
 depends_on: []
 decisions: [160, 158, 137, 30, 4, 91, 130]
+# RETIRED by ADR-0175 (2026-07-11), with the whole scoped-glue-actuator story. The desktop chat's
+# spawn_glue_worker actuator (ADR-0160) is redundant now that ADR-0174 embeds an in-app terminal running
+# Claude Code that makes glue edits natively. The `real:` arm is dropped, so this capability is no longer
+# REAL-buildable (buildableNodeIds keys on proof.real — packages/drive/src/node-build.ts). NOTE: the shared
+# write-scoped spawn runner this cap would have generalised (runSpawnWriteScoped / runSpawnStoryAuthor in
+# packages/agent) is OWNED BY chat-subagent-spawn and is NOT retired — only the glue-worker role retires.
+# The Node-borne proof-config comment + body below are kept as history.
 # Node-borne proof config (ADR-0057 keystone): authoring THIS block is what makes the capability
 # inner-loop buildable. EDIT-EXISTING (editsExisting: true): the runner ALREADY takes an injectable
 # isWriteAllowed predicate + any systemPrompt + any userPrompt (packages/agent/src/spawn-story-author.ts)
@@ -32,20 +39,8 @@ proof:
   scope:
     testGlobs: ["packages/agent/src/**/*.test.ts"]
     sourceGlobs: ["packages/agent/src/**/*.ts"]
-  real:
-    testFile: "packages/agent/src/glue-worker-spawn.test.ts"
-    sourceFile: "packages/agent/src/spawn-story-author.ts"
-    scope:
-      testGlobs: ["packages/agent/src/glue-worker-spawn.test.ts", "packages/agent/src/spawn-story-author.test.ts"]
-      sourceGlobs: ["packages/agent/src/spawn-story-author.ts"]
-    editsExisting: true
-    install: true
-    proofCommand:
-      file: pnpm
-      args: ["--filter", "@storytree/agent", "test"]
-    typecheck:
-      file: pnpm
-      args: ["--filter", "@storytree/agent", "typecheck"]
+# The `real:` arm was dropped on retirement (ADR-0175) — see the RETIRED note above. proof.command +
+# proof.scope are kept as history (the cap stays visible as a non-real node, never REAL-buildable).
 ---
 
 # The glue-worker spawn runner — the write-scoped runner generalised to a caller-declared path fence

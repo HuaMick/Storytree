@@ -32,7 +32,7 @@
 
 import type { Store } from "@storytree/storage-protocol";
 import type { SdkQueryFn, SpawnSurfaceDeps } from "@storytree/agent";
-import { runSpawnStoryAuthor, runSpawnWriteScoped } from "@storytree/agent";
+import { runSpawnStoryAuthor } from "@storytree/agent";
 import { renderAgentPrompt } from "@storytree/library/store";
 
 import type { BuildContext } from "./build-worker.js";
@@ -76,51 +76,14 @@ export type BuildSpawnDepsResult =
   | { ok: false; error: string };
 
 // ---------------------------------------------------------------------------
-// The caller-declared path fence (glue-deps-composition, ADR-0160 D1)
-// ---------------------------------------------------------------------------
-
-/**
- * Build the glue worker's `isWriteAllowed` predicate from the caller-declared `paths` (ADR-0160 D1):
- * a workspace-relative write is permitted iff it is one of the declared paths or sits under one of
- * them (a declared directory). Everything else — INCLUDING `stories/**` — is DENIED (a glue worker
- * is not a story author; the two roles cannot bleed). Empty `paths` → an all-deny fence (fail-closed:
- * a glue spawn with no declared scope may write nothing). This is where the generic write-scoped
- * runner becomes glue-scoped; the runner itself stays role-neutral (spawn-story-author.ts).
- */
-export function pathFence(paths: string[]): (relPath: string) => boolean {
-  const declared = paths.map((p) => p.replace(/\\/g, "/").replace(/\/+$/, ""));
-  return (relPath) => {
-    const rel = relPath.replace(/\\/g, "/");
-    return declared.some((p) => p.length > 0 && (rel === p || rel.startsWith(`${p}/`)));
-  };
-}
-
-/**
- * Resolve the glue worker's turn ceiling (ADR-0163 Gap A): the caller-supplied PER-RUN `perRun`
- * value wins when it is a positive, finite integer (floored to a whole turn count); an absent or
- * invalid (non-positive / non-finite) value falls back to the spawn-level `spawnDefault`
- * (`args.maxTurns` — the story-author-tuned budget, or `undefined` → the runner's own 16-turn
- * runaway brake, ADR-0130). Fail-safe: a broken 0/NaN ceiling would abort the SDK session before it
- * started, so it is never honoured — the fallback is taken instead.
- */
-export function resolveGlueMaxTurns(
-  perRun: number | undefined,
-  spawnDefault: number | undefined,
-): number | undefined {
-  return typeof perRun === "number" && Number.isFinite(perRun) && perRun > 0
-    ? Math.floor(perRun)
-    : spawnDefault;
-}
-
-// ---------------------------------------------------------------------------
 // Composition
 // ---------------------------------------------------------------------------
 
 /**
- * Assemble the real spawn deps: render the story-author + glue-worker library agents (each
- * fail-closed), carry the session identity verbatim for the claim gate, and wire the three spawn
- * handlers — the write-fenced story-author runner, the worker-backed builder dispatch, and the
- * caller-path-fenced glue worker (ADR-0160). Never throws: every refusal is a typed { ok: false, error }.
+ * Assemble the real spawn deps: render the story-author library agent (fail-closed), carry the
+ * session identity verbatim for the claim gate, and wire the two spawn handlers — the write-fenced
+ * story-author runner and the worker-backed builder dispatch. Never throws: every refusal is a typed
+ * { ok: false, error }.
  */
 export async function buildSpawnDeps(
   args: BuildSpawnDepsArgs,
@@ -154,19 +117,6 @@ export async function buildSpawnDeps(
     };
   }
   const systemPrompt = render.agent.prompt;
-
-  // Render the REAL glue-worker library agent too (ADR-0160 D4 — the same one-definition rule):
-  // fail-closed BEFORE any SDK call when absent, never a stub prompt, never an inlined copy of the
-  // glue-worker prose. The terminal `storytree agents glue-worker` and the spawned glue-worker move
-  // together.
-  const glueRender = await renderAgentPrompt(args.store, "glue-worker");
-  if (!glueRender.ok) {
-    return {
-      ok: false,
-      error: `glue-worker agent not found in the store: ${glueRender.reason}`,
-    };
-  }
-  const glueSystemPrompt = glueRender.agent.prompt;
 
   const deps: SpawnSurfaceDeps = {
     store: args.claimStore,
@@ -208,38 +158,6 @@ export async function buildSpawnDeps(
         `build dispatched: run ${dispatched.runId} — coarse progress streams into the ` +
         `run transcript; the spine observes RED→GREEN and signs (ADR-0091); the human lands.`
       );
-    },
-
-    spawnGlueWorker: async ({ unitId, paths, userPrompt, maxTurns }, onTrace) => {
-      // Build the caller-declared path fence and drive the SAME role-neutral write-scoped runner the
-      // story-author spawn uses (ADR-0160 D2 — one core, two roles), with the rendered glue-worker
-      // prompt. The glue worker only EDITS; landing is the existing gate→PR path. onTrace bumps the
-      // claim heartbeat at the session edges (the coarse boundary, as for the story-author spawn).
-      //
-      // Turn ceiling (ADR-0163 Gap A): the caller's PER-RUN maxTurns wins over the deps-level spawn
-      // default (args.maxTurns — the story-author-tuned budget) so an open-ended glue task can be
-      // given the headroom to self-confirm after writing its edit, without weakening the brake for
-      // the other spawn paths. resolveGlueMaxTurns falls back fail-safe when the per-run value is
-      // absent or broken (reused via the SAME runSpawnWriteScoped maxTurns plumbing, no second knob).
-      onTrace({ type: "spawn_started", role: "glue-worker", unitId } satisfies SpawnTrace);
-      const resolvedMaxTurns = resolveGlueMaxTurns(maxTurns, args.maxTurns);
-      const result = await runSpawnWriteScoped({
-        systemPrompt: glueSystemPrompt,
-        userPrompt: `Unit: ${unitId}\nWrite scope (fenced): ${paths.join(", ")}\n\n${userPrompt}`,
-        cwd: args.cwd,
-        isWriteAllowed: pathFence(paths),
-        ...(args.queryFn !== undefined ? { queryFn: args.queryFn } : {}),
-        ...(resolvedMaxTurns !== undefined ? { maxTurns: resolvedMaxTurns } : {}),
-      });
-      onTrace({ type: "spawn_finished", role: "glue-worker", unitId, ok: result.ok } satisfies SpawnTrace);
-      if (!result.ok) {
-        return `glue-worker session failed: ${result.error}`;
-      }
-      const fenceNote =
-        result.violations.length > 0
-          ? ` (write fence denied ${result.violations.length} out-of-scope write(s))`
-          : "";
-      return `${result.summary}${fenceNote}`;
     },
   };
 
