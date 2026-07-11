@@ -6,18 +6,20 @@
 // the flag reader, the mode transitions, and that peek/dive each reserve an EMPTY, identifiable slot
 // for those increments to mount into later. Pins GEOMETRY/BEHAVIOUR ONLY:
 //
-//   • the query-flag reader is pure and testable in isolation (ldw-reads-overlay-flag-*),
-//   • absent the flag the shell renders nothing — the bare map (ldw-closed-without-flag),
-//   • present the flag it opens straight to peek, over a LIVE (non-scrimmed) map, with an empty
-//     peek slot reserved for the finder (ldw-flag-opens-to-peek / ldw-peek-no-scrim-over-live-map /
-//     ldw-peek-reserves-an-empty-slot),
+// The five spec contract ids (stories/library-tech-tree-overlay/library-drawer-shell.md) each lead
+// a distinctly-named test (ADR-0122 — `storytree coverage library-drawer-shell` reads the names):
+//
+//   • the flag opens the drawer to peek; absent → closed (lds-flag-opens-drawer-to-peek, with the
+//     pure reader pinned in isolation by the supporting ldw-reads-overlay-flag-* tests),
+//   • peek overlays a LIVE (non-scrimmed) map, with an empty peek slot reserved for the finder
+//     (lds-peek-overlays-live-map / ldw-peek-reserves-an-empty-slot),
+//   • Esc and the close toggle both close from peek, clearing the `?overlay` flag through the
+//     `onCommitSearch` callback — observed here, never a real navigation
+//     (lds-esc-and-toggle-close-from-peek, ldw-close-toggle-clears-overlay-flag),
 //   • a dive action collapses peek to a bar and reserves an empty dive-body slot, hiding the peek
-//     slot (ldw-dive-collapses-and-reserves-body),
-//   • Esc unwinds ONE level at a time: dive → peek → closed (ldw-esc-unwinds-dive-to-peek,
-//     ldw-esc-unwinds-peek-to-closed),
-//   • closing (via Esc reaching closed, or the explicit close toggle from any open state) clears the
-//     `?overlay` flag from the search through the `onCommitSearch` callback — observed here, never a
-//     real navigation (ldw-esc-close-clears-overlay-flag, ldw-close-toggle-clears-overlay-flag).
+//     slot (lds-dive-collapses-to-bar-and-reserves-body),
+//   • Esc unwinds ONE level at a time: dive → peek → closed (lds-esc-unwinds-dive-to-peek,
+//     ldw-esc-unwinds-peek-to-closed).
 //
 // The palette (forest-cozy vs neutral-admin), the slide animation, and the z-layering are the story's
 // OWNER-ATTESTED UAT leg (ADR-0185 dec 5 / ADR-0070) — NO color / animation / z-index assertion lives
@@ -55,17 +57,38 @@ describe('LibraryDrawer', () => {
     expect(screen.queryByTestId('library-drawer')).toBeNull();
   });
 
-  // ── ldw-flag-opens-to-peek ─────────────────────────────────────────────────────
-  it('ldw-flag-opens-to-peek: `?overlay=library` opens the drawer straight to peek', () => {
+  // ── lds-flag-opens-drawer-to-peek ─────────────────────────────────────────────
+  it('lds-flag-opens-drawer-to-peek: `?overlay=library` opens the drawer straight to peek; absent, it stays closed', () => {
     render(<LibraryDrawer search="?overlay=library" onCommitSearch={vi.fn()} />);
     const root = screen.getByTestId('library-drawer');
     expect(root.getAttribute('data-mode')).toBe('peek');
+    cleanup();
+    render(<LibraryDrawer search="?overlay=other" onCommitSearch={vi.fn()} />);
+    expect(screen.queryByTestId('library-drawer')).toBeNull();
   });
 
-  // ── ldw-peek-no-scrim-over-live-map ───────────────────────────────────────────
-  it('ldw-peek-no-scrim-over-live-map: peek renders no dimming scrim — the map stays fully live', () => {
+  // ── lds-peek-overlays-live-map ────────────────────────────────────────────────
+  it('lds-peek-overlays-live-map: peek renders no dimming scrim — the map stays fully live', () => {
     render(<LibraryDrawer search="?overlay=library" onCommitSearch={vi.fn()} />);
     expect(screen.queryByTestId('library-drawer-scrim')).toBeNull();
+  });
+
+  // ── lds-esc-and-toggle-close-from-peek ────────────────────────────────────────
+  it('lds-esc-and-toggle-close-from-peek: Esc and the close toggle both close from peek, clearing the ?overlay flag', () => {
+    const onEscCommit = vi.fn();
+    render(<LibraryDrawer search="?overlay=library" onCommitSearch={onEscCommit} />);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByTestId('library-drawer')).toBeNull();
+    expect(onEscCommit).toHaveBeenCalledTimes(1);
+    expect(onEscCommit).toHaveBeenCalledWith('');
+    cleanup();
+
+    const onToggleCommit = vi.fn();
+    render(<LibraryDrawer search="?overlay=library" onCommitSearch={onToggleCommit} />);
+    fireEvent.click(screen.getByRole('button', { name: /close library/i }));
+    expect(screen.queryByTestId('library-drawer')).toBeNull();
+    expect(onToggleCommit).toHaveBeenCalledTimes(1);
+    expect(onToggleCommit).toHaveBeenCalledWith('');
   });
 
   // ── ldw-peek-reserves-an-empty-slot ───────────────────────────────────────────
@@ -77,8 +100,8 @@ describe('LibraryDrawer', () => {
     expect(screen.queryByTestId('library-drawer-dive-slot')).toBeNull();
   });
 
-  // ── ldw-dive-collapses-and-reserves-body ──────────────────────────────────────
-  it('ldw-dive-collapses-and-reserves-body: diving collapses to a bar, hides the peek slot, and reserves an empty dive-body slot', () => {
+  // ── lds-dive-collapses-to-bar-and-reserves-body ───────────────────────────────
+  it('lds-dive-collapses-to-bar-and-reserves-body: diving collapses to a bar, hides the peek slot, and reserves an empty dive-body slot', () => {
     render(<LibraryDrawer search="?overlay=library" onCommitSearch={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /dive/i }));
 
@@ -93,8 +116,8 @@ describe('LibraryDrawer', () => {
     expect(screen.queryByTestId('library-drawer-scrim')).toBeNull();
   });
 
-  // ── ldw-esc-unwinds-dive-to-peek ───────────────────────────────────────────────
-  it('ldw-esc-unwinds-dive-to-peek: Esc from dive returns to peek (one level), the overlay flag is NOT cleared', () => {
+  // ── lds-esc-unwinds-dive-to-peek ───────────────────────────────────────────────
+  it('lds-esc-unwinds-dive-to-peek: Esc from dive returns to peek (one level, flag kept); a second Esc closes', () => {
     const onCommitSearch = vi.fn();
     render(<LibraryDrawer search="?overlay=library" onCommitSearch={onCommitSearch} />);
     fireEvent.click(screen.getByRole('button', { name: /dive/i }));
@@ -106,6 +129,10 @@ describe('LibraryDrawer', () => {
     expect(screen.getByTestId('library-drawer-peek-slot')).toBeTruthy();
     expect(screen.queryByTestId('library-drawer-dive-slot')).toBeNull();
     expect(onCommitSearch).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByTestId('library-drawer')).toBeNull();
+    expect(onCommitSearch).toHaveBeenCalledTimes(1);
   });
 
   // ── ldw-esc-unwinds-peek-to-closed / ldw-esc-close-clears-overlay-flag ────────

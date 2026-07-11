@@ -90,6 +90,7 @@ import {
 import { ConnectionsSection } from './ConnectionsSection.js';
 import { BuildSection } from './BuildSection.js';
 import { WorldSettingsPanel } from './WorldSettingsPanel.js';
+import { LibraryDrawer } from './LibraryDrawer.js';
 import { ChatDock } from './ChatDock.js';
 import type { BuildActivity, ClaimActivity, DocMeta, TreeCapability, TreeSession, TreeStory, TreeVerdict, UatTestRow } from '../types';
 import {
@@ -2135,6 +2136,11 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
               the URL dials. Closed by default ⇒ no params written ⇒ today's world is
               byte-identical. */}
           <WorldSettingsPanel search={search} onCommit={commitSearch} />
+          {/* The Library drawer (ADR-0185 inc 1): the tech-tree lens pulled down OVER the map behind
+              `?overlay=library` — an overlay within .world-frame, never a route away. The shell's
+              state machine is machine-proven (LibraryDrawer.test.tsx); this mounting + the
+              forest-cozy look are the story's operator-attested UAT leg (ADR-0070). */}
+          <LibraryDrawer search={search} onCommitSearch={commitSearch} />
           {/* chat overlays the MAP (absolute within .world-frame), not the whole app (owner UX feedback).
               onReloadTree reuses the SAME reloadTree onCrownRefresh uses (below): a story-author spawn
               finish authored a new story, so the map reloads live (live-story-island-refresh, ADR-0137). */}
