@@ -95,7 +95,7 @@ afterEach(() => {
 // ---------- the pure routing heart ----------
 
 describe('planDive', () => {
-  it('ldb-empty-state-no-selection: a null selection plans the empty state', () => {
+  it('ldb-plandive-empty-on-null: a null selection plans the empty state', () => {
     expect(planDive(null)).toEqual({ kind: 'empty' });
   });
 
