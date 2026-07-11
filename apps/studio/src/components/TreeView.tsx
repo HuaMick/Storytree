@@ -92,6 +92,7 @@ import { BuildSection } from './BuildSection.js';
 import { WorldSettingsPanel } from './WorldSettingsPanel.js';
 import { LibraryDrawer } from './LibraryDrawer.js';
 import { LibraryFinder } from './LibraryFinder.js';
+import { LibraryFocusGraph } from './LibraryFocusGraph.js';
 import type { SearchResult } from '../lib/librarySearch.js';
 import { TerminalDock } from './TerminalDock.js';
 import type { BuildActivity, ClaimActivity, DocMeta, TreeCapability, TreeSession, TreeStory, TreeVerdict, UatTestRow } from '../types';
@@ -2152,12 +2153,25 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
             search={search}
             onCommitSearch={commitSearch}
             peekSlot={
-              <LibraryFinder
-                assets={assets}
-                docs={docs}
-                onSelect={setLibrarySelection}
-                {...(librarySelection ? { selectedId: librarySelection.id } : {})}
-              />
+              // Two-pane peek (ADR-0185 dec 2, inc 3): the finder (left) drives the focus
+              // subgraph (right). Selection lives here in TreeView — the finder LIFTS its pick
+              // via onSelect, and the subgraph RE-CENTRES via onFocus (a neighbour click is just
+              // a new selection). Composed as a single peekSlot node so the proven drawer shell
+              // stays byte-untouched.
+              <div className="library-peek-panes">
+                <LibraryFinder
+                  assets={assets}
+                  docs={docs}
+                  onSelect={setLibrarySelection}
+                  {...(librarySelection ? { selectedId: librarySelection.id } : {})}
+                />
+                <LibraryFocusGraph
+                  assets={assets}
+                  docs={docs}
+                  selection={librarySelection}
+                  onFocus={setLibrarySelection}
+                />
+              </div>
             }
           />
           {/* The embedded terminal overlays the MAP (absolute within .world-frame), not the whole app —

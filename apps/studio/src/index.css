@@ -4413,3 +4413,143 @@ button.legend-tile:hover {
   border-radius: 999px;
   white-space: nowrap;
 }
+
+/* ── the two-pane peek (ADR-0185 inc 3): finder left, focus subgraph right ── */
+.library-peek-panes {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+.library-peek-panes > .library-finder {
+  flex: 0 0 34%;
+  max-width: 380px;
+  border-right: 1px solid color-mix(in srgb, var(--border-strong) 55%, transparent);
+}
+
+/* ── the focus subgraph (ADR-0185 inc 3): references[] both ways, dagre LR,
+      kind is text / colour is state (selected chain purple, ephemeral dashed) ── */
+.library-focus-graph {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    'crumb  crumb  crumb'
+    'up     centre down';
+  gap: 10px 16px;
+  padding: 12px 14px;
+  overflow: auto;
+  align-content: start;
+}
+.library-focus-graph:empty::after,
+.library-focus-graph > .lfg-empty {
+  grid-area: centre;
+  color: color-mix(in srgb, var(--text) 45%, transparent);
+  font-size: 0.85em;
+}
+.lfg-breadcrumb {
+  grid-area: crumb;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78em;
+  color: color-mix(in srgb, var(--text) 55%, transparent);
+}
+.lfg-breadcrumb-entry::after {
+  content: '›';
+  margin-left: 6px;
+  color: color-mix(in srgb, var(--text) 35%, transparent);
+}
+.lfg-breadcrumb button,
+.lfg-depth-stepper button,
+.lfg-cluster-chip {
+  font: inherit;
+  cursor: pointer;
+  color: var(--text);
+  background: color-mix(in srgb, var(--board-1) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-strong) 55%, transparent);
+  border-radius: 8px;
+  padding: 2px 9px;
+}
+.lfg-breadcrumb button:hover,
+.lfg-depth-stepper button:hover,
+.lfg-cluster-chip:hover {
+  border-color: var(--accent);
+}
+.lfg-depth-stepper {
+  grid-area: crumb;
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82em;
+  color: color-mix(in srgb, var(--text) 60%, transparent);
+}
+.lfg-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.lfg-column-upstream {
+  grid-area: up;
+  align-items: flex-end;
+}
+.lfg-column-centre {
+  grid-area: centre;
+  align-items: center;
+  justify-content: center;
+}
+.lfg-column-downstream {
+  grid-area: down;
+  align-items: flex-start;
+}
+.lfg-node {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-width: 200px;
+  padding: 7px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--board-1) 55%, #ffffff 45%);
+  cursor: pointer;
+}
+.lfg-node:hover {
+  border-color: var(--accent);
+}
+.lfg-column-centre .lfg-node {
+  border-width: 2px;
+}
+/* colour = state (ADR-0185 dec 3): the selected node + its transitive chain light
+   purple — the map's trail-reveal idiom (ADR-0169). */
+.lfg-node[data-chain='true'] {
+  border-color: #8b5cf6;
+  background: color-mix(in srgb, #8b5cf6 14%, var(--board-1) 40%);
+}
+.lfg-node[data-chain='true'] .lfg-node-kind {
+  color: color-mix(in srgb, #8b5cf6 70%, var(--text) 30%);
+}
+/* ephemeral kinds (plan) render dashed — one channel per meaning. */
+.lfg-node[data-ephemeral='true'] {
+  border-style: dashed;
+}
+.lfg-node-title {
+  color: var(--text);
+  font-weight: 500;
+  font-size: 0.86em;
+  line-height: 1.2;
+}
+.lfg-node-kind {
+  color: color-mix(in srgb, var(--text) 55%, transparent);
+  font-size: 0.74em;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.lfg-cluster-chip {
+  font-size: 0.78em;
+  color: color-mix(in srgb, var(--text) 65%, transparent);
+}
