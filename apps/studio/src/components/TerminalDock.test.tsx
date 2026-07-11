@@ -267,8 +267,8 @@ describe('TerminalDock', () => {
     expect(container.querySelector('.terminal-dock-body')?.hasAttribute('hidden')).toBe(false);
   });
 
-  // ── tdp-refocuses-terminal-after-window-refocus (contract 6) ─────────────────
-  it('tdp-refocuses-terminal-after-window-refocus: window focus, a click on the dock body, and visibilitychange-to-visible all re-focus the mounted terminal', async () => {
+  // ── tdp-refocuses-after-window-focus-cycle (contract 6) ─────────────────
+  it('tdp-refocuses-after-window-focus-cycle: window focus, a click on the dock body, and visibilitychange-to-visible all re-focus the mounted terminal', async () => {
     render(<TerminalDock />);
 
     // Not yet mounted (folded, no session): none of the refocus triggers should touch a terminal
