@@ -99,8 +99,8 @@ afterEach(() => {
 });
 
 describe('TerminalRepoGate', () => {
-  // ── trg-gates-when-no-repo-selected ──────────────────────────────────────────
-  it('trg-gates-when-no-repo-selected: renders a fail-closed gate when no valid repo is selected', async () => {
+  // ── trg-gates-when-no-repo ───────────────────────────────────────────────────
+  it('trg-gates-when-no-repo: renders a fail-closed gate when no valid repo is selected', async () => {
     bridgeMock.ready.mockResolvedValue(null);
     const { container } = render(<TerminalRepoGate />);
 
@@ -112,8 +112,8 @@ describe('TerminalRepoGate', () => {
     expect(container.querySelector('.terminal-gate')).toBeTruthy();
   });
 
-  // ── trg-shows-terminal-once-repo-ready ───────────────────────────────────────
-  it('trg-shows-terminal-once-repo-ready: swaps to the terminal once a valid repo cwd resolves', async () => {
+  // ── trg-shows-terminal-when-ready ────────────────────────────────────────────
+  it('trg-shows-terminal-when-ready: swaps to the terminal once a valid repo cwd resolves', async () => {
     bridgeMock.ready.mockResolvedValue('/Users/dev/repos/storytree');
     render(<TerminalRepoGate />);
 
