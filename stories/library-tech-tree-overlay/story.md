@@ -11,13 +11,17 @@ proof_mode: UAT
 # human-witness UAT action, not a machine visual verdict (uat-proves-the-goal-not-the-surface).
 # So this story is mixed-witness and carries NO blanket `uat_witness: machine` override — each
 # UAT leg below marks its own witness (ADR-0040 fail-closed default for the un-drivable look).
-capabilities: [library-drawer-shell, library-finder, library-focus-subgraph]
+capabilities: [library-drawer-shell, library-finder, library-focus-subgraph, library-dive-body, library-overview, library-adr-wire-signals, library-permanent-lens, library-open-overlay, library-open-trigger]
 # GROWS one provable unit at a time (slow growth / ADR-0183). The build is owned by the arc
-# `library-tech-tree-overlay-arc` with plan `library-tech-tree-overlay-plan-4` (the 7-increment
-# roadmap lives in the plan, not here). Increments 1 (library-drawer-shell), 2 (library-finder), and
-# 3 (library-focus-subgraph) are authored so far; increments 4–7 (dive body panel, overview
-# constellation, wire extension, #/library retirement) are authored just-in-time as the orchestrator
-# consumes each.
+# `library-tech-tree-overlay-arc`, whose disposable per-increment plans carry the live roadmap (the
+# roadmap lives in the current plan, not here). Increments 1–6 have LANDED — library-drawer-shell
+# (#691), library-finder (#693), library-focus-subgraph (#699), library-dive-body (#701),
+# library-overview (#704), library-adr-wire-signals (#707). ADR-0187 (2026-07-12) re-sequenced the
+# remaining arc: increment 8 (authored here via `library-tech-tree-overlay-plan-9`) is the
+# interaction-model overhaul — the permanent lens (dec 1) replacing the peek/dive shell, the Open
+# document overlay (dec 2) replacing the inline dive, and the double-click Open trigger; increment 7
+# (the parallel server typed-edge wire lane) and increments 9 (overview look-overhaul, dec 3) / 10
+# (#/library retirement) are authored just-in-time as the orchestrator consumes each.
 #
 # NO cross-story `depends_on` edge (the wire-shape-only / rides-the-existing-wire call): the
 # drawer is a NEW SURFACE inside the studio map view (apps/studio/src/components), mounted inside
@@ -67,28 +71,44 @@ Authored just-in-time, one provable unit per increment (ADR-0183 slow growth). L
 
 | # | increment | capability | outcome | status |
 |---|---|---|---|---|
-| 1 | Drawer shell | [`library-drawer-shell`](library-drawer-shell.md) | A slide-down Library drawer overlays the live forest map behind `?overlay=library` and walks a peek↔dive↔closed state machine. | authored |
-| 2 | Finder panel | [`library-finder`](library-finder.md) | Client-side search over the loaded corpus (assets on id/title/description/body, ADRs on title/id only) with a `kindLabel` sub-line, ADR status, and selection lifted via `onSelect`. | authored |
-| 3 | Focus subgraph | [`library-focus-subgraph`](library-focus-subgraph.md) | The selected artifact centred, `references[]` fanned upstream/downstream via dagre rankdir-LR, two-line `kindLabel` plaques with state-only colour, depth-1 with a stepper + `+N more` clusters and neighbour-click re-focus with a breadcrumb. | authored |
-| 4 | Dive body panel | *(dive-body, unauthored)* | The full artifact body + Sources rendered over the map, deep-link-synced with `#/asset/<id>`, Esc-unwound. | planned |
-| 5 | Overview constellation | *(overview, unauthored)* | The empty-state dot field of the whole corpus under the LOD ladder, search-glow highlighting, dot→plaque swap at close zoom. | planned |
-| 6 | Wire extension | *(wire-extension, unauthored)* | `stepRefs`/`branchEdges`/`arcRef` passed through `GuidanceAsset`/`toGuidanceAsset`; typed edges rendered distinctly (a parallel server lane). | planned |
-| 7 | Retire `#/library` | *(library-retire, unauthored)* | The standalone `#/library` page retires/redirects into the drawer, members parity re-checked (owner-attested, ADR-0185 dec 6). | planned |
+| 1 | Drawer shell → permanent lens | [`library-drawer-shell`](library-drawer-shell.md) | The `?overlay=library` invocation gate (`readLibraryOverlay` reader + absent-renders-nothing); its closed↔peek↔dive state machine RETIRED by ADR-0187 dec 1, reworked into `library-permanent-lens`. | landed #691, reconciled inc 8 |
+| 2 | Finder panel | [`library-finder`](library-finder.md) | Client-side search over the loaded corpus (assets on id/title/description/body, ADRs on title/id only) with a `kindLabel` sub-line, ADR status, and selection lifted via `onSelect`. | landed #693 |
+| 3 | Focus subgraph | [`library-focus-subgraph`](library-focus-subgraph.md) | The selected artifact centred, `references[]` fanned upstream/downstream via dagre rankdir-LR, two-line `kindLabel` plaques with state-only colour, depth-1 with a stepper + `+N more` clusters and neighbour-click re-focus with a breadcrumb. | landed #699 |
+| 4 | Dive body panel | [`library-dive-body`](library-dive-body.md) | The full artifact body + Sources rendered over the map, reusing AssetView (assets, no fetch) / DocView (ADRs, on-demand `docContent`), routed off `SearchResult.source`. | landed #701 |
+| 5 | Overview constellation | [`library-overview`](library-overview.md) | The empty-state dot field of the whole corpus under the LOD ladder (importance = degree), search-glow highlighting, node-select lifted with finder parity. | landed #704 |
+| 6 | ADR wire signals | [`library-adr-wire-signals`](library-adr-wire-signals.md) | Each ADR's `load_bearing` boolean + its decision-lineage edge numbers onto the studio wire via a tolerant flat-scan frontmatter parser (machine-only plumbing, no look leg). | landed #707 |
+| 8 | Permanent lens (shell rework) | [`library-permanent-lens`](library-permanent-lens.md) | The overlay is a permanent lens (ADR-0187 dec 1): flag-gated presence, no ×/Dive/mode machine, live map beneath, a body slot, and a bottom selection-preview section firing `Open`. | authored (inc 8) |
+| 8 | Open document overlay | [`library-open-overlay`](library-open-overlay.md) | A separate full-detail document overlay over the map (ADR-0187 dec 2, "like opening a Word doc"), reusing `LibraryDiveBody`, dismissable back to the lens. | authored (inc 8) |
+| 8 | Open trigger (double-click) | [`library-open-trigger`](library-open-trigger.md) | Double-clicking a node on the overview constellation or the focus subgraph fires `onOpen` with the node's finder-parity `SearchResult` (additive; the single-click path stays byte-green). | authored (inc 8) |
+| 10 | Retire `#/library` | *(library-retire, unauthored)* | The standalone `#/library` page retires/redirects into the lens, members parity re-checked (owner-attested, ADR-0185 dec 6). | planned |
 
-### Anticipated within-story dependency graph (code-derived, authored per increment)
+Increment 7 (the parallel server typed-edge wire lane, `GuidanceAsset` typed edges) is file-disjoint from
+this story's client surfaces (plan §Lanes FENCE) and authored on its own lane; increment 9 (the overview
+look-overhaul, ADR-0187 dec 3 — edges + load-bearing size/colour + chrome) refines the landed
+`library-overview` geometric scaffold and is authored just-in-time.
 
-Drawn as each capability lands — NOT speculatively (ADR-0010 §3). **Authored so far:**
-`library-drawer-shell` is the root (an overlay shell with no upstream, `depends_on: []`);
-`library-finder` **`depends_on: [library-drawer-shell]`** — the finder fills the shell's reserved peek body
-slot (`library-drawer-peek-slot`, `LibraryDrawer.tsx:111`), so it needs the shell's peek mode as its
-precondition; `library-focus-subgraph` **`depends_on: [library-finder]`** — the subgraph CONSUMES the
-finder's lifted `SearchResult` selection as its centre (the two-pane peek: finder left, subgraph right,
-composed into the shell's existing `peekSlot` at the TreeView level — `LibraryDrawer.tsx` untouched), so it
-needs the finder's selection as its precondition. **Anticipated (authored when their capabilities land):**
-the dive body panel fills the shell's reserved region off a selection (`dive-body → library-drawer-shell`,
-`dive-body → library-finder`); the overview constellation is the shell's empty state
-(`overview → library-drawer-shell`). Increment 6 (server wire) is file-disjoint (a parallel lane, plan
-§Lanes). These edges are authored when their capabilities are.
+### Within-story dependency graph (code-derived, authored per increment)
+
+Drawn as each capability lands — NOT speculatively (ADR-0010 §3). **Increments 1–6 (landed):**
+`library-drawer-shell` is the root (`depends_on: []`); `library-finder` **`depends_on: [library-drawer-shell]`**
+(fills the shell's reserved peek body slot); `library-focus-subgraph` **`depends_on: [library-finder]`**
+(centres the finder's lifted `SearchResult`); `library-dive-body` **`depends_on: [library-finder]`** (renders
+the finder's selection via `planDive`); `library-overview` **`depends_on: [library-finder]`** (originates a
+selection into the same shared `librarySelection`); `library-adr-wire-signals` **`depends_on: [library-finder]`**
+(the arc's shared foundational sequencing anchor — a standalone pure parser, not a hard code edge).
+
+**Increment 8 (authored here, ADR-0187 dec 1/2 — the interaction-model overhaul):**
+`library-permanent-lens` **`depends_on: []`** — the RE-AUTHOR of the root shell into the permanent lens
+(retiring the closed→peek→dive state machine; it shares `LibraryDrawer.tsx` as source with the reconciled
+`library-drawer-shell` but holds no upstream code edge); `library-open-overlay`
+**`depends_on: [library-dive-body]`** — the separate Open document overlay REUSES the landed `LibraryDiveBody`
+router verbatim inside its container; `library-open-trigger`
+**`depends_on: [library-overview, library-focus-subgraph]`** — the additive double-click Open trigger edits
+both landed node surfaces. The lens's bottom-section `onOpen`, the trigger's node `onOpen`, and the Open
+overlay's `onDismiss` are wired together at the TreeView level (the orchestrator's supplement glue after each
+leaf's PASS — plan §G); that glue removes the retired inline `diveSlot={<LibraryDiveBody …/>}` composition.
+These edges are authored with their capabilities; the inc-8 caps carry no new cross-story edge (client-side,
+reading the existing `useAppData()` wire — see §"No new cross-story edge").
 
 ## No new cross-story edge (recorded — the rides-the-existing-wire call)
 

@@ -2,12 +2,12 @@
 id: "library-drawer-shell"
 tier: capability
 story: library-tech-tree-overlay
-title: "A slide-down Library drawer overlay behind ?overlay=library with a peek↔dive↔closed state machine"
-outcome: "A slide-down Library drawer overlays the live forest map behind ?overlay=library and walks a peek↔dive↔closed state machine — its geometry and behaviour machine-witnessed, its appearance operator-attested."
+title: "The `?overlay=library` invocation gate — a pure `readLibraryOverlay` flag reader that gates the Library overlay's presence (its closed→peek→dive state machine RETIRED into the permanent lens by ADR-0187 dec 1)"
+outcome: "The Library overlay's presence is gated behind `?overlay=library` by a pure `readLibraryOverlay(search)` reader (the `?overlay` value `=== 'library'`), and absent the flag nothing renders — machine-witnessed. Its original closed↔peek↔dive state machine (ADR-0185 dec 1) was RETIRED by ADR-0187 dec 1 (the permanent lens): the reworked geometry is proven by the sibling `library-permanent-lens`; this cap keeps only the SURVIVING pure flag-reader + absent-renders-nothing invariant, its appearance operator-attested at the story's UAT leg 1."
 status: proposed
 proof_mode: integration-test
 depends_on: []
-decisions: [185, 70, 171, 23]
+decisions: [187, 185, 70, 171, 23]
 # Node-borne proof config (ADR-0057 keystone). NET-NEW (no editsExisting): the leaf authors a vitest
 # jsdom component test importing a NOT-YET-EXISTING component from a NEW source file under
 # apps/studio/src/components (red = module-not-found at HEAD), then writes that one component (green).
@@ -74,6 +74,18 @@ backend seam.
 > and its real mounting into `TreeView.tsx`'s `.world-frame` are the story's operator-attested UAT leg 1
 > (ADR-0070). Status stays `proposed` — `healthy` is only ever DERIVED from signed verdicts (ADR-0020),
 > never authored.
+
+> **RECONCILED for ADR-0187 dec 1 (increment 8, executing settled dec 1 — NOT a re-decision).** The overlay
+> became a PERMANENT LENS (ADR-0187 dec 1): the `closed→peek→dive` state machine, the `×` `Close library`
+> button, and the `Dive` button are RETIRED. The reworked geometry (the permanent lens, the renamed body slot,
+> the bottom selection-preview `Open` section) is authored and proven in the sibling capability
+> [`library-permanent-lens`](library-permanent-lens.md) (the M1 rework of `LibraryDrawer.tsx`, real.testFile
+> `LibraryPermanentLens.test.tsx`). **This capability keeps only the SURVIVING invariant** — the pure
+> `readLibraryOverlay` flag reader (still the invocation gate) and the absent-flag-renders-nothing posture — in
+> its now-TRIMMED real.testFile `LibraryDrawer.test.tsx` (the state-machine `it()` blocks retired; the pure
+> `ldw-*` reader + `ldw-closed-without-flag` kept). The prose below (the three-state model, the dive slot, the
+> Esc-unwind ladder) describes the RETIRED inc-1 shell and is kept as history — the LIVE surviving contracts
+> are the 5 in the **Contracts** section below. No ADR, no owner fork — this is executing settled dec 1.
 
 ## Guidance
 
@@ -154,48 +166,49 @@ reader, the mode state, the overlay chrome, and the reserved-region stubs are al
    and the dive slot is gone; fire Esc again and assert it closes — proving the peek↔dive↔closed state
    machine unwinds one level per Esc.
 
-## Contracts (5)
+## Contracts (5 — the surviving set after the ADR-0187 dec 1 reconciliation)
 
-The test-proven leaf behaviours — each **one isolated automated test** in the `studio` suite (vitest jsdom,
-`apps/studio/src/components/LibraryDrawer.test.tsx`). Per ADR-0122 (`storytree coverage`) each contract id
-is the lead of a distinctly-named test, so the coverage check reports 5/5. None of these is an APPEARANCE
-assertion — the look (forest-cozy palette, the slide, z-layering) is the story's operator-attested UAT
-leg 1 (ADR-0070).
+The SURVIVING test-proven leaf behaviours after the permanent-lens rework (increment 8) — each **one isolated
+automated test** in the `studio` suite (vitest jsdom, the now-TRIMMED
+`apps/studio/src/components/LibraryDrawer.test.tsx`). Per ADR-0122 (`storytree coverage`) each contract id is
+the lead of a distinctly-named test, so the coverage check reports 5/5. These are the pure `readLibraryOverlay`
+flag reader (still the invocation gate ADR-0187 dec 1 preserves) + the absent-flag-renders-nothing invariant —
+the ONLY behaviours of the original shell that survive the retirement of the closed→peek→dive state machine.
+The reworked geometry (the permanent lens, the body slot, the bottom `Open` section) is proven by
+[`library-permanent-lens`](library-permanent-lens.md) in `LibraryPermanentLens.test.tsx`. None of these is an
+APPEARANCE assertion — the look is the story's operator-attested UAT leg 1 (ADR-0070).
 
-1. **`lds-flag-opens-drawer-to-peek`** — the `?overlay=library` flag opens the drawer to peek; absent → closed
-   - **asserts —** with `search="?overlay=library"` the drawer renders in peek (the overlay + the peek body
-     slot are present); with `search=""` (or `?overlay=` anything-else) the drawer renders closed (no
-     overlay). The flag is read by a pure `readLibraryOverlay(search)` (value `=== 'library'`), NOT a new
-     `Route` variant.
-   - **covers —** `apps/studio/src/components/LibraryDrawer.tsx` (the `readLibraryOverlay` reader + the
-     flag→peek open)
-   - **proven by —** `apps/studio/src/components/LibraryDrawer.test.tsx` (net-new, vitest jsdom).
-2. **`lds-peek-overlays-live-map`** — in peek the map stays live beneath (no dimming)
-   - **asserts —** in peek the drawer renders NO full-screen dimming scrim over the map and does not cover
-     the world viewport — the forest map is still visible/interactive beneath (observable via the absence
-     of a `.drawer-scrim` element / a `data-map-live` marker on the drawer container). This is ADR-0185
-     dec 1's "you only lose the map when you deliberately dive".
-   - **covers —** `apps/studio/src/components/LibraryDrawer.tsx` (the peek render — overlay without scrim)
+> **RETIRED** (now-false, deleted from `LibraryDrawer.test.tsx` — they asserted the retired ×/Dive/mode
+> machine): `lds-flag-opens-drawer-to-peek` (re-homed as `lpl-flag-gates-permanent-lens`),
+> `lds-peek-overlays-live-map` (re-homed as `lpl-permanent-lens-over-live-map`),
+> `lds-esc-and-toggle-close-from-peek`, `lds-dive-collapses-to-bar-and-reserves-body`,
+> `lds-esc-unwinds-dive-to-peek`, `ldw-peek-reserves-an-empty-slot` (re-homed as
+> `lpl-body-slot-renders-content`), `ldw-esc-unwinds-peek-to-closed`, `ldw-close-toggle-clears-overlay-flag`.
+
+1. **`ldw-reads-overlay-flag-present`** — `?overlay=library` reads true
+   - **asserts —** the pure `readLibraryOverlay('?overlay=library')` returns `true` — the invocation gate
+     ADR-0187 dec 1 preserves. Pure, no jsdom.
+   - **covers —** `apps/studio/src/components/LibraryDrawer.tsx` (the `readLibraryOverlay` reader — the surviving invocation gate)
+   - **proven by —** `apps/studio/src/components/LibraryDrawer.test.tsx` (trimmed, vitest).
+2. **`ldw-reads-overlay-flag-present-with-other-params`** — true regardless of param order/company
+   - **asserts —** `readLibraryOverlay('?foo=bar&overlay=library')` returns `true` — the gate reads the
+     `overlay` param regardless of the other params' presence/order. Pure.
+   - **covers —** `apps/studio/src/components/LibraryDrawer.tsx` (the `readLibraryOverlay` reader over a multi-param search)
    - **proven by —** `apps/studio/src/components/LibraryDrawer.test.tsx`.
-3. **`lds-esc-and-toggle-close-from-peek`** — Esc and the close toggle both close from peek
-   - **asserts —** firing the close toggle from peek flips the mode to closed (the overlay is gone) and
-     invokes the drawer's close callback to clear the `?overlay` flag; firing Esc from peek likewise closes.
-     The drawer is a genuine two-way overlay.
-   - **covers —** `apps/studio/src/components/LibraryDrawer.tsx` (the close toggle + the Esc keydown handler
-     + the flag-clear callback)
+3. **`ldw-reads-overlay-flag-absent`** — no search string reads false
+   - **asserts —** `readLibraryOverlay('')` returns `false` — absent the flag, the gate is closed. Pure.
+   - **covers —** `apps/studio/src/components/LibraryDrawer.tsx` (the `readLibraryOverlay` reader — absent flag)
    - **proven by —** `apps/studio/src/components/LibraryDrawer.test.tsx`.
-4. **`lds-dive-collapses-to-bar-and-reserves-body`** — a dive collapses the drawer to a bar and reserves an empty body region
-   - **asserts —** firing the dive action from peek flips the mode to dive: the drawer collapses to a bar
-     (the collapsed-bar element is present, the full peek body slot is gone) and a dive body region is
-     reserved and rendered EMPTY — a stable slot holding NO artifact content (the body is increment 4).
-   - **covers —** `apps/studio/src/components/LibraryDrawer.tsx` (the dive transition — collapsed bar +
-     empty reserved region)
+4. **`ldw-reads-overlay-flag-other-value`** — an unrelated/wrong value reads false
+   - **asserts —** `readLibraryOverlay('?overlay=other')` returns `false` — only the exact value `'library'`
+     opens the gate. Pure.
+   - **covers —** `apps/studio/src/components/LibraryDrawer.tsx` (the `readLibraryOverlay` reader — wrong value)
    - **proven by —** `apps/studio/src/components/LibraryDrawer.test.tsx`.
-5. **`lds-esc-unwinds-dive-to-peek`** — Esc from dive unwinds one level to peek, then closes
-   - **asserts —** firing Esc from dive returns the mode to peek (the peek body slot returns, the dive slot
-     is gone) — NOT straight to closed; a second Esc from peek then closes the drawer. The peek↔dive↔closed
-     state machine unwinds one level per Esc.
-   - **covers —** `apps/studio/src/components/LibraryDrawer.tsx` (the Esc unwind ladder over the three-state mode)
+5. **`ldw-closed-without-flag`** — absent the flag, the shell renders nothing (the bare map)
+   - **asserts —** rendering `<LibraryDrawer search="" … />` renders nothing (no `library-drawer` testid) —
+     absent the flag, the overlay is not present (the surviving absent-flag-renders-nothing posture, which the
+     permanent lens keeps).
+   - **covers —** `apps/studio/src/components/LibraryDrawer.tsx` (the absent-flag → renders-nothing branch)
    - **proven by —** `apps/studio/src/components/LibraryDrawer.test.tsx`.
 
 ## Guidance — the net-new slice that earns the signed verdict
