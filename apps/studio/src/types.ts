@@ -201,6 +201,20 @@ export interface DocMeta {
   status?: AdrDocStatus;
   /** The ADR's frontmatter `decided` date (ISO yyyy-mm-dd) when present — shown as the chip tooltip. */
   decided?: string;
+  /**
+   * The ADR's frontmatter `load_bearing` tag (ADR-0086) — present ONLY for `group === 'Decisions'`
+   * docs, and true only when the tag is explicitly `load_bearing: true`. Feeds the overview
+   * constellation's size + depth-of-colour = how load-bearing encoding (ADR-0187 dec 3). Optional /
+   * absent-by-default so every existing `DocMeta` reader (and the offline json path) keeps validating.
+   */
+  loadBearing?: boolean;
+  /**
+   * The ADR's outbound decision-lineage edges (ADR-0037/0086 `supersedes`/`supersedes_in_part`/`amends`)
+   * resolved to `doc:decisions/NNNN-slug.md` pointers — present ONLY for `group === 'Decisions'` docs
+   * that carry at least one lineage edge. Lets the overview draw the ADR reference graph (ADR-0187
+   * dec 3), closing the increment-5 out-degree-0 gap. Optional / absent-by-default (back-compat).
+   */
+  references?: string[];
 }
 
 export interface DocContent {
@@ -231,6 +245,15 @@ export interface StoreHealth {
    * until a restart (pnpm studio:down / studio:up). Absent when git can't answer.
    */
   code?: { startedAt: string; head: string; stale: boolean };
+  /**
+   * Desktop only (ADR-0181 Decision 3): the pinned-`main` runtime worktree's status. `branch` is the
+   * branch it is on (expected `main`), `behind` is how many commits it is behind `origin/main` as of the
+   * last fetch (the desktop refreshes this with a launch update-check), and `pinned` is true for the
+   * installed pinned-runtime app / false for the dev launch fallback. When `pinned && behind > 0` the
+   * StoreBanner shows a one-click "N commits behind main — Rebuild & relaunch" update prompt (the rebuild
+   * pulls `origin/main` ff-only). The hosted/dev studio never sends this field.
+   */
+  runtime?: { branch: string | null; behind: number | null; pinned?: boolean };
 }
 
 // ---------- members (app-owned users, ADR-0043) ----------
