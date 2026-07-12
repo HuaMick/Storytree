@@ -1,7 +1,15 @@
 // TerminalDock — the renderer xterm.js terminal dock (terminal-dock-panel capability, ADR-0174 renderer
-// half). Reuses ChatDock's TESTED collapse/resize dock geometry (folded-by-default bottom overlay,
-// drag-to-resize the top edge, clamped to the map frame) as the chrome around an xterm.js `Terminal`
-// wired to the `desktopTerminal` contextBridge the desktop preload injects on `window`.
+// half), now MULTI-SESSION (multi-session-tabs capability): a tab strip between the dock header and the
+// body holds N independent sessions, each its own xterm `Terminal` pane over the `desktopTerminal`
+// contextBridge. Reuses ChatDock's TESTED collapse/resize dock geometry (folded-by-default bottom
+// overlay, drag-to-resize the top edge, clamped to the map frame) as the chrome around the tab set.
+//
+// THE SESSION TABLE (not N refs) — an ordered list of local tab ids (`tabIds`, drives render/order) with
+// the imperative per-tab state (`sessionId`/`term`/`fit`/`bodyEl`/`pendingSeed`) held in a `Map` ref
+// (`recordsRef`) — the live values the bridge's `onData`/`onExit` callbacks (subscribed ONCE, scanning
+// the table for the matching `sessionId`) and the drag-resize/refocus handlers read. `activeId` (state)
+// is which tab's pane is visible; the chrome (toggle, `headerRight`, collapse/resize geometry) renders
+// ONCE per dock, wrapping the whole tab set — never repeated per tab.
 //
 // THIN CLIENT — no `@storytree/agent` / `@storytree/drive` import, no model path (ADR-0004 / ADR-0108
 // d.1; modelPathBoundary.test.ts). The renderer's ONLY route to the pty is `window.desktopTerminal`
@@ -13,6 +21,10 @@
 // no-backend precedent) — the studio-standalone case (no desktop preload) never spawns, never hangs
 // waiting on a stream that will never arrive, and never crashes the surrounding app; it renders a plain
 // disabled "terminal unavailable here" panel instead.
+//
+// EVERY SESSION IS DISPOSED — ON TAB-CLOSE AND ON UNMOUNT (never orphan a pty, ADR-0186 Consequences):
+// closing a tab disposes ONLY that tab's bridge session + xterm/fit instances and reaps its tab; dock
+// unmount disposes EVERY still-open session, not just the active one.
 //
 // GEOMETRY HERE, APPEARANCE OWNER-ATTESTED (ADR-0070): the structural/geometry style (absolute, bottom,
 // z-index, the dragged height) is inline, same as ChatDock; the terminal's look/feel is the story's
@@ -83,95 +95,183 @@ export interface TerminalDockProps {
   headerRight?: React.ReactNode;
 }
 
+/** One tab's imperative state — held in `recordsRef` (a `Map`, keyed by the tab's stable local id), NOT
+ *  in per-tab React state: `term`/`fit`/`bodyEl` are opaque handles the bridge/drag/refocus callbacks
+ *  read and mutate directly, and `sessionId` is set once the (per-tab) `bridge.spawn()` resolves. */
+interface TabRecord {
+  sessionId: string | null;
+  term: Terminal | null;
+  fit: FitAddon | null;
+  bodyEl: HTMLDivElement | null;
+  /** A seed command held until THIS tab's spawn resolves (written once, then cleared). */
+  pendingSeed: string | null;
+}
+
 export function TerminalDock({ seed, headerRight }: TerminalDockProps = {}): React.JSX.Element {
   const bridge = getDesktopTerminal();
 
   const [expanded, setExpanded] = useState(false);
   const [height, setHeight] = useState(DEFAULT_HEIGHT);
 
+  // The session table: `tabIds` (state) is the ORDER or tabs — it drives render and the "tab N"/"close
+  // tab N" numbering; `recordsRef` (a ref, mirrored by nothing else) is the live per-tab imperative
+  // state the bridge callbacks and drag/refocus handlers read. `activeId` is which tab's pane shows.
+  const [tabIds, setTabIds] = useState<number[]>([]);
+  const [activeId, setActiveId] = useState<number | null>(null);
+  const recordsRef = useRef<Map<number, TabRecord>>(new Map());
+  const nextTabIdRef = useRef(0);
+  const activeIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
+
   // Drag bookkeeping in a ref so the window listeners read live values, not a stale closure.
   const drag = useRef<{ startY: number; startHeight: number } | null>(null);
 
   // The dock root — its offsetParent is the positioned map frame (.world-frame), the clamp ceiling.
   const asideRef = useRef<HTMLElement>(null);
-  // The xterm mount point — stays MOUNTED across fold/unfold (`hidden`, never conditional render) so
-  // the terminal + session survive a toggle.
-  const bodyRef = useRef<HTMLDivElement>(null);
-
-  const termRef = useRef<Terminal | null>(null);
-  const fitRef = useRef<FitAddon | null>(null);
-  const sessionIdRef = useRef<string | null>(null);
 
   // Seed bookkeeping: the last-applied token (so a re-render with the SAME token is a no-op, keyed
-  // on the token — a nonce — never the command string) and a PENDING seed command, held when the
-  // seed arrives before the async `spawn()` below has resolved a session (write it once it does).
+  // on the token — a nonce — never the command string) and, when the very first tab does not exist
+  // yet, a pending command the imminent first-tab creation (below) picks up.
   const seedTokenRef = useRef<number | null>(null);
-  const pendingSeedRef = useRef<string | null>(null);
+  const firstTabPendingSeedRef = useRef<string | null>(null);
 
-  const toggle = useCallback((): void => {
+  const toggleDock = useCallback((): void => {
     setExpanded((e) => !e);
   }, []);
 
-  // Spawn a session + mount xterm the FIRST time the dock is expanded — guarded by `termRef.current` so
-  // a later fold/unfold never re-spawns or re-mounts (the same session/instance persists).
+  /** Create a new tab — a fresh local id, an empty record, appended to the order, made active. The
+   *  record's own xterm/spawn wiring happens once its mount div commits (see the tabIds effect below). */
+  const openSession = useCallback((pendingSeed: string | null): number => {
+    const id = nextTabIdRef.current;
+    nextTabIdRef.current += 1;
+    recordsRef.current.set(id, {
+      sessionId: null,
+      term: null,
+      fit: null,
+      bodyEl: null,
+      pendingSeed,
+    });
+    setTabIds((prev) => [...prev, id]);
+    setActiveId(id);
+    return id;
+  }, []);
+
+  /** Mount xterm into a tab's committed body div and spawn its (independent) bridge session — guarded
+   *  so a tab already carrying a `term` is never re-initialised (mirrors the old termRef guard, per
+   *  tab). Runs once the tab's body div has committed (see the tabIds effect below). */
+  const initTab = useCallback(
+    (id: number): void => {
+      const rec = recordsRef.current.get(id);
+      if (!bridge || !rec || rec.term || !rec.bodyEl) return;
+
+      const term = new Terminal({ cursorBlink: true, convertEol: true });
+      const fit = new FitAddon();
+      term.loadAddon(fit);
+      fit.activate(term); // wire the addon to this terminal so a later fit()/dispose() has effect
+      term.open(rec.bodyEl);
+      rec.term = term;
+      rec.fit = fit;
+
+      // Terminal input → bridge write, scoped to THIS tab's session (only once it exists).
+      term.onData((data) => {
+        if (rec.sessionId) bridge.write(rec.sessionId, data);
+      });
+      // Terminal resize (driven by our fit() calls) → forward the new pty geometry for THIS session.
+      term.onResize(({ cols, rows }) => {
+        if (rec.sessionId) bridge.resize(rec.sessionId, cols, rows);
+      });
+
+      void bridge.spawn().then((res) => {
+        rec.sessionId = res.sessionId;
+
+        // Contract 8 — the main FAILS CLOSED (no valid repo selected) by resolving an empty
+        // sessionId rather than a shell in the wrong cwd. Never leave the screen blank: write an
+        // honest one-line message and wire NO live session (the `if (rec.sessionId)` guards above
+        // already treat an empty string as falsy, so input stays inert).
+        if (!res.sessionId) {
+          term.write('No repository selected — choose one to start the terminal.\r\n');
+          return;
+        }
+
+        // A seed that arrived before THIS session resolved was held PENDING — write it now, exactly
+        // once, as a pre-fill (no trailing newline: reviewed by the user, never auto-run).
+        const pendingCommand = rec.pendingSeed;
+        if (pendingCommand !== null) {
+          rec.pendingSeed = null;
+          bridge.write(res.sessionId, pendingCommand);
+        }
+      });
+    },
+    [bridge],
+  );
+
+  /** Dispose ONE tab's session (bridge + xterm/fit) and reap it from the strip; the sibling tabs are
+   *  untouched. If the closed tab was active, a remaining tab (the last one) becomes active. */
+  const closeTab = useCallback(
+    (id: number): void => {
+      const rec = recordsRef.current.get(id);
+      if (rec) {
+        rec.fit?.dispose();
+        rec.term?.dispose();
+        if (rec.sessionId && bridge) bridge.dispose(rec.sessionId);
+        recordsRef.current.delete(id);
+      }
+      setTabIds((prev) => {
+        const next = prev.filter((x) => x !== id);
+        setActiveId((prevActive) =>
+          prevActive === id ? (next.length > 0 ? next[next.length - 1]! : null) : prevActive,
+        );
+        return next;
+      });
+    },
+    [bridge],
+  );
+
+  // Spawn the FIRST tab's session the first time the dock is expanded — mirrors the old
+  // spawn-on-first-expand guard, generalised: only when no tab exists yet.
   useEffect(() => {
-    if (!expanded || !bridge || termRef.current || !bodyRef.current) return;
+    if (!expanded || !bridge || tabIds.length > 0) return;
+    const pending = firstTabPendingSeedRef.current;
+    firstTabPendingSeedRef.current = null;
+    openSession(pending);
+  }, [expanded, bridge, tabIds.length, openSession]);
 
-    const term = new Terminal({ cursorBlink: true, convertEol: true });
-    const fit = new FitAddon();
-    term.loadAddon(fit);
-    fit.activate(term); // wire the addon to this terminal so a later fit()/dispose() has effect
-    term.open(bodyRef.current);
-    termRef.current = term;
-    fitRef.current = fit;
+  // Whenever a new tab enters the table, its body div has just committed (ref callbacks run before
+  // effects) — initialise its xterm + bridge session now. Already-initialised tabs are no-ops (the
+  // `rec.term` guard inside `initTab`).
+  useEffect(() => {
+    for (const id of tabIds) initTab(id);
+  }, [tabIds, initTab]);
 
-    // Terminal input → bridge write (only once a session exists to write to).
-    term.onData((data) => {
-      const sessionId = sessionIdRef.current;
-      if (sessionId) bridge.write(sessionId, data);
-    });
-    // Terminal resize (driven by our fit() calls) → forward the new pty geometry.
-    term.onResize(({ cols, rows }) => {
-      const sessionId = sessionIdRef.current;
-      if (sessionId) bridge.resize(sessionId, cols, rows);
-    });
-
-    // Bridge data stream → xterm write, scoped to THIS session.
+  // Bridge data/exit streams → routed to whichever tab's record carries the matching sessionId.
+  // Subscribed ONCE per dock (not per tab) — a chunk for tab A's session never reaches tab B's pane.
+  useEffect(() => {
+    if (!bridge) return;
     bridge.onData((sessionId, chunk) => {
-      if (sessionId === sessionIdRef.current) term.write(chunk);
+      for (const rec of recordsRef.current.values()) {
+        if (rec.sessionId === sessionId) {
+          rec.term?.write(chunk);
+          break;
+        }
+      }
     });
-    // Bridge exit → an honest terminal message; the dock stays mounted (no crash, no re-spawn).
     bridge.onExit((sessionId) => {
-      if (sessionId === sessionIdRef.current) term.write('\r\n[process exited]\r\n');
-    });
-
-    void bridge.spawn().then((res) => {
-      sessionIdRef.current = res.sessionId;
-
-      // Contract 8 — the main FAILS CLOSED (no valid repo selected) by resolving an empty
-      // sessionId rather than a shell in the wrong cwd. Never leave the screen blank: write an
-      // honest one-line message and wire NO live session (the `if (sessionId)` guards above on
-      // input/resize/data already treat an empty string as falsy, so input stays inert).
-      if (!res.sessionId) {
-        term.write('No repository selected — choose one to start the terminal.\r\n');
-        return;
-      }
-
-      // A seed that arrived before this session resolved was held PENDING — write it now, exactly
-      // once, as a pre-fill (no trailing newline: reviewed by the user, never auto-run).
-      const pendingCommand = pendingSeedRef.current;
-      if (pendingCommand !== null) {
-        pendingSeedRef.current = null;
-        bridge.write(res.sessionId, pendingCommand);
+      for (const rec of recordsRef.current.values()) {
+        if (rec.sessionId === sessionId) {
+          rec.term?.write('\r\n[process exited]\r\n');
+          break;
+        }
       }
     });
-  }, [expanded, bridge]);
+  }, [bridge]);
 
   // Seed lifecycle (terminal-dock-seed capability): on a NEW seed token, expand the dock and ensure a
-  // session — reusing the spawn-on-first-expand effect above via `setExpanded(true)`, never a second
-  // spawn — then write the command as a pre-fill. If a session already exists, write immediately;
-  // otherwise hold it PENDING (above) for the spawn's `.then` to write once resolved. A seed with no
-  // bridge (studio-standalone) is inert — no spawn, no write, no crash.
+  // (single) session — reusing the spawn-on-first-expand path above, never a second spawn — then write
+  // the command as a pre-fill. If the first tab already exists and resolved, write immediately;
+  // otherwise hold it PENDING for that tab's spawn to write once resolved. A seed with no bridge
+  // (studio-standalone) is inert — no spawn, no write, no crash.
   useEffect(() => {
     if (!seed || !bridge) return;
     if (seedTokenRef.current === seed.token) return; // same token = no-op, even for the same command
@@ -179,32 +279,44 @@ export function TerminalDock({ seed, headerRight }: TerminalDockProps = {}): Rea
 
     setExpanded(true);
 
-    const sessionId = sessionIdRef.current;
-    if (sessionId) {
-      bridge.write(sessionId, seed.command);
-    } else {
-      pendingSeedRef.current = seed.command;
+    const id = tabIds[0];
+    if (id === undefined) {
+      // No tab yet — the imminent first-tab-creation effect above will pick this up.
+      firstTabPendingSeedRef.current = seed.command;
+      return;
     }
+    const rec = recordsRef.current.get(id);
+    if (!rec) return;
+    if (rec.sessionId) {
+      bridge.write(rec.sessionId, seed.command);
+    } else {
+      rec.pendingSeed = seed.command;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seed?.token, seed?.command, bridge]);
 
-  // Dispose the session/instance only when the dock itself unmounts, never on a plain fold/unfold.
+  // Dispose EVERY still-open session/instance only when the dock itself unmounts, never on a plain
+  // fold/unfold or a tab switch (the never-orphan-a-pty wall).
   useEffect(() => {
     return () => {
-      fitRef.current?.dispose();
-      termRef.current?.dispose();
-      const sessionId = sessionIdRef.current;
-      if (sessionId && bridge) bridge.dispose(sessionId);
+      for (const rec of recordsRef.current.values()) {
+        rec.fit?.dispose();
+        rec.term?.dispose();
+        if (rec.sessionId && bridge) bridge.dispose(rec.sessionId);
+      }
     };
   }, [bridge]);
 
-  // Contract 6 — re-focus the mounted xterm after a window blur/focus cycle (another window/app had
-  // stolen focus; the user clicks back). xterm's hidden input textarea does not regain focus on its
-  // own, so we drive it explicitly on the events that mean "the user is back on the terminal": the
-  // window regaining focus, a click/mousedown on the dock body, and the document coming back visible.
-  // Guarded by `termRef.current` — a no-op while nothing is mounted (folded dock / absent bridge).
+  // Contract 6 — re-focus the ACTIVE tab's mounted xterm after a window blur/focus cycle (another
+  // window/app had stolen focus; the user clicks back). xterm's hidden input textarea does not regain
+  // focus on its own, so we drive it explicitly on the events that mean "the user is back on the
+  // terminal": the window regaining focus, a click/mousedown on the dock body, and the document coming
+  // back visible. A no-op while nothing is mounted (folded dock / absent bridge / no tabs yet).
   useEffect(() => {
     const refocus = (): void => {
-      termRef.current?.focus();
+      const id = activeIdRef.current;
+      if (id === null) return;
+      recordsRef.current.get(id)?.term?.focus();
     };
     const onWindowFocus = (): void => refocus();
     const onVisibilityChange = (): void => {
@@ -219,8 +331,8 @@ export function TerminalDock({ seed, headerRight }: TerminalDockProps = {}): Rea
   }, []);
 
   // Resize by dragging the top edge: UP (smaller clientY) GROWS the dock, DOWN shrinks it. Each move
-  // re-fits the terminal (which forwards the new geometry to the bridge via `onResize` above) and
-  // clamps the dock height to [MIN_HEIGHT, maxHeight(asideRef.current)].
+  // re-fits the ACTIVE tab's terminal (which forwards the new geometry to the bridge via `onResize`
+  // above) and clamps the dock height to [MIN_HEIGHT, maxHeight(asideRef.current)].
   const onDragStart = useCallback(
     (e: React.MouseEvent): void => {
       e.preventDefault(); // suppress text selection while dragging
@@ -231,7 +343,8 @@ export function TerminalDock({ seed, headerRight }: TerminalDockProps = {}): Rea
         if (!d) return;
         const next = d.startHeight + (d.startY - ev.clientY); // up = larger height
         setHeight(clamp(next, MIN_HEIGHT, maxHeight(asideRef.current)));
-        fitRef.current?.fit();
+        const id = activeIdRef.current;
+        if (id !== null) recordsRef.current.get(id)?.fit?.fit();
       };
       const onUp = (): void => {
         drag.current = null;
@@ -284,7 +397,7 @@ export function TerminalDock({ seed, headerRight }: TerminalDockProps = {}): Rea
         className={`terminal-dock-toggle${expanded ? ' terminal-dock-toggle-expanded' : ''}`}
         aria-expanded={expanded}
         aria-label={expanded ? 'collapse terminal' : 'expand terminal'}
-        onClick={toggle}
+        onClick={toggleDock}
       >
         <span className="terminal-dock-toggle-chevron" aria-hidden="true">
           {expanded ? '▾' : '▴'}
@@ -294,19 +407,63 @@ export function TerminalDock({ seed, headerRight }: TerminalDockProps = {}): Rea
       {/* Contract 7 — an optional passive render slot in the dock's own header, top-right. A
           SIBLING of the toggle button (never nested inside it — no nested interactive controls
           inside a <button>). Absent by default: no container at all when `headerRight` is not
-          provided, keeping the header byte-identical to before. */}
+          provided, keeping the header byte-identical to before. Renders ONCE per dock, never per tab. */}
       {headerRight != null && (
         <div className="terminal-dock-header-right">{headerRight}</div>
       )}
 
-      {/* The xterm mount stays MOUNTED under `hidden` (not conditional render), preserving the session
-          across a fold → unfold. */}
-      <div
-        className="terminal-dock-body"
-        hidden={!expanded}
-        ref={bodyRef}
-        onMouseDown={() => termRef.current?.focus()}
-      />
+      {/* The tab strip — between the dock header (above) and the tab panes (below). One tab per open
+          session; the active one highlighted. Chrome, so it renders regardless of fold state, same as
+          the toggle above it. */}
+      <div className="terminal-dock-tabs">
+        {tabIds.map((id, i) => (
+          <div
+            key={id}
+            className={`terminal-dock-tab${id === activeId ? ' terminal-dock-tab-active' : ''}`}
+          >
+            <button
+              type="button"
+              className="terminal-dock-tab-switch"
+              aria-label={`tab ${i + 1}`}
+              onClick={() => setActiveId(id)}
+            >
+              {i + 1}
+            </button>
+            <button
+              type="button"
+              className="terminal-dock-tab-close"
+              aria-label={`close tab ${i + 1}`}
+              onClick={() => closeTab(id)}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          className="terminal-dock-tab-new"
+          aria-label="new terminal tab"
+          onClick={() => openSession(null)}
+        >
+          +
+        </button>
+      </div>
+
+      {/* Each tab's xterm mount stays MOUNTED under `hidden` (not conditional render), preserving the
+          session across a fold → unfold or a switch away and back. Only the active tab's pane is
+          visible while the dock is expanded. */}
+      {tabIds.map((id) => (
+        <div
+          key={id}
+          className="terminal-dock-body"
+          hidden={!expanded || id !== activeId}
+          ref={(el) => {
+            const rec = recordsRef.current.get(id);
+            if (rec) rec.bodyEl = el;
+          }}
+          onMouseDown={() => recordsRef.current.get(id)?.term?.focus()}
+        />
+      ))}
     </aside>
   );
 }
