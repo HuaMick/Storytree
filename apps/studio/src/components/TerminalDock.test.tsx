@@ -13,6 +13,18 @@
 //   • visibility toggle keeps the terminal MOUNTED       (tdp-toggles-visibility-keeping-terminal-mounted)
 //   • honest disabled state when the bridge is absent    (tdp-degrades-when-bridge-absent)
 //
+// multi-session-tabs capability (this file's newest additions) — the tab substrate: N independent
+// sessions/panes, switched/created/closed, per-tab I/O scoping, per-dock chrome, dispose-everything
+// on close/unmount. Proven with `bridgeMock.spawn` resolving a FRESH sessionId per call (`sess-1`,
+// `sess-2`, …) so a second tab's session is genuinely distinguishable from the first's:
+//
+//   • "+" opens an independent second session/pane        (mst-new-tab-spawns-independent-session)
+//   • clicking a tab shows its pane, hides the others      (mst-switch-shows-selected-tab-pane)
+//   • bridge data routes to the RIGHT tab's pane only      (mst-scopes-io-per-tab)
+//   • toggle/headerRight stay ONE-per-dock, not per-tab    (mst-chrome-stays-per-dock)
+//   • closing a tab disposes ONLY that tab's session       (mst-close-tab-disposes-its-session)
+//   • unmount disposes EVERY open session, not just active (mst-disposes-all-sessions-on-unmount)
+//
 // THIN CLIENT: TerminalDock reaches the pty ONLY through `window.desktopTerminal` (mocked here — no
 // real IPC / pty / Electron) and mounts an xterm `Terminal` (mocked here — jsdom lays out no real
 // terminal, the same discipline ChatPanel.test.tsx uses on `../api`). It imports no
@@ -111,18 +123,29 @@ vi.mock('@xterm/addon-fit', () => ({ FitAddon: fitMock.FakeFitAddon }));
 
 // ── the desktopTerminal bridge — installed on `window` per test (deleted for the absent-bridge
 //    case). `spawn` resolves asynchronously (a real IPC round-trip would too), so tests await a
-//    flush before asserting the spawned Terminal. ────────────────────────────────────────────────
+//    flush before asserting the spawned Terminal. `spawn` resolves a FRESH sessionId per call
+//    (`sess-1`, `sess-2`, …, reset every test) — the single-session tests only ever call it once
+//    (still `sess-1`, matching `SESSION_ID` below unchanged), while the multi-session-tabs tests
+//    open a second/third tab and need genuinely distinct session ids to assert dispose/write/data
+//    routing lands on the RIGHT session. ──────────────────────────────────────────────────────────
 const SESSION_ID = 'sess-1';
-const bridgeMock = vi.hoisted(() => ({
-  spawn: vi.fn<(opts?: unknown) => Promise<{ sessionId: string }>>(async () => ({
-    sessionId: 'sess-1',
-  })),
-  write: vi.fn<(sessionId: string, data: string) => void>(),
-  resize: vi.fn<(sessionId: string, cols: number, rows: number) => void>(),
-  dispose: vi.fn<(sessionId: string) => void>(),
-  onData: vi.fn<(cb: (sessionId: string, chunk: string) => void) => void>(),
-  onExit: vi.fn<(cb: (sessionId: string, e: { exitCode: number }) => void) => void>(),
-}));
+const bridgeMock = vi.hoisted(() => {
+  let sessionCounter = 0;
+  return {
+    spawn: vi.fn<(opts?: unknown) => Promise<{ sessionId: string }>>(async () => {
+      sessionCounter += 1;
+      return { sessionId: `sess-${sessionCounter}` };
+    }),
+    write: vi.fn<(sessionId: string, data: string) => void>(),
+    resize: vi.fn<(sessionId: string, cols: number, rows: number) => void>(),
+    dispose: vi.fn<(sessionId: string) => void>(),
+    onData: vi.fn<(cb: (sessionId: string, chunk: string) => void) => void>(),
+    onExit: vi.fn<(cb: (sessionId: string, e: { exitCode: number }) => void) => void>(),
+    resetSessionCounter: (): void => {
+      sessionCounter = 0;
+    },
+  };
+});
 
 import { TerminalDock } from './TerminalDock';
 
@@ -151,9 +174,31 @@ async function expand(): Promise<void> {
   await flush();
 }
 
+/** The "+" control in the tab strip that opens a fresh, independent session/tab. */
+function newTabButton(): HTMLElement {
+  return screen.getByRole('button', { name: /new terminal tab/i });
+}
+
+/** Click "+" and let its bridge.spawn() promise resolve — mirrors `expand()` for a second+ tab. */
+async function openNewTab(): Promise<void> {
+  fireEvent.click(newTabButton());
+  await flush();
+}
+
+/** The Nth tab's switch control (1-based), found by its accessible name "tab N". */
+function tabButton(n: number): HTMLElement {
+  return screen.getByRole('button', { name: new RegExp(`^tab ${n}$`, 'i') });
+}
+
+/** The Nth tab's close ("×") control (1-based), found by its accessible name "close tab N". */
+function closeTabButton(n: number): HTMLElement {
+  return screen.getByRole('button', { name: new RegExp(`^close tab ${n}$`, 'i') });
+}
+
 beforeEach(() => {
   xtermMock.FakeTerminal.instances.length = 0;
   fitMock.FakeFitAddon.instances.length = 0;
+  bridgeMock.resetSessionCounter();
   bridgeMock.spawn.mockClear();
   bridgeMock.write.mockClear();
   bridgeMock.resize.mockClear();
@@ -310,83 +355,116 @@ describe('TerminalDock', () => {
     expect(xtermMock.FakeTerminal.instances.length).toBe(0);
   });
 
-  // ── terminal-dock-seed capability: the seed lifecycle as a whole (expand + ensure-session +
-  //    async pending-write + no-newline safety + re-seed on a token bump) — one integration test
-  //    over the seed prop, not split into isolated assertions (the node's honest proof unit). ──
-  it('tds-seed-expands-and-prefills-after-spawn: a new seed expands the dock, ensures ONE session, and writes the command once spawn resolves', async () => {
-    const seed = { command: 'ls -la', token: 1 };
-    render(<TerminalDock seed={seed} />);
+  // ── seed-opens-new-tab capability (ADR-0186): a seed OPENS A FRESH TAB — spawns a new session,
+  //    switches to it, and pre-fills THERE — and NEVER writes into the ACTIVE session (the user's
+  //    own interactive Claude Code). SUPERSEDES map-terminal-build's terminal-dock-seed capability
+  //    (was write-to-the-active-session) — the son-* contracts below replace the old tds-* ones. ──
+  it('son-seed-opens-a-fresh-tab: a new seed opens a SECOND, independent tab and switches to it, rather than reusing the active session', async () => {
+    const { container, rerender } = render(<TerminalDock />);
+    await expand(); // tab 1 = sess-1, the pre-existing ACTIVE session (the user's interactive Claude Code)
 
-    // The seed alone expands the dock — no user click needed.
-    expect(toggle().getAttribute('aria-expanded')).toBe('true');
+    expect(bridgeMock.spawn).toHaveBeenCalledTimes(1);
+    expect(xtermMock.FakeTerminal.instances.length).toBe(1);
+
+    const seed = { command: 'ls -la', token: 1 };
+    rerender(<TerminalDock seed={seed} />);
+    await flush();
+
+    // A SECOND, independent session/tab was opened for the seed — never a reuse of tab 1.
+    expect(bridgeMock.spawn).toHaveBeenCalledTimes(2);
+    expect(xtermMock.FakeTerminal.instances.length).toBe(2);
+    expect(container.querySelectorAll('.terminal-dock-tab').length).toBe(2);
+
+    // The dock switched to the fresh tab — its pane visible, tab 1's hidden.
+    const bodies = Array.from(container.querySelectorAll('.terminal-dock-body')) as HTMLElement[];
+    expect(bodies.length).toBe(2);
+    expect(bodies[0]!.hasAttribute('hidden')).toBe(true);
+    expect(bodies[1]!.hasAttribute('hidden')).toBe(false);
+  });
+
+  it("son-seed-never-touches-active-session: the seed command is written to the FRESH tab, never into the previously-active session", async () => {
+    const { rerender } = render(<TerminalDock />);
+    await expand(); // tab 1 = sess-1, the pre-existing active session
+
+    const seed = { command: 'ls -la', token: 1 };
+    rerender(<TerminalDock seed={seed} />);
+    await flush();
+
+    // The load-bearing safety wall: sess-1 (the previously-active session) is NEVER written to for
+    // this seed — only the fresh tab's session (sess-2) receives the pre-fill.
+    expect(bridgeMock.write).toHaveBeenCalledTimes(1);
+    expect(bridgeMock.write).toHaveBeenCalledWith('sess-2', 'ls -la');
+    expect(bridgeMock.write).not.toHaveBeenCalledWith('sess-1', expect.anything());
+  });
+
+  it("son-pre-spawn-seed-writes-on-resolve: a seed arriving before the fresh tab's spawn resolves is held pending and written exactly once on resolve", async () => {
+    const { rerender } = render(<TerminalDock />);
+    await expand(); // tab 1 = sess-1, already resolved
+
+    const seed = { command: 'ls -la', token: 1 };
+    rerender(<TerminalDock seed={seed} />);
+
+    // The fresh tab's bridge.spawn() promise has not resolved yet — the seed must be held pending
+    // for THAT tab, never written into tab 1's already-resolved session.
+    expect(bridgeMock.write).not.toHaveBeenCalled();
 
     await flush();
 
-    // Ensuring a session reused the SAME spawn-on-first-expand path — spawned exactly once, one
-    // terminal instance (never a second/parallel spawn triggered by the seed).
-    expect(bridgeMock.spawn).toHaveBeenCalledTimes(1);
-    expect(xtermMock.FakeTerminal.instances.length).toBe(1);
-    // Once the session resolved, the pending seed was written as a pre-fill.
+    expect(bridgeMock.spawn).toHaveBeenCalledTimes(2);
     expect(bridgeMock.write).toHaveBeenCalledTimes(1);
-    expect(bridgeMock.write).toHaveBeenCalledWith(SESSION_ID, 'ls -la');
+    expect(bridgeMock.write).toHaveBeenCalledWith('sess-2', 'ls -la');
   });
 
-  it('tds-prefills-without-trailing-newline: the seed is written as the BARE command — no trailing newline/carriage-return (never auto-run)', async () => {
+  it('son-token-bump-opens-another-fresh-tab: a token bump opens ANOTHER fresh tab even for an unchanged command; the same token is a no-op', async () => {
+    const seed1 = { command: 'ls -la', token: 1 };
+    const seed2 = { command: 'ls -la', token: 2 };
+    const { rerender } = render(<TerminalDock />);
+    await expand(); // tab 1 = sess-1
+
+    rerender(<TerminalDock seed={seed1} />);
+    await flush(); // tab 2 = sess-2, pre-filled
+
+    expect(bridgeMock.spawn).toHaveBeenCalledTimes(2);
+    expect(bridgeMock.write).toHaveBeenCalledTimes(1);
+
+    // A token bump opens a THIRD tab — a nonce, not a cache key — even for the identical command.
+    rerender(<TerminalDock seed={seed2} />);
+    await flush();
+
+    expect(bridgeMock.spawn).toHaveBeenCalledTimes(3);
+    expect(bridgeMock.write).toHaveBeenCalledTimes(2);
+    expect(bridgeMock.write).toHaveBeenLastCalledWith('sess-3', 'ls -la');
+
+    // Re-rendering with the SAME token is a no-op — keyed on the token, not the command string.
+    rerender(<TerminalDock seed={seed2} />);
+    await flush();
+    expect(bridgeMock.spawn).toHaveBeenCalledTimes(3);
+    expect(bridgeMock.write).toHaveBeenCalledTimes(2);
+  });
+
+  it('son-prefills-without-trailing-newline: the fresh tab is pre-filled with the BARE command — no trailing newline/carriage-return (never auto-run)', async () => {
     const seed = { command: 'pnpm storytree story build x --real --store pg', token: 1 };
-    render(<TerminalDock seed={seed} />);
+    const { rerender } = render(<TerminalDock />);
+    await expand();
+    rerender(<TerminalDock seed={seed} />);
     await flush();
 
     // The load-bearing safety wall: a --real build is billed + PR-opening (ADR-0136); the command
-    // sits at the prompt un-executed until the user presses Enter, so NOTHING is appended.
+    // sits at the fresh tab's prompt un-executed until the user presses Enter, so NOTHING is
+    // appended.
     const written = bridgeMock.write.mock.calls.at(-1)?.[1] as string;
     expect(written).toBe('pnpm storytree story build x --real --store pg');
     expect(written.endsWith('\n')).toBe(false);
     expect(written.endsWith('\r')).toBe(false);
   });
 
-  it('tds-seed-before-session-writes-on-resolve: a seed arriving BEFORE spawn resolves is held pending and written exactly once on resolve', async () => {
-    const seed = { command: 'ls -la', token: 1 };
-    render(<TerminalDock seed={seed} />);
-
-    // The bridge's spawn() promise has not resolved yet — the seed must be REMEMBERED, not dropped,
-    // and NOT written before a session exists.
-    expect(bridgeMock.write).not.toHaveBeenCalled();
-
-    await flush();
-
-    // Once the session resolved, the pending seed was written EXACTLY once, no second spawn.
-    expect(bridgeMock.spawn).toHaveBeenCalledTimes(1);
-    expect(bridgeMock.write).toHaveBeenCalledTimes(1);
-    expect(bridgeMock.write).toHaveBeenCalledWith(SESSION_ID, 'ls -la');
-  });
-
-  it('tds-token-bump-reseeds-same-command: a token bump re-writes an UNCHANGED command (a nonce, not a cache key), reusing the session; the same token is a no-op', async () => {
-    const seed1 = { command: 'ls -la', token: 1 };
-    const seed2 = { command: 'ls -la', token: 2 };
-    const { rerender } = render(<TerminalDock seed={seed1} />);
-    await flush();
-    expect(bridgeMock.write).toHaveBeenCalledTimes(1);
-
-    // A new token re-seeds even for the SAME command — without a second spawn (session reused).
-    rerender(<TerminalDock seed={seed2} />);
-    await flush();
-    expect(bridgeMock.spawn).toHaveBeenCalledTimes(1);
-    expect(bridgeMock.write).toHaveBeenCalledTimes(2);
-    expect(bridgeMock.write).toHaveBeenLastCalledWith(SESSION_ID, 'ls -la');
-
-    // Re-rendering with the SAME token is a no-op — keyed on the token, not the command string.
-    rerender(<TerminalDock seed={seed2} />);
-    await flush();
-    expect(bridgeMock.write).toHaveBeenCalledTimes(2);
-  });
-
-  it('tds-absent-seed-preserves-existing-behaviour: with NO seed prop the dock is unchanged — expand still spawns, and no pre-fill is written', async () => {
+  it('son-absent-seed-is-a-no-op: with NO seed prop the dock is byte-identical to the multi-session dock — no extra tab, no write', async () => {
     render(<TerminalDock />);
     await expand();
 
-    // The existing spawn-on-open still fires; with no seed, no pre-fill write is made.
     expect(bridgeMock.spawn).toHaveBeenCalledTimes(1);
     expect(bridgeMock.write).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /^tab 2$/i })).toBeNull();
   });
 
   // ── tdp-renders-header-right-slot (contract 7 — the terminal-repo-picker header affordance) ──
@@ -423,5 +501,122 @@ describe('TerminalDock', () => {
     // No live session was wired — typing into the terminal never reaches the bridge.
     term.typeIn('ls\n');
     expect(bridgeMock.write).not.toHaveBeenCalled();
+  });
+
+  // ── multi-session-tabs capability — the tab substrate: N independent sessions/panes, created via
+  //    "+", switched by clicking a tab, closed via a per-tab "×", every session disposed on close
+  //    AND unmount. The eight tdp-* contracts above stay green unchanged (the N=1 case); these six
+  //    pin the NEW multi-session behaviour. ─────────────────────────────────────────────────────
+
+  // ── mst-new-tab-spawns-independent-session ─────────────────────────────────────────────
+  it('mst-new-tab-spawns-independent-session: the "+" control spawns an independent second session and mounts its own xterm pane', async () => {
+    render(<TerminalDock />);
+    await expand(); // tab 1: spawns sess-1, mounts terminal instance 0
+
+    expect(bridgeMock.spawn).toHaveBeenCalledTimes(1);
+    expect(xtermMock.FakeTerminal.instances.length).toBe(1);
+
+    await openNewTab(); // tab 2: spawns sess-2, mounts a SECOND, independent terminal instance
+
+    expect(bridgeMock.spawn).toHaveBeenCalledTimes(2);
+    expect(xtermMock.FakeTerminal.instances.length).toBe(2);
+    expect(xtermMock.FakeTerminal.instances[1]).not.toBe(xtermMock.FakeTerminal.instances[0]);
+
+    // The tab strip now carries two tabs.
+    expect(tabButton(1)).toBeTruthy();
+    expect(tabButton(2)).toBeTruthy();
+  });
+
+  // ── mst-switch-shows-selected-tab-pane ─────────────────────────────────────────────
+  it('mst-switch-shows-selected-tab-pane: clicking a tab shows its pane and hides the others', async () => {
+    const { container } = render(<TerminalDock />);
+    await expand(); // tab 1 active
+    await openNewTab(); // tab 2 spawned and becomes the active tab
+
+    const bodies = (): HTMLElement[] =>
+      Array.from(container.querySelectorAll('.terminal-dock-body')) as HTMLElement[];
+
+    expect(bodies().length).toBe(2);
+    // The just-opened tab (2) is active: its pane visible, tab 1's hidden.
+    expect(bodies()[1]!.hasAttribute('hidden')).toBe(false);
+    expect(bodies()[0]!.hasAttribute('hidden')).toBe(true);
+
+    // Switching back to tab 1 flips which pane is visible.
+    fireEvent.click(tabButton(1));
+    expect(bodies()[0]!.hasAttribute('hidden')).toBe(false);
+    expect(bodies()[1]!.hasAttribute('hidden')).toBe(true);
+  });
+
+  // ── mst-scopes-io-per-tab ────────────────────────────────────────────────────
+  it('mst-scopes-io-per-tab: a bridge data chunk for one session writes ONLY into that session\'s pane, never a sibling tab\'s', async () => {
+    render(<TerminalDock />);
+    await expand(); // tab 1 = sess-1
+    await openNewTab(); // tab 2 = sess-2
+
+    expect(xtermMock.FakeTerminal.instances.length).toBe(2);
+    const term1 = xtermMock.FakeTerminal.instances[0]!;
+    const term2 = xtermMock.FakeTerminal.instances[1]!;
+
+    const onData = bridgeMock.onData.mock.calls.at(-1)![0];
+    onData('sess-1', 'from one\n');
+    onData('sess-2', 'from two\n');
+
+    expect(term1.written).toEqual(['from one\n']);
+    expect(term2.written).toEqual(['from two\n']);
+  });
+
+  // ── mst-chrome-stays-per-dock ─────────────────────────────────────────────────
+  it('mst-chrome-stays-per-dock: the toggle and headerRight slot render ONCE per dock, not once per tab', async () => {
+    const { container } = render(
+      <TerminalDock headerRight={<button type="button">Pick repo</button>} />,
+    );
+    await expand();
+    await openNewTab();
+
+    // Two tabs open, but exactly one toggle and one headerRight container — the chrome wraps the
+    // whole tab set, it is never repeated per tab.
+    expect(container.querySelectorAll('.terminal-dock-tab').length).toBe(2);
+    expect(
+      screen.getAllByRole('button', { name: /(expand|collapse) terminal/i }).length,
+    ).toBe(1);
+    expect(container.querySelectorAll('.terminal-dock-header-right').length).toBe(1);
+  });
+
+  // ── mst-close-tab-disposes-its-session ───────────────────────────────────────
+  it('mst-close-tab-disposes-its-session: closing a tab disposes ONLY that session (bridge + xterm) and reaps its tab; the sibling is untouched', async () => {
+    const { container } = render(<TerminalDock />);
+    await expand(); // tab 1 = sess-1
+    await openNewTab(); // tab 2 = sess-2
+
+    const term1 = xtermMock.FakeTerminal.instances[0]!;
+    const term2 = xtermMock.FakeTerminal.instances[1]!;
+    const fit2 = fitMock.FakeFitAddon.instances[1]!;
+
+    fireEvent.click(closeTabButton(2));
+
+    expect(bridgeMock.dispose).toHaveBeenCalledWith('sess-2');
+    expect(bridgeMock.dispose).not.toHaveBeenCalledWith('sess-1');
+    expect(term2.disposed).toBe(true);
+    expect(fit2.disposed).toBe(true);
+    expect(term1.disposed).toBe(false);
+
+    // The closed tab is reaped from the strip — only tab 1 remains.
+    expect(container.querySelectorAll('.terminal-dock-tab').length).toBe(1);
+    expect(screen.queryByRole('button', { name: /^tab 2$/i })).toBeNull();
+  });
+
+  // ── mst-disposes-all-sessions-on-unmount ─────────────────────────────────────
+  it('mst-disposes-all-sessions-on-unmount: unmounting the dock disposes EVERY open session, not just the active one', async () => {
+    const { unmount } = render(<TerminalDock />);
+    await expand(); // tab 1 = sess-1
+    await openNewTab(); // tab 2 = sess-2
+
+    expect(bridgeMock.dispose).not.toHaveBeenCalled();
+
+    unmount();
+
+    expect(bridgeMock.dispose).toHaveBeenCalledWith('sess-1');
+    expect(bridgeMock.dispose).toHaveBeenCalledWith('sess-2');
+    expect(bridgeMock.dispose).toHaveBeenCalledTimes(2);
   });
 });

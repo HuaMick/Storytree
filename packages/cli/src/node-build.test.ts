@@ -316,13 +316,14 @@ test("node build without an id, and bare `node`, are help/guidance", async () =>
   // stepRefs, a process's branchEdges, a plan's arcRef) onto the RenderedAsset wire, spread-when-present
   // on the structured branch only; the toGuidanceAsset carry-through + the types.ts optional
   // stepRefs/branchEdges/arcRef fields are supplement glue after PASS, not this cap's `real:` scope.
-  // And the three map-terminal-build-story capabilities (stories/map-terminal-build/*.md — ADR-0174
+  // And the two map-terminal-build-story capabilities (stories/map-terminal-build/*.md — ADR-0174
   // map-spawn re-point: on the desktop a forest-map Build click SEEDS a `pnpm storytree … build <id>
   // --real --store pg` command into the embedded terminal instead of dispatching in-app): compose-build-
-  // command (NET-NEW studio vitest — the pure command string), terminal-dock-seed (editsExisting studio
-  // vitest jsdom — the TerminalDock `seed` pre-fill), and map-build-seeds-terminal (editsExisting studio
-  // vitest jsdom — the BuildSection desktop seed-not-dispatch branch). The TreeView seed wiring is the
-  // story's operator-attested glue (no `real:` arm), not a capability.
+  // command (NET-NEW studio vitest — the pure command string) and map-build-seeds-terminal (editsExisting
+  // studio vitest jsdom — the BuildSection desktop seed-not-dispatch branch). The dock's own seed handling
+  // (accept + pre-fill) was originally terminal-dock-seed here but ADR-0186 re-decided it — a seed opens a
+  // FRESH tab — so terminal-tabs' seed-opens-new-tab superseded it. The TreeView seed wiring is the story's
+  // operator-attested glue (no `real:` arm), not a capability.
   // And the three `terminal-repo-picker`-story capabilities (stories/terminal-repo-picker/*.md — ADR-0174
   // follow-on: the embedded terminal opens in a repo the user PICKS, and FAIL-CLOSES until one is):
   // repo-selection (NET-NEW node:test over injected DirProbe + SelectionStore ports — the
@@ -337,9 +338,16 @@ test("node build without an id, and bare `node`, are help/guidance", async () =>
   // threading resolveCwd into the EXISTING terminal spawn are operator-attested glue (no `real:` arm); the
   // native-dialog / opens-in-the-picked-repo / survives-relaunch / gate-holds / look legs are the story's
   // operator-attested UAT.
+  // And the two terminal-tabs-story capabilities (stories/terminal-tabs/*.md — ADR-0186: the embedded
+  // terminal becomes multi-session with a tab strip so a map Build seed opens a FRESH tab, never the
+  // active Claude Code session): multi-session-tabs (editsExisting studio vitest jsdom — the dock holds N
+  // pty sessions with a switch/new/close tab strip; the tdp-* behaviours re-proven per-tab) and
+  // seed-opens-new-tab (editsExisting studio vitest jsdom — a seed opens a fresh tab + pre-fills there,
+  // SUPERSEDING map-terminal-build's terminal-dock-seed write-to-active behaviour). The tab-strip look is
+  // the story's operator-attested UAT leg.
   assert.match(
     bare.body,
-    /REAL-buildable nodes: +accept-reject-suggestion-api, act2-beat-director, ambient-integration, auto-grow-input, backend-chat-reset-route, block-position-comment-anchor, boot-read-routes, boundhash-on-verdict, brokered-local-uat-signing, builder-role, builder-spawn-dispatch, change-event-store, change-store-pg, chat-panel, chat-panel-spawn-render, chat-session-stream, chat-spawn-trace-events, chat-sse-mount, claim-gated-spawn, claim-store-work-time, claim-wisp-cold-start, cloud-sql-admin-rest, collapsed-suggestion-view, colour-by-subagent, compose-build-command, credential-broker, declare-presence, declared-edge-drift-report, desktop-build-route, desktop-launch-preconditions, dogfood-probe-mrfuze9m, drift-reads-store, event-sourced-store-seam, experience-rollout-guardrails, gate-emits-change, headless-session-runner, inline-comment-thread, leaf-tool-surface, library-adr-wire-signals, library-dive-body, library-drawer-shell, library-finder, library-focus-subgraph, library-open-overlay, library-open-trigger, library-overview, library-permanent-lens, library-typed-edges, live-story-island-refresh, local-backend-boot, local-credential-wiring, map-build-seeds-terminal, member-suggest-write-policy, model-runtime-seam, multi-turn-transcript, node-resolve-report, noticeboard-cli, orchestrator-composition, orientation-tool-surface, owned-turn-loop, presence-store, pty-session-manager, r3f-world-spike, render-claim-as-wisp, repo-picker-panel, repo-selection, review-mode-toggle, review-refresh-feed, routed-node-real-dispatch, seed-corpus-scripts, shared-forest-connection, source-drift, spawn-deps-composition, spawn-tool-surface, story-author-spawn, suggestion-edit-store, take-claim-at-spawn, terminal-dock-panel, terminal-dock-seed, terminal-repo-gate, transcript-reset, tree-view, uat-bound-command-adoption, uat-machine-gate-resolution, uat-machine-proof-binding, verdict-glyphs, verdict-line, web-experience-sync, witnessable-verdict, worker-relocation, write-broker/,
+    /REAL-buildable nodes: +accept-reject-suggestion-api, act2-beat-director, ambient-integration, auto-grow-input, backend-chat-reset-route, block-position-comment-anchor, boot-read-routes, boundhash-on-verdict, brokered-local-uat-signing, builder-role, builder-spawn-dispatch, change-event-store, change-store-pg, chat-panel, chat-panel-spawn-render, chat-session-stream, chat-spawn-trace-events, chat-sse-mount, claim-gated-spawn, claim-store-work-time, claim-wisp-cold-start, cloud-sql-admin-rest, collapsed-suggestion-view, colour-by-subagent, compose-build-command, credential-broker, declare-presence, declared-edge-drift-report, desktop-build-route, desktop-launch-preconditions, dogfood-probe-mrfuze9m, drift-reads-store, event-sourced-store-seam, experience-rollout-guardrails, gate-emits-change, headless-session-runner, inline-comment-thread, leaf-tool-surface, library-adr-wire-signals, library-dive-body, library-drawer-shell, library-finder, library-focus-subgraph, library-open-overlay, library-open-trigger, library-overview, library-permanent-lens, library-typed-edges, live-story-island-refresh, local-backend-boot, local-credential-wiring, map-build-seeds-terminal, member-suggest-write-policy, model-runtime-seam, multi-session-tabs, multi-turn-transcript, node-resolve-report, noticeboard-cli, orchestrator-composition, orientation-tool-surface, owned-turn-loop, presence-store, pty-session-manager, r3f-world-spike, render-claim-as-wisp, repo-picker-panel, repo-selection, review-mode-toggle, review-refresh-feed, routed-node-real-dispatch, seed-corpus-scripts, seed-opens-new-tab, shared-forest-connection, source-drift, spawn-deps-composition, spawn-tool-surface, story-author-spawn, suggestion-edit-store, take-claim-at-spawn, terminal-dock-panel, terminal-repo-gate, transcript-reset, tree-view, uat-bound-command-adoption, uat-machine-gate-resolution, uat-machine-proof-binding, verdict-glyphs, verdict-line, web-experience-sync, witnessable-verdict, worker-relocation, write-broker/,
   );
 
   const noId = await run(["node", "build", "--dry-run"], deps);

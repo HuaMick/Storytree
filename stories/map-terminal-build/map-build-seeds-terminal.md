@@ -69,10 +69,11 @@ or no callback is wired, Build is **UNCHANGED** — the existing `api.build` →
 
 **Depends on —** [`compose-build-command`](compose-build-command.md) (within `map-terminal-build`): this
 capability IMPORTS `composeBuildCommand` to build the string it seeds — the one real code edge in the
-within-story graph. It does NOT depend on [`terminal-dock-seed`](terminal-dock-seed.md): it calls
-`onSeedTerminal(command)`, a prop the story's TreeView glue wires to the dock's `seed` — `BuildSection`
-imports no `TerminalDock` and its proof mocks `onSeedTerminal` as a spy, so there is no code edge and no
-proof-precondition between them (see the story's within-story graph).
+within-story graph. It does NOT depend on the dock's seed-handling cap (originally `terminal-dock-seed`,
+superseded by [`terminal-tabs`' seed-opens-new-tab](../terminal-tabs/seed-opens-new-tab.md) under ADR-0186):
+it calls `onSeedTerminal(command)`, a prop the story's TreeView glue wires to the dock's `seed` —
+`BuildSection` imports no `TerminalDock` and its proof mocks `onSeedTerminal` as a spy, so there is no code
+edge and no proof-precondition between them (see the story's within-story graph).
 
 > **Proof status (honest) — EDIT-EXISTING, `proposed`.** `BuildSection` EXISTS and is green at HEAD (the
 > ADR-0090 / ADR-0094 build-and-adopt panel): the Build button always POSTs `api.build` and polls. This
@@ -90,11 +91,12 @@ the compose-and-seed AND the dispatch-suppression AND the unchanged fallback AND
 — exercised over a mocked bridge + an `onSeedTerminal` spy + the existing mocked `api`. An integration
 test of the button's behaviour across the two hosts, not one isolated assertion.
 
-WHY IT IS A SEPARATE CAPABILITY FROM [`compose-build-command`](compose-build-command.md) AND
-[`terminal-dock-seed`](terminal-dock-seed.md) (the splitting-rule, ADR-0010): the composer proves the
-STRING (pure, no React); the dock-seed proves the DOCK accepts + pre-fills a seed (jsdom over xterm + the
-bridge); THIS proves the BUTTON re-points on the desktop (jsdom over the `api` + bridge + a spy). Three
-distinct observables, three isolatable reds, three files (`buildCommand.ts` / `TerminalDock.tsx` /
+WHY IT IS A SEPARATE CAPABILITY FROM [`compose-build-command`](compose-build-command.md) AND the dock's
+seed-handling cap ([`terminal-tabs`' seed-opens-new-tab](../terminal-tabs/seed-opens-new-tab.md),
+originally `terminal-dock-seed`) (the splitting-rule, ADR-0010): the composer proves the STRING (pure, no
+React); the dock-seed cap proves the DOCK accepts + pre-fills a seed (jsdom over xterm + the bridge); THIS
+proves the BUTTON re-points on the desktop (jsdom over the `api` + bridge + a spy). Three distinct
+observables, three isolatable reds, three files (`buildCommand.ts` / `TerminalDock.tsx` /
 `BuildSection.tsx`). This one is the capstone: it imports the composer and calls the seed callback, tying
 the journey together — hence its one `depends_on` edge (the composer import) and its glue-joined (not
 `depends_on`) relationship to the dock.

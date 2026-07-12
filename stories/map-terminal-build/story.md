@@ -8,16 +8,18 @@ proof_mode: UAT
 # uat_witness ABSENT → human (ADR-0040 fail-closed signpost): the whole-story UAT — "does clicking Build
 # put a RUNNABLE command in the terminal, pre-filled and un-run, in the native shell" — is appearance +
 # native-shell + live behaviour, operator-attested (ADR-0070 / ADR-0174). The machine-driven story UAT
-# node stays WITHHELD; the crown derives from the three capabilities' signed verdicts plus the operator's
-# attestation of the pre-fill-reads-right and bridge-absent-unchanged legs.
-# Capabilities, roots-first (a capability appears after everything it depends on). THREE machine-provable
-# caps: compose-build-command (a pure string builder — the command a Build click should run) and
-# terminal-dock-seed (the dock accepts + pre-fills a seed) are independent ROOTS; map-build-seeds-terminal
-# (the desktop Build button seeds instead of dispatching) is the capstone that IMPORTS the composer — its
-# one within-story depends_on edge. The dock-seed and the button-re-point are joined by the TreeView glue
-# (a `seed` state + a `seedTerminal` setter), NOT a code import — so they are separate roots joined by
-# glue (the embedded-terminal / chat-panel ↔ chat-sse-mount pattern), exactly as within embedded-terminal.
-capabilities: [compose-build-command, terminal-dock-seed, map-build-seeds-terminal]
+# node stays WITHHELD; the crown derives from the two capabilities' signed verdicts (plus the consumed
+# terminal-tabs seed-opens-new-tab verdict for the dock side) plus the operator's attestation of the
+# pre-fill-reads-right and bridge-absent-unchanged legs.
+# Capabilities, roots-first (a capability appears after everything it depends on). TWO machine-provable
+# caps: compose-build-command (a pure string builder — the command a Build click should run) is the ROOT;
+# map-build-seeds-terminal (the desktop Build button seeds instead of dispatching) is the capstone that
+# IMPORTS the composer — its one within-story depends_on edge. The dock's HANDLING of the seed (accept +
+# pre-fill) is NOT a cap of this story: it was originally `terminal-dock-seed` here, but ADR-0186 re-decided
+# it (a seed opens a FRESH tab, never the active session) and `terminal-tabs`' seed-opens-new-tab SUPERSEDED
+# it — so this story now owns only the composer + the button re-point, feeding the seed to the (now
+# multi-session) dock through the unchanged TreeView `seed` glue.
+capabilities: [compose-build-command, map-build-seeds-terminal]
 # Story-level cross-story edges (ADR-0010 §4 / ADR-0074). This story OWNS NO package — it is a VIRTUAL
 # story (like embedded-terminal / terminal-chat): its net-new code is CO-LOCATED inside the `studio`
 # surface and extends a component `embedded-terminal` authored. Both edges are declared `depends_on` AND
@@ -28,11 +30,14 @@ capabilities: [compose-build-command, terminal-dock-seed, map-build-seeds-termin
 #               surface. The desktop renders the COMPILED studio dist (ADR-0090 d.4), so the re-pointed
 #               Build affordance is a `studio` frontend change, exactly as terminal-chat's caps edit
 #               apps/studio/src. Co-located source, NO new @storytree/* frontend import → an artifact edge.
-#   - embedded-terminal — this story EXTENDS the `TerminalDock` component embedded-terminal authored
-#               (apps/studio/src/components/TerminalDock.tsx): terminal-dock-seed adds the `seed` prop, and
-#               the whole story consumes the `window.desktopTerminal` bridge embedded-terminal's glue
-#               injects. A follow-on that extends a prior story's co-located component — NO @storytree/*
-#               import (TerminalDock is a co-located studio component, not a package) → an artifact edge.
+#   - embedded-terminal — this story consumes the `TerminalDock` component embedded-terminal authored
+#               (apps/studio/src/components/TerminalDock.tsx): the TreeView `seed` glue mounts it as
+#               `<TerminalDock seed={seed}/>`, and the story feature-detects + consumes the
+#               `window.desktopTerminal` bridge embedded-terminal's glue injects. (The dock's OWN seed
+#               handling is no longer this story's — terminal-dock-seed was superseded by terminal-tabs'
+#               seed-opens-new-tab, ADR-0186.) A follow-on over a prior story's co-located component — NO
+#               @storytree/* import (TerminalDock is a co-located studio component, not a package) → an
+#               artifact edge.
 # NO edge to `desktop`: this story adds NO apps/desktop code — it only feature-detects the ALREADY-EXISTING
 # `window.desktopTerminal` bridge (embedded-terminal's glue), which is not a package import. NO edge to
 # `terminal-chat` (the dormant chat panel is untouched) or the prove-it-gate/spine (untouched — this
@@ -44,7 +49,7 @@ artifact_edges: [embedded-terminal, studio]
 # (the forest-map click-a-node-to-build affordance being re-pointed); 0070 (the two-stage frontend-builder
 # proof — behaviour machine-proven, the native-shell pre-fill operator-attested); 0158 (the TreeView seed
 # wiring is glue — un-asserted connective code WITHIN the story, witnessed under the Story UAT); 0010 (the
-# organism model + the splitting-rule tiering the three caps); 0057 (the spec-borne proof config making
+# organism model + the splitting-rule tiering the two caps); 0057 (the spec-borne proof config making
 # each cap inner-loop buildable); 0004 (the thin-client boundary — the terminal is the interactive surface;
 # the prove-it-gate leaf sdk-author.ts is UNTOUCHED and the renderer imports no @storytree/agent).
 decisions: [174, 137, 70, 158, 10, 57, 4]
@@ -86,8 +91,10 @@ they are one continuous journey (the journey-principle: if finishing the first u
 consumer straight to needing the next, they are the same journey). The outcome states the value in one
 sentence: *clicking Build drops a runnable, pre-filled build command into the embedded terminal on the
 desktop.* The desktop-only / bridge-absent-unchanged qualifier is a SCOPE CONDITION (where the terminal
-exists), not a second outcome. So this story's **net-new** is: a command composer + a dock that pre-fills a
-seed + a Build button that seeds on the desktop, joined by a little TreeView glue.
+exists), not a second outcome. So this story's **net-new** is: a command composer + a Build button that
+seeds on the desktop, joined by a little TreeView glue — the dock's HANDLING of the seed is delivered
+separately (`terminal-tabs`' seed-opens-new-tab: a seed opens a fresh tab, ADR-0186; originally this
+story's `terminal-dock-seed`, now superseded).
 
 ## What this story is NOT (the walls — encode from the ADRs)
 
@@ -112,8 +119,10 @@ seed + a Build button that seeds on the desktop, joined by a little TreeView glu
   the prompt un-executed until the user presses Enter. A seeded `story build --real --store pg` opens a
   **billed, outward-facing auto-merging PR** (ADR-0136); a `node build --real` spends the subscription and
   parks a `claude/real/<unit>-<run>` branch. A human must fire it deliberately — a click composes the
-  intent, it does not spend money. This is the load-bearing safety wall
-  ([`terminal-dock-seed`](terminal-dock-seed.md)'s `tds-prefills-without-trailing-newline`).
+  intent, it does not spend money. This is the load-bearing safety wall, preserved verbatim through the
+  ADR-0186 re-decision ([`terminal-tabs`' seed-opens-new-tab](../terminal-tabs/seed-opens-new-tab.md)'s
+  `son-prefills-without-trailing-newline`, which superseded the original `terminal-dock-seed`'s
+  `tds-prefills-without-trailing-newline`).
 - **The Build button only — the Adopt path is untouched.** A `mapped` story's go-green is Adopt
   (observe-and-sign its reliability gates, ADR-0085), a different command shape (`storytree adopt <id>
   --pg`) and a different owner call. This story re-points only the **Build** button (story `goGreen ===
@@ -123,15 +132,23 @@ seed + a Build button that seeds on the desktop, joined by a little TreeView glu
   `@storytree/agent` / `@storytree/drive` or holds a model path (`apps/studio/src/modelPathBoundary.test.ts`
   stays green). The terminal — the real Claude Code — is what runs the build.
 
-## Capabilities (3)
+## Capabilities (2)
 
 Listed roots-first (a capability appears after everything it depends on).
 
 | # | capability | outcome | proof | depends on |
 |---|------------|---------|-------|------------|
 | 1 | [`compose-build-command`](compose-build-command.md) | A pure `composeBuildCommand({ unitId, scope })` returns the exact `storytree story build <id> --real --store pg` / `storytree node build <id> --real --store pg` a Build click should run — the CLI equivalents of the in-app dispatch (ADR-0144). | integration-test (studio vitest, NET-NEW red→green) | — |
-| 2 | [`terminal-dock-seed`](terminal-dock-seed.md) | `TerminalDock` gains an optional `seed?: { command; token }` prop: a new seed expands the dock, ensures a session, and PRE-FILLS the command (no trailing newline, async-safe, token-re-seedable); absent the prop it is byte-identical. | integration-test (studio vitest jsdom, editsExisting red→green) | — |
-| 3 | [`map-build-seeds-terminal`](map-build-seeds-terminal.md) | On the desktop (bridge present + an `onSeedTerminal` callback), a Build click calls `onSeedTerminal(composeBuildCommand({ unitId, scope }))` and does NOT POST `api.build`; bridge-absent keeps the existing dispatch; Adopt untouched. | integration-test (studio vitest jsdom, editsExisting red→green) | `compose-build-command` |
+| 2 | [`map-build-seeds-terminal`](map-build-seeds-terminal.md) | On the desktop (bridge present + an `onSeedTerminal` callback), a Build click calls `onSeedTerminal(composeBuildCommand({ unitId, scope }))` and does NOT POST `api.build`; bridge-absent keeps the existing dispatch; Adopt untouched. | integration-test (studio vitest jsdom, editsExisting red→green) | `compose-build-command` |
+
+> **A third cap, `terminal-dock-seed`, was superseded (ADR-0186).** This story originally carried a
+> `terminal-dock-seed` cap (the dock accepts a `seed` prop and pre-fills the command into the ACTIVE
+> session). The owner surfaced the flaw — that active session is normally the user's own interactive Claude
+> Code, so the write corrupts it — and ADR-0186 re-decided the behaviour: a seed opens a **fresh tab**,
+> never the active session. [`terminal-tabs`' seed-opens-new-tab](../terminal-tabs/seed-opens-new-tab.md)
+> **superseded** `terminal-dock-seed` (the five `tds-*` "writes to the active session" contracts replaced by
+> the `son-*` "opens a fresh tab" contracts), so this story no longer owns a dock-seed cap; the load-bearing
+> no-trailing-newline safety wall is preserved verbatim in `son-prefills-without-trailing-newline`.
 
 ## Operator-attested glue (un-asserted connective code WITHIN this story — ADR-0158, NOT a capability)
 
@@ -143,45 +160,39 @@ bridge as glue:
 - **`apps/studio/src/components/TreeView.tsx`** — hold a `seed` state (`{ command: string; token: number }
   | undefined`) plus a `seedTerminal(command)` setter that bumps the token; pass `seed` to
   `<TerminalDock seed={seed}/>` (the dock mount at ~L2149) and thread `onSeedTerminal={seedTerminal}` down
-  through `StoryPanel` to `<BuildSection onSeedTerminal={…}/>` (~L4329). This is the wire between the two
-  glue-joined roots (`terminal-dock-seed` and `map-build-seeds-terminal`) — un-asserted connective code
-  within the story: there is no isolatable red→green in a `useState` + a prop pass-through, so it is
-  witnessed under UAT legs 4/5, not asserted in CI. (Both endpoints ARE proven: the button calls
-  `onSeedTerminal` — `map-build-seeds-terminal`'s signed verdict; the dock pre-fills a `seed` —
-  `terminal-dock-seed`'s signed verdict. The glue is only the wire between them.)
+  through `StoryPanel` to `<BuildSection onSeedTerminal={…}/>` (~L4329). This is the wire between the Build
+  button (`map-build-seeds-terminal`, this story's cap) and the dock (now `terminal-tabs`' multi-session
+  `TerminalDock`) — un-asserted connective code within the story: there is no isolatable red→green in a
+  `useState` + a prop pass-through, so it is witnessed under UAT legs 4/5, not asserted in CI. (Both
+  endpoints ARE proven: the button calls `onSeedTerminal` — `map-build-seeds-terminal`'s signed verdict;
+  the dock opens a fresh tab and pre-fills the `seed` — `terminal-tabs`' seed-opens-new-tab signed verdict,
+  ADR-0186. The glue is only the wire between them.)
 
 ## Within-story dependency graph
 
 Authored from the intended data-flow + the real imports/calls (re-derive when built, ADR-0010 §3, and
-correct if the code disagrees). The graph is acyclic; **`compose-build-command` and `terminal-dock-seed`
-are independent roots**.
+correct if the code disagrees). The graph is acyclic; **`compose-build-command` is the sole root**.
 
-- `compose-build-command` — a root. A self-contained pure helper; imports nothing.
-- `terminal-dock-seed` — a root. The dock receives the command as an opaque `string` in its `seed` prop;
-  it imports neither the composer nor the Build button. It consumes the story's TreeView `seed` glue — a
-  wire, not a code edge — so it takes no in-story `depends_on`.
+- `compose-build-command` — the root. A self-contained pure helper; imports nothing.
 - `map-build-seeds-terminal` → `compose-build-command`. The Build button IMPORTS `composeBuildCommand` to
   build the string it seeds — a real code edge, so in the shared `--real` worktree it builds AFTER the
-  composer commits `buildCommand.ts` (its import then resolves). It does **NOT** `depends_on`
-  `terminal-dock-seed`: it calls `onSeedTerminal(command)`, a prop the TreeView glue wires to the dock's
-  `seed` — `BuildSection` imports no `TerminalDock`, and its proof mocks `onSeedTerminal` as a spy, so
-  there is neither a code edge nor a proof-precondition between them. The button PRODUCES a command; the
-  dock CONSUMES it; they are joined by glue, not a data-flow dependency (the embedded-terminal "two roots
-  joined by glue" pattern — see the note below).
+  composer commits `buildCommand.ts` (its import then resolves). It does **NOT** import `TerminalDock`: it
+  calls `onSeedTerminal(command)`, a prop the TreeView glue wires to the (now multi-session) dock's `seed`
+  — `BuildSection` imports no `TerminalDock`, and its proof mocks `onSeedTerminal` as a spy. The button
+  PRODUCES a command; the dock (`terminal-tabs`' seed-opens-new-tab) CONSUMES it; they are joined by glue,
+  not a data-flow dependency.
 
-> **Graph call (a deliberate divergence, honestly recorded).** An earlier decomposition sketch listed
-> `map-build-seeds-terminal` as `depends_on: [compose-build-command, terminal-dock-seed]`. The
-> `terminal-dock-seed` edge is dropped: it is neither a code import (BuildSection never imports TerminalDock),
-> a shared-file sequencing edge (different files: `BuildSection.tsx` vs `TerminalDock.tsx`), nor a
-> proof-precondition (`map-build-seeds-terminal`'s vitest proof mocks `onSeedTerminal`). Per the
-> real-prerequisites-only rule, the honest within-story graph is two roots (composer, dock-seed) plus one
-> import edge (button → composer); the dock-seed ↔ button relationship is the TreeView glue, witnessed under
-> the Story UAT. This mirrors `embedded-terminal` exactly (its two caps are both roots, joined by the
-> preload-bridge glue). The seam design is unchanged — the button still seeds the dock through the glue;
-> only the edge's HONESTY is sharpened.
+> **Graph call (the dock-seed cap moved out — ADR-0186).** This story originally carried a third cap,
+> `terminal-dock-seed` (the dock accepts + pre-fills a seed into the ACTIVE session), as an independent root
+> joined to the Build button by the TreeView glue. ADR-0186 re-decided that behaviour — a seed opens a
+> **fresh tab**, never the active session — and [`terminal-tabs`' seed-opens-new-tab](../terminal-tabs/seed-opens-new-tab.md)
+> **superseded** it, so the dock's seed handling is no longer this story's. What remains is the honest
+> two-cap graph: the pure composer (a root) and the Build-button re-point that imports it (one edge). The
+> button never imported `TerminalDock` — it calls `onSeedTerminal`, wired to the dock through the TreeView
+> glue; that wire is unchanged, only the dock on its far end became multi-session.
 
-The three caps are joined into the delivered journey by the **operator-attested TreeView glue** above —
-witnessed integrated under the Story UAT, exactly as embedded-terminal's two roots are joined by its
+The two caps are joined to the (now `terminal-tabs`) dock by the **operator-attested TreeView glue** above —
+witnessed integrated under the Story UAT, exactly as embedded-terminal's roots are joined by its
 preload-bridge glue.
 
 ## Cross-story boundary (ADR-0010 §4 / ADR-0074)
@@ -199,13 +210,15 @@ co-located inside the `studio` surface and extends a component `embedded-termina
   / model import (the `modelPathBoundary.test.ts` wall); `composeBuildCommand` is a local pure helper, not
   a cross-story `@storytree/*` edge. So this is co-located source with **no new `@storytree/*` import** → an
   **artifact edge** (ADR-0166), declared in `depends_on` and annotated in `artifact_edges`.
-- **`embedded-terminal`** — the story this one EXTENDS. [`terminal-dock-seed`](terminal-dock-seed.md) adds
-  the `seed` prop to the `TerminalDock` component embedded-terminal authored
-  (`apps/studio/src/components/TerminalDock.tsx`), and the whole story consumes the `window.desktopTerminal`
-  bridge embedded-terminal's Electron-main glue injects (feature-detected, exactly as `TerminalDock` and
-  `StoreBanner` feature-detect their bridges). A follow-on extending a prior story's co-located component —
-  **no `@storytree/*` import** (TerminalDock is a co-located studio component, not a package; the bridge is
-  a `window` global, not an import) → an **artifact edge**, declared and annotated.
+- **`embedded-terminal`** — the story whose `TerminalDock` component this one consumes
+  (`apps/studio/src/components/TerminalDock.tsx`): the TreeView `seed` glue mounts it as `<TerminalDock
+  seed={seed}/>`, and the whole story consumes the `window.desktopTerminal` bridge embedded-terminal's
+  Electron-main glue injects (feature-detected, exactly as `TerminalDock` and `StoreBanner` feature-detect
+  their bridges). (The dock's OWN seed handling moved to [`terminal-tabs`' seed-opens-new-tab](../terminal-tabs/seed-opens-new-tab.md)
+  under ADR-0186; the originally-here `terminal-dock-seed` cap is superseded.) A follow-on over a prior
+  story's co-located component — **no `@storytree/*` import** (TerminalDock is a co-located studio
+  component, not a package; the bridge is a `window` global, not an import) → an **artifact edge**,
+  declared and annotated.
 
 **No edge to `desktop`.** This story adds NO `apps/desktop` code — it only feature-detects the
 already-existing `window.desktopTerminal` bridge (embedded-terminal's glue), which is a `window` global,
@@ -220,10 +233,11 @@ Minimal-first (one coherent journey: on the desktop, click Build → a runnable 
 the terminal → the user runs it as real Claude Code; off the desktop, Build is unchanged), defect-driven
 thereafter (each real failure earns a permanent regression case, never speculative breadth).
 
-> **Per-leg witness (ADR-0106 / ADR-0070).** The mechanics legs are covered by the three capabilities'
-> signed `--real` verdicts (the command composes per scope; the dock expands + pre-fills a seed without a
-> newline; the desktop Build click seeds instead of dispatching, the bridge-absent path unchanged, Adopt
-> untouched — all over mocked seams). The experiential legs — the pre-fill actually landing in the REAL
+> **Per-leg witness (ADR-0106 / ADR-0070).** The mechanics legs are covered by signed `--real` verdicts —
+> two from this story's caps (the command composes per scope; the desktop Build click seeds instead of
+> dispatching, the bridge-absent path unchanged, Adopt untouched) and one CONSUMED from `terminal-tabs`
+> (the dock opens a fresh tab + pre-fills the seed without a newline — leg 2, ADR-0186; originally this
+> story's `terminal-dock-seed`, superseded) — all over mocked seams. The experiential legs — the pre-fill actually landing in the REAL
 > terminal, reading like a command the user typed, un-run until Enter, and then launching a real build in
 > the native shell; and the bridge-absent surface still dispatching in-app — are `witness: human`
 > (operator-attested, ADR-0070): an automated CI run cannot drive the real `window.desktopTerminal` bridge,
@@ -241,11 +255,13 @@ before.
    composes `storytree story build <id> --real --store pg`; a node-scope Build composes `storytree node
    build <id> --real --store pg`; the unit id is embedded verbatim. **Success —**
    [`compose-build-command`](compose-build-command.md)'s signed verdict (a pure red→green).
-2. **The terminal dock accepts a seed and pre-fills it without running it.** _(witness: machine)_ A new
-   seed expands the dock, ensures a session, and writes the command as a pre-fill with NO trailing newline;
-   a pre-spawn seed is written once the session resolves; a token bump re-seeds; an absent seed leaves the
-   dock byte-identical. **Success —** [`terminal-dock-seed`](terminal-dock-seed.md)'s signed verdict
-   (behaviour over the mocked xterm + bridge).
+2. **The terminal dock accepts the seed and pre-fills it without running it.** _(witness: machine)_ A new
+   seed opens a **fresh tab** (never the active Claude Code session — ADR-0186), switches to it, and writes
+   the command as a pre-fill with NO trailing newline; a pre-spawn seed is written once the new tab's
+   session resolves; a token bump opens another fresh tab; an absent seed leaves the dock byte-identical.
+   **Success —** [`terminal-tabs`' seed-opens-new-tab](../terminal-tabs/seed-opens-new-tab.md)'s signed
+   verdict (behaviour over the mocked xterm + bridge) — a consumed dependency, not a cap of this story
+   (originally this story's `terminal-dock-seed`, superseded by the ADR-0186 re-decision).
 3. **On the desktop, the Build button seeds the terminal instead of dispatching in-app.** _(witness:
    machine)_ With the bridge present + a callback, a Build click seeds the composed command and does NOT
    POST `api.build`; with the bridge absent (or no callback) it dispatches `api.build` as today; the Adopt
@@ -267,18 +283,20 @@ before.
 
 End state — on the desktop, a Build click on the forest map composes the right `storytree … build --real
 --store pg` command and seeds it pre-filled (un-run) into the embedded terminal for the user to run as real
-Claude Code; off the desktop, the existing dispatch is unchanged. The three caps' behaviours are signed
-under the studio suite, the native-shell pre-fill + the bridge-absent fallback operator-attested — the
-prove-it-gate leaf and the spine untouched, the app composing intent while the real tool runs the build.
+Claude Code; off the desktop, the existing dispatch is unchanged. The two caps' behaviours are signed
+under the studio suite (the dock-side fresh-tab seed handling by `terminal-tabs`' seed-opens-new-tab), the
+native-shell pre-fill + the bridge-absent fallback operator-attested — the prove-it-gate leaf and the spine
+untouched, the app composing intent while the real tool runs the build.
 
 ## Proof
 
-The story is proven when that walkthrough passes — the mechanics legs (1, 2, 3) green under the three
-capabilities' signed `--real` verdicts (with each cap's contracts green underneath), and the experiential
-legs (4, 5) operator-attested. Per ADR-0020, `healthy` is only ever DERIVED from signed verdicts; nothing
-here is authored healthy. All three capabilities are proof-wired (each carries a `proof:` block with a
-`real:` arm — a NET-NEW red→green for the composer, edit-existing red→green for the dock-seed and the
-button re-point) so the spine can drive their studio vitest suites red→green under its own gate; the
+The story is proven when that walkthrough passes — the mechanics legs (1, 3) green under this story's two
+capabilities' signed `--real` verdicts and leg 2 under `terminal-tabs`' consumed seed-opens-new-tab verdict
+(with each cap's contracts green underneath), and the experiential legs (4, 5) operator-attested. Per
+ADR-0020, `healthy` is only ever DERIVED from signed verdicts; nothing here is authored healthy. Both
+capabilities are proof-wired (each carries a `proof:` block with a `real:` arm — a NET-NEW red→green for the
+composer, edit-existing red→green for the button re-point) so the spine can drive their studio vitest suites
+red→green under its own gate; the
 story's machine-driven UAT node is WITHHELD (its `uat_witness` is absent → human, ADR-0040), so driving
 those capabilities to signed verdicts is what makes the re-point buildable, and the crown additionally
 awaits the operator's attestations (legs 4, 5).
@@ -303,12 +321,11 @@ decided here:
    <id> --pg` command into the terminal — a different command shape and a different owner call. It is left
    as a follow-on: pick it up only if the owner asks, mirroring this story's compose→seed pattern for the
    adopt shape.
-3. **The `node-build.test.ts` REAL-buildable snapshot companion edit (REQUIRED, outside `stories/**`).**
-   Authoring these three `real:`-armed caps makes `buildableNodeIds()` discover them (spec-borne, ADR-0057),
-   which the `packages/cli/src/node-build.test.ts` REAL-buildable snapshot regex + its per-story discovery
-   comment pin exactly (the known "node-build snapshot trap"). The orchestrator must add
-   `compose-build-command`, `map-build-seeds-terminal`, and `terminal-dock-seed` (alphabetically:
-   `compose-build-command` after `colour-by-subagent`; `map-build-seeds-terminal` after
-   `local-credential-wiring`; `terminal-dock-seed` after `terminal-dock-panel`) to that regex + a per-story
-   comment, or `pnpm -r test` goes red. This is a `packages/cli` test edit — outside the story-author's
-   `stories/**` fence — flagged here so it lands with the caps.
+3. **The `node-build.test.ts` REAL-buildable snapshot companion edit (DONE, historical).** Authoring these
+   `real:`-armed caps made `buildableNodeIds()` discover them (spec-borne, ADR-0057), which the
+   `packages/cli/src/node-build.test.ts` REAL-buildable snapshot regex + its per-story discovery comment pin
+   exactly (the known "node-build snapshot trap"). `compose-build-command` (after `colour-by-subagent`) and
+   `map-build-seeds-terminal` (after `local-credential-wiring`) sit in that regex. The third cap,
+   `terminal-dock-seed`, was added then **removed** when `terminal-tabs`' seed-opens-new-tab superseded it
+   (ADR-0186) and its spec was retired — the same `packages/cli` test edit, outside the `stories/**` fence,
+   lands its removal from the regex + the map-terminal-build discovery comment.
