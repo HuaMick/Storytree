@@ -75,8 +75,9 @@ builder: no build engine, no `@storytree/agent`, no model path.
 
 **Depends on —** nothing (within `map-terminal-build`). A self-contained pure helper — it imports
 nothing (not even React). It is the ROOT the [`map-build-seeds-terminal`](map-build-seeds-terminal.md)
-capability imports; the [`terminal-dock-seed`](terminal-dock-seed.md) capability never sees it (the
-composed string reaches the dock as an opaque `command` through the story's TreeView glue).
+capability imports; the dock's seed-handling cap ([`terminal-tabs`' seed-opens-new-tab](../terminal-tabs/seed-opens-new-tab.md),
+originally `terminal-dock-seed`) never sees it (the composed string reaches the dock as an opaque `command`
+through the story's TreeView glue).
 
 > **Proof status (honest) — NOT BUILT, `proposed`.** This precedes the code. It is the smallest,
 > load-bearing slice of ADR-0174's map-spawn re-point: the exact command string a Build click should put

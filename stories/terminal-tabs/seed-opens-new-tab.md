@@ -69,8 +69,8 @@ newline** (never auto-run). The previously-active tab's session — the user's i
 receives **NO write**. A seed arriving before the new tab's spawn resolves is held pending and written once
 that session exists; a `token` bump opens **ANOTHER fresh tab** (a nonce, not a cache key). Absent the prop,
 the dock is byte-identical to the multi-session dock. This **SUPERSEDES** map-terminal-build's
-[`terminal-dock-seed`](../map-terminal-build/terminal-dock-seed.md) (which wrote the command to the
-**active** session).
+`terminal-dock-seed` (which wrote the command to the **active** session; retired by the librarian pass once
+this cap landed — its write-to-active behaviour is gone from the code).
 
 **Depends on —** [`multi-session-tabs`](multi-session-tabs.md) (within `terminal-tabs`). A **doubly-real**
 edge: (a) a proof-precondition — "opens a FRESH tab, the active session untouched" is meaningless without

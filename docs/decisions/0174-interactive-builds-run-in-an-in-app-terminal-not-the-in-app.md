@@ -27,6 +27,15 @@ supervisor tier — and is itself additively re-aimed by ADR-0175, so supersedin
 edge; ADR-0164's two rails and Phase 1 stand, with only the interactive Phase-2 signaller moot. Each
 partial overturn is carried as a reciprocal prose note on the target.)
 
+**Amended by ADR-0186 (2026-07-11), reciprocal note.** The map-spawn clause in the Decision below offered
+TWO delivery options — inject the composed command into the embedded terminal, **or** open a seeded terminal
+tab pre-filled with it. `map-terminal-build` (PR #696) shipped the FIRST. The owner then found that injecting
+into the single session corrupts the user's live interactive Claude Code (the write lands in Claude's stdin),
+so **ADR-0186 re-decided to the SECOND option** — a Build seed opens a **fresh tab** — and made the embedded
+terminal **multi-session with a tab strip** to support it (built by `terminal-tabs`). This ADR's terminal is
+therefore no longer single-session; see the inline note on the map-spawn clause. (ADR-0186 is the incoming
+`amends` edge; this ADR's Decision text is left intact as the original two-option decision, per copy-on-write.)
+
 ## Context
 
 The storytree desktop app's value is the **observability layer over Claude Code** — the forest map,
@@ -104,6 +113,12 @@ corresponding command** (`storytree story build <id> --real …` / `storytree no
 user's Claude Code — or a bare `storytree` invocation — runs it. The map stays the launch surface; the
 runtime behind the click becomes the terminal, not the chat session.
 
+> **Re-decided by ADR-0186 (2026-07-11).** Of the two delivery options above, the FIRST (inject into the
+> embedded terminal) shipped in `map-terminal-build` (PR #696) but corrupted the user's live Claude Code
+> session; ADR-0186 chose the **SECOND** (a Build seed opens a **fresh tab**, never the active session) and
+> made the embedded terminal **multi-session with tabs** to support it. The clause text is kept as the
+> original two-option decision; the resolved delivery is the seeded fresh tab.
+
 ## Consequences
 
 **Good.**
@@ -150,6 +165,9 @@ runtime behind the click becomes the terminal, not the chat session.
   proof runtime is not what this ADR changes.
 - ADR-0175 — repurpose (don't delete) the retired chat infrastructure into the `app-guide` agent (the
   companion decision).
+- ADR-0186 — **amends THIS ADR**: the map-spawn clause's second delivery option (a fresh seeded terminal
+  tab) is chosen over the first, and the embedded terminal is made multi-session with tabs (built by
+  `terminal-tabs`) so a Build seed never corrupts the user's active Claude Code session.
 - ADR-0142 — presence claim + story wisp (the CLI seam that observes any Claude Code session) ·
   ADR-0051 — the one rendered `session-orchestrator` agent the terminal's Claude Code runs.
 - Code (the interactive orchestrator — retired as the interactive build surface):

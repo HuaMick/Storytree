@@ -18,8 +18,8 @@
 // on close/unmount. Proven with `bridgeMock.spawn` resolving a FRESH sessionId per call (`sess-1`,
 // `sess-2`, …) so a second tab's session is genuinely distinguishable from the first's:
 //
-//   • "+" opens an independent second session/pane        (mst-plus-opens-fresh-session)
-//   • clicking a tab shows its pane, hides the others      (mst-tab-switches-active-pane)
+//   • "+" opens an independent second session/pane        (mst-new-tab-spawns-independent-session)
+//   • clicking a tab shows its pane, hides the others      (mst-switch-shows-selected-tab-pane)
 //   • bridge data routes to the RIGHT tab's pane only      (mst-scopes-io-per-tab)
 //   • toggle/headerRight stay ONE-per-dock, not per-tab    (mst-chrome-stays-per-dock)
 //   • closing a tab disposes ONLY that tab's session       (mst-close-tab-disposes-its-session)
@@ -508,8 +508,8 @@ describe('TerminalDock', () => {
   //    AND unmount. The eight tdp-* contracts above stay green unchanged (the N=1 case); these six
   //    pin the NEW multi-session behaviour. ─────────────────────────────────────────────────────
 
-  // ── mst-plus-opens-fresh-session ─────────────────────────────────────────────
-  it('mst-plus-opens-fresh-session: the "+" control spawns an independent second session and mounts its own xterm pane', async () => {
+  // ── mst-new-tab-spawns-independent-session ─────────────────────────────────────────────
+  it('mst-new-tab-spawns-independent-session: the "+" control spawns an independent second session and mounts its own xterm pane', async () => {
     render(<TerminalDock />);
     await expand(); // tab 1: spawns sess-1, mounts terminal instance 0
 
@@ -527,8 +527,8 @@ describe('TerminalDock', () => {
     expect(tabButton(2)).toBeTruthy();
   });
 
-  // ── mst-tab-switches-active-pane ─────────────────────────────────────────────
-  it('mst-tab-switches-active-pane: clicking a tab shows its pane and hides the others', async () => {
+  // ── mst-switch-shows-selected-tab-pane ─────────────────────────────────────────────
+  it('mst-switch-shows-selected-tab-pane: clicking a tab shows its pane and hides the others', async () => {
     const { container } = render(<TerminalDock />);
     await expand(); // tab 1 active
     await openNewTab(); // tab 2 spawned and becomes the active tab

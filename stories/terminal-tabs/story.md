@@ -212,17 +212,18 @@ gate treats a rewrite of anchored source as source-drift, so both must be accoun
   behaviour is **re-proven** by `multi-session-tabs`'s signed verdict over the new source. The orchestrator
   must re-tense `terminal-dock-panel.md`'s prose to note the per-tab re-proof (a cross-story spec edit
   outside this story's fence — flagged in "Open modeling calls").
-- **[`terminal-dock-seed`](../map-terminal-build/terminal-dock-seed.md) (map-terminal-build, 5 `tds-*`
-  contracts) — RE-DECIDED (write-to-active → open-a-fresh-tab).** Its behaviour ("on a seed, write the
-  command to the **active** session via `bridge.write(sessionId, command)`") is **superseded** by
-  [`seed-opens-new-tab`](seed-opens-new-tab.md) ("on a seed, open a **fresh** tab and pre-fill it there,
-  never the active session"). `seed-opens-new-tab`'s `editsExisting` arm **replaces** the five `tds-*`
-  "writes to the active session" cases with the `son-*` "opens a fresh tab" cases in the SAME test file, so
-  the corpus never holds two contradictory seed behaviours. terminal-dock-seed's crown source-drifts AND its
-  contracts are superseded; the orchestrator must re-tense / mark `terminal-dock-seed.md` as re-decided by
-  `terminal-tabs` (a cross-story spec edit outside this fence — flagged in "Open modeling calls"). The
-  load-bearing safety observable it carried — the **no-trailing-newline pre-fill** — is PRESERVED verbatim
-  in `son-prefills-without-trailing-newline`; only the *destination* (fresh tab vs active session) changes.
+- **`terminal-dock-seed` (map-terminal-build, 5 `tds-*` contracts) — RE-DECIDED (write-to-active →
+  open-a-fresh-tab) and RETIRED.** Its behaviour ("on a seed, write the command to the **active** session
+  via `bridge.write(sessionId, command)`") is **superseded** by [`seed-opens-new-tab`](seed-opens-new-tab.md)
+  ("on a seed, open a **fresh** tab and pre-fill it there, never the active session"). `seed-opens-new-tab`'s
+  `editsExisting` arm **replaced** the five `tds-*` "writes to the active session" cases with the `son-*`
+  "opens a fresh tab" cases in the SAME test file, so the corpus never holds two contradictory seed
+  behaviours. terminal-dock-seed's crown source-drifted AND its contracts were superseded; the
+  **librarian-curator pass RETIRED `terminal-dock-seed.md`** (deleted — its write-to-active behaviour is
+  gone from the code, 0-coverage) and re-tensed map-terminal-build to a two-cap story (the spec-edit
+  disposition, flagged in "Open modeling calls" item 3). The load-bearing safety observable it carried — the
+  **no-trailing-newline pre-fill** — is PRESERVED verbatim in `son-prefills-without-trailing-newline`; only
+  the *destination* (fresh tab vs active session) changes.
 
 **Within THIS story, the two new caps also share the source file.** `multi-session-tabs` signs
 `TerminalDock.tsx` after the tab rewrite (the seed, if present, still writing the current tab — an
@@ -340,21 +341,23 @@ Build seed opens a fresh tab; owner-directed, born accepted, no new ADR reserved
    `--real` worktree, then **re-drives `multi-session-tabs`** so its crown re-signs over the final source
    (its tab tests are untouched by the seed re-route — a clean re-sign, the `terminal-dock-panel`
    anchored-bytes-re-sign pattern). The final `TerminalDock.tsx` satisfies BOTH suites.
-2. **Re-tense `terminal-dock-panel.md` (embedded-terminal) — REQUIRED, outside this fence.** Its
+2. **Re-tense `terminal-dock-panel.md` (embedded-terminal) — DONE (librarian-curator pass).** Its
    `TerminalDock.tsx` source is rewritten single-session → multi-session; its crown source-drifts and its
-   eight `tdp-*` behaviours are re-proven **per-tab / per-dock** by `multi-session-tabs`. The orchestrator
-   must re-tense its "Proof status" + guidance to note the per-tab re-proof under the new source (the eight
-   `tdp-*` contracts stay, adapted per-tab / per-dock). This is an `embedded-terminal` spec edit — outside
-   the `terminal-tabs` story-author's `stories/**` fence — flagged here so it lands with this story. (The
-   `librarian-curator` may prefer to record it as an `amends` on the decision log.)
-3. **Re-tense / re-decide `terminal-dock-seed.md` (map-terminal-build) — REQUIRED, outside this fence.** Its
+   eight `tdp-*` behaviours are re-proven **per-tab / per-dock** by `multi-session-tabs`. The librarian
+   re-tensed its Outcome + "Proof status" to note the per-tab / per-dock re-proof under the multi-session
+   source (the eight `tdp-*` contracts stay, GREEN — `storytree coverage terminal-dock-panel` reports 8/8 —
+   re-proven by `multi-session-tabs`'s signed verdict). The decision-log side is recorded by ADR-0186's
+   `amends: [174]` edge (a reciprocal note added on ADR-0174).
+3. **Re-tense / re-decide `terminal-dock-seed.md` (map-terminal-build) — DONE (librarian-curator pass).** Its
    seed behaviour (write-to-active) is **superseded** by `seed-opens-new-tab` (open-a-fresh-tab); its five
-   `tds-*` "writes to the active session" contracts are replaced by the `son-*` "opens a fresh tab"
-   contracts in the shared test file. The orchestrator must re-tense / mark `terminal-dock-seed.md` as
-   re-decided by `terminal-tabs` so the corpus holds ONE seed behaviour. This is a `map-terminal-build` spec
-   edit — outside this fence — flagged here so it lands with this story. (Again a candidate `librarian-curator`
-   / `amends` disposition; the load-bearing no-newline safety wall is preserved verbatim in
-   `son-prefills-without-trailing-newline`.)
+   `tds-*` "writes to the active session" contracts were replaced by the `son-*` "opens a fresh tab"
+   contracts in the shared test file. Disposition chosen: the librarian **RETIRED `terminal-dock-seed.md`**
+   (deleted — its write-to-active behaviour is gone from the code, `storytree coverage` reported 0/5) and
+   re-tensed map-terminal-build to a two-cap story, so the corpus holds ONE seed behaviour. The companion
+   code edit — removing `terminal-dock-seed` from `packages/cli/src/node-build.test.ts`'s REAL-buildable
+   snapshot regex + the map-terminal-build discovery comment (outside the `stories/**` fence) — lands with
+   this story (see item 5). The load-bearing no-newline safety wall is preserved verbatim in
+   `son-prefills-without-trailing-newline`.
 4. **The empty / last-tab-closed disposition (a layout call, operator-attested glue).** When the user closes
    the last remaining tab, does the dock show an empty "+"-to-open state, or auto-open a fresh tab? There is
    no isolatable red→green in the empty-state look, so it is witnessed under UAT leg 1 —

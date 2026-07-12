@@ -85,6 +85,18 @@ bridge **data into the terminal** and terminal **input back to the bridge**, **r
 unavailable here" state where the bridge is absent. It is a **thin client**: it imports no
 `@storytree/agent` / `@storytree/drive` and holds no model path.
 
+> **Now MULTI-SESSION (ADR-0186 / `terminal-tabs`, PR after #705).** `TerminalDock.tsx` was rewritten
+> single-session → **multi-session with a tab strip** by [`terminal-tabs`' multi-session-tabs](../terminal-tabs/multi-session-tabs.md).
+> Every behaviour below is **PRESERVED, re-proven PER TAB, not deleted**: the per-session behaviours
+> (spawn, input↔pty, data-in, resize, visibility-toggle, refocus, empty-session message) now hold on the
+> **active/first tab** (the N=1 case of the tab model), and the per-dock ones (the `headerRight` slot, the
+> absent-bridge degrade) exercise the **dock chrome that wraps the tab set**. All eight `tdp-*` contracts
+> stay in `TerminalDock.test.tsx` and stay GREEN under the rewritten source — re-proven by
+> `multi-session-tabs`'s signed `--real` verdict (this cap's crown source-drifts on the rewrite and is
+> re-signed over the multi-session bytes, the ADR-0057 §3 anchored-bytes re-sign). Read "the terminal" /
+> "the dock" below as "each tab's terminal" / "the per-dock chrome"; the tab lifecycle itself is
+> `multi-session-tabs`'.
+
 **Depends on —** nothing (within `embedded-terminal`). The terminal is a self-contained component whose
 ONLY backend seam is the `window.desktopTerminal` bridge (the [`BuildSection`](../../apps/studio/src/components/BuildSection.tsx)
 / ChatPanel precedent — a self-contained component over one seam, a clean jsdom unit). It sits on the
@@ -92,19 +104,24 @@ OPPOSITE side of the contextBridge from [`pty-session-manager`](pty-session-mana
 nothing from it — they share the bridge WIRE SHAPE as a cross-boundary contract, not a code edge (the
 `chat-panel` ↔ `chat-sse-mount` precedent), so there is no in-story edge either way.
 
-> **Proof status (honest) — BUILT & SIGNED (contracts 1–6), re-proving contracts 7–8.** Contracts 1–5
-> landed under the original story build's signed `--real` verdict (the xterm.js terminal the user sees and
-> types into); contract 6 (the operator-found refocus regression) re-signed via an earlier `editsExisting`
-> re-prove. Contracts 7 (the optional `headerRight` header slot) and 8 (the empty-session honest message)
-> are being added via a further `editsExisting` re-prove of the SAME source (`node build
-> terminal-dock-panel --real`) for the owner's 2026-07-12 terminal-repo-picker UX refinement — the
-> anchored bytes re-sign, so the crown is never left stale by a gate-land hand-edit. The pty LIFECYCLE it
+> **Proof status (honest) — BUILT & SIGNED (contracts 1–8), now RE-PROVEN PER-TAB under a multi-session
+> rewrite.** Contracts 1–5 landed under the original story build's signed `--real` verdict (the xterm.js
+> terminal the user sees and types into); contract 6 (the operator-found refocus regression) re-signed via
+> an `editsExisting` re-prove; contracts 7 (the optional `headerRight` header slot) and 8 (the empty-session
+> honest message) re-signed via a further `editsExisting` re-prove of the SAME source for the 2026-07-12
+> terminal-repo-picker UX refinement (PR #705). **Then `terminal-tabs` (ADR-0186) rewrote `TerminalDock.tsx`
+> single-session → multi-session with a tab strip:** this cap's anchored source drifts on that rewrite, and
+> its eight `tdp-*` behaviours are **re-proven per-tab / per-dock** by
+> [`multi-session-tabs`](../terminal-tabs/multi-session-tabs.md)'s signed `--real` verdict over the new
+> source (the per-session contracts on the active/first tab, the `headerRight` + degrade contracts on the
+> per-dock chrome) — the anchored bytes re-sign, so the crown is never left stale. The pty LIFECYCLE it
 > drives (over the bridge) is
 > [`pty-session-manager`](pty-session-manager.md); the real `desktopTerminal` bridge
 > (`apps/desktop/electron/preload.ts`) and the real-pty Electron-main wiring are the story's
 > operator-attested GLUE. Its *appearance inside the native shell* ("reads and behaves like a real
 > terminal") is the story's operator-attested UAT leg 5 (ADR-0070 — the look is witnessed, never a machine
-> visual verdict), and the `.terminal-dock*` chrome is CSS glue re-attested there.
+> visual verdict), and the `.terminal-dock*` chrome is CSS glue re-attested there; the tab-strip look is
+> `terminal-tabs`' operator-attested leg.
 
 ## Guidance
 
