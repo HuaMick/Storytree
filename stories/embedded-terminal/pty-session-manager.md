@@ -27,19 +27,19 @@ depends_on: []
 # declares NO `addDeps` (and could not: resolveAddDepsGroup targets packages/*, never apps/*).
 #
 # RE-PROVE (ADR-0057 §3 expansion C): pty-session-manager.ts + its test ALREADY EXIST at HEAD (signed by
-# the original story build) — this arm is driven `editsExisting` for app-owned session survival
-# (terminal-orchestrator-seat increment 1, owner-directed 2026-07-12, ADR-0189): contract 6 (a main-held
-# per-session SCROLLBACK ring buffer — every chunk routed to a live session is also appended to that
-# session's buffer, capped in bytes, oldest-trimmed — plus `snapshot(sessionId)` returning the buffered
-# output, null fail-closed on an unknown/disposed id) and contract 7 (`list()` — enumerate the live
-# sessions, id + spawn cwd, creation order, disposed/exited sessions dropped). Together they are the
-# re-attach affordance: a re-mounting renderer dock can enumerate still-live sessions and replay their
-# scrollback, so a route change no longer kills terminals (ownership moves dock-lifetime → app-lifetime).
-# The leaf reads the existing source + 5 tests, ADDS the 6th + 7th tests (behaviour-assertion reds: the
-# manager at HEAD has no snapshot()/list()), then EDITS pty-session-manager.ts additively — NOT a
-# net-new missing-symbol red. Preserves the existing create/write/resize/dispose/isolation/fail-closed
-# behaviour + the 5 existing contracts and their EXACT test titles (every test title leads with its
-# contract id — check:coverage matches titles, ADR-0122).
+# the original story build, then re-signed by the ADR-0189 scrollback re-drive) — this arm is driven
+# `editsExisting` for app-owned session survival (terminal-orchestrator-seat increment 1, owner-directed
+# 2026-07-12, ADR-0189). CONTRACT 6 IS BUILT (the scrollback ring + `snapshot`, signed in the previous
+# re-drive — real-mrhxlfy8): do NOT re-author it; keep its test + behaviour byte-intact. THIS drive adds
+# ONLY CONTRACT 7: `list()` — enumerate the LIVE sessions as `Array<{ sessionId, cwd }>` (the `cwd` the
+# session was spawned with, `null` when the opts carried none), in creation order; a disposed or
+# self-exited session drops out. It is the re-attach enumeration the Electron-main glue scopes per repo
+# (`terminal:list`). The leaf reads the existing source + 10 tests, ADDS ONE test titled with the
+# contract id — `psm-lists-live-sessions: …` (a behaviour-assertion red: the manager at HEAD has no
+# list()) — then EDITS pty-session-manager.ts additively (a `list()` method reading the existing
+# per-session `cwd` the Session record already stores). Preserves EVERY existing behaviour and EVERY
+# existing test title EXACTLY (each leads with its psm-* contract id — check:coverage matches titles at
+# word boundaries, ADR-0122; dropping or renaming one is the recurring 6×-observed defect).
 proof:
   command:
     file: pnpm

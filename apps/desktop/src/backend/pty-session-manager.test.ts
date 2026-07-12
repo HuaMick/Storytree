@@ -84,7 +84,7 @@ const BASE_OPTS: PtySpawnOptions = { cols: 80, rows: 24, shell: "bash", cwd: "/t
 // spawn + routing
 // ---------------------------------------------------------------------------
 
-test("create: spawns via the port with the given options and wires onData to the sink", () => {
+test("psm-spawns-and-routes-data: create() spawns via the port with the given options and wires onData to the sink", () => {
   const port = new FakePtyPort();
   const manager = new PtySessionManager(port);
   const received: Array<{ sessionId: string; chunk: string }> = [];
@@ -107,7 +107,7 @@ test("create: spawns via the port with the given options and wires onData to the
   assert.deepEqual(received, [{ sessionId, chunk: "hello from the shell\n" }]);
 });
 
-test("write: forwards typed input to the addressed session's pty handle", () => {
+test("psm-forwards-input-and-resize: write() forwards typed input to the addressed session's pty handle", () => {
   const port = new FakePtyPort();
   const manager = new PtySessionManager(port);
   const sessionId = manager.create(BASE_OPTS, () => {}, () => {});
@@ -120,7 +120,7 @@ test("write: forwards typed input to the addressed session's pty handle", () => 
   assert.deepEqual(handle.writes, ["ls -la\n"]);
 });
 
-test("resize: forwards cols/rows to the addressed session's pty handle", () => {
+test("psm-forwards-input-and-resize: resize() forwards cols/rows to the addressed session's pty handle", () => {
   const port = new FakePtyPort();
   const manager = new PtySessionManager(port);
   const sessionId = manager.create(BASE_OPTS, () => {}, () => {});
@@ -137,7 +137,7 @@ test("resize: forwards cols/rows to the addressed session's pty handle", () => {
 // dispose + exit teardown
 // ---------------------------------------------------------------------------
 
-test("dispose: kills the pty, frees the session id, and reports it gone", () => {
+test("psm-disposes-and-tears-down: dispose() kills the pty, frees the session id, and reports it gone", () => {
   const port = new FakePtyPort();
   const manager = new PtySessionManager(port);
   const sessionId = manager.create(BASE_OPTS, () => {}, () => {});
@@ -152,7 +152,7 @@ test("dispose: kills the pty, frees the session id, and reports it gone", () => 
   assert.equal(manager.has(sessionId), false);
 });
 
-test("the pty's own exit tears the session down and routes the typed onExit event once", () => {
+test("psm-disposes-and-tears-down: the pty's own exit tears the session down and routes the typed onExit event once", () => {
   const port = new FakePtyPort();
   const manager = new PtySessionManager(port);
   const exits: Array<{ sessionId: string; exitCode: number }> = [];
@@ -176,7 +176,7 @@ test("the pty's own exit tears the session down and routes the typed onExit even
   assert.equal(handle.killCount, 0);
 });
 
-test("a late onData after dispose is dropped, not routed to the freed sink", () => {
+test("psm-disposes-and-tears-down: a late onData after dispose is dropped, not routed to the freed sink", () => {
   const port = new FakePtyPort();
   const manager = new PtySessionManager(port);
   const received: string[] = [];
@@ -195,7 +195,7 @@ test("a late onData after dispose is dropped, not routed to the freed sink", () 
 // fail-closed on unknown / disposed ids
 // ---------------------------------------------------------------------------
 
-test("write/resize/dispose on an unknown session id fail closed — false, never a throw", () => {
+test("psm-fails-closed-on-unknown-session: write/resize/dispose on an unknown session id fail closed — false, never a throw", () => {
   const port = new FakePtyPort();
   const manager = new PtySessionManager(port);
 
@@ -207,7 +207,7 @@ test("write/resize/dispose on an unknown session id fail closed — false, never
   });
 });
 
-test("write/resize on an already-disposed session id fail closed — false, never a throw", () => {
+test("psm-fails-closed-on-unknown-session: write/resize on an already-disposed session id fail closed — false, never a throw", () => {
   const port = new FakePtyPort();
   const manager = new PtySessionManager(port);
   const sessionId = manager.create(BASE_OPTS, () => {}, () => {});
@@ -228,7 +228,7 @@ test("write/resize on an already-disposed session id fail closed — false, neve
 // multi-session isolation
 // ---------------------------------------------------------------------------
 
-test("concurrent sessions are isolated: routing and disposal never cross session boundaries", () => {
+test("psm-isolates-multiple-sessions: concurrent sessions are isolated — routing and disposal never cross session boundaries", () => {
   const port = new FakePtyPort();
   const manager = new PtySessionManager(port);
   const receivedA: string[] = [];
@@ -276,7 +276,7 @@ test("concurrent sessions are isolated: routing and disposal never cross session
 // re-attaching dock can replay it into a fresh xterm).
 // ---------------------------------------------------------------------------
 
-test("snapshot: buffers routed output in a byte-capped ring, trims the oldest chunks first, and fails closed to null for an unknown or disposed session", () => {
+test("psm-buffers-scrollback-and-snapshots: buffers routed output in a byte-capped ring, trims the oldest chunks first, and fails closed to null for an unknown or disposed session", () => {
   const port = new FakePtyPort();
   // A tiny cap makes the trim deterministic and observable in a few chunks.
   const manager = new PtySessionManager(port, { scrollbackBytes: 5 });
