@@ -78,16 +78,13 @@ describe('LibraryDrawer — permanent lens (ADR-0187 dec 1/2)', () => {
   });
 
   it('lpl-body-slot-renders-content: the bodySlot prop renders whatever node it is handed, and there is no dive slot', () => {
+    const bodyContent = 'stub body slot content';
     render(
-      <LibraryDrawer
-        search="?overlay=library"
-        selection={null}
-        onOpen={vi.fn()}
-        bodySlot={<div data-testid="stub-body-slot-content">stub body content</div>}
-      />,
+      <LibraryDrawer search="?overlay=library" selection={null} onOpen={vi.fn()} bodySlot={bodyContent} />,
     );
 
-    expect(screen.getByTestId('stub-body-slot-content').textContent).toBe('stub body content');
+    // The handed body node renders inside the lens, and the retired inline dive slot is gone.
+    expect(screen.getByText(bodyContent)).not.toBeNull();
     expect(screen.queryByTestId('library-drawer-dive-slot')).toBeNull();
   });
 
