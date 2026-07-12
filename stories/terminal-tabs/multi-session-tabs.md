@@ -8,26 +8,32 @@ status: proposed
 proof_mode: integration-test
 depends_on: []
 # Node-borne proof config (ADR-0057 keystone): authoring THIS block is what makes the capability
-# inner-loop buildable — no NODE_BUILD_REGISTRY edit. This is an EDIT-EXISTING (editsExisting) node: the
-# source (apps/studio/src/components/TerminalDock.tsx) and its test (TerminalDock.test.tsx) EXIST and are
-# green at HEAD (embedded-terminal / PR #690, re-driven for headerRight + empty-session / PR #705) — a
-# SINGLE-SESSION dock holding one sessionIdRef / one xterm. The RED the spine observes is authored by
-# adding NEW cases that render `<TerminalDock/>` and drive a tab strip — a "+" that spawns a SECOND
-# session, a tab switch, a "×" that disposes one session — which FAIL against the single-session dock at
-# HEAD (it has no "+", no tab strip, one session; the new-tab / switch / close-one queries throw), so the
-# edit is a real red→green over existing source. The EIGHT existing terminal-dock-panel contracts (tdp-*)
-# stay GREEN — adapted so the per-session ones (spawn, input, data, resize, toggle, refocus, empty-session)
-# exercise the FIRST/ACTIVE tab (the N=1 case of the tab model) and the per-dock ones (headerRight slot,
-# absent-bridge degrade) exercise the chrome that wraps the strip. FRONTEND-BUILDER TWO-STAGE (ADR-0070):
-# this `real:` arm proves GEOMETRY/BEHAVIOUR ONLY (create / switch / close+dispose / per-tab I/O scoping /
-# dispose-all-on-unmount / chrome-per-dock) over the SAME mocked xterm + mocked `desktopTerminal` bridge
-# the existing suite uses — the tab strip's APPEARANCE (reads as a coherent tab strip) is the story's
-# operator-attested UAT leg, NOT a machine visual verdict here. The proof command is the studio VITEST
-# suite, NOT node:test; the `real.proofCommand` runs the ONE test file under vitest (the terminal-dock-
-# panel / terminal-dock-seed precedent — the node:test default cannot run a jsdom .test.tsx). `install:
-# true` (fresh worktree: tsx + tsc + vitest need the lockfile-only install, ADR-0031 §2). editsExisting +
-# a single literal sourceFile === the one sourceGlob (no wildcard), so the multi-file refine is satisfied;
-# the explicit vitest proofCommand is required regardless (runner mismatch).
+# inner-loop buildable — no NODE_BUILD_REGISTRY edit. EDIT-EXISTING (editsExisting): the multi-session
+# tab substrate IS BUILT and signed (the original tab-strip drive; then re-signed under the
+# terminal-dock-panel ADR-0189 restore re-drive — real-mrhxzx4o).
+#
+# THE CURRENT RE-DRIVE (ADR-0189 app-owned sessions — the unmount reversal, one behaviour only): the
+# dock at HEAD still calls `bridge.dispose` for EVERY session in its unmount cleanup (the old ADR-0186
+# dock-lifetime wall). ADR-0189 REVERSES that: sessions are APP-owned — unmount disposes RENDERER
+# resources only (each tab's xterm + fit) and clears the session table (so a stale bridge callback never
+# writes a disposed xterm), but calls NO `bridge.dispose`; the explicit per-tab "×" (contract
+# `mst-close-tab-disposes-its-session`, unchanged) and app-quit (glue) are the ONLY kills. The leaf:
+# (1) REWRITES the ONE unmount test — currently titled `mst-disposes-all-sessions-on-unmount` and
+# asserting dispose-per-session — to the contract below: title `mst-unmount-preserves-sessions: …`,
+# asserting each xterm/fit instance IS disposed and `bridge.dispose` is called for NO session id (the
+# RED: against HEAD the rewritten assertion fails because unmount still disposes). (2) EDITS ONLY the
+# unmount cleanup effect in TerminalDock.tsx to match. EVERYTHING ELSE stays byte-stable: every other
+# test keeps its EXACT title (each leads with its tdp-*/mst-*/son-* contract id — check:coverage matches
+# titles at word boundaries, ADR-0122; inventing/renaming ids is the recurring 7×-observed defect) and
+# its assertions; the restore path (`tdp-reattaches-live-sessions-on-mount`), the seed path, the close
+# path, and the chrome are NOT touched.
+#
+# FRONTEND-BUILDER TWO-STAGE (ADR-0070): this `real:` arm proves GEOMETRY/BEHAVIOUR ONLY over the SAME
+# mocked xterm + mocked `desktopTerminal` bridge the suite uses — the look is the story's
+# operator-attested UAT leg. The proof command is the studio VITEST suite, NOT node:test; the
+# `real.proofCommand` runs the ONE test file under vitest (the node:test default cannot run a jsdom
+# .test.tsx). `install: true` (fresh worktree, ADR-0031 §2). editsExisting + a single literal sourceFile
+# === the one sourceGlob; the explicit vitest proofCommand is required regardless (runner mismatch).
 proof:
   command:
     file: pnpm

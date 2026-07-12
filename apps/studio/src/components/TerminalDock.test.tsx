@@ -614,12 +614,12 @@ describe('TerminalDock', () => {
     expect(screen.queryByRole('button', { name: /^tab 2$/i })).toBeNull();
   });
 
-  // ── rar-restores-live-sessions-on-mount (ADR-0189 re-attach slice, contract 9) ──────────────
+  // ── tdp-reattaches-live-sessions-on-mount (ADR-0189 re-attach slice, contract 9) ──────────────
   //    On mount, with the bridge present and `list()` reporting still-live sessions, the dock
   //    ADOPTS each one as its own tab (never calling `spawn` for it) and replays that session's
   //    `snapshot()` into its fresh xterm. Expanding afterwards must NOT spawn a duplicate/fresh
   //    session — the restore already settled the tab set.
-  it('rar-restores-live-sessions-on-mount: still-live sessions reported by bridge.list() are adopted as one tab each, with snapshot() replayed and no spawn', async () => {
+  it('tdp-reattaches-live-sessions-on-mount: still-live sessions reported by bridge.list() are adopted as one tab each, with snapshot() replayed and no spawn', async () => {
     bridgeMock.list.mockResolvedValueOnce([{ sessionId: 'sess-9' }, { sessionId: 'sess-8' }]);
 
     const { container } = render(<TerminalDock />);
