@@ -14,16 +14,18 @@
 //   • honest disabled state when the bridge is absent    (tdp-degrades-when-bridge-absent)
 //
 // multi-session-tabs capability (this file's newest additions) — the tab substrate: N independent
-// sessions/panes, switched/created/closed, per-tab I/O scoping, per-dock chrome, dispose-everything
-// on close/unmount. Proven with `bridgeMock.spawn` resolving a FRESH sessionId per call (`sess-1`,
-// `sess-2`, …) so a second tab's session is genuinely distinguishable from the first's:
+// sessions/panes, switched/created/closed, per-tab I/O scoping, per-dock chrome, an explicit per-tab
+// close as the only renderer kill (ADR-0189 — sessions are APP-owned and survive dock unmount,
+// superseding ADR-0186's dock-lifetime "dispose all on unmount" wall). Proven with `bridgeMock.spawn`
+// resolving a FRESH sessionId per call (`sess-1`, `sess-2`, …) so a second tab's session is genuinely
+// distinguishable from the first's:
 //
 //   • "+" opens an independent second session/pane        (mst-new-tab-spawns-independent-session)
 //   • clicking a tab shows its pane, hides the others      (mst-switch-shows-selected-tab-pane)
 //   • bridge data routes to the RIGHT tab's pane only      (mst-scopes-io-per-tab)
 //   • toggle/headerRight stay ONE-per-dock, not per-tab    (mst-chrome-stays-per-dock)
 //   • closing a tab disposes ONLY that tab's session       (mst-close-tab-disposes-its-session)
-//   • unmount disposes EVERY open session, not just active (mst-disposes-all-sessions-on-unmount)
+//   • unmount disposes RENDERER only, sessions survive     (mst-unmount-preserves-sessions)
 //
 // THIN CLIENT: TerminalDock reaches the pty ONLY through `window.desktopTerminal` (mocked here — no
 // real IPC / pty / Electron) and mounts an xterm `Terminal` (mocked here — jsdom lays out no real
@@ -141,6 +143,13 @@ const bridgeMock = vi.hoisted(() => {
     dispose: vi.fn<(sessionId: string) => void>(),
     onData: vi.fn<(cb: (sessionId: string, chunk: string) => void) => void>(),
     onExit: vi.fn<(cb: (sessionId: string, e: { exitCode: number }) => void) => void>(),
+    // ADR-0189 re-attach slice — OPTIONAL bridge members (an older preload lacks them, feature-guard,
+    // never assume). Default: no still-live sessions to restore, so the existing spawn-on-first-expand
+    // behaviour stays byte-identical unless a test overrides `list` for that call.
+    list: vi.fn<() => Promise<Array<{ sessionId: string }>>>(async () => []),
+    snapshot: vi.fn<(sessionId: string) => Promise<string>>(
+      async (sessionId) => `snapshot for ${sessionId}\n`,
+    ),
     resetSessionCounter: (): void => {
       sessionCounter = 0;
     },
@@ -205,6 +214,8 @@ beforeEach(() => {
   bridgeMock.dispose.mockClear();
   bridgeMock.onData.mockClear();
   bridgeMock.onExit.mockClear();
+  bridgeMock.list.mockClear();
+  bridgeMock.snapshot.mockClear();
   (window as unknown as { desktopTerminal?: typeof bridgeMock }).desktopTerminal = bridgeMock;
 });
 
@@ -504,9 +515,11 @@ describe('TerminalDock', () => {
   });
 
   // ── multi-session-tabs capability — the tab substrate: N independent sessions/panes, created via
-  //    "+", switched by clicking a tab, closed via a per-tab "×", every session disposed on close
-  //    AND unmount. The eight tdp-* contracts above stay green unchanged (the N=1 case); these six
-  //    pin the NEW multi-session behaviour. ─────────────────────────────────────────────────────
+  //    "+", switched by clicking a tab, closed via a per-tab "×" (the ONLY thing that disposes a
+  //    session's bridge/pty side); dock unmount disposes renderer resources only and PRESERVES every
+  //    open session (ADR-0189 — sessions are app-owned, the pty-reap duty moved to the Electron
+  //    main's app lifecycle). The eight tdp-* contracts above stay green unchanged (the N=1 case);
+  //    these six pin the NEW multi-session behaviour. ─────────────────────────────────────────────
 
   // ── mst-new-tab-spawns-independent-session ─────────────────────────────────────────────
   it('mst-new-tab-spawns-independent-session: the "+" control spawns an independent second session and mounts its own xterm pane', async () => {
@@ -605,18 +618,58 @@ describe('TerminalDock', () => {
     expect(screen.queryByRole('button', { name: /^tab 2$/i })).toBeNull();
   });
 
-  // ── mst-disposes-all-sessions-on-unmount ─────────────────────────────────────
-  it('mst-disposes-all-sessions-on-unmount: unmounting the dock disposes EVERY open session, not just the active one', async () => {
+  // ── tdp-reattaches-live-sessions-on-mount (ADR-0189 re-attach slice, contract 9) ──────────────
+  //    On mount, with the bridge present and `list()` reporting still-live sessions, the dock
+  //    ADOPTS each one as its own tab (never calling `spawn` for it) and replays that session's
+  //    `snapshot()` into its fresh xterm. Expanding afterwards must NOT spawn a duplicate/fresh
+  //    session — the restore already settled the tab set.
+  it('tdp-reattaches-live-sessions-on-mount: still-live sessions reported by bridge.list() are adopted as one tab each, with snapshot() replayed and no spawn', async () => {
+    bridgeMock.list.mockResolvedValueOnce([{ sessionId: 'sess-9' }, { sessionId: 'sess-8' }]);
+
+    const { container } = render(<TerminalDock />);
+    await flush();
+    await flush(); // drain the list() → per-session snapshot() promise chain
+
+    expect(bridgeMock.list).toHaveBeenCalledTimes(1);
+    expect(bridgeMock.spawn).not.toHaveBeenCalled(); // adopted, never spawned
+
+    expect(container.querySelectorAll('.terminal-dock-tab').length).toBe(2);
+    expect(xtermMock.FakeTerminal.instances.length).toBe(2);
+
+    const term9 = xtermMock.FakeTerminal.instances[0]!;
+    const term8 = xtermMock.FakeTerminal.instances[1]!;
+    expect(term9.written).toEqual(['snapshot for sess-9\n']);
+    expect(term8.written).toEqual(['snapshot for sess-8\n']);
+
+    // Expanding afterwards must not spawn a duplicate session — the restore already settled.
+    await expand();
+    expect(bridgeMock.spawn).not.toHaveBeenCalled();
+  });
+
+  // ── mst-unmount-preserves-sessions (ADR-0189 — supersedes ADR-0186's dock-lifetime wall) ────────
+  it('mst-unmount-preserves-sessions: unmounting the dock disposes only RENDERER resources (xterm + fit) for every open tab, and NEVER the bridge session — sessions are app-owned and survive dock unmount', async () => {
     const { unmount } = render(<TerminalDock />);
     await expand(); // tab 1 = sess-1
     await openNewTab(); // tab 2 = sess-2
+
+    const term1 = xtermMock.FakeTerminal.instances[0]!;
+    const term2 = xtermMock.FakeTerminal.instances[1]!;
+    const fit1 = fitMock.FakeFitAddon.instances[0]!;
+    const fit2 = fitMock.FakeFitAddon.instances[1]!;
 
     expect(bridgeMock.dispose).not.toHaveBeenCalled();
 
     unmount();
 
-    expect(bridgeMock.dispose).toHaveBeenCalledWith('sess-1');
-    expect(bridgeMock.dispose).toHaveBeenCalledWith('sess-2');
-    expect(bridgeMock.dispose).toHaveBeenCalledTimes(2);
+    // Every tab's RENDERER resources are torn down on unmount...
+    expect(term1.disposed).toBe(true);
+    expect(term2.disposed).toBe(true);
+    expect(fit1.disposed).toBe(true);
+    expect(fit2.disposed).toBe(true);
+
+    // ...but NO bridge session is disposed — sessions are app-owned (they survive a route change
+    // and re-attach on the next mount, `tdp-reattaches-live-sessions-on-mount`); the pty-reap duty
+    // moved to the Electron main's app lifecycle (disposeAllTerminals on window-close/app-quit).
+    expect(bridgeMock.dispose).not.toHaveBeenCalled();
   });
 });

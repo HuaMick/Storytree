@@ -84,7 +84,7 @@ const BASE_OPTS: PtySpawnOptions = { cols: 80, rows: 24, shell: "bash", cwd: "/t
 // spawn + routing
 // ---------------------------------------------------------------------------
 
-test("create: spawns via the port with the given options and wires onData to the sink", () => {
+test("psm-spawns-and-routes-data: create() spawns via the port with the given options and wires onData to the sink", () => {
   const port = new FakePtyPort();
   const manager = new PtySessionManager(port);
   const received: Array<{ sessionId: string; chunk: string }> = [];
@@ -107,7 +107,7 @@ test("create: spawns via the port with the given options and wires onData to the
   assert.deepEqual(received, [{ sessionId, chunk: "hello from the shell\n" }]);
 });
 
-test("write: forwards typed input to the addressed session's pty handle", () => {
+test("psm-forwards-input-and-resize: write() forwards typed input to the addressed session's pty handle", () => {
   const port = new FakePtyPort();
   const manager = new PtySessionManager(port);
   const sessionId = manager.create(BASE_OPTS, () => {}, () => {});
@@ -120,7 +120,7 @@ test("write: forwards typed input to the addressed session's pty handle", () => 
   assert.deepEqual(handle.writes, ["ls -la\n"]);
 });
 
-test("resize: forwards cols/rows to the addressed session's pty handle", () => {
+test("psm-forwards-input-and-resize: resize() forwards cols/rows to the addressed session's pty handle", () => {
   const port = new FakePtyPort();
   const manager = new PtySessionManager(port);
   const sessionId = manager.create(BASE_OPTS, () => {}, () => {});
@@ -137,7 +137,7 @@ test("resize: forwards cols/rows to the addressed session's pty handle", () => {
 // dispose + exit teardown
 // ---------------------------------------------------------------------------
 
-test("dispose: kills the pty, frees the session id, and reports it gone", () => {
+test("psm-disposes-and-tears-down: dispose() kills the pty, frees the session id, and reports it gone", () => {
   const port = new FakePtyPort();
   const manager = new PtySessionManager(port);
   const sessionId = manager.create(BASE_OPTS, () => {}, () => {});
@@ -152,7 +152,7 @@ test("dispose: kills the pty, frees the session id, and reports it gone", () => 
   assert.equal(manager.has(sessionId), false);
 });
 
-test("the pty's own exit tears the session down and routes the typed onExit event once", () => {
+test("psm-disposes-and-tears-down: the pty's own exit tears the session down and routes the typed onExit event once", () => {
   const port = new FakePtyPort();
   const manager = new PtySessionManager(port);
   const exits: Array<{ sessionId: string; exitCode: number }> = [];
@@ -176,7 +176,7 @@ test("the pty's own exit tears the session down and routes the typed onExit even
   assert.equal(handle.killCount, 0);
 });
 
-test("a late onData after dispose is dropped, not routed to the freed sink", () => {
+test("psm-disposes-and-tears-down: a late onData after dispose is dropped, not routed to the freed sink", () => {
   const port = new FakePtyPort();
   const manager = new PtySessionManager(port);
   const received: string[] = [];
@@ -195,7 +195,7 @@ test("a late onData after dispose is dropped, not routed to the freed sink", () 
 // fail-closed on unknown / disposed ids
 // ---------------------------------------------------------------------------
 
-test("write/resize/dispose on an unknown session id fail closed — false, never a throw", () => {
+test("psm-fails-closed-on-unknown-session: write/resize/dispose on an unknown session id fail closed — false, never a throw", () => {
   const port = new FakePtyPort();
   const manager = new PtySessionManager(port);
 
@@ -207,7 +207,7 @@ test("write/resize/dispose on an unknown session id fail closed — false, never
   });
 });
 
-test("write/resize on an already-disposed session id fail closed — false, never a throw", () => {
+test("psm-fails-closed-on-unknown-session: write/resize on an already-disposed session id fail closed — false, never a throw", () => {
   const port = new FakePtyPort();
   const manager = new PtySessionManager(port);
   const sessionId = manager.create(BASE_OPTS, () => {}, () => {});
@@ -228,7 +228,7 @@ test("write/resize on an already-disposed session id fail closed — false, neve
 // multi-session isolation
 // ---------------------------------------------------------------------------
 
-test("concurrent sessions are isolated: routing and disposal never cross session boundaries", () => {
+test("psm-isolates-multiple-sessions: concurrent sessions are isolated — routing and disposal never cross session boundaries", () => {
   const port = new FakePtyPort();
   const manager = new PtySessionManager(port);
   const receivedA: string[] = [];
@@ -268,4 +268,71 @@ test("concurrent sessions are isolated: routing and disposal never cross session
   assert.equal(handleA.killCount, 1);
   assert.equal(handleB.killCount, 0);
   assert.equal(manager.size, 1);
+});
+
+// ---------------------------------------------------------------------------
+// scrollback ring + snapshot (contract 6 — ADR-0189 app-owned sessions: the
+// manager, not the renderer, holds each live session's recent output so a
+// re-attaching dock can replay it into a fresh xterm).
+// ---------------------------------------------------------------------------
+
+test("psm-buffers-scrollback-and-snapshots: buffers routed output in a byte-capped ring, trims the oldest chunks first, and fails closed to null for an unknown or disposed session", () => {
+  const port = new FakePtyPort();
+  // A tiny cap makes the trim deterministic and observable in a few chunks.
+  const manager = new PtySessionManager(port, { scrollbackBytes: 5 });
+  const sessionId = manager.create(BASE_OPTS, () => {}, () => {});
+  const handle = port.spawned[0]?.handle;
+  assert.ok(handle);
+
+  handle.emitData("AAAAA"); // 5 bytes — exactly fills the cap.
+  handle.emitData("BB"); // total would be 7 > 5 — the oldest chunk ("AAAAA") is trimmed.
+  handle.emitData("CCC"); // total is back to exactly 5 — no trim needed.
+
+  // Only the surviving, most-recent chunks are in the buffer — the oldest chunk is gone.
+  assert.equal(manager.snapshot(sessionId), "BBCCC");
+
+  // Fail-closed: an unknown session id yields null, never a throw.
+  assert.equal(manager.snapshot("no-such-session"), null);
+
+  // The buffer is freed with the session on dispose.
+  manager.dispose(sessionId);
+  assert.equal(manager.snapshot(sessionId), null);
+});
+
+// ---------------------------------------------------------------------------
+// list() — the live-session enumeration (contract 7 — re-attach discovery,
+// ADR-0189: the Electron-main glue scopes re-attach per repo via the cwd this
+// reports; the manager itself reports facts only, no policy).
+// ---------------------------------------------------------------------------
+
+test("psm-lists-live-sessions: list() reports live sessions in creation order with their spawn cwd, dropping disposed or self-exited sessions", () => {
+  const port = new FakePtyPort();
+  const manager = new PtySessionManager(port);
+
+  const sessionA = manager.create(BASE_OPTS, () => {}, () => {});
+  const sessionB = manager.create(
+    { cols: 100, rows: 30, shell: "zsh" }, // no cwd given
+    () => {},
+    () => {},
+  );
+  const sessionC = manager.create({ cols: 80, rows: 24, cwd: "/repo/two" }, () => {}, () => {});
+
+  assert.deepEqual(manager.list(), [
+    { sessionId: sessionA, cwd: "/tmp/work" },
+    { sessionId: sessionB, cwd: null },
+    { sessionId: sessionC, cwd: "/repo/two" },
+  ]);
+
+  // A disposed session drops out of the enumeration.
+  manager.dispose(sessionA);
+  assert.deepEqual(manager.list(), [
+    { sessionId: sessionB, cwd: null },
+    { sessionId: sessionC, cwd: "/repo/two" },
+  ]);
+
+  // A session that exits on its own also drops out — list() reports live sessions only.
+  const handleB = port.spawned[1]?.handle;
+  assert.ok(handleB);
+  handleB.emitExit({ exitCode: 0 });
+  assert.deepEqual(manager.list(), [{ sessionId: sessionC, cwd: "/repo/two" }]);
 });

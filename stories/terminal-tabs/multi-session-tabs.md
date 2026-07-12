@@ -2,32 +2,38 @@
 id: "multi-session-tabs"
 tier: capability
 story: terminal-tabs
-title: "TerminalDock becomes multi-session with a tab strip — N sessions, each its own xterm pane, created/switched/closed, the single-session behaviours held per tab, every session disposed on close AND unmount"
-outcome: "The existing single-session `TerminalDock` becomes MULTI-SESSION with a tab strip: it holds N pty sessions, each its OWN xterm `Terminal` pane + `sessionId` over the already-per-session `desktopTerminal` bridge; a tab strip (a NEW horizontal strip between the dock header and the body) SWITCHES the active pane, a \"+\" opens a fresh session/tab, and a per-tab \"×\" disposes that session and reaps its tab. The eight `terminal-dock-panel` behaviours (spawn, input↔pty, data-in, resize, visibility-toggle, refocus, absent-bridge degrade, empty-session message) hold PER TAB — scoped to the active/first session — while the dock chrome (collapse/resize, the toggle, the `headerRight` slot) stays PER-DOCK, wrapping the tab set. EVERY session is disposed on tab-close AND on dock unmount (never orphan a pty)."
+title: "TerminalDock becomes multi-session with a tab strip — N sessions, each its own xterm pane, created/switched/closed, the single-session behaviours held per tab, explicit tab-close the only renderer kill"
+outcome: "The existing single-session `TerminalDock` becomes MULTI-SESSION with a tab strip: it holds N pty sessions, each its OWN xterm `Terminal` pane + `sessionId` over the already-per-session `desktopTerminal` bridge; a tab strip (a NEW horizontal strip between the dock header and the body) SWITCHES the active pane, a \"+\" opens a fresh session/tab, and a per-tab \"×\" disposes that session and reaps its tab. The eight `terminal-dock-panel` behaviours (spawn, input↔pty, data-in, resize, visibility-toggle, refocus, absent-bridge degrade, empty-session message) hold PER TAB — scoped to the active/first session — while the dock chrome (collapse/resize, the toggle, the `headerRight` slot) stays PER-DOCK, wrapping the tab set. The per-tab \"×\" disposes exactly that session; dock unmount disposes RENDERER resources only — sessions are app-owned and survive it (ADR-0189, redefining the ADR-0186 never-orphan wall)."
 status: proposed
 proof_mode: integration-test
 depends_on: []
 # Node-borne proof config (ADR-0057 keystone): authoring THIS block is what makes the capability
-# inner-loop buildable — no NODE_BUILD_REGISTRY edit. This is an EDIT-EXISTING (editsExisting) node: the
-# source (apps/studio/src/components/TerminalDock.tsx) and its test (TerminalDock.test.tsx) EXIST and are
-# green at HEAD (embedded-terminal / PR #690, re-driven for headerRight + empty-session / PR #705) — a
-# SINGLE-SESSION dock holding one sessionIdRef / one xterm. The RED the spine observes is authored by
-# adding NEW cases that render `<TerminalDock/>` and drive a tab strip — a "+" that spawns a SECOND
-# session, a tab switch, a "×" that disposes one session — which FAIL against the single-session dock at
-# HEAD (it has no "+", no tab strip, one session; the new-tab / switch / close-one queries throw), so the
-# edit is a real red→green over existing source. The EIGHT existing terminal-dock-panel contracts (tdp-*)
-# stay GREEN — adapted so the per-session ones (spawn, input, data, resize, toggle, refocus, empty-session)
-# exercise the FIRST/ACTIVE tab (the N=1 case of the tab model) and the per-dock ones (headerRight slot,
-# absent-bridge degrade) exercise the chrome that wraps the strip. FRONTEND-BUILDER TWO-STAGE (ADR-0070):
-# this `real:` arm proves GEOMETRY/BEHAVIOUR ONLY (create / switch / close+dispose / per-tab I/O scoping /
-# dispose-all-on-unmount / chrome-per-dock) over the SAME mocked xterm + mocked `desktopTerminal` bridge
-# the existing suite uses — the tab strip's APPEARANCE (reads as a coherent tab strip) is the story's
-# operator-attested UAT leg, NOT a machine visual verdict here. The proof command is the studio VITEST
-# suite, NOT node:test; the `real.proofCommand` runs the ONE test file under vitest (the terminal-dock-
-# panel / terminal-dock-seed precedent — the node:test default cannot run a jsdom .test.tsx). `install:
-# true` (fresh worktree: tsx + tsc + vitest need the lockfile-only install, ADR-0031 §2). editsExisting +
-# a single literal sourceFile === the one sourceGlob (no wildcard), so the multi-file refine is satisfied;
-# the explicit vitest proofCommand is required regardless (runner mismatch).
+# inner-loop buildable — no NODE_BUILD_REGISTRY edit. EDIT-EXISTING (editsExisting): the multi-session
+# tab substrate IS BUILT and signed (the original tab-strip drive; then re-signed under the
+# terminal-dock-panel ADR-0189 restore re-drive — real-mrhxzx4o).
+#
+# THE CURRENT RE-DRIVE (ADR-0189 app-owned sessions — the unmount reversal, one behaviour only): the
+# dock at HEAD still calls `bridge.dispose` for EVERY session in its unmount cleanup (the old ADR-0186
+# dock-lifetime wall). ADR-0189 REVERSES that: sessions are APP-owned — unmount disposes RENDERER
+# resources only (each tab's xterm + fit) and clears the session table (so a stale bridge callback never
+# writes a disposed xterm), but calls NO `bridge.dispose`; the explicit per-tab "×" (contract
+# `mst-close-tab-disposes-its-session`, unchanged) and app-quit (glue) are the ONLY kills. The leaf:
+# (1) REWRITES the ONE unmount test — currently titled `mst-disposes-all-sessions-on-unmount` and
+# asserting dispose-per-session — to the contract below: title `mst-unmount-preserves-sessions: …`,
+# asserting each xterm/fit instance IS disposed and `bridge.dispose` is called for NO session id (the
+# RED: against HEAD the rewritten assertion fails because unmount still disposes). (2) EDITS ONLY the
+# unmount cleanup effect in TerminalDock.tsx to match. EVERYTHING ELSE stays byte-stable: every other
+# test keeps its EXACT title (each leads with its tdp-*/mst-*/son-* contract id — check:coverage matches
+# titles at word boundaries, ADR-0122; inventing/renaming ids is the recurring 7×-observed defect) and
+# its assertions; the restore path (`tdp-reattaches-live-sessions-on-mount`), the seed path, the close
+# path, and the chrome are NOT touched.
+#
+# FRONTEND-BUILDER TWO-STAGE (ADR-0070): this `real:` arm proves GEOMETRY/BEHAVIOUR ONLY over the SAME
+# mocked xterm + mocked `desktopTerminal` bridge the suite uses — the look is the story's
+# operator-attested UAT leg. The proof command is the studio VITEST suite, NOT node:test; the
+# `real.proofCommand` runs the ONE test file under vitest (the node:test default cannot run a jsdom
+# .test.tsx). `install: true` (fresh worktree, ADR-0031 §2). editsExisting + a single literal sourceFile
+# === the one sourceGlob; the explicit vitest proofCommand is required regardless (runner mismatch).
 proof:
   command:
     file: pnpm
@@ -68,8 +74,9 @@ holds **N pty sessions**, each its OWN xterm `Terminal` pane + `sessionId` over 
 session and reaps its tab. The eight `terminal-dock-panel` behaviours (spawn, input↔pty, data-in, resize,
 visibility-toggle, refocus, absent-bridge degrade, empty-session message) hold **per tab** — scoped to the
 active/first session — while the dock **chrome** (collapse/resize, the toggle, the `headerRight` slot) stays
-**per-dock**, wrapping the tab set. **EVERY session is disposed on tab-close AND on dock unmount** (never
-orphan a pty).
+**per-dock**, wrapping the tab set. **The per-tab "×" disposes exactly that session; dock unmount disposes
+RENDERER resources only** — sessions are app-owned and survive it, re-attached on the next mount (ADR-0189,
+redefining the ADR-0186 dock-lifetime never-orphan wall; explicit "×" and app-quit are the only kills).
 
 **Depends on —** nothing (within `terminal-tabs`; the sole in-story root). The dock reaches the pty ONLY
 through the `window.desktopTerminal` bridge, which is ALREADY per-session — `PtySessionManager`
@@ -134,13 +141,17 @@ contracts (re-proven here), NOT this cap's — `storytree coverage multi-session
 `mst-*` below; the tdp-* re-proof keeps that cap's crown honest under the rewritten bytes (the orchestrator
 re-tenses `terminal-dock-panel.md` — a cross-story edit flagged in the story's Open modeling calls).
 
-DISPOSE EVERY SESSION — ON CLOSE AND ON UNMOUNT (the never-orphan-a-pty wall). The single-session dock
-disposes its one session on unmount. Multi-session must dispose EVERY open session's pty: `bridge.dispose`
-for the closed tab's `sessionId` on "×" (and `fit.dispose()`/`term.dispose()` for its xterm), and
-`bridge.dispose` for ALL remaining sessions on dock unmount. A leaked pty is a real resource bug (ADR-0186
-Consequences: "reaping every session on close / app-quit"). Pin both the per-tab close dispose
-(`mst-close-tab-disposes-its-session`) and the dispose-all-on-unmount (`mst-disposes-all-sessions-on-
-unmount`).
+DISPOSE ON "×"; PRESERVE ON UNMOUNT (the never-orphan wall, REDEFINED app-lifetime by ADR-0189). The
+per-tab "×" is the explicit kill: `bridge.dispose` for the closed tab's `sessionId` (and
+`fit.dispose()`/`term.dispose()` for its xterm). Dock UNMOUNT is NOT a kill any more — sessions are
+APP-owned (they survive a route change and re-attach on the next mount, `terminal-dock-panel`'s
+`tdp-reattaches-live-sessions-on-mount`): unmount disposes each tab's RENDERER resources (xterm + fit)
+and clears the session table (so a stale bridge callback never writes a disposed xterm), but calls NO
+`bridge.dispose`. The pty-reap duty moved to the Electron main's app lifecycle (`disposeAllTerminals` on
+window-close/app-quit — glue), so nothing is orphaned PAST THE APP; ADR-0186's original dock-lifetime
+wall ("dispose all on unmount") is superseded by ADR-0189. Pin both halves: the per-tab close dispose
+(`mst-close-tab-disposes-its-session`) and the preserve-on-unmount (`mst-unmount-preserves-sessions`,
+renamed from `mst-disposes-all-sessions-on-unmount` when the behaviour reversed).
 
 THE DOCK STAYS A THIN CLIENT — NO AGENT, NO DRIVE, NO MODEL PATH (ADR-0004 / ADR-0108 d.1). Multiplying
 xterm instances across tabs adds NO new seam — each pane is a `Terminal` over the SAME
@@ -163,7 +174,8 @@ Degrade honestly where the bridge is absent (the existing disabled state), uncha
 independent sessions in a tab strip: "+" spawns a fresh session/tab, switching shows the right pane (others
 mounted-but-hidden, sessions preserved), "×" disposes exactly that tab's session and reaps its tab, input/
 data/resize are scoped per tab, the chrome (toggle + `headerRight`) stays per-dock, and unmount disposes
-EVERY session — while the eight `terminal-dock-panel` behaviours hold on the active tab. Entirely in jsdom:
+renderer resources only (sessions preserved, app-owned) — while the eight `terminal-dock-panel`
+behaviours hold on the active tab. Entirely in jsdom:
 xterm + the bridge are mocked, the async spawn resolved under the existing flush, no real socket/pty/SDK/DB/
 Electron.
 
@@ -190,8 +202,9 @@ The test would:
    (`mst-close-tab-disposes-its-session`).
 6. **Chrome per-dock** — assert exactly ONE toggle button and ONE `headerRight` container regardless of tab
    count, the tab strip a distinct element between the header and the body (`mst-chrome-stays-per-dock`).
-7. **Unmount** — unmount the dock with two tabs open → assert `bridge.dispose` fired for BOTH session ids
-   (`mst-disposes-all-sessions-on-unmount`).
+7. **Unmount** — unmount the dock with two tabs open → assert each xterm instance (and fit addon) was
+   disposed and NO `bridge.dispose` fired for EITHER session id — the sessions live on, app-owned
+   (`mst-unmount-preserves-sessions`, ADR-0189).
 
 ## Contracts (6)
 
@@ -225,10 +238,14 @@ counted here.)
      id); a resize forwards `bridge.resize(activeSessionId, …)` — the per-tab I/O routing over the session
      table.
    - **covers —** `apps/studio/src/components/TerminalDock.tsx` (the per-session onData/input/resize routing) *(provisional path)*
-5. **`mst-disposes-all-sessions-on-unmount`** — unmounting the dock disposes EVERY open session (never orphan a pty)
-   - **asserts —** with two (or more) tabs open, unmounting the dock calls `bridge.dispose` for BOTH session
-     ids (and disposes each xterm instance) — no pty is left orphaned when the dock (or app) goes away, the
-     multi-session generalisation of the single-session dispose-on-unmount.
+5. **`mst-unmount-preserves-sessions`** — unmounting the dock disposes renderer resources only; the sessions survive, app-owned
+   - **asserts —** with two (or more) tabs open, unmounting the dock disposes each xterm instance (and
+     fit addon) and clears the session table, but calls `bridge.dispose` for NEITHER session id — the
+     ptys stay alive for the next mount to re-attach (ADR-0189; the re-attach itself is
+     `terminal-dock-panel`'s `tdp-reattaches-live-sessions-on-mount`). The explicit per-tab "×"
+     (`mst-close-tab-disposes-its-session`) and app-quit (glue) are the only kills. *(Renamed from
+     `mst-disposes-all-sessions-on-unmount` when ADR-0189 reversed the unmount behaviour — the ADR-0186
+     dock-lifetime wall, redefined app-lifetime.)*
    - **covers —** `apps/studio/src/components/TerminalDock.tsx` (the unmount cleanup over the session table) *(provisional path)*
 6. **`mst-chrome-stays-per-dock`** — the toggle + headerRight slot render once per dock; the tab strip sits between header and body
    - **asserts —** regardless of tab count, the dock renders exactly ONE toggle `<button>` and (when
@@ -262,7 +279,8 @@ green), keeping the eight `tdp-*` behaviours green per-tab.
   between the header and the body ("+" → spawn a fresh session + a tab; per-tab "×" → dispose + reap; click
   a tab → set `activeId`); mount each session's xterm into its own pane, shown when active and `hidden`
   otherwise; route `onData`/`onExit` by a table lookup on `sessionId`; forward input/resize to the active
-  session; dispose EVERY session on unmount. Keep the chrome (toggle, `headerRight`, collapse/resize) at the
+  session; on unmount dispose each xterm/fit and clear the table, never the sessions (ADR-0189). Keep the
+  chrome (toggle, `headerRight`, collapse/resize) at the
   dock level. Keep the thin-client wall (`modelPathBoundary.test.ts`), the eight `tdp-*` contracts green
   (per active tab / per dock), and `pnpm --filter studio typecheck` green. The tab strip's LOOK is the
   story's operator-attested UAT leg — no visual assertion here.
@@ -271,8 +289,9 @@ Rules:
 
 - **Multi-session over the already-per-session bridge — RENDERER only** — the backend + `desktopTerminal`
   bridge are unchanged; do NOT edit `apps/desktop`. A session table in the renderer, one xterm per tab.
-- **Never orphan a pty** — dispose the closed tab's session on "×" (`mst-close-tab-disposes-its-session`)
-  and EVERY session on unmount (`mst-disposes-all-sessions-on-unmount`).
+- **"×" is the kill; unmount is not** (ADR-0189) — dispose the closed tab's session on "×"
+  (`mst-close-tab-disposes-its-session`); on unmount dispose renderer resources only, sessions preserved
+  (`mst-unmount-preserves-sessions`); the app lifecycle (glue) reaps on window-close/app-quit.
 - **Scope I/O per tab** — a chunk / keystroke / resize reaches only the intended session
   (`mst-scopes-io-per-tab`); never cross tabs.
 - **Chrome per-dock, strip between header and body** — one toggle + one `headerRight`, N tabs
