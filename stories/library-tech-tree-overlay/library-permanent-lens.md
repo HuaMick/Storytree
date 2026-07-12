@@ -281,6 +281,14 @@ permanent lens, test-first.
   appearance are witnessed under UAT leg 1 (operator-attested, ADR-0070), NOT asserted in CI and NOT in this
   `real:` scope. After it, the new test's assertions hold and `pnpm --filter studio test` +
   `pnpm --filter studio typecheck` stay green.
+- **KEEP `onCommitSearch?` as an OPTIONAL prop on the reworked lens (do NOT remove it).** The permanent
+  lens no longer uses it (dismissal is the parent glue's map-navigation flag-clear, plan §G — not the
+  lens), but the trimmed `LibraryDrawer.test.tsx` is OUTSIDE this cap's `real.scope` (its `testGlobs` is
+  `LibraryPermanentLens.test.tsx` only), so the leaf CANNOT edit it. Keeping `onCommitSearch?: (nextSearch:
+  string) => void` optional-and-unused makes `ldw-closed-without-flag`'s `<LibraryDrawer search=""
+  onCommitSearch={vi.fn()} />` render compile byte-unchanged against the reworked source — the trimmed
+  file stays green with zero edits. `search` stays the ONLY REQUIRED prop; the body slot, `selection`,
+  `onOpen`, and `onCommitSearch` are all optional.
 
 ### Reconcile the retired `library-drawer-shell` contracts (part of THIS increment, executing settled dec 1)
 
@@ -300,9 +308,10 @@ already; the M1 leaf keeps it green (see the Reconciliation note in `library-dra
   `ldw-reads-overlay-flag-present-with-other-params`, `ldw-reads-overlay-flag-absent`,
   `ldw-reads-overlay-flag-other-value`, `ldw-closed-without-flag`. These 5 become `library-drawer-shell`'s
   surviving contract set (its `real.testFile` stays the trimmed `LibraryDrawer.test.tsx`). The one component
-  render (`ldw-closed-without-flag`) currently passes `onCommitSearch={vi.fn()}`; when the M1 leaf removes
-  `onCommitSearch` from the reworked lens, drop it from that one render (`<LibraryDrawer search="" />`) as part
-  of M1 — trivial, and it keeps the trimmed file green against the reworked source.
+  render (`ldw-closed-without-flag`) passes `onCommitSearch={vi.fn()}`; since `LibraryDrawer.test.tsx` is
+  OUTSIDE this cap's `real.scope` (the leaf cannot edit it), the reworked lens KEEPS `onCommitSearch?` as an
+  optional (unused) prop so that render compiles byte-unchanged — the trimmed file stays green with zero
+  edits (do NOT remove `onCommitSearch` from the component).
 
 Rules:
 
