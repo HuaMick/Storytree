@@ -94,7 +94,7 @@ import { LibraryDrawer } from './LibraryDrawer.js';
 import { LibraryFinder } from './LibraryFinder.js';
 import { LibraryFocusGraph } from './LibraryFocusGraph.js';
 import { LibraryOpenOverlay } from './LibraryOpenOverlay.js';
-import { LibraryOverview } from './LibraryOverview.js';
+import { LibrarySelectionCard } from './LibrarySelectionCard.js';
 import type { SearchResult } from '../lib/librarySearch.js';
 import type { TerminalDockSeed } from './TerminalDock.js';
 import { TerminalRepoGate } from './TerminalRepoGate.js';
@@ -2177,53 +2177,49 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
               the URL dials. Closed by default ⇒ no params written ⇒ today's world is
               byte-identical. */}
           <WorldSettingsPanel search={search} onCommit={commitSearch} />
-          {/* The Library drawer (ADR-0185 inc 1): the tech-tree lens pulled down OVER the map behind
-              `?overlay=library` — an overlay within .world-frame, never a route away. The shell's
-              state machine is machine-proven (LibraryDrawer.test.tsx); this mounting + the
-              forest-cozy look are the story's operator-attested UAT leg (ADR-0070). */}
+          {/* The Library lens (ADR-0188 inc 9): the two-pane panel remold behind `?overlay=library`
+              — an overlay within .world-frame, never a route away. A constant SIDE panel (the
+              finder's shelf/scope/search + the pinned selection card) over a single-job CANVAS
+              (the focus subgraph when something is selected; a quiet idle otherwise — the inc-5
+              overview constellation is RETIRED from the mount per ADR-0188 dec 4, its source and
+              signed contracts kept). The lens shell owns minimise/restore internally (dec 6).
+              Supplement glue after the leaf PASS — the proven lens + signed components stay
+              byte-untouched; this mounting + the seed-packet look are the story's operator-attested
+              UAT leg (ADR-0070, the shared inc-9+10 sitting). */}
           <LibraryDrawer
             search={search}
-            // Bottom selection-preview section (ADR-0187 dec 2, inc 8): the centred selection's
-            // summary + an "Open" button that opens the separate document overlay below.
-            selection={librarySelection}
-            onOpen={setOpenSelection}
             bodySlot={
-              // Empty-state swap (ADR-0185 dec 4, inc 5): with NO selection the body shows the
-              // whole-corpus OVERVIEW constellation (its own search input glows matches; a node
-              // click seeds librarySelection, a DOUBLE-click OPENS it — inc 8). Once a selection
-              // exists it hands back to the two-pane finder+subgraph body (dec 2/3, inc 2/3). The
-              // overview/subgraph read libraryAssets (the normalised memo — the inc-3
-              // references-normalisation fix that averts the real-data crash class), lift onSelect
-              // into the SHARED librarySelection, and lift onOpen into openSelection (inc 8).
-              // Supplement glue after the leaf PASS — the proven lens + signed components stay
-              // byte-untouched.
-              librarySelection ? (
-                // Two-pane body: the finder (left) drives the focus subgraph (right); the finder
-                // LIFTS via onSelect, the subgraph RE-CENTRES via onFocus (a neighbour click is
-                // just a new selection) and OPENS via onOpen (a double-click).
-                <div className="library-peek-panes">
+              <div className="library-lens-panes">
+                <aside className="library-side">
                   <LibraryFinder
                     assets={assets}
                     docs={docs}
                     onSelect={setLibrarySelection}
-                    selectedId={librarySelection.id}
+                    {...(librarySelection ? { selectedId: librarySelection.id } : {})}
                   />
-                  <LibraryFocusGraph
+                  <LibrarySelectionCard
+                    selection={librarySelection}
                     assets={libraryAssets}
                     docs={docs}
-                    selection={librarySelection}
-                    onFocus={setLibrarySelection}
                     onOpen={setOpenSelection}
                   />
+                </aside>
+                <div className="library-canvas">
+                  {librarySelection ? (
+                    <LibraryFocusGraph
+                      assets={libraryAssets}
+                      docs={docs}
+                      selection={librarySelection}
+                      onFocus={setLibrarySelection}
+                      onOpen={setOpenSelection}
+                    />
+                  ) : (
+                    <div className="library-canvas-idle" data-testid="library-canvas-idle">
+                      Pick a category or search — the tree grows from what you choose.
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <LibraryOverview
-                  assets={libraryAssets}
-                  docs={docs}
-                  onSelect={setLibrarySelection}
-                  onOpen={setOpenSelection}
-                />
-              )
+              </div>
             }
           />
           {/* The Open document overlay (ADR-0187 dec 2, inc 8): a SEPARATE full-detail artifact view

@@ -4468,35 +4468,55 @@ button.legend-tile:hover {
 }
 
 /* ============================================================================
-   Library drawer (ADR-0185 inc 1) — the tech-tree lens pulled DOWN over the map.
-   Part of the WORLD: the forest-cozy board palette (--board-1/--board-2), never
+   Library lens (ADR-0185 inc 1 → ADR-0188 inc 9) — the tech-tree lens pulled
+   DOWN over the map. SEED-PACKET realisation of forest-cozy LIGHT (ADR-0188
+   dec 7): cream paper panels with visible borders and shadow ON the green
+   world — the lens is an object over the map, never wallpaper. Never
    neutral-admin white and never the terminal black (that look is reserved for
    the session-orchestrator terminal, ADR-0174/0175). Sits at z:4 — above the
    side panels (z:3), below the flyout (z:5), stress layer (z:6), chat (z:20).
-   In PEEK the map stays fully live beneath (no scrim, ADR-0185 dec 1); in DIVE
-   the drawer collapses to its bar and the dive slot reserves the body region
-   (rendered EMPTY here — the artifact body is increment 4).
+   The map stays live beneath in BOTH lens states (no scrim); minimised, the
+   lens collapses to its bottom handle bar (dec 6).
+   The token roles: --lp-panel/-panel-2 paper grounds, --lp-border the visible
+   edge, --lp-ink/-ink-soft text, --lp-moss structure, --lp-sprout scope and
+   affordances, --lp-clay the ONE primary action per surface, --lp-sun reserved
+   for the selected chain (inc 10 consumes it).
    ============================================================================ */
 .library-drawer {
+  --lp-panel: #fbf6e7;
+  --lp-panel-2: #f8f2de;
+  --lp-bar: #f2ead2;
+  --lp-border: #d9cba4;
+  --lp-ink: #3a3323;
+  --lp-ink-soft: #8b8065;
+  --lp-moss: #4e6b3f;
+  --lp-sprout: #6fa35c;
+  --lp-clay: #c0693b;
+  --lp-sun: #e3a93e;
   position: absolute;
   top: 0;
   left: 50%;
   transform: translateX(-50%);
   z-index: 4;
-  width: min(940px, calc(100% - 88px));
+  width: min(1180px, calc(100% - 64px));
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--lp-border);
   border-top: none;
   border-radius: 0 0 16px 16px;
-  background: linear-gradient(172deg, var(--board-1) 0%, var(--board-2) 100%);
-  box-shadow: 0 16px 38px rgba(87, 60, 38, 0.25);
+  background: var(--lp-panel);
+  color: var(--lp-ink);
+  box-shadow: 0 16px 38px rgba(87, 60, 38, 0.28);
   animation: library-drawer-slide 240ms ease-out;
   overflow: hidden;
 }
-/* Permanent lens (ADR-0187 dec 1): no mode machine — one fixed posture over the live map. */
-.library-drawer {
-  height: min(58%, 460px);
+/* Permanent lens (ADR-0187 dec 1): the flag is the only presence gate. Expanded fills most of
+   the frame (the map peeks at the edges); minimised keeps only the handle bar (ADR-0188 dec 6). */
+.library-drawer[data-lens-state='expanded'] {
+  height: min(80%, 640px);
+}
+.library-drawer[data-lens-state='minimised'] {
+  height: auto;
 }
 @keyframes library-drawer-slide {
   from {
@@ -4518,54 +4538,53 @@ button.legend-tile:hover {
   display: flex;
   overflow: hidden;
 }
-/* the bottom selection-preview section (ADR-0187 dec 2): the centred artifact's summary + Open */
-.library-drawer-selection-preview {
+/* the bottom HANDLE BAR (ADR-0188 dec 6): grip + wordmark + Minimise/Restore — the lens's one
+   global control; minimised, this bar is the whole visible lens (the drawer-pull posture). */
+.library-drawer-handle-bar {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 16px;
-  border-top: 1px solid color-mix(in srgb, var(--border-strong) 70%, transparent);
-  background: color-mix(in srgb, var(--board-1) 60%, transparent);
+  padding: 8px 16px;
+  border-top: 1px solid var(--lp-border);
+  background: var(--lp-bar);
 }
-.library-drawer-selection-summary {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.library-drawer-handle-grip {
+  width: 42px;
+  height: 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--lp-border) 70%, var(--lp-ink-soft) 30%);
 }
-.library-drawer-selection-title {
-  font-weight: 600;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.library-drawer-handle-wordmark {
+  font-weight: 700;
+  color: var(--lp-moss);
+  letter-spacing: 0.04em;
+  margin-right: auto;
 }
-.library-drawer-selection-category {
-  font-size: 0.82em;
-  color: var(--text-muted, color-mix(in srgb, var(--text) 62%, transparent));
-  letter-spacing: 0.02em;
-}
-.library-drawer-selection-empty {
-  flex: 1 1 auto;
-  color: var(--text-muted, color-mix(in srgb, var(--text) 55%, transparent));
-  font-style: italic;
-}
-.library-drawer-open {
+.library-drawer-minimise,
+.library-drawer-restore {
   flex: 0 0 auto;
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--accent) 16%, var(--board-1));
-  color: var(--text);
+  border: 1px solid var(--lp-border);
+  border-radius: 999px;
+  background: var(--lp-panel);
+  color: var(--lp-ink-soft);
   cursor: pointer;
   font: inherit;
+  font-size: 0.85em;
   font-weight: 600;
-  padding: 5px 16px;
+  padding: 5px 14px;
 }
-.library-drawer-open:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+.library-drawer-restore {
+  background: var(--lp-moss);
+  border-color: var(--lp-moss);
+  color: #fffdf4;
+}
+.library-drawer-minimise:hover {
+  border-color: var(--lp-moss);
+  color: var(--lp-moss);
+}
+.library-drawer-restore:hover {
+  background: color-mix(in srgb, var(--lp-moss) 85%, #000000 15%);
 }
 
 /* ── the Open document overlay (ADR-0187 dec 2, inc 8): a separate full-detail artifact view
@@ -4769,20 +4788,21 @@ button.legend-tile:hover {
 }
 .library-finder-input {
   flex: 0 0 auto;
-  padding: 8px 12px;
-  border: 1px solid var(--border-strong);
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid var(--lp-border, var(--border-strong));
   border-radius: 10px;
-  background: color-mix(in srgb, var(--board-1) 60%, #ffffff 40%);
-  color: var(--text);
+  background: #fffdf4;
+  color: var(--lp-ink, var(--text));
   font: inherit;
 }
 .library-finder-input::placeholder {
-  color: color-mix(in srgb, var(--text) 45%, transparent);
+  color: color-mix(in srgb, var(--lp-ink, var(--text)) 45%, transparent);
 }
 .library-finder-input:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+  border-color: var(--lp-sprout, var(--accent));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lp-sprout, var(--accent)) 22%, transparent);
 }
 .library-finder-results {
   flex: 1 1 auto;
@@ -4838,17 +4858,174 @@ button.legend-tile:hover {
   white-space: nowrap;
 }
 
-/* ── the two-pane peek (ADR-0185 inc 3): finder left, focus subgraph right ── */
-.library-peek-panes {
+/* ── the category shelf + scope chip (ADR-0188 dec 2, inc 9): the idle browse entry ── */
+.library-shelf {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.library-shelf-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 11px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.library-shelf-row:hover {
+  background: color-mix(in srgb, var(--lp-panel) 70%, #ffffff 30%);
+  border-color: var(--lp-border);
+}
+.library-shelf-row-label {
+  flex: 1 1 auto;
+  font-weight: 600;
+  color: var(--lp-ink);
+}
+.library-shelf-row-count {
+  flex: 0 0 auto;
+  font-size: 0.8em;
+  font-variant-numeric: tabular-nums;
+  color: var(--lp-ink-soft);
+}
+.library-scope-chip {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 6px 5px 12px;
+  border: 1px solid color-mix(in srgb, var(--lp-sprout) 55%, var(--lp-border) 45%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--lp-sprout) 16%, var(--lp-panel) 84%);
+  color: var(--lp-moss);
+  font-size: 0.85em;
+  font-weight: 600;
+}
+.library-scope-chip-remove {
+  border: none;
+  background: transparent;
+  color: var(--lp-moss);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+.library-scope-chip-remove:hover {
+  background: color-mix(in srgb, var(--lp-sprout) 28%, transparent);
+}
+
+/* ── the pinned selection card (ADR-0188 dec 3, inc 9): the permanent home of
+      "what am I looking at" — title, kind/status, description, the one clay action ── */
+.library-selection-card {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px 13px;
+  border: 1px solid var(--lp-border);
+  border-radius: 12px;
+  background: #fffdf4;
+  box-shadow: 0 2px 8px rgba(56, 46, 26, 0.08);
+}
+.library-selection-title {
+  font-weight: 700;
+  color: var(--lp-ink);
+  line-height: 1.25;
+}
+.library-selection-kind,
+.library-selection-status,
+.library-selection-loadbearing-badge {
+  align-self: flex-start;
+  font-size: 0.72em;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+.library-selection-kind,
+.library-selection-status {
+  background: color-mix(in srgb, var(--lp-sprout) 18%, var(--lp-panel) 82%);
+  color: var(--lp-moss);
+}
+.library-selection-loadbearing-badge {
+  background: color-mix(in srgb, var(--lp-sun) 26%, var(--lp-panel) 74%);
+  color: #8a5a1f;
+}
+.library-selection-description {
+  margin: 0;
+  font-size: 0.85em;
+  color: var(--lp-ink-soft);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.library-selection-open {
+  border: none;
+  border-radius: 9px;
+  background: var(--lp-clay);
+  color: #fffdf4;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 9px 16px;
+}
+.library-selection-open:hover {
+  background: color-mix(in srgb, var(--lp-clay) 88%, #000000 12%);
+}
+
+/* ── the two-pane lens body (ADR-0188 dec 1, inc 9): the constant SIDE panel (search + shelf/
+      results + the pinned selection card) over the single-job CANVAS (subgraph or quiet idle) ── */
+.library-lens-panes {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   overflow: hidden;
+  width: 100%;
 }
-.library-peek-panes > .library-finder {
-  flex: 0 0 34%;
-  max-width: 380px;
-  border-right: 1px solid color-mix(in srgb, var(--border-strong) 55%, transparent);
+.library-side {
+  flex: 0 0 292px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-right: 1px solid var(--lp-border);
+  background: var(--lp-panel-2);
+}
+.library-side > .library-finder {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0;
+}
+.library-canvas {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  display: flex;
+}
+/* the quiet idle canvas (ADR-0188 dec 4): the overview constellation is retired; one muted
+   hint line at most (the copy is a look-leg detail the owner attests). */
+.library-canvas-idle {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 48px;
+  color: color-mix(in srgb, var(--lp-ink-soft) 75%, transparent);
+  font-size: 0.92em;
 }
 
 /* ── the focus subgraph (ADR-0185 inc 3): references[] both ways, dagre LR,
