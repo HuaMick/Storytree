@@ -93,7 +93,7 @@ import { WorldSettingsPanel } from './WorldSettingsPanel.js';
 import { LibraryDrawer } from './LibraryDrawer.js';
 import { LibraryFinder } from './LibraryFinder.js';
 import { LibraryFocusGraph } from './LibraryFocusGraph.js';
-import { LibraryDiveBody } from './LibraryDiveBody.js';
+import { LibraryOpenOverlay } from './LibraryOpenOverlay.js';
 import { LibraryOverview } from './LibraryOverview.js';
 import type { SearchResult } from '../lib/librarySearch.js';
 import type { TerminalDockSeed } from './TerminalDock.js';
@@ -1291,6 +1291,10 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
   // and proves in isolation — TreeView is the composition point where AppData is available.
   const { assets, docs } = useAppData();
   const [librarySelection, setLibrarySelection] = useState<SearchResult | null>(null);
+  // The artifact OPENED into the separate full-detail document overlay over the map (ADR-0187 dec 2,
+  // inc 8) — distinct from `librarySelection` (the finder/subgraph/preview centre). Open is triggered
+  // by the lens's bottom "Open" button or a node double-click; dismissing clears it back to the map.
+  const [openSelection, setOpenSelection] = useState<SearchResult | null>(null);
   // The focus subgraph (inc 3) walks `GuidanceAsset.references` both ways. The wire type
   // declares `references: string[]`, but the served corpus can violate it (e.g. the `planner`
   // agent artifact ships no `references` field). Normalise to the declared type at this
@@ -2179,20 +2183,24 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
               forest-cozy look are the story's operator-attested UAT leg (ADR-0070). */}
           <LibraryDrawer
             search={search}
-            onCommitSearch={commitSearch}
-            peekSlot={
-              // Empty-state swap (ADR-0185 dec 4, inc 5): with NO selection the peek pane shows
-              // the whole-corpus OVERVIEW constellation (its own search input glows matches; a
-              // node click seeds librarySelection). Once a selection exists it hands back to the
-              // two-pane finder+subgraph peek (dec 2/3, inc 2/3). The overview reads libraryAssets
-              // (the normalised memo — the inc-3 references-normalisation fix that averts the
-              // real-data crash class), and lifts onSelect into the SAME shared librarySelection.
-              // Supplement glue after the leaf PASS — the proven shell + signed components stay
+            // Bottom selection-preview section (ADR-0187 dec 2, inc 8): the centred selection's
+            // summary + an "Open" button that opens the separate document overlay below.
+            selection={librarySelection}
+            onOpen={setOpenSelection}
+            bodySlot={
+              // Empty-state swap (ADR-0185 dec 4, inc 5): with NO selection the body shows the
+              // whole-corpus OVERVIEW constellation (its own search input glows matches; a node
+              // click seeds librarySelection, a DOUBLE-click OPENS it — inc 8). Once a selection
+              // exists it hands back to the two-pane finder+subgraph body (dec 2/3, inc 2/3). The
+              // overview/subgraph read libraryAssets (the normalised memo — the inc-3
+              // references-normalisation fix that averts the real-data crash class), lift onSelect
+              // into the SHARED librarySelection, and lift onOpen into openSelection (inc 8).
+              // Supplement glue after the leaf PASS — the proven lens + signed components stay
               // byte-untouched.
               librarySelection ? (
-                // Two-pane peek: the finder (left) drives the focus subgraph (right); the finder
+                // Two-pane body: the finder (left) drives the focus subgraph (right); the finder
                 // LIFTS via onSelect, the subgraph RE-CENTRES via onFocus (a neighbour click is
-                // just a new selection).
+                // just a new selection) and OPENS via onOpen (a double-click).
                 <div className="library-peek-panes">
                   <LibraryFinder
                     assets={assets}
@@ -2205,19 +2213,25 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
                     docs={docs}
                     selection={librarySelection}
                     onFocus={setLibrarySelection}
+                    onOpen={setOpenSelection}
                   />
                 </div>
               ) : (
-                <LibraryOverview assets={libraryAssets} docs={docs} onSelect={setLibrarySelection} />
+                <LibraryOverview
+                  assets={libraryAssets}
+                  docs={docs}
+                  onSelect={setLibrarySelection}
+                  onOpen={setOpenSelection}
+                />
               )
             }
-            // Dive (ADR-0185 dec 1, inc 4): the drawer's Dive bar button collapses peek to a bar
-            // and this slot renders the centred selection's FULL body over the map — AssetView
-            // (loaded corpus, no fetch) or DocView (docContent on demand). Fed librarySelection
-            // from here, mirroring the peek composition; the proven shell stays byte-untouched
-            // (an additive diveSlot prop, the peekSlot precedent).
-            diveSlot={<LibraryDiveBody selection={librarySelection} />}
           />
+          {/* The Open document overlay (ADR-0187 dec 2, inc 8): a SEPARATE full-detail artifact view
+              mounted OVER the map — "like opening a Word doc" — reusing the byte-locked LibraryDiveBody
+              router (AssetView / DocView) inside its own container. Distinct from the retired inline
+              dive slot; transient (dismiss returns to the lens/map, clearing openSelection). Supplement
+              glue after the leaf PASS — the proven LibraryOpenOverlay stays byte-untouched. */}
+          <LibraryOpenOverlay selection={openSelection} onDismiss={() => setOpenSelection(null)} />
           {/* The embedded terminal overlays the MAP (absolute within .world-frame), not the whole app —
               the same dock slot the chat used (ADR-0174 terminal pivot; ChatDock stays dormant in the
               tree for a future app-guide, ADR-0175). It is FAIL-CLOSED behind TerminalRepoGate
