@@ -141,6 +141,13 @@ const bridgeMock = vi.hoisted(() => {
     dispose: vi.fn<(sessionId: string) => void>(),
     onData: vi.fn<(cb: (sessionId: string, chunk: string) => void) => void>(),
     onExit: vi.fn<(cb: (sessionId: string, e: { exitCode: number }) => void) => void>(),
+    // ADR-0189 re-attach slice — OPTIONAL bridge members (an older preload lacks them, feature-guard,
+    // never assume). Default: no still-live sessions to restore, so the existing spawn-on-first-expand
+    // behaviour stays byte-identical unless a test overrides `list` for that call.
+    list: vi.fn<() => Promise<Array<{ sessionId: string }>>>(async () => []),
+    snapshot: vi.fn<(sessionId: string) => Promise<string>>(
+      async (sessionId) => `snapshot for ${sessionId}\n`,
+    ),
     resetSessionCounter: (): void => {
       sessionCounter = 0;
     },
@@ -205,6 +212,8 @@ beforeEach(() => {
   bridgeMock.dispose.mockClear();
   bridgeMock.onData.mockClear();
   bridgeMock.onExit.mockClear();
+  bridgeMock.list.mockClear();
+  bridgeMock.snapshot.mockClear();
   (window as unknown as { desktopTerminal?: typeof bridgeMock }).desktopTerminal = bridgeMock;
 });
 
@@ -603,6 +612,34 @@ describe('TerminalDock', () => {
     // The closed tab is reaped from the strip — only tab 1 remains.
     expect(container.querySelectorAll('.terminal-dock-tab').length).toBe(1);
     expect(screen.queryByRole('button', { name: /^tab 2$/i })).toBeNull();
+  });
+
+  // ── rar-restores-live-sessions-on-mount (ADR-0189 re-attach slice, contract 9) ──────────────
+  //    On mount, with the bridge present and `list()` reporting still-live sessions, the dock
+  //    ADOPTS each one as its own tab (never calling `spawn` for it) and replays that session's
+  //    `snapshot()` into its fresh xterm. Expanding afterwards must NOT spawn a duplicate/fresh
+  //    session — the restore already settled the tab set.
+  it('rar-restores-live-sessions-on-mount: still-live sessions reported by bridge.list() are adopted as one tab each, with snapshot() replayed and no spawn', async () => {
+    bridgeMock.list.mockResolvedValueOnce([{ sessionId: 'sess-9' }, { sessionId: 'sess-8' }]);
+
+    const { container } = render(<TerminalDock />);
+    await flush();
+    await flush(); // drain the list() → per-session snapshot() promise chain
+
+    expect(bridgeMock.list).toHaveBeenCalledTimes(1);
+    expect(bridgeMock.spawn).not.toHaveBeenCalled(); // adopted, never spawned
+
+    expect(container.querySelectorAll('.terminal-dock-tab').length).toBe(2);
+    expect(xtermMock.FakeTerminal.instances.length).toBe(2);
+
+    const term9 = xtermMock.FakeTerminal.instances[0]!;
+    const term8 = xtermMock.FakeTerminal.instances[1]!;
+    expect(term9.written).toEqual(['snapshot for sess-9\n']);
+    expect(term8.written).toEqual(['snapshot for sess-8\n']);
+
+    // Expanding afterwards must not spawn a duplicate session — the restore already settled.
+    await expand();
+    expect(bridgeMock.spawn).not.toHaveBeenCalled();
   });
 
   // ── mst-disposes-all-sessions-on-unmount ─────────────────────────────────────
