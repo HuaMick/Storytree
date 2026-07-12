@@ -4494,13 +4494,9 @@ button.legend-tile:hover {
   animation: library-drawer-slide 240ms ease-out;
   overflow: hidden;
 }
-.library-drawer[data-mode='peek'] {
-  height: min(56%, 440px);
-}
-.library-drawer[data-mode='dive'] {
-  /* collapsed to the bar; the dive slot below reserves the body region */
-  height: auto;
-  max-height: calc(100% - 24px);
+/* Permanent lens (ADR-0187 dec 1): no mode machine — one fixed posture over the live map. */
+.library-drawer {
+  height: min(58%, 460px);
 }
 @keyframes library-drawer-slide {
   from {
@@ -4515,51 +4511,97 @@ button.legend-tile:hover {
     animation: none;
   }
 }
-.library-drawer-bar {
+/* the lens body holds the finder+subgraph (inc 2/3) or the whole-corpus overview (inc 5) */
+.library-drawer-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+/* the bottom selection-preview section (ADR-0187 dec 2): the centred artifact's summary + Open */
+.library-drawer-selection-preview {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  border-bottom: 1px solid color-mix(in srgb, var(--border-strong) 70%, transparent);
-  background: color-mix(in srgb, var(--board-1) 55%, transparent);
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid color-mix(in srgb, var(--border-strong) 70%, transparent);
+  background: color-mix(in srgb, var(--board-1) 60%, transparent);
 }
-.library-drawer-bar-title {
+.library-drawer-selection-summary {
   flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.library-drawer-selection-title {
   font-weight: 600;
   color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.library-drawer-selection-category {
+  font-size: 0.82em;
+  color: var(--text-muted, color-mix(in srgb, var(--text) 62%, transparent));
   letter-spacing: 0.02em;
 }
-.library-drawer-dive,
-.library-drawer-close {
+.library-drawer-selection-empty {
+  flex: 1 1 auto;
+  color: var(--text-muted, color-mix(in srgb, var(--text) 55%, transparent));
+  font-style: italic;
+}
+.library-drawer-open {
+  flex: 0 0 auto;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 16%, var(--board-1));
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  padding: 5px 16px;
+}
+.library-drawer-open:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── the Open document overlay (ADR-0187 dec 2, inc 8): a separate full-detail artifact view
+   mounted OVER the map — "like opening a Word doc" — above the lens, reusing LibraryDiveBody ── */
+.library-open-overlay {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  width: min(1040px, calc(100% - 48px));
+  height: min(88%, 820px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-strong);
+  border-top: none;
+  border-radius: 0 0 16px 16px;
+  background: linear-gradient(172deg, var(--board-1) 0%, var(--board-2) 100%);
+  box-shadow: 0 22px 52px rgba(87, 60, 38, 0.32);
+  overflow: hidden;
+}
+.library-open-overlay-close {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  margin: 10px 14px 0;
   border: 1px solid var(--border-strong);
   border-radius: 8px;
   background: color-mix(in srgb, var(--board-1) 70%, #ffffff 30%);
   color: var(--text);
   cursor: pointer;
   font: inherit;
-  padding: 3px 10px;
+  padding: 4px 14px;
 }
-.library-drawer-dive:hover,
-.library-drawer-close:hover {
+.library-open-overlay-close:hover {
   border-color: var(--accent);
   color: var(--accent);
-}
-.library-drawer-close {
-  padding: 3px 9px;
-  line-height: 1;
-}
-/* the peek slot holds the finder (inc 2); the dive slot holds the artifact body (inc 4) */
-.library-drawer-peek-slot {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  overflow: hidden;
-}
-.library-drawer-dive-slot {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  overflow: hidden;
 }
 
 /* ── the dive body (ADR-0185 inc 4): the centred artifact's FULL body over the map ──
