@@ -50,6 +50,12 @@ export interface DesktopTerminalBridge {
   dispose(sessionId: string): void;
   onData(cb: (sessionId: string, chunk: string) => void): void;
   onExit(cb: (sessionId: string, e: { exitCode: number }) => void): void;
+  /** ADR-0189 re-attach slice — OPTIONAL: an older preload lacks it (feature-guard, never assume).
+   *  The still-live sessions the main scopes to the currently selected repo. */
+  list?(): Promise<Array<{ sessionId: string }>>;
+  /** ADR-0189 re-attach slice — OPTIONAL: the session's main-held buffered scrollback, replayed into
+   *  a fresh xterm on re-attach. */
+  snapshot?(sessionId: string): Promise<string>;
 }
 
 declare global {
@@ -105,6 +111,14 @@ interface TabRecord {
   bodyEl: HTMLDivElement | null;
   /** A seed command held until THIS tab's spawn resolves (written once, then cleared). */
   pendingSeed: string | null;
+  /** ADR-0189 re-attach: true for an ADOPTED tab (bridge.list()) until its snapshot() replay lands —
+   *  live `onData` chunks for this session are held (see `heldChunks`) rather than written directly,
+   *  so restored scrollback is never interleaved out of order with fresh output. Always false for a
+   *  freshly spawned tab (nothing to replay). */
+  awaitingSnapshot: boolean;
+  /** Live bridge chunks that arrived for this session while `awaitingSnapshot` was true — flushed, in
+   *  order, right after the snapshot replay lands. */
+  heldChunks: string[];
 }
 
 export function TerminalDock({ seed, headerRight }: TerminalDockProps = {}): React.JSX.Element {
@@ -118,6 +132,10 @@ export function TerminalDock({ seed, headerRight }: TerminalDockProps = {}): Rea
   // state the bridge callbacks and drag/refocus handlers read. `activeId` is which tab's pane shows.
   const [tabIds, setTabIds] = useState<number[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
+  // ADR-0189 re-attach slice — true until the mount-time bridge.list() restore has settled (empty,
+  // populated, or no `list` at all). Gates spawn-on-first-expand so it never races/duplicates the
+  // restore's adopted tabs.
+  const [restoringSessions, setRestoringSessions] = useState(true);
   const recordsRef = useRef<Map<number, TabRecord>>(new Map());
   const nextTabIdRef = useRef(0);
   const activeIdRef = useRef<number | null>(null);
@@ -150,6 +168,28 @@ export function TerminalDock({ seed, headerRight }: TerminalDockProps = {}): Rea
       fit: null,
       bodyEl: null,
       pendingSeed,
+      awaitingSnapshot: false,
+      heldChunks: [],
+    });
+    setTabIds((prev) => [...prev, id]);
+    setActiveId(id);
+    return id;
+  }, []);
+
+  /** ADR-0189 re-attach — adopt a still-live session reported by `bridge.list()` as its own tab,
+   *  NEVER calling `bridge.spawn()` for it. The tab's xterm mount + snapshot replay happen once its
+   *  body div commits (see `initTab`, below), same as a freshly-spawned tab. */
+  const adoptSession = useCallback((sessionId: string): number => {
+    const id = nextTabIdRef.current;
+    nextTabIdRef.current += 1;
+    recordsRef.current.set(id, {
+      sessionId,
+      term: null,
+      fit: null,
+      bodyEl: null,
+      pendingSeed: null,
+      awaitingSnapshot: true,
+      heldChunks: [],
     });
     setTabIds((prev) => [...prev, id]);
     setActiveId(id);
@@ -180,6 +220,24 @@ export function TerminalDock({ seed, headerRight }: TerminalDockProps = {}): Rea
       term.onResize(({ cols, rows }) => {
         if (rec.sessionId) bridge.resize(rec.sessionId, cols, rows);
       });
+
+      if (rec.sessionId) {
+        // ADR-0189 re-attach: an ADOPTED tab already carries a live session — never spawn a fresh
+        // one. Replay its buffered scrollback (if the bridge offers `snapshot`) BEFORE any live
+        // `onData` chunk for this session is written (those are held in `rec.heldChunks` by the
+        // bridge router below while `awaitingSnapshot` is true).
+        if (bridge.snapshot) {
+          void bridge.snapshot(rec.sessionId).then((text) => {
+            term.write(text);
+            for (const chunk of rec.heldChunks) term.write(chunk);
+            rec.heldChunks = [];
+            rec.awaitingSnapshot = false;
+          });
+        } else {
+          rec.awaitingSnapshot = false;
+        }
+        return;
+      }
 
       void bridge.spawn().then((res) => {
         rec.sessionId = res.sessionId;
@@ -227,12 +285,34 @@ export function TerminalDock({ seed, headerRight }: TerminalDockProps = {}): Rea
     [bridge],
   );
 
-  // Spawn the FIRST tab's session the first time the dock is expanded — mirrors the old
-  // spawn-on-first-expand guard, generalised: only when no tab exists yet.
+  // ADR-0189 re-attach slice — on mount, ask the bridge for still-live sessions and ADOPT each one as
+  // its own tab (never `spawn`). Gates `restoringSessions` false once the restore settles (empty,
+  // populated, or the bridge has no `list` at all — an older preload), so spawn-on-first-expand below
+  // never races/duplicates it.
   useEffect(() => {
-    if (!expanded || !bridge || tabIds.length > 0) return;
+    if (!bridge || !bridge.list) {
+      setRestoringSessions(false);
+      return;
+    }
+    let cancelled = false;
+    void bridge.list().then((sessions) => {
+      if (cancelled) return;
+      for (const s of sessions) adoptSession(s.sessionId);
+      setRestoringSessions(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bridge]);
+
+  // Spawn the FIRST tab's session the first time the dock is expanded — mirrors the old
+  // spawn-on-first-expand guard, generalised: only when no tab exists yet, AND only once the
+  // mount-time restore above has settled (never race/duplicate an adopted session).
+  useEffect(() => {
+    if (!expanded || !bridge || tabIds.length > 0 || restoringSessions) return;
     openSession(null);
-  }, [expanded, bridge, tabIds.length, openSession]);
+  }, [expanded, bridge, tabIds.length, restoringSessions, openSession]);
 
   // Whenever a new tab enters the table, its body div has just committed (ref callbacks run before
   // effects) — initialise its xterm + bridge session now. Already-initialised tabs are no-ops (the
@@ -248,7 +328,13 @@ export function TerminalDock({ seed, headerRight }: TerminalDockProps = {}): Rea
     bridge.onData((sessionId, chunk) => {
       for (const rec of recordsRef.current.values()) {
         if (rec.sessionId === sessionId) {
-          rec.term?.write(chunk);
+          // ADR-0189 re-attach: hold live chunks for an adopted tab until its snapshot replay lands,
+          // so restored scrollback never interleaves out of order with fresh output.
+          if (rec.awaitingSnapshot) {
+            rec.heldChunks.push(chunk);
+          } else {
+            rec.term?.write(chunk);
+          }
           break;
         }
       }
