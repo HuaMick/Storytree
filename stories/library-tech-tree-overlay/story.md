@@ -11,7 +11,7 @@ proof_mode: UAT
 # human-witness UAT action, not a machine visual verdict (uat-proves-the-goal-not-the-surface).
 # So this story is mixed-witness and carries NO blanket `uat_witness: machine` override — each
 # UAT leg below marks its own witness (ADR-0040 fail-closed default for the un-drivable look).
-capabilities: [library-drawer-shell, library-finder, library-focus-subgraph, library-dive-body, library-overview, library-adr-wire-signals, library-typed-edges, library-permanent-lens, library-open-overlay, library-open-trigger]
+capabilities: [library-drawer-shell, library-finder, library-focus-subgraph, library-dive-body, library-overview, library-adr-wire-signals, library-typed-edges, library-permanent-lens, library-open-overlay, library-open-trigger, library-category-shelf, library-selection-card, library-lens-minimise]
 # GROWS one provable unit at a time (slow growth / ADR-0183). The build is owned by the arc
 # `library-tech-tree-overlay-arc`, whose disposable per-increment plans carry the live roadmap (the
 # roadmap lives in the current plan, not here). Increments 1–6 have LANDED — library-drawer-shell
@@ -80,12 +80,21 @@ Authored just-in-time, one provable unit per increment (ADR-0183 slow growth). L
 | 8 | Permanent lens (shell rework) | [`library-permanent-lens`](library-permanent-lens.md) | The overlay is a permanent lens (ADR-0187 dec 1): flag-gated presence, no ×/Dive/mode machine, live map beneath, a body slot, and a bottom selection-preview section firing `Open`. | authored (inc 8) |
 | 8 | Open document overlay | [`library-open-overlay`](library-open-overlay.md) | A separate full-detail document overlay over the map (ADR-0187 dec 2, "like opening a Word doc"), reusing `LibraryDiveBody`, dismissable back to the lens. | authored (inc 8) |
 | 8 | Open trigger (double-click) | [`library-open-trigger`](library-open-trigger.md) | Double-clicking a node on the overview constellation or the focus subgraph fires `onOpen` with the node's finder-parity `SearchResult` (additive; the single-click path stays byte-green). | authored (inc 8) |
+| 9 | Category shelf | [`library-category-shelf`](library-category-shelf.md) | The finder's idle state is a category shelf (rows + counts derived from the corpus, never hardcoded) and each category is a removable search scope (browse-all then filter-within); the signed `lf-*` query path stays byte-green (ADR-0188 dec 2). | authored (inc 9) |
+| 9 | Selection card | [`library-selection-card`](library-selection-card.md) | A pinned side-panel card renders the selection — asset title/kind/(corpus-looked-up)description or ADR title/status/load-bearing badge — with an Open button; null renders nothing, a stale selection renders tolerantly (ADR-0188 dec 3). | authored (inc 9) |
+| 9 | Lens minimise handle | [`library-lens-minimise`](library-lens-minimise.md) | The permanent lens carries a bottom handle bar and minimises to just that handle (state kept on restore, no scrim); the inc-8 bottom selection-preview strip retires (ADR-0188 dec 6 + dec 3). | authored (inc 9) |
 | 10 | Retire `#/library` | *(library-retire, unauthored)* | The standalone `#/library` page retires/redirects into the lens, members parity re-checked (owner-attested, ADR-0185 dec 6). | planned |
 
 Increment 7 (the parallel server typed-edge wire lane, `GuidanceAsset` typed edges) is file-disjoint from
-this story's client surfaces (plan §Lanes FENCE) and authored on its own lane; increment 9 (the overview
-look-overhaul, ADR-0187 dec 3 — edges + load-bearing size/colour + chrome) refines the landed
-`library-overview` geometric scaffold and is authored just-in-time.
+this story's client surfaces (plan §Lanes FENCE) and authored on its own lane. **Increment 9 (ADR-0188 —
+the panel remold)** re-decomposes the earlier ADR-0187 dec-3 overview look-overhaul: the always-on side
+panel becomes a category shelf (`library-category-shelf`, dec 2), a pinned selection card
+(`library-selection-card`, dec 3), and a minimise handle (`library-lens-minimise`, dec 6), and the overview
+constellation retires to a quiet idle canvas (dec 4 — the inc-5 `LibraryOverview` mount is removed by the
+inc-9 glue, its `lov-*` contracts staying green while the source remains). The DAG canvas overhaul (drawn
+edges, uncapped depth, expanders, breadcrumb/Back, palette — ADR-0188 dec 5) and the `#/library`
+retirement follow as their own increments, authored just-in-time. Increments 9 and 10 share one
+operator-attested look sitting against the owner-aligned mock (ADR-0188 Consequences).
 
 ### Within-story dependency graph (code-derived, authored per increment)
 
@@ -109,6 +118,21 @@ overlay's `onDismiss` are wired together at the TreeView level (the orchestrator
 leaf's PASS — plan §G); that glue removes the retired inline `diveSlot={<LibraryDiveBody …/>}` composition.
 These edges are authored with their capabilities; the inc-8 caps carry no new cross-story edge (client-side,
 reading the existing `useAppData()` wire — see §"No new cross-story edge").
+
+**Increment 9 (authored here, ADR-0188 — the panel remold):** `library-category-shelf`
+**`depends_on: [library-finder]`** — it reworks the landed finder (`LibraryFinder.tsx`) to add the idle
+category shelf + the scope-chip browse/search model around the finder's existing `searchCorpus` query path (a
+genuine within-story code edge on the finder); `library-selection-card` **`depends_on: [library-finder]`** — a
+NET-NEW side-panel card that renders the finder's lifted `SearchResult` and resolves its detail from the same
+loaded corpus (`assets`/`docs`); `library-lens-minimise` **`depends_on: [library-permanent-lens]`** — it
+reworks the inc-8 permanent lens (`LibraryDrawer.tsx`) to add the minimise handle and retire the inc-8 bottom
+selection-preview strip (whose Open job moves to `library-selection-card`, ADR-0188 dec 3). The inc-9 caps carry
+no new cross-story edge (client-side, reading the existing `useAppData()` wire); the side-panel composition (the
+finder + selection card in the lens body, the retired-strip removal, the overview-mount removal) is wired at the
+TreeView level as the orchestrator's supplement glue after each leaf's PASS (plan §G). As part of inc 9,
+story-author trims the now-false inc-8 contract `lpl-bottom-selection-preview-open-fires-onopen` from
+`LibraryPermanentLens.test.tsx` (re-homed across `library-selection-card` + `library-lens-minimise`), executing
+settled ADR-0188 dec 3/6 — not a re-decision (see `library-permanent-lens.md`'s reconciliation note).
 
 ## No new cross-story edge (recorded — the rides-the-existing-wire call)
 
