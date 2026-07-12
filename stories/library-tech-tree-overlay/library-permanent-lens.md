@@ -207,13 +207,26 @@ all real. It would:
    button and assert `onOpen` is invoked WITH the selection. Then render with `selection={null}` and assert the
    section shows the empty/prompt state with NO enabled Open button.
 
-## Contracts (5)
+## Contracts (5 → 4 surviving; ADR-0188 inc-9 reconciliation)
+
+> **RECONCILED at increment 9 (ADR-0188 dec 3/6 — executing a settled decision, NOT a re-decision).** Contract
+> 5 below, `lpl-bottom-selection-preview-open-fires-onopen`, is **RETIRED**: ADR-0188 dec 3 retires the inc-8
+> bottom selection-preview strip (its "what am I looking at" + Open job moved to the side-panel pinned card,
+> `library-selection-card`), and ADR-0188 dec 6 adds the lens's minimise handle (`library-lens-minimise`). Its
+> behaviour is **re-homed** across `lsel-open-button-fires-onopen` (the pinned Open button) +
+> `lmin-selection-preview-strip-retired` (the strip's absence). story-author has trimmed the
+> `lpl-bottom-selection-preview-open-fires-onopen` `describe`-block (and its now-unused
+> `fireEvent`/`SearchResult`/`selection`-fixture imports) from
+> `apps/studio/src/components/LibraryPermanentLens.test.tsx` as part of inc 9. The **4 surviving** contracts —
+> `lpl-flag-gates-permanent-lens`, `lpl-no-closed-or-dive-mode-no-close-button`,
+> `lpl-permanent-lens-over-live-map`, `lpl-body-slot-renders-content` — stay verbatim and are `coverage 4/4`
+> against the trimmed `real.testFile`. Contract 5 is retained below as struck history; do not re-add it.
 
 The test-proven leaf behaviours — each **one isolated automated test** in the `studio` suite (vitest jsdom,
 `apps/studio/src/components/LibraryPermanentLens.test.tsx`). Per ADR-0122 (`storytree coverage`) each contract
-id is the lead of a distinctly-named test, so the coverage check reports 5/5 against the ONE `real.testFile`.
-None of these is an APPEARANCE assertion — the look (the forest-cozy permanent lens, the no-× chrome, the
-bottom selection-preview description styling) is the story's operator-attested UAT leg 1 (ADR-0070).
+id is the lead of a distinctly-named test; after the inc-9 reconciliation the coverage check reports **4/4**
+against the ONE `real.testFile`. None of these is an APPEARANCE assertion — the look (the forest-cozy permanent
+lens, the no-× chrome) is the story's operator-attested UAT leg 1 (ADR-0070).
 
 1. **`lpl-flag-gates-permanent-lens`** — the `?overlay=library` flag gates the permanent lens; absent → nothing
    - **asserts —** with `search="?overlay=library"` the permanent lens renders (a stable lens testid is
@@ -242,7 +255,7 @@ bottom selection-preview description styling) is the story's operator-attested U
      REMOVED — the inline dive is gone, replaced by the separate Open overlay).
    - **covers —** `apps/studio/src/components/LibraryDrawer.tsx` (the renamed permanent body slot + the removed dive slot)
    - **proven by —** `apps/studio/src/components/LibraryPermanentLens.test.tsx`.
-5. **`lpl-bottom-selection-preview-open-fires-onopen`** — the bottom section renders a non-null selection's summary + an Open button firing onOpen; null → empty state, no Open button
+5. **`lpl-bottom-selection-preview-open-fires-onopen`** — *(RETIRED at inc 9, ADR-0188 dec 3/6 — the bottom strip is retired; behaviour re-homed to `lsel-open-button-fires-onopen` + `lmin-selection-preview-strip-retired`; struck history, not a live contract)* — the bottom section renders a non-null selection's summary + an Open button firing onOpen; null → empty state, no Open button
    - **asserts —** given a `selection: SearchResult | null` prop: when non-null the bottom description section
      renders the selection's SUMMARY (title + description off the `SearchResult`) and an **`Open`** button (its
      label is the word "Open", NOT "Dive"); clicking it invokes `onOpen(selection)` WITH the selection. When
