@@ -49,7 +49,11 @@ depends_on: []
 # scrollback lines; a new `scrollbackLines` option defaults sensibly, e.g. 5000). The leaf REWRITES the
 # ONE contract-6 test (title AND assertion — snapshot at HEAD is sync returning a string; the rewritten
 # test awaits `{ data, cols, rows }`, the RED), then EDITS pty-session-manager.ts to swap the ring for
-# the headless screen model. Preserves EVERY OTHER existing behaviour and EVERY OTHER existing test title
+# the headless screen model. IMPORT FORM (the --real drive failed TWICE on this): import both
+# `@xterm/headless` and `@xterm/addon-serialize` as DEFAULT imports then destructure `Terminal` /
+# `SerializeAddon` — a NAMED import throws a `SyntaxError` at import time (UMD/CJS bundles); test AND impl
+# both need this form (full detail + the exact error in the permitted-imports constraint below). Preserves
+# EVERY OTHER existing behaviour and EVERY OTHER existing test title
 # EXACTLY (each leads with its psm-* contract id — check:coverage matches titles at word boundaries,
 # ADR-0122; dropping or renaming a still-standing one is the recurring 6×-observed defect).
 proof:
@@ -333,7 +337,15 @@ Rules:
   main). The module's only pty seam is the injected port, so `node:test` drives it with a fake and no
   native module ever loads at test time. `@xterm/headless` + `@xterm/addon-serialize` (contract 6,
   ADR-0190) ARE permitted direct imports — pure JS, no native module, no DOM, so they load fine under
-  `node:test`; only `node-pty` and `electron` are banned here.
+  `node:test`; only `node-pty` and `electron` are banned here. **REQUIRED import FORM — default-import
+  then destructure, in BOTH the test and the impl** (the `--real` drive failed twice on exactly this): the
+  two packages are UMD/CJS bundles `cjs-module-lexer` cannot parse, so a NAMED ESM import throws AT IMPORT
+  TIME under `node --import tsx --test` — `SyntaxError: The requested module '@xterm/headless' does not
+  provide an export named 'Terminal'`. Import the default, then destructure the runtime value:
+  `import xtermHeadless from "@xterm/headless"; const { Terminal } = xtermHeadless;` and
+  `import xtermSerialize from "@xterm/addon-serialize"; const { SerializeAddon } = xtermSerialize;`. A
+  TYPE-only `import type { Terminal } from "@xterm/headless"` is fine (erased at compile); `SerializeAddon`
+  still takes the narrow `loadAddon` cast noted above.
 - **Electron-free core** — no `electron`/`dom` import; the ipc handlers + `webContents.send` stream are
   the operator-attested binding in `main.ts`, witnessed under the Story UAT, not asserted here.
 - **Fail closed, never crash** — an op on an unknown/disposed id is a typed no-op/`false`, never a throw;
