@@ -392,6 +392,15 @@ export function TerminalDock({ seed, headerRight }: TerminalDockProps = {}): Rea
     };
   }, []);
 
+  // Contract 11 (ADR-0190) — re-fit the ACTIVE tab's terminal to its container whenever it becomes
+  // the visible pane (a tab switch) or the dock re-expands (fold -> unfold), forwarding the new
+  // geometry to the pty through the SAME onResize -> bridge.resize wiring the drag handle uses
+  // (contract 3). A no-op while folded (nothing visible to fit) or before any tab is active.
+  useEffect(() => {
+    if (!expanded || activeId === null) return;
+    recordsRef.current.get(activeId)?.fit?.fit();
+  }, [expanded, activeId]);
+
   // Contract 6 — re-focus the ACTIVE tab's mounted xterm after a window blur/focus cycle (another
   // window/app had stolen focus; the user clicks back). xterm's hidden input textarea does not regain
   // focus on its own, so we drive it explicitly on the events that mean "the user is back on the

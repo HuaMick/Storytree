@@ -534,6 +534,47 @@ describe('TerminalDock', () => {
     );
   });
 
+  // ── tdp-refits-on-expand-activation-and-resize (contract 11, ADR-0190 — the missing fit
+  //    lifecycle, part 2). Contract 10 (above) only fits a FRESH tab before its first spawn. The
+  //    ACTIVE tab's xterm must ALSO re-fit its container on TAB ACTIVATION (switching to a tab
+  //    fits its now-visible pane) and on dock EXPAND (fold → unfold), each time forwarding the new
+  //    dims to the pty through the SAME bridge.resize wiring contract 3 proves for the drag. Today
+  //    neither the tab-switch handler nor the toggle handler calls fit() at all, so this must fail
+  //    against current behaviour.
+  it('tdp-refits-on-expand-activation-and-resize: switching tabs and re-expanding the dock re-fits the now-visible terminal and forwards the new dims to the bridge', async () => {
+    render(<TerminalDock />);
+    await expand(); // tab 1 = sess-1, active; fit1 fit-before-spawn already ran once (contract 10)
+    await openNewTab(); // tab 2 = sess-2, becomes active; fit2 fit-before-spawn already ran once
+
+    const fit1 = fitMock.FakeFitAddon.instances[0]!;
+    fit1.nextDims = { cols: 100, rows: 40 };
+    const fit1CallsBeforeSwitch = fit1.fitCalls;
+    bridgeMock.resize.mockClear();
+
+    // Switching TO tab 1 (now the visible pane) must re-fit ITS terminal to its container and
+    // forward the resulting dims to the bridge as a real pty resize — not just flip which pane
+    // carries the `hidden` attribute.
+    fireEvent.click(tabButton(1));
+
+    expect(fit1.fitCalls).toBeGreaterThan(fit1CallsBeforeSwitch);
+    expect(bridgeMock.resize).toHaveBeenCalledWith('sess-1', 100, 40);
+
+    // Folding the dock then re-expanding it must ALSO re-fit the now-active tab's terminal
+    // (tab 1 is still active here) and forward the new dims — the fold/unfold cycle keeps the
+    // terminal mounted (tdp-toggles-visibility-keeping-terminal-mounted) but its geometry can
+    // have gone stale while folded (e.g. the surrounding layout changed).
+    fit1.nextDims = { cols: 120, rows: 48 };
+    const fit1CallsBeforeToggle = fit1.fitCalls;
+    bridgeMock.resize.mockClear();
+
+    fireEvent.click(toggle()); // collapse
+    fireEvent.click(toggle()); // expand again
+    await flush();
+
+    expect(fit1.fitCalls).toBeGreaterThan(fit1CallsBeforeToggle);
+    expect(bridgeMock.resize).toHaveBeenCalledWith('sess-1', 120, 48);
+  });
+
   // ── multi-session-tabs capability — the tab substrate: N independent sessions/panes, created via
   //    "+", switched by clicking a tab, closed via a per-tab "×" (the ONLY thing that disposes a
   //    session's bridge/pty side); dock unmount disposes renderer resources only and PRESERVES every
