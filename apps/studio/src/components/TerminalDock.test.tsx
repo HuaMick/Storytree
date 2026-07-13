@@ -147,9 +147,14 @@ const bridgeMock = vi.hoisted(() => {
     // never assume). Default: no still-live sessions to restore, so the existing spawn-on-first-expand
     // behaviour stays byte-identical unless a test overrides `list` for that call.
     list: vi.fn<() => Promise<Array<{ sessionId: string }>>>(async () => []),
-    snapshot: vi.fn<(sessionId: string) => Promise<string>>(
-      async (sessionId) => `snapshot for ${sessionId}\n`,
-    ),
+    // Typed as a union so a test can opt a single call into the ADR-0190 re-shaped
+    // `{ data, cols, rows }` result (see `tdp-restores-snapshot-at-recorded-size-then-fits`
+    // below) while every other test keeps the default bare-string (pre-ADR-0190) resolution
+    // unchanged — the default fn below is untouched, so the existing reattach test's
+    // baseline-green assertions stay exactly as they were.
+    snapshot: vi.fn<
+      (sessionId: string) => Promise<string | { data: string; cols: number; rows: number }>
+    >(async (sessionId) => `snapshot for ${sessionId}\n`),
     resetSessionCounter: (): void => {
       sessionCounter = 0;
     },
@@ -746,6 +751,41 @@ describe('TerminalDock', () => {
     // Expanding afterwards must not spawn a duplicate session — the restore already settled.
     await expand();
     expect(bridgeMock.spawn).not.toHaveBeenCalled();
+  });
+
+  // ── tdp-restores-snapshot-at-recorded-size-then-fits (ADR-0190 — contract 9's re-shape) ────────
+  //    ADR-0190 re-shapes the bridge's `snapshot()` result from a bare scrollback string to
+  //    `{ data, cols, rows }` — the session's serialized screen state AT THE DIMS IT WAS RECORDED
+  //    AT. On re-attach the restore must: RESIZE the fresh xterm to those recorded cols/rows (so
+  //    the write lands on a terminal the exact size the screen was captured at) BEFORE writing the
+  //    data, then FIT the xterm to its real container and forward the FITTED dims to the pty via a
+  //    real `bridge.resize(sessionId, cols, rows)` call — not the raw `{ data, cols, rows }` object
+  //    handed straight to `term.write()`, and not silently skipping the fit. Today's code treats
+  //    `snapshot()`'s resolved value as a bare string, writes it as-is, and never resizes or fits an
+  //    adopted tab at all — so this must fail against current behaviour.
+  it("tdp-restores-snapshot-at-recorded-size-then-fits: an adopted session is resized to the snapshot's recorded cols/rows before its screen data is written, then fit to its real container with the fitted dims forwarded to the bridge", async () => {
+    bridgeMock.list.mockResolvedValueOnce([{ sessionId: 'sess-9' }]);
+    bridgeMock.snapshot.mockResolvedValueOnce({
+      data: 'restored screen\n',
+      cols: 100,
+      rows: 40,
+    });
+
+    render(<TerminalDock />);
+    await flush();
+    await flush(); // drain the list() → snapshot() promise chain
+
+    expect(xtermMock.FakeTerminal.instances.length).toBe(1);
+    const term = xtermMock.FakeTerminal.instances[0]!;
+    const fit = fitMock.FakeFitAddon.instances[0]!;
+
+    // Resized to the snapshot's OWN recorded size (the serialization's terminal dims), forwarded
+    // to the pty as a real resize.
+    expect(bridgeMock.resize).toHaveBeenCalledWith('sess-9', 100, 40);
+    // The serialized screen text was written — never the raw { data, cols, rows } object.
+    expect(term.written).toEqual(['restored screen\n']);
+    // Then fit to the real container — today's code never fits an adopted/restored tab at all.
+    expect(fit.fitCalls).toBeGreaterThan(0);
   });
 
   // ── mst-unmount-preserves-sessions (ADR-0189 — supersedes ADR-0186's dock-lifetime wall) ────────

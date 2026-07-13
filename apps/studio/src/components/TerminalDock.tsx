@@ -57,9 +57,10 @@ export interface DesktopTerminalBridge {
   /** ADR-0189 re-attach slice — OPTIONAL: an older preload lacks it (feature-guard, never assume).
    *  The still-live sessions the main scopes to the currently selected repo. */
   list?(): Promise<Array<{ sessionId: string }>>;
-  /** ADR-0189 re-attach slice — OPTIONAL: the session's main-held buffered scrollback, replayed into
-   *  a fresh xterm on re-attach. */
-  snapshot?(sessionId: string): Promise<string>;
+  /** ADR-0189 re-attach slice, re-shaped by ADR-0190: the session's main-held SERIALIZED SCREEN STATE
+   *  (`data`) at the dims it was recorded at (`cols`/`rows`), replayed into a fresh xterm on
+   *  re-attach. An older preload may still resolve the pre-ADR-0190 bare scrollback string. */
+  snapshot?(sessionId: string): Promise<string | { data: string; cols: number; rows: number }>;
 }
 
 declare global {
@@ -231,11 +232,23 @@ export function TerminalDock({ seed, headerRight }: TerminalDockProps = {}): Rea
         // `onData` chunk for this session is written (those are held in `rec.heldChunks` by the
         // bridge router below while `awaitingSnapshot` is true).
         if (bridge.snapshot) {
-          void bridge.snapshot(rec.sessionId).then((text) => {
-            term.write(text);
+          void bridge.snapshot(rec.sessionId).then((result) => {
+            // ADR-0190 re-shape: `result` is either the pre-ADR-0190 bare scrollback string (an
+            // older preload) or `{ data, cols, rows }` — the serialized screen state AT THE DIMS IT
+            // WAS RECORDED AT. For the latter, resize the fresh xterm to those recorded dims BEFORE
+            // writing the data, so the write lands on a terminal the exact size the screen was
+            // captured at (the resize forwards to the pty via the onResize -> bridge.resize wiring
+            // above, since `rec.sessionId` is already set for an adopted tab).
+            const data = typeof result === 'string' ? result : result.data;
+            if (typeof result !== 'string') term.resize(result.cols, result.rows);
+            term.write(data);
             for (const chunk of rec.heldChunks) term.write(chunk);
             rec.heldChunks = [];
             rec.awaitingSnapshot = false;
+            // Then fit to the real container, forwarding the FITTED dims to the pty (the same
+            // onResize -> bridge.resize wiring) — so the resident TUI receives a real resize and
+            // repaints itself into the terminal's actual geometry.
+            fit.fit();
           });
         } else {
           rec.awaitingSnapshot = false;
