@@ -282,7 +282,7 @@ test("psm-isolates-multiple-sessions: concurrent sessions are isolated — routi
 // before the call.
 // ---------------------------------------------------------------------------
 
-test("psm-snapshots-serialized-screen: snapshot() resolves the serialized parsed screen and tracked dims, reflecting every routed chunk and a later resize, and fails closed to null for an unknown or disposed session", async () => {
+test("psm-snapshots-serialized-screen-state: snapshot() resolves the serialized parsed screen and tracked dims, reflecting every routed chunk and a later resize, and fails closed to null for an unknown or disposed session", async () => {
   const port = new FakePtyPort();
   const manager = new PtySessionManager(port);
   const sessionId = manager.create(BASE_OPTS, () => {}, () => {});
