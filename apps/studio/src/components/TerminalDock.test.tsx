@@ -147,9 +147,14 @@ const bridgeMock = vi.hoisted(() => {
     // never assume). Default: no still-live sessions to restore, so the existing spawn-on-first-expand
     // behaviour stays byte-identical unless a test overrides `list` for that call.
     list: vi.fn<() => Promise<Array<{ sessionId: string }>>>(async () => []),
-    snapshot: vi.fn<(sessionId: string) => Promise<string>>(
-      async (sessionId) => `snapshot for ${sessionId}\n`,
-    ),
+    // Typed as a union so a test can opt a single call into the ADR-0190 re-shaped
+    // `{ data, cols, rows }` result (see `tdp-restores-snapshot-at-recorded-size-then-fits`
+    // below) while every other test keeps the default bare-string (pre-ADR-0190) resolution
+    // unchanged — the default fn below is untouched, so the existing reattach test's
+    // baseline-green assertions stay exactly as they were.
+    snapshot: vi.fn<
+      (sessionId: string) => Promise<string | { data: string; cols: number; rows: number }>
+    >(async (sessionId) => `snapshot for ${sessionId}\n`),
     resetSessionCounter: (): void => {
       sessionCounter = 0;
     },
@@ -514,6 +519,67 @@ describe('TerminalDock', () => {
     expect(bridgeMock.write).not.toHaveBeenCalled();
   });
 
+  // ── tdp-fits-before-spawn-and-passes-initial-dims (contract 10, ADR-0190 — the missing fit
+  //    lifecycle) ─────────────────────────────────────────────────────────────────────────────────
+  //    A fresh tab must fit() its xterm to its container BEFORE calling bridge.spawn(), and forward
+  //    the resulting cols/rows into that spawn call — so a new pty starts at the terminal's REAL
+  //    size, never the 80x24 xterm default under a wide dock. Today `initTab` calls `bridge.spawn()`
+  //    with no dims at all, so this must fail against current behaviour.
+  it('tdp-fits-before-spawn-and-passes-initial-dims: a fresh tab fits before spawning and passes the fitted cols/rows into bridge.spawn', async () => {
+    render(<TerminalDock />);
+    await expand();
+
+    const fit = fitMock.FakeFitAddon.instances[0]!;
+    // The dock must have fit the fresh terminal to its container before spawning...
+    expect(fit.fitCalls).toBeGreaterThan(0);
+    // ...and forwarded the resulting dims into the spawn call, rather than spawning with no dims
+    // (today's behaviour — the pty always starts at xterm's 80x24 default).
+    expect(bridgeMock.spawn).toHaveBeenCalledWith(
+      expect.objectContaining({ cols: fit.nextDims.cols, rows: fit.nextDims.rows }),
+    );
+  });
+
+  // ── tdp-refits-on-expand-activation-and-resize (contract 11, ADR-0190 — the missing fit
+  //    lifecycle, part 2). Contract 10 (above) only fits a FRESH tab before its first spawn. The
+  //    ACTIVE tab's xterm must ALSO re-fit its container on TAB ACTIVATION (switching to a tab
+  //    fits its now-visible pane) and on dock EXPAND (fold → unfold), each time forwarding the new
+  //    dims to the pty through the SAME bridge.resize wiring contract 3 proves for the drag. Today
+  //    neither the tab-switch handler nor the toggle handler calls fit() at all, so this must fail
+  //    against current behaviour.
+  it('tdp-refits-on-expand-activation-and-resize: switching tabs and re-expanding the dock re-fits the now-visible terminal and forwards the new dims to the bridge', async () => {
+    render(<TerminalDock />);
+    await expand(); // tab 1 = sess-1, active; fit1 fit-before-spawn already ran once (contract 10)
+    await openNewTab(); // tab 2 = sess-2, becomes active; fit2 fit-before-spawn already ran once
+
+    const fit1 = fitMock.FakeFitAddon.instances[0]!;
+    fit1.nextDims = { cols: 100, rows: 40 };
+    const fit1CallsBeforeSwitch = fit1.fitCalls;
+    bridgeMock.resize.mockClear();
+
+    // Switching TO tab 1 (now the visible pane) must re-fit ITS terminal to its container and
+    // forward the resulting dims to the bridge as a real pty resize — not just flip which pane
+    // carries the `hidden` attribute.
+    fireEvent.click(tabButton(1));
+
+    expect(fit1.fitCalls).toBeGreaterThan(fit1CallsBeforeSwitch);
+    expect(bridgeMock.resize).toHaveBeenCalledWith('sess-1', 100, 40);
+
+    // Folding the dock then re-expanding it must ALSO re-fit the now-active tab's terminal
+    // (tab 1 is still active here) and forward the new dims — the fold/unfold cycle keeps the
+    // terminal mounted (tdp-toggles-visibility-keeping-terminal-mounted) but its geometry can
+    // have gone stale while folded (e.g. the surrounding layout changed).
+    fit1.nextDims = { cols: 120, rows: 48 };
+    const fit1CallsBeforeToggle = fit1.fitCalls;
+    bridgeMock.resize.mockClear();
+
+    fireEvent.click(toggle()); // collapse
+    fireEvent.click(toggle()); // expand again
+    await flush();
+
+    expect(fit1.fitCalls).toBeGreaterThan(fit1CallsBeforeToggle);
+    expect(bridgeMock.resize).toHaveBeenCalledWith('sess-1', 120, 48);
+  });
+
   // ── multi-session-tabs capability — the tab substrate: N independent sessions/panes, created via
   //    "+", switched by clicking a tab, closed via a per-tab "×" (the ONLY thing that disposes a
   //    session's bridge/pty side); dock unmount disposes renderer resources only and PRESERVES every
@@ -595,6 +661,47 @@ describe('TerminalDock', () => {
     expect(container.querySelectorAll('.terminal-dock-header-right').length).toBe(1);
   });
 
+  // ── mst-panel-sits-beside-pane (ADR-0190 §3 — the session panel replaces the numbered
+  //    horizontal tab strip: it renders BESIDE the terminal pane, down the right of the dock
+  //    body, with one row per session — a readable label carrying at least the ordinal, and the
+  //    active row marked — rather than a strip of bare-digit buttons sitting between the header
+  //    and the panes). Today's source renders `.terminal-dock-tabs` as a strip ABOVE the panes
+  //    (a sibling of the toggle, not beside the pane area) — no `.terminal-dock-panel` /
+  //    `.terminal-dock-body-row` exist yet, so this must fail against current behaviour. ───────
+  it('mst-panel-sits-beside-pane: the session panel renders beside the terminal panes (not a strip above them), with one labeled row per session and the active row marked', async () => {
+    const { container } = render(<TerminalDock />);
+    await expand(); // session 1
+    await openNewTab(); // session 2, becomes active
+
+    // Exactly one session panel, per dock.
+    const panels = container.querySelectorAll('.terminal-dock-panel');
+    expect(panels.length).toBe(1);
+    const panel = panels[0]!;
+
+    // The panel sits BESIDE the pane area — both are children of a shared body-row wrapper, not
+    // the panel alone sitting as a strip between the header and the panes.
+    const bodyRow = container.querySelector('.terminal-dock-body-row');
+    expect(bodyRow).not.toBeNull();
+    expect(bodyRow!.contains(panel)).toBe(true);
+    for (const body of Array.from(container.querySelectorAll('.terminal-dock-body'))) {
+      expect(bodyRow!.contains(body)).toBe(true);
+    }
+
+    // One row per session, each carrying a readable label with at least its ordinal.
+    const rows = panel.querySelectorAll('.terminal-dock-panel-row');
+    expect(rows.length).toBe(2);
+    expect(rows[0]!.textContent ?? '').toContain('1');
+    expect(rows[1]!.textContent ?? '').toContain('2');
+
+    // The active row (session 2, just opened) is marked distinctly — exactly one.
+    expect(panel.querySelectorAll('.terminal-dock-panel-row-active').length).toBe(1);
+    expect(rows[1]!.classList.contains('terminal-dock-panel-row-active')).toBe(true);
+
+    // The per-row close control and the panel's own "+" spawn control live INSIDE the panel.
+    expect(panel.contains(closeTabButton(2))).toBe(true);
+    expect(panel.contains(newTabButton())).toBe(true);
+  });
+
   // ── mst-close-tab-disposes-its-session ───────────────────────────────────────
   it('mst-close-tab-disposes-its-session: closing a tab disposes ONLY that session (bridge + xterm) and reaps its tab; the sibling is untouched', async () => {
     const { container } = render(<TerminalDock />);
@@ -644,6 +751,41 @@ describe('TerminalDock', () => {
     // Expanding afterwards must not spawn a duplicate session — the restore already settled.
     await expand();
     expect(bridgeMock.spawn).not.toHaveBeenCalled();
+  });
+
+  // ── tdp-restores-snapshot-at-recorded-size-then-fits (ADR-0190 — contract 9's re-shape) ────────
+  //    ADR-0190 re-shapes the bridge's `snapshot()` result from a bare scrollback string to
+  //    `{ data, cols, rows }` — the session's serialized screen state AT THE DIMS IT WAS RECORDED
+  //    AT. On re-attach the restore must: RESIZE the fresh xterm to those recorded cols/rows (so
+  //    the write lands on a terminal the exact size the screen was captured at) BEFORE writing the
+  //    data, then FIT the xterm to its real container and forward the FITTED dims to the pty via a
+  //    real `bridge.resize(sessionId, cols, rows)` call — not the raw `{ data, cols, rows }` object
+  //    handed straight to `term.write()`, and not silently skipping the fit. Today's code treats
+  //    `snapshot()`'s resolved value as a bare string, writes it as-is, and never resizes or fits an
+  //    adopted tab at all — so this must fail against current behaviour.
+  it("tdp-restores-snapshot-at-recorded-size-then-fits: an adopted session is resized to the snapshot's recorded cols/rows before its screen data is written, then fit to its real container with the fitted dims forwarded to the bridge", async () => {
+    bridgeMock.list.mockResolvedValueOnce([{ sessionId: 'sess-9' }]);
+    bridgeMock.snapshot.mockResolvedValueOnce({
+      data: 'restored screen\n',
+      cols: 100,
+      rows: 40,
+    });
+
+    render(<TerminalDock />);
+    await flush();
+    await flush(); // drain the list() → snapshot() promise chain
+
+    expect(xtermMock.FakeTerminal.instances.length).toBe(1);
+    const term = xtermMock.FakeTerminal.instances[0]!;
+    const fit = fitMock.FakeFitAddon.instances[0]!;
+
+    // Resized to the snapshot's OWN recorded size (the serialization's terminal dims), forwarded
+    // to the pty as a real resize.
+    expect(bridgeMock.resize).toHaveBeenCalledWith('sess-9', 100, 40);
+    // The serialized screen text was written — never the raw { data, cols, rows } object.
+    expect(term.written).toEqual(['restored screen\n']);
+    // Then fit to the real container — today's code never fits an adopted/restored tab at all.
+    expect(fit.fitCalls).toBeGreaterThan(0);
   });
 
   // ── mst-unmount-preserves-sessions (ADR-0189 — supersedes ADR-0186's dock-lifetime wall) ────────

@@ -1311,22 +1311,12 @@ a.stat:hover {
 .tree-wrap {
   display: flex;
   flex-direction: column;
-  gap: 14px;
   min-width: 0;
-  /* Fill the content area so the map frame + chat dock reach the window bottom — no dead white
-     strip below the map on tall/maximized windows (owner UX feedback). The frame stretches to
-     fill via the flex chain below (.tree-layout → .world-frame → .world-viewport). */
+  /* FULL-BLEED (owner feedback 2026-07-13): the map is the entire content area — no `pad` ring,
+     no toolbar row above it. Fill the content area so the map reaches the window bottom — no dead
+     white strip on tall/maximized windows (owner UX feedback). The frame stretches to fill via
+     the flex chain below (.tree-layout → .world-frame → .world-viewport). */
   min-height: 100%;
-}
-.tree-toolbar {
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-.tree-toolbar h2 {
-  margin: 0;
-  font-size: 19px;
 }
 /* The world is full-bleed (the base layer); the Shared Islands panel + legend
    float OVER it as a translucent overlay, and the detail panel overlays from the
@@ -1354,10 +1344,9 @@ a.stat:hover {
   /* Height of the folded chat dock bar — lifts the gear/session-dock clear of it (scoped to the map).
      Tracks the slim collapsed prompt-bar (.chat-dock-toggle: 7px padding + glyph/hint line + 1px border). */
   --chat-dock-h: 32px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
+  /* Full-bleed: no border / radius / shadow — the map runs edge-to-edge to the window
+     (owner feedback 2026-07-13); the card chrome belonged to the old padded-page layout. */
   overflow: hidden;
-  box-shadow: var(--shadow);
   background: linear-gradient(160deg, var(--board-1), var(--board-2));
 }
 .world-viewport {
@@ -2441,6 +2430,129 @@ a.stat:hover {
   background: color-mix(in srgb, var(--term-sage) 40%, var(--term-scroll));
   background-clip: padding-box;
 }
+/* ── Session panel (ADR-0190 §3 — the VS Code-style session tabs, multi-session-tabs capability).
+   VS Code's DESIGN (a tabs list beside the terminal pane, hover-revealed row kill, an accent-marked
+   active row) rendered in the dock's own owner-approved warm-dark palette. APPEARANCE IS
+   OPERATOR-ATTESTED (terminal-tabs story UAT leg 1, ADR-0070) — geometry/behaviour is signed by the
+   vitest contracts; these colours sign nothing. */
+.terminal-dock-body-row {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+/* Folded dock = the toggle bar alone (VS Code collapses its tabs list with the panel). `!important`
+   because the signed markup carries a defensive inline `display:flex` on the wrapper; jsdom contract
+   tests query the DOM tree, never computed style, so behaviour contracts are untouched. :has() is
+   native in the Electron/Chromium renderer. */
+.terminal-dock:not(:has(.terminal-dock-toggle-expanded)) .terminal-dock-body-row {
+  display: none !important;
+}
+/* The panel column — RIGHT of the pane (order flips the DOM order; VS Code's terminal tabs side). */
+.terminal-dock-panel {
+  order: 2;
+  flex: 0 0 172px;
+  min-width: 0;
+  gap: 1px;
+  padding: 6px 6px 8px;
+  background: var(--term-bg);
+  border-left: 1px solid var(--term-border-inner);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--term-scroll) transparent;
+}
+.terminal-dock-panel-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 6px;
+  border-left: 2px solid transparent;
+}
+.terminal-dock-panel-row:hover {
+  background: color-mix(in srgb, var(--term-sage) 8%, transparent);
+}
+.terminal-dock-panel-row-active {
+  background: color-mix(in srgb, var(--term-sage) 13%, transparent);
+  border-left-color: var(--term-sage);
+}
+/* The row's switch — the readable session label, prompt-glyph affordance first (the dock's identity
+   mark), ellipsized so a future longer label never breaks the column. */
+.terminal-dock-panel-row-switch {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 4px 5px 8px;
+  border: none;
+  background: transparent;
+  color: var(--term-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.terminal-dock-panel-row-switch::before {
+  content: '❯_';
+  color: var(--term-sage);
+  font-size: 10.5px;
+  letter-spacing: 1px;
+  opacity: 0.55;
+}
+.terminal-dock-panel-row-active .terminal-dock-panel-row-switch {
+  color: #d9cfba;
+}
+.terminal-dock-panel-row-active .terminal-dock-panel-row-switch::before {
+  opacity: 1;
+}
+/* The per-row kill — quiet until its row is hovered or active (VS Code's hover-revealed row action),
+   warming toward danger on its own hover. */
+.terminal-dock-panel .terminal-dock-tab-close {
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: var(--term-muted);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  padding: 4px 7px;
+  margin-right: 2px;
+  border-radius: 5px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+.terminal-dock-panel-row:hover .terminal-dock-tab-close,
+.terminal-dock-panel-row-active .terminal-dock-tab-close {
+  opacity: 0.75;
+}
+.terminal-dock-panel .terminal-dock-tab-close:hover {
+  color: #e8b4a8;
+  background: color-mix(in srgb, #b4543f 24%, transparent);
+  opacity: 1;
+}
+/* The "+" spawn — a quiet full-width action row at the list's tail, sage on hover (the panel's own
+   control, mirroring VS Code's new-terminal button living with the tabs list). */
+.terminal-dock-panel-new {
+  margin-top: 4px;
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px dashed color-mix(in srgb, var(--term-muted) 45%, transparent);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--term-muted);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.terminal-dock-panel-new:hover {
+  color: var(--term-sage);
+  border-color: color-mix(in srgb, var(--term-sage) 55%, transparent);
+  background: color-mix(in srgb, var(--term-sage) 7%, transparent);
+}
+
 /* Studio-standalone (no desktop bridge): an honest, unobtrusive disabled bar — never a spawn, never a
    hang. It flows position:absolute at the map-frame bottom, the same slot a collapsed dock would fold to;
    the same warm chrome + prompt affordance so it still reads as the (unavailable) terminal. */
@@ -3454,41 +3566,8 @@ button.legend-tile:hover {
   gap: 8px;
   pointer-events: none;
 }
-/* The map-side Library toggle (bottom-left, mirroring the gear dock): the reachable entry to the
-   `?overlay=library` lens once there's no URL bar. Corner-anchored so the top-anchored lens never
-   covers it (expanded ~top ⅓–⅘, minimised = a thin top handle). */
-.world-library-dock {
-  position: absolute;
-  left: 12px;
-  bottom: calc(12px + var(--chat-dock-h, 0px));
-  z-index: 3;
-  pointer-events: none;
-}
-.world-library-btn {
-  pointer-events: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 38px;
-  padding: 0 15px;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--muted);
-  font: inherit;
-  font-weight: 600;
-  box-shadow: var(--shadow);
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
-}
-.world-library-btn:hover {
-  color: var(--text);
-  border-color: var(--accent);
-}
-.world-library-btn.on {
-  color: var(--accent);
-  border-color: var(--accent);
-}
+/* The PR-#715 map-side Library toggle (.world-library-dock/.world-library-btn) is RETIRED
+   (ADR-0191 dec 4) — the drawer's own persistent top handle is the entry affordance now. */
 .world-gear-btn {
   pointer-events: auto;
   width: 38px;
@@ -4503,15 +4582,17 @@ button.legend-tile:hover {
 }
 
 /* ============================================================================
-   Library lens (ADR-0185 inc 1 → ADR-0188 inc 9) — the tech-tree lens pulled
-   DOWN over the map. SEED-PACKET realisation of forest-cozy LIGHT (ADR-0188
-   dec 7): cream paper panels with visible borders and shadow ON the green
-   world — the lens is an object over the map, never wallpaper. Never
-   neutral-admin white and never the terminal black (that look is reserved for
-   the session-orchestrator terminal, ADR-0174/0175). Sits at z:4 — above the
-   side panels (z:3), below the flyout (z:5), stress layer (z:6), chat (z:20).
-   The map stays live beneath in BOTH lens states (no scrim); minimised, the
-   lens collapses to its bottom handle bar (dec 6).
+   Library lens (ADR-0185 inc 1 → ADR-0188 inc 9 → ADR-0191) — the tech-tree
+   TOP DRAWER pulled DOWN over the map: a persistent full-width handle tab at
+   the top edge (collapsed, the default), expanding to ~the top third of the
+   frame behind `?overlay=library`. SEED-PACKET realisation of forest-cozy
+   LIGHT (ADR-0188 dec 7): cream paper panels with visible borders and shadow
+   ON the green world — the lens is an object over the map, never wallpaper.
+   Never neutral-admin white and never the terminal black (that look is
+   reserved for the session-orchestrator terminal, ADR-0174/0175). Sits at
+   z:4 — above the side panels (z:3), below the flyout (z:5), stress layer
+   (z:6), chat (z:20). The map stays live beneath in BOTH drawer states (no
+   scrim); collapsed, the drawer is just its handle bar (ADR-0191 dec 1).
    The token roles: --lp-panel/-panel-2 paper grounds, --lp-border the visible
    edge, --lp-ink/-ink-soft text, --lp-moss structure, --lp-sprout scope and
    affordances, --lp-clay the ONE primary action per surface, --lp-sun reserved
@@ -4530,40 +4611,37 @@ button.legend-tile:hover {
   --lp-sun: #e3a93e;
   position: absolute;
   top: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
   z-index: 4;
-  width: min(1180px, calc(100% - 64px));
+  width: 100%;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--lp-border);
-  border-top: none;
-  border-radius: 0 0 16px 16px;
+  border-bottom: 1px solid var(--lp-border);
   background: var(--lp-panel);
   color: var(--lp-ink);
   box-shadow: 0 16px 38px rgba(87, 60, 38, 0.28);
-  animation: library-drawer-slide 240ms ease-out;
   overflow: hidden;
 }
-/* Permanent lens (ADR-0187 dec 1): the flag is the only presence gate. Expanded fills most of
-   the frame (the map peeks at the edges); minimised keeps only the handle bar (ADR-0188 dec 6). */
+/* Top drawer (ADR-0191): full width of the forest frame; state is URL-derived. Expanded takes
+   ~the top third of the frame; collapsed keeps only the handle bar (the persistent drawer tab,
+   visible by default on every map load). */
 .library-drawer[data-lens-state='expanded'] {
-  height: min(80%, 640px);
+  height: 33%;
+  min-height: 260px;
 }
-.library-drawer[data-lens-state='minimised'] {
+.library-drawer[data-lens-state='collapsed'] {
   height: auto;
 }
+/* the expanding body slides down out of the handle (the drawer-pull) */
 @keyframes library-drawer-slide {
   from {
-    transform: translate(-50%, -101%);
+    transform: translateY(-14px);
+    opacity: 0.4;
   }
   to {
-    transform: translate(-50%, 0);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .library-drawer {
-    animation: none;
+    transform: translateY(0);
+    opacity: 1;
   }
 }
 /* the lens body holds the finder+subgraph (inc 2/3) or the whole-corpus overview (inc 5) */
@@ -4572,17 +4650,26 @@ button.legend-tile:hover {
   min-height: 0;
   display: flex;
   overflow: hidden;
+  animation: library-drawer-slide 220ms ease-out;
 }
-/* the bottom HANDLE BAR (ADR-0188 dec 6): grip + wordmark + Minimise/Restore — the lens's one
-   global control; minimised, this bar is the whole visible lens (the drawer-pull posture). */
+@media (prefers-reduced-motion: reduce) {
+  .library-drawer-body {
+    animation: none;
+  }
+}
+/* the HANDLE BAR (ADR-0191): grip + wordmark + Expand/Collapse — the drawer's single open/close
+   affordance; collapsed, this bar is the whole visible drawer (the top drawer-pull tab). */
 .library-drawer-handle-bar {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 16px;
+  padding: 6px 16px;
   border-top: 1px solid var(--lp-border);
   background: var(--lp-bar);
+}
+.library-drawer[data-lens-state='collapsed'] .library-drawer-handle-bar {
+  border-top: none;
 }
 .library-drawer-handle-grip {
   width: 42px;
@@ -4596,8 +4683,7 @@ button.legend-tile:hover {
   letter-spacing: 0.04em;
   margin-right: auto;
 }
-.library-drawer-minimise,
-.library-drawer-restore {
+.library-drawer-toggle {
   flex: 0 0 auto;
   border: 1px solid var(--lp-border);
   border-radius: 999px;
@@ -4609,17 +4695,18 @@ button.legend-tile:hover {
   font-weight: 600;
   padding: 5px 14px;
 }
-.library-drawer-restore {
+.library-drawer-toggle:hover {
+  border-color: var(--lp-moss);
+  color: var(--lp-moss);
+}
+.library-drawer[data-lens-state='collapsed'] .library-drawer-toggle {
   background: var(--lp-moss);
   border-color: var(--lp-moss);
   color: #fffdf4;
 }
-.library-drawer-minimise:hover {
-  border-color: var(--lp-moss);
-  color: var(--lp-moss);
-}
-.library-drawer-restore:hover {
+.library-drawer[data-lens-state='collapsed'] .library-drawer-toggle:hover {
   background: color-mix(in srgb, var(--lp-moss) 85%, #000000 15%);
+  color: #fffdf4;
 }
 
 /* ── the Open document overlay (ADR-0187 dec 2, inc 8): a separate full-detail artifact view

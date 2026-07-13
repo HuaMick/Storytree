@@ -133,7 +133,8 @@ test('pty sessions survive a route change: away to Overview and back re-attaches
     // main-held scrollback into a fresh xterm.
     await win.locator('nav.topnav a', { hasText: 'Forest' }).click();
     await waitForForestSettled(win);
-    await win.waitForSelector('.terminal-dock-tabs .terminal-dock-tab', { state: 'attached', timeout: 20_000 });
+    // ADR-0190 chrome: the session panel (rows beside the pane) replaced the numbered tab strip.
+    await win.waitForSelector('.terminal-dock-panel .terminal-dock-panel-row', { state: 'attached', timeout: 20_000 });
 
     const expandAgain = win.locator('[aria-label="expand terminal"]');
     await expandAgain.waitFor({ state: 'visible', timeout: 10_000 });
