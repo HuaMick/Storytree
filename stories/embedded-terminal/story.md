@@ -137,8 +137,10 @@ exactly as the `desktop` story models its `backend-entry.ts` sidecar wiring and 
   back to the renderer. The manager (cap 1) is the provable core; this is the real-pty binding.
   *(ADR-0189 adds the re-attach slice: `ipcMain.handle("terminal:list")` — the manager's live sessions
   FILTERED to the currently-selected repo's cwd, the per-repo ownership policy — and
-  `ipcMain.handle("terminal:snapshot")` relaying the manager's buffered scrollback; window-close /
-  app-quit keep `disposeAllTerminals` — with unmount no longer a kill, the app lifecycle is the reap.)*
+  `ipcMain.handle("terminal:snapshot")` relaying the manager's serialized screen state
+  `{ data, cols, rows }` (ADR-0190 — the headless-terminal serialization, replacing the ADR-0189 raw
+  buffered scrollback); window-close / app-quit keep `disposeAllTerminals` — with unmount no longer a
+  kill, the app lifecycle is the reap.)*
 - **The `desktopTerminal` contextBridge** (`apps/desktop/electron/preload.ts`): a NEW
   `contextBridge.exposeInMainWorld("desktopTerminal", { spawn, write, resize, dispose, onData, onExit })`
   bridging renderer → `ipcRenderer.invoke`/`.on` → main — the EXACT pattern of the existing `desktopAuth`
@@ -150,12 +152,14 @@ exactly as the `desktop` story models its `backend-entry.ts` sidecar wiring and 
   never stacks duplicate listeners (N-times-repeated output after N route trips).)*
 - **The native-module build wiring**: `node-pty` added to `apps/desktop/package.json` `dependencies` and
   `--external:node-pty` added to the `build:electron` esbuild (the `@napi-rs/keyring` precedent — a native
-  module kept external from the CJS main bundle); and `@xterm/xterm` (+ `@xterm/addon-fit`) added to
-  `apps/studio/package.json` `dependencies` (a new studio frontend dep). *(Neither dep can be declared via
-  a cap `real.addDeps` arm — `resolveAddDepsGroup` only targets `packages/*`, never `apps/*`; verified
-  `workspacePackageForSource("apps/studio/src/x.ts") → null`. So the deps are a glue prerequisite the
-  orchestrator supplements BEFORE driving each cap's `--real` build; each cap's `install: true` then
-  picks them up in the fresh worktree.)*
+  module kept external from the CJS main bundle); `@xterm/headless` (+ `@xterm/addon-serialize`) added to
+  `apps/desktop/package.json` `dependencies` (ADR-0190 — the pure-JS headless screen model the manager
+  serializes for `snapshot`; no native rebuild surface, esbuild bundles them); and `@xterm/xterm`
+  (+ `@xterm/addon-fit`) added to `apps/studio/package.json` `dependencies` (a new studio frontend dep).
+  *(None of these deps can be declared via a cap `real.addDeps` arm — `resolveAddDepsGroup` only targets
+  `packages/*`, never `apps/*`; verified `workspacePackageForSource("apps/studio/src/x.ts") → null`. So the
+  deps are a glue prerequisite the orchestrator supplements BEFORE driving each cap's `--real` build; each
+  cap's `install: true` then picks them up in the fresh worktree.)*
 - **The dock-slot swap in `apps/studio/src/components/TreeView.tsx`**: mounting `<TerminalDock/>` in the
   `.world-frame` where `<ChatDock onReloadTree={…}/>` sits today (TreeView.tsx ~L2141). The terminal dock
   takes the interactive dock slot; ChatDock's component + tests stay in the tree DORMANT (ADR-0175). Which

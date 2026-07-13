@@ -57,9 +57,10 @@ export interface DesktopTerminalBridge {
   /** ADR-0189 re-attach slice — OPTIONAL: an older preload lacks it (feature-guard, never assume).
    *  The still-live sessions the main scopes to the currently selected repo. */
   list?(): Promise<Array<{ sessionId: string }>>;
-  /** ADR-0189 re-attach slice — OPTIONAL: the session's main-held buffered scrollback, replayed into
-   *  a fresh xterm on re-attach. */
-  snapshot?(sessionId: string): Promise<string>;
+  /** ADR-0189 re-attach slice, re-shaped by ADR-0190: the session's main-held SERIALIZED SCREEN STATE
+   *  (`data`) at the dims it was recorded at (`cols`/`rows`), replayed into a fresh xterm on
+   *  re-attach. An older preload may still resolve the pre-ADR-0190 bare scrollback string. */
+  snapshot?(sessionId: string): Promise<string | { data: string; cols: number; rows: number }>;
 }
 
 declare global {
@@ -231,11 +232,23 @@ export function TerminalDock({ seed, headerRight }: TerminalDockProps = {}): Rea
         // `onData` chunk for this session is written (those are held in `rec.heldChunks` by the
         // bridge router below while `awaitingSnapshot` is true).
         if (bridge.snapshot) {
-          void bridge.snapshot(rec.sessionId).then((text) => {
-            term.write(text);
+          void bridge.snapshot(rec.sessionId).then((result) => {
+            // ADR-0190 re-shape: `result` is either the pre-ADR-0190 bare scrollback string (an
+            // older preload) or `{ data, cols, rows }` — the serialized screen state AT THE DIMS IT
+            // WAS RECORDED AT. For the latter, resize the fresh xterm to those recorded dims BEFORE
+            // writing the data, so the write lands on a terminal the exact size the screen was
+            // captured at (the resize forwards to the pty via the onResize -> bridge.resize wiring
+            // above, since `rec.sessionId` is already set for an adopted tab).
+            const data = typeof result === 'string' ? result : result.data;
+            if (typeof result !== 'string') term.resize(result.cols, result.rows);
+            term.write(data);
             for (const chunk of rec.heldChunks) term.write(chunk);
             rec.heldChunks = [];
             rec.awaitingSnapshot = false;
+            // Then fit to the real container, forwarding the FITTED dims to the pty (the same
+            // onResize -> bridge.resize wiring) — so the resident TUI receives a real resize and
+            // repaints itself into the terminal's actual geometry.
+            fit.fit();
           });
         } else {
           rec.awaitingSnapshot = false;
@@ -243,7 +256,12 @@ export function TerminalDock({ seed, headerRight }: TerminalDockProps = {}): Rea
         return;
       }
 
-      void bridge.spawn().then((res) => {
+      // Contract 10 (ADR-0190) — fit the fresh terminal to its container BEFORE spawning, and
+      // forward the resulting dims into the spawn call, so a new pty starts at the terminal's REAL
+      // size, never xterm's 80x24 default under a wide dock. `rec.sessionId` is still null here (an
+      // adopted tab returned above), so the fit's own `onResize` firing is a no-op for the bridge.
+      fit.fit();
+      void bridge.spawn({ cols: term.cols, rows: term.rows }).then((res) => {
         rec.sessionId = res.sessionId;
 
         // Contract 8 — the main FAILS CLOSED (no valid repo selected) by resolving an empty
@@ -387,6 +405,15 @@ export function TerminalDock({ seed, headerRight }: TerminalDockProps = {}): Rea
     };
   }, []);
 
+  // Contract 11 (ADR-0190) — re-fit the ACTIVE tab's terminal to its container whenever it becomes
+  // the visible pane (a tab switch) or the dock re-expands (fold -> unfold), forwarding the new
+  // geometry to the pty through the SAME onResize -> bridge.resize wiring the drag handle uses
+  // (contract 3). A no-op while folded (nothing visible to fit) or before any tab is active.
+  useEffect(() => {
+    if (!expanded || activeId === null) return;
+    recordsRef.current.get(activeId)?.fit?.fit();
+  }, [expanded, activeId]);
+
   // Contract 6 — re-focus the ACTIVE tab's mounted xterm after a window blur/focus cycle (another
   // window/app had stolen focus; the user clicks back). xterm's hidden input textarea does not regain
   // focus on its own, so we drive it explicitly on the events that mean "the user is back on the
@@ -492,58 +519,65 @@ export function TerminalDock({ seed, headerRight }: TerminalDockProps = {}): Rea
         <div className="terminal-dock-header-right">{headerRight}</div>
       )}
 
-      {/* The tab strip — between the dock header (above) and the tab panes (below). One tab per open
-          session; the active one highlighted. Chrome, so it renders regardless of fold state, same as
-          the toggle above it. */}
-      <div className="terminal-dock-tabs">
-        {tabIds.map((id, i) => (
+      {/* The session panel (ADR-0190 §3) — sits BESIDE the terminal panes, down the right of the dock
+          body, inside a shared `.terminal-dock-body-row` wrapper (never a strip between the header
+          and the panes). One row per session — carrying a readable label with at least its ordinal —
+          plus the panel's own "+" spawn control. The chrome (this whole row wrapper) renders
+          regardless of fold state, same as the toggle above it; only the ACTIVE pane is visible while
+          expanded. */}
+      <div className="terminal-dock-body-row" style={{ display: 'flex', flexDirection: 'row' }}>
+        <div className="terminal-dock-panel" style={{ display: 'flex', flexDirection: 'column' }}>
+          {tabIds.map((id, i) => (
+            <div
+              key={id}
+              className={`terminal-dock-tab terminal-dock-panel-row${
+                id === activeId ? ' terminal-dock-panel-row-active' : ''
+              }`}
+            >
+              <button
+                type="button"
+                className="terminal-dock-panel-row-switch"
+                aria-label={`tab ${i + 1}`}
+                onClick={() => setActiveId(id)}
+              >
+                Session {i + 1}
+              </button>
+              <button
+                type="button"
+                className="terminal-dock-tab-close"
+                aria-label={`close tab ${i + 1}`}
+                onClick={() => closeTab(id)}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="terminal-dock-panel-new"
+            aria-label="new terminal tab"
+            onClick={() => openSession(null)}
+          >
+            +
+          </button>
+        </div>
+
+        {/* Each tab's xterm mount stays MOUNTED under `hidden` (not conditional render), preserving
+            the session across a fold → unfold or a switch away and back. Only the active tab's pane
+            is visible while the dock is expanded. */}
+        {tabIds.map((id) => (
           <div
             key={id}
-            className={`terminal-dock-tab${id === activeId ? ' terminal-dock-tab-active' : ''}`}
-          >
-            <button
-              type="button"
-              className="terminal-dock-tab-switch"
-              aria-label={`tab ${i + 1}`}
-              onClick={() => setActiveId(id)}
-            >
-              {i + 1}
-            </button>
-            <button
-              type="button"
-              className="terminal-dock-tab-close"
-              aria-label={`close tab ${i + 1}`}
-              onClick={() => closeTab(id)}
-            >
-              ×
-            </button>
-          </div>
+            className="terminal-dock-body"
+            hidden={!expanded || id !== activeId}
+            ref={(el) => {
+              const rec = recordsRef.current.get(id);
+              if (rec) rec.bodyEl = el;
+            }}
+            onMouseDown={() => recordsRef.current.get(id)?.term?.focus()}
+          />
         ))}
-        <button
-          type="button"
-          className="terminal-dock-tab-new"
-          aria-label="new terminal tab"
-          onClick={() => openSession(null)}
-        >
-          +
-        </button>
       </div>
-
-      {/* Each tab's xterm mount stays MOUNTED under `hidden` (not conditional render), preserving the
-          session across a fold → unfold or a switch away and back. Only the active tab's pane is
-          visible while the dock is expanded. */}
-      {tabIds.map((id) => (
-        <div
-          key={id}
-          className="terminal-dock-body"
-          hidden={!expanded || id !== activeId}
-          ref={(el) => {
-            const rec = recordsRef.current.get(id);
-            if (rec) rec.bodyEl = el;
-          }}
-          onMouseDown={() => recordsRef.current.get(id)?.term?.focus()}
-        />
-      ))}
     </aside>
   );
 }
