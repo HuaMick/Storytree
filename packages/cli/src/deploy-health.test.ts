@@ -104,6 +104,39 @@ describe("deploy-health-green-run-classifies-quiet", () => {
       "the in-flight deploy above the last green run must be noted",
     );
   });
+
+  // Post-PASS supplement (audit-the-signed-verdict): the contract's plain-green case — no
+  // in-flight run above the success, so the quiet line carries NO in-flight note.
+  it("formats a plain green page (no in-flight run) as one quiet line without an in-flight note", () => {
+    const runs: DeployRun[] = [
+      {
+        status: "completed",
+        conclusion: "success",
+        updatedAt: "2026-07-11T11:00:00Z",
+        url: "https://github.com/org/repo/actions/runs/204",
+        databaseId: 204,
+      },
+      {
+        status: "completed",
+        conclusion: "failure",
+        updatedAt: "2026-07-11T10:00:00Z",
+        url: "https://github.com/org/repo/actions/runs/203",
+        databaseId: 203,
+      },
+    ];
+
+    const health = classifyDeployHealth(runs);
+
+    assert.equal(health.verdict, "ok");
+    assert.equal(health.inFlight, false);
+    assert.equal(health.lastGreenAt, "2026-07-11T11:00:00Z");
+
+    const lines = formatDeployHealth(health);
+    assert.equal(lines.length, 1);
+    const [line] = lines;
+    assert.ok(line !== undefined);
+    assert.ok(!/in.?flight/i.test(line), "a plain green line must not claim an in-flight deploy");
+  });
 });
 
 describe("deploy-health-no-signal-classifies-unknown", () => {
@@ -156,5 +189,57 @@ describe("deploy-health-no-signal-classifies-unknown", () => {
     assert.ok(inFlightLine.startsWith("[check:deploy-health]"));
     assert.ok(inFlightLine.includes("UNVERIFIED"));
     assert.ok(!/healthy/i.test(inFlightLine), "must never claim healthy");
+  });
+
+  // Post-PASS supplement (audit-the-signed-verdict): the contract's totality clause — odd
+  // conclusions and unexpected status strings never throw, and a completed run with a null/""
+  // conclusion counts as non-success (red), per the completed-run rule.
+  it("is total over odd input: null/empty conclusions and unexpected status strings never throw", () => {
+    const oddCompleted: DeployRun[] = [
+      {
+        status: "completed",
+        conclusion: null,
+        updatedAt: "2026-07-12T02:00:00Z",
+        url: "https://github.com/org/repo/actions/runs/402",
+      },
+      {
+        status: "completed",
+        conclusion: "",
+        updatedAt: "2026-07-12T01:00:00Z",
+        url: "https://github.com/org/repo/actions/runs/401",
+      },
+      {
+        status: "completed",
+        conclusion: "success",
+        updatedAt: "2026-07-12T00:00:00Z",
+        url: "https://github.com/org/repo/actions/runs/400",
+      },
+    ];
+
+    const oddHealth = classifyDeployHealth(oddCompleted);
+    assert.equal(oddHealth.verdict, "red", "a completed null/empty conclusion counts as non-success");
+    assert.equal(oddHealth.streak, 2);
+    assert.equal(oddHealth.lastGreenAt, "2026-07-12T00:00:00Z");
+    assert.ok(formatDeployHealth(oddHealth).length > 1);
+
+    const weirdStatus: DeployRun[] = [
+      {
+        status: "totally-new-github-status",
+        conclusion: null,
+        updatedAt: "2026-07-12T03:00:00Z",
+        url: "https://github.com/org/repo/actions/runs/403",
+      },
+      {
+        status: "completed",
+        conclusion: "success",
+        updatedAt: "2026-07-12T00:00:00Z",
+        url: "https://github.com/org/repo/actions/runs/400",
+      },
+    ];
+
+    const weirdHealth = classifyDeployHealth(weirdStatus);
+    assert.equal(weirdHealth.verdict, "ok", "an unexpected status is treated as non-completed");
+    assert.equal(weirdHealth.inFlight, true, "the non-completed run above the success flags in-flight");
+    assert.equal(formatDeployHealth(weirdHealth).length, 1);
   });
 });

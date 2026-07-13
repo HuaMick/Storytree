@@ -78,7 +78,7 @@
       "map-terminal-build": "hosted in studio (apps/studio)",
       "notice-board": "hosted in cli (packages/cli) + drive-machinery (packages/drive)",
       "spawn-visibility": "hosted in desktop (apps/desktop) + drive-machinery (packages/drive) + studio (apps/studio)",
-      "studio-cloud": "hosted in studio (apps/studio)",
+      "studio-cloud": "hosted in studio (apps/studio) + cli (packages/cli)",
       "terminal-chat": "hosted in desktop (apps/desktop) + studio (apps/studio)",
       "terminal-repo-picker": "hosted in desktop (apps/desktop) + studio (apps/studio)",
       "terminal-tabs": "hosted in studio (apps/studio)",
