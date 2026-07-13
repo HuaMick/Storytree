@@ -44,37 +44,49 @@ proof:
   real:
     testFile: "apps/studio/src/components/TerminalDock.test.tsx"
     sourceFile: "apps/studio/src/components/TerminalDock.tsx"
-    # RE-PROVE (ADR-0057 §3 expansion C): TerminalDock.tsx + its test ALREADY EXIST at HEAD (signed by
-    # the original story build, the contract-6/7/8 re-proves, the terminal-tabs multi-session + seed
-    # re-drives, the ADR-0189 re-attach re-drive that added contract 9, and the a90e30b ADR-0190 fit
-    # re-drive that added contract 10 `tdp-fits-before-spawn-and-passes-initial-dims`). The prior ADR-0190
-    # drive UNDER-DELIVERED and the audit corrected this spec to match reality (verified @ a90e30b): it
-    # left contract 9's replay path BYTE-IDENTICAL (the old `tdp-reattaches-live-sessions-on-mount` test
-    # stayed green, so coverage falsely read it covered) and built only the fit-before-spawn slice under
-    # its own descriptive id — now adopted as contract 10, built+signed. So THIS drive is contract 9 ONLY.
+    # RE-PROVE (ADR-0057 §3 expansion C): TerminalDock.tsx + its test ALREADY EXIST at HEAD. THIS CAP IS
+    # ALL-BUILT EXCEPT CONTRACT 9. Contracts 1–8 (original build + the 6/7/8 re-proves + the terminal-tabs
+    # multi-session/seed re-drives), contract 10 `tdp-fits-before-spawn-and-passes-initial-dims` (@ a90e30b),
+    # and contract 11 `tdp-refits-on-expand-activation-and-resize` (@ 9439df5) are ALL BUILT AND SIGNED —
+    # there is NO uncovered contract to add. Contract 9 `tdp-reattaches-live-sessions-on-mount` is the ONE
+    # unbuilt behaviour: its title is GREEN over the RETIRED replay (the dock still does
+    # `snapshot(...).then(text => term.write(text))`), so `check:coverage` reads it "covered" — a TRAP. That
+    # false-covered frame has TWICE steered this drive into building whatever read uncovered instead of
+    # contract 9: a90e30b built contract 10, 9439df5 built contract 11. Neither touched the replay. This
+    # drive closes contract 9 and nothing else.
     #
-    # THE DRIVE — CONTRACT 9 ONLY (`tdp-reattaches-live-sessions-on-mount`): the id STANDS; its ASSERTIONS
-    # re-tense. REWRITE the contract-9 test (SAME title) to the spec's replay semantics — the bridge
-    # `snapshot` resolves `{ data, cols, rows }` (ADR-0190, pty-session-manager's re-tensed contract 6);
-    # the dock RESIZES the fresh xterm to the recorded `cols`/`rows`, WRITES `data`, THEN fits to the
-    # container and forwards the fitted dims to the pty (`bridge.resize`) — the live TUI repaints into the
-    # real geometry; held live chunks flush strictly AFTER the replay; an older preload (a STRING
-    # `snapshot`, or `snapshot`/`list` ABSENT) is feature-guarded and never crashes. Then EDIT
-    # TerminalDock.tsx — a behaviour-assertion red (at HEAD the restore does
-    # `snapshot(...).then(text => term.write(text))`, a raw string with no dim/resize/fit handling). No new
-    # dep (`@xterm/addon-fit`'s `FitAddon` already ships).
+    # WHY THIS CANNOT WAIT: pty-session-manager's `snapshot` now resolves `{ data, cols, rows }` (signed @
+    # 431c125). The shipped dock still writes the WHOLE resolved value into xterm, so a re-attached terminal
+    # now renders `[object Object]` — the machine e2e should be RED on this as you read it, and the survival
+    # walk the owner already rejected is now strictly WORSE than when he rejected it.
     #
-    # FREEZE EVERYTHING ELSE BY NAME: contracts 1–8 STAND; the adopted fit-before-spawn test
-    # (`tdp-fits-before-spawn-and-passes-initial-dims`, contract 10, built+signed @ a90e30b) STANDS
-    # untouched; the terminal-tabs `mst-*` and `son-*` tests SHARE this file and must stay GREEN under
-    # their EXACT titles. The leaf MUST NOT invent or rename any id — the predecessor of THIS drive did
-    # exactly that (built the fit slice under an off-spec title while the spec's id read uncovered), the
-    # 6th observed instance of the recurring invent/rename-title defect (check:coverage matches titles at
-    # word boundaries, ADR-0122). Contract 11 (`tdp-refits-on-expand-activation-and-resize`) is BUILT+SIGNED
-    # @ 9439df5 — but only its EXPAND + TAB-ACTIVATION triggers (the impl is an `[expanded, activeId]` effect
-    # calling `fit()`, each forwarding dims via the existing onResize path); do NOT re-drive it. The
-    # container-size-change / `ResizeObserver` refit is a LATER SLICE, NOT YET CONTRACTED — not part of any
-    # contract, not this drive; do not build it here.
+    # THE ONLY PERMITTED TEST-FILE CHANGE — REWRITE ONE TEST BODY. The sole edit to TerminalDock.test.tsx is
+    # REWRITING THE BODY of the existing test titled `tdp-reattaches-live-sessions-on-mount`; its title stays
+    # BYTE-FOR-BYTE unchanged. Do NOT add any `test()`/`it()` block, do NOT rename any id, do NOT touch any
+    # OTHER test's body. Adding/renaming a test, or building a different contract, IS the exact defect this
+    # brief exists to prevent — 7 observed instances of id/title drift, and 2 observed instances of building a
+    # DIFFERENT contract than briefed (both prior attempts at THIS contract 9). Coverage GREEN is NOT proof
+    # here (the title is already green); the red→green lives INSIDE the one rewritten body (ADR-0122).
+    #
+    # THE RED THE SPINE MUST OBSERVE (write this test body, watch it fail, THEN implement): change the bridge
+    # mock so `snapshot` resolves the REAL post-431c125 shape `{ data: '<ansi>', cols: N, rows: M }` (mocking
+    # a bare string is mocking a RETIRED protocol — do not). Then assert, IN ORDER:
+    #   (a) the adopted tab's xterm is RESIZED to the snapshot's `cols`/`rows` BEFORE the write;
+    #   (b) what is WRITTEN to the xterm is the `.data` STRING — assert the write argument is a string /
+    #       equals `data`, NEVER the object (this pins the `[object Object]` bug);
+    #   (c) after the replay lands, `fit()` runs and the fitted dims are forwarded via `bridge.resize`;
+    #   (d) held live `onData` chunks flush STRICTLY AFTER the replay write;
+    #   (e) a STRING-resolving `snapshot` (an older preload), or `snapshot`/`list` ABSENT, still replays
+    #       without crashing — the feature-guard.
+    # At HEAD, (a)/(b)/(c) ALL FAIL against the shipped `then(text => term.write(text))` — that IS the red.
+    # Then EDIT TerminalDock.tsx to resize → write(`data`) → fit → forward. No new dep (`@xterm/addon-fit`
+    # `FitAddon` already ships).
+    #
+    # FREEZE EVERYTHING ELSE BY NAME: contracts 1–8, contract 10 (`tdp-fits-before-spawn-and-passes-initial-dims`
+    # @ a90e30b), and contract 11 (`tdp-refits-on-expand-activation-and-resize` @ 9439df5) STAND — their test
+    # bodies are UNTOUCHED; the terminal-tabs `mst-*` and `son-*` tests SHARE this file and stay GREEN under
+    # their EXACT titles. The container-size-change / `ResizeObserver` refit is a LATER SLICE, NOT YET
+    # CONTRACTED — do not build it here.
     editsExisting: true
     scope:
       testGlobs: ["apps/studio/src/components/TerminalDock.test.tsx"]
