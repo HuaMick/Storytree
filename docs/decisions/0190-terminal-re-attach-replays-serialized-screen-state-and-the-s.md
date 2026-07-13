@@ -2,6 +2,7 @@
 status: accepted
 decided: 2026-07-13
 amends: [186, 189]
+load_bearing: true
 arc: terminal-orchestrator-seat-arc
 ---
 # ADR-0190: Terminal re-attach replays serialized screen state and the session chrome follows VS Code

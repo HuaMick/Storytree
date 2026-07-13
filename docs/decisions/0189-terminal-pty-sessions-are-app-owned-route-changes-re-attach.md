@@ -21,6 +21,16 @@ REDEFINED, not deleted — nothing outlives the APP (window-close / app-quit sti
 what no longer kills is leaving the page. **Untouched:** ADR-0020 (the prove-it-gate) · ADR-0091 (the
 spine is the sole verdict signer) · ADR-0004 (the terminal is the interactive surface only).
 
+**Amended by ADR-0190 (2026-07-13), reciprocal note.** The REPLAY MECHANISM below — a byte-capped
+scrollback ring in the main whose tail is replayed as raw bytes into a fresh xterm on re-attach — is
+**retired** by ADR-0190 in favour of serialized screen STATE (a per-session headless xterm; `snapshot`
+returns its serialization, restored at recorded dims then fitted). Everything else this ADR decided
+STANDS: app-owned sessions, re-attach on mount, the repo-scoped filter, the single-consumer relays, and
+the explicit-kill surface ("×" / app-quit) are unchanged — only WHAT re-attach replays moved. The retired
+ring/tail clauses in Decisions 1–2 and Consequences are corrected in place below to point to ADR-0190
+(ADR-0139: `git log -p` preserves the original ring wording; the decision itself did not change here, the
+mechanism was re-decided in ADR-0190). ADR-0190 carries the incoming `amends` edge.
+
 ## Context
 
 The embedded terminal (ADR-0174, multi-session per ADR-0186) exists to run the owner's **real,
@@ -46,15 +56,18 @@ attached, and (b) any way for a fresh dock mount to find them again.
 
 **Sessions are owned by the app, keyed to the selected repo — not by the dock's mount.**
 
-1. **The main holds each session's scrollback.** `PtySessionManager` appends every routed chunk to a
-   per-session ring buffer (byte-capped, generous — thousands of lines) and exposes
-   `snapshot(sessionId)` plus `list()` (live sessions, id + spawn cwd). The manager stays lifecycle-only;
-   it reports facts.
+1. **The main holds each session's recent output.** `PtySessionManager` retains each session's recent
+   output and exposes `snapshot(sessionId)` plus `list()` (live sessions, id + spawn cwd). The manager
+   stays lifecycle-only; it reports facts. *(Mechanism corrected per ADR-0190: the original per-session
+   byte-capped ring buffer is retired for a headless xterm whose serialized screen state `snapshot`
+   returns — see ADR-0190 §Decision 1; git preserves the ring wording.)*
 2. **The dock re-attaches on mount instead of spawning blind.** New optional bridge members
    `list()` / `snapshot(sessionId)` (IPC `terminal:list` / `terminal:snapshot`) let a mounting dock
-   enumerate still-live sessions, adopt one tab per session, and replay each session's buffered
-   scrollback into a fresh xterm before live output resumes. Only a restore that settles empty
-   auto-spawns a fresh session (the existing first-expand behaviour).
+   enumerate still-live sessions, adopt one tab per session, and restore each session's screen into a
+   fresh xterm before live output resumes. Only a restore that settles empty auto-spawns a fresh session
+   (the existing first-expand behaviour). *(Corrected per ADR-0190: the restore replays the snapshot's
+   serialized screen STATE at its recorded dims, then fits and forwards the fitted dims to the pty — not
+   a raw-scrollback tail written into the 80×24 default; see ADR-0190 §Decision 2.)*
 3. **Unmount disposes renderer resources only.** Leaving the forest page disposes xterm/fit instances
    and clears the dock's session table — it calls NO `bridge.dispose`. The explicit per-tab "×" and
    window-close / app-quit (`disposeAllTerminals` in main) are the ONLY kills.
@@ -89,12 +102,18 @@ attached, and (b) any way for a fresh dock mount to find them again.
 - A session whose pty EXITS while no dock is attached simply vanishes (its buffer dies with it) — the
   next mount lists only live sessions. Honest, but a crashed resident session leaves no tombstone; the
   arc's later "cheap guided recovery" increment owns that.
-- The scrollback ring is bounded: output beyond the cap is trimmed oldest-first; a re-attached xterm
-  replays the tail, not infinite history.
+- Retention is bounded (same trade, now by line count): under ADR-0190 the main holds each session's
+  serialized screen STATE — a headless xterm's line-bounded scrollback — and a re-attached xterm restores
+  that state, not infinite history. *(This retires the original clause here — "the scrollback ring is
+  bounded: output beyond the cap is trimmed oldest-first; a re-attached xterm replays the tail" — whose
+  byte-capped ring ADR-0190 §Decision 1 replaced; git preserves the original wording. Not a revert toward
+  the ring: retention moved fully to serialized state.)*
 - `mst-disposes-all-sessions-on-unmount` (multi-session-tabs) is renamed/reversed to
   `mst-unmount-preserves-sessions`; `terminal-dock-panel` gains `tdp-reattaches-live-sessions-on-mount`;
   `pty-session-manager` gains the ring/list contracts — all three signed caps re-drive `editsExisting`
   through the spine (ADR-0057 anchored-bytes re-sign), and the affected specs are re-tensed.
+  *(The ring contract is since superseded by ADR-0190's serialized-state `snapshot` — psm re-drove to
+  `psm-snapshots-serialized-screen-state`; the `list` contract stands.)*
 
 ## References
 
@@ -102,7 +121,8 @@ attached, and (b) any way for a fresh dock mount to find them again.
   amended: the never-orphan wall redefined app-lifetime) · ADR-0110 (born accepted).
 - `terminal-orchestrator-seat-arc` (the charter this is increment 1 of) — the arc names survival across
   page navigation the first outcome to secure.
-- Code: `apps/desktop/src/backend/pty-session-manager.ts` (ring buffer + snapshot/list) ·
+- Code: `apps/desktop/src/backend/pty-session-manager.ts` (session-state retention + snapshot/list — the
+  ring buffer is retired per ADR-0190) ·
   `apps/studio/src/components/TerminalDock.tsx` (mount-time re-attach, unmount preserves) ·
   `apps/desktop/electron/{main.ts,preload.ts}` (`terminal:list`/`terminal:snapshot` IPC, repo-scoped
   filter, single-consumer relays) · `apps/studio/src/components/TerminalRepoGate.tsx` (keyed remount,
