@@ -1,5 +1,6 @@
 ---
 status: accepted
+load_bearing: true
 decided: 2026-07-13
 amends: [74, 166]
 ---
@@ -83,15 +84,18 @@ Owner-directed 2026-07-13:
    migration moves the whole footprint in one unit. `library-tech-tree-overlay` itself migrates only
    after its arc closes (plans 11/12 are in flight against the current file layout).
 
-4. **The incident remediation (landed with this ADR).** All 13 standing violations fixed across 7
-   specs, each with a per-edge WHY comment: `library-tech-tree-overlay` → `[studio, library]` (its
-   §"No new cross-story edge" section revised in place — the original rationale conflated "no new
-   package import" with "no dependency"; the `library` edge was real all along via the inc-7
+4. **The incident remediation (landed with this ADR).** **14** standing violations fixed across
+   **8** specs, each with a per-edge WHY comment — 13 found by the recon simulation, and a 14th the
+   moment the BUILT rule first ran live (`desktop-build-mount` hosted in `studio` via
+   worker-relocation's literal `sourceGlobs` entries, which the recon's cruder regex never read —
+   evidence the machinery out-reads the recon): `library-tech-tree-overlay` → `[studio, library]`
+   (its §"No new cross-story edge" section revised in place — the original rationale conflated "no
+   new package import" with "no dependency"; the `library` edge was real all along via the inc-7
    typed-edges lane binding `packages/library/src/store` sources); `library-review` +`studio`;
    `terminal-chat` +`desktop`; `spawn-visibility` +`studio`/`drive-machinery`/`desktop`;
    `wisp-as-story-claim` +`notice-board`/`drive-machinery`/`studio`/`agent`; `binding-staleness`
-   +`cli`; `website-experience` +`cli` — all consumer-side `depends_on` + `artifact_edges`
-   (hosted seams, no code import).
+   +`cli`; `website-experience` +`cli`; `desktop-build-mount` +`studio` — all consumer-side
+   `depends_on` + `artifact_edges` (hosted seams, no code import).
 
 **Rejected alternatives.** (a) File-granular `owns:`-glob ownership — a permanent parallel
 ownership system whose end-state the packages posture reaches with compiler-grade enforcement and
