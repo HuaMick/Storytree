@@ -11,21 +11,22 @@
 // PARSED SCREEN (@xterm/addon-serialize) rather than a jumbled raw-byte replay. Both
 // packages are pure JS (no native module, no DOM) so this stays provable under node:test.
 
-import { createRequire } from "node:module";
 import type { Terminal as HeadlessTerminal, ITerminalAddon as HeadlessTerminalAddon } from "@xterm/headless";
 import type { SerializeAddon as XtermSerializeAddon } from "@xterm/addon-serialize";
+import xtermHeadless from "@xterm/headless";
+import xtermSerialize from "@xterm/addon-serialize";
 
 // Both @xterm/headless and @xterm/addon-serialize ship UMD/CJS bundles that assign their
 // named exports dynamically (a runtime `for...in` copy onto `exports`), which
 // cjs-module-lexer cannot see statically — a plain `import { Terminal } from
 // "@xterm/headless"` throws "does not provide an export named 'Terminal'" under Node's
-// native ESM loader. This module is Node-only (no browser bundling need), so reach the
-// real runtime export via `require` and keep the static types via `import type` above
-// (elided at runtime by verbatimModuleSyntax) — the type-illegal-cast-free fix for a
-// runtime interop gap, not a workaround around it.
-const require = createRequire(import.meta.url);
-const { Terminal } = require("@xterm/headless") as { Terminal: typeof HeadlessTerminal };
-const { SerializeAddon } = require("@xterm/addon-serialize") as {
+// native ESM loader. static default imports — named ESM imports fail on these UMD bundles
+// under node:test, and createRequire(import.meta.url) crashes the esbuild CJS bundle
+// (import.meta.url is undefined there, thrown at apps/desktop/dist/main.cjs load); the
+// default-import-then-destructure form is the only one green in BOTH runtimes. Static
+// types come from `import type` above (elided at runtime by verbatimModuleSyntax).
+const { Terminal } = xtermHeadless as unknown as { Terminal: typeof HeadlessTerminal };
+const { SerializeAddon } = xtermSerialize as unknown as {
   SerializeAddon: typeof XtermSerializeAddon;
 };
 

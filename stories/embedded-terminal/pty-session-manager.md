@@ -345,7 +345,19 @@ Rules:
   `import xtermHeadless from "@xterm/headless"; const { Terminal } = xtermHeadless;` and
   `import xtermSerialize from "@xterm/addon-serialize"; const { SerializeAddon } = xtermSerialize;`. A
   TYPE-only `import type { Terminal } from "@xterm/headless"` is fine (erased at compile); `SerializeAddon`
-  still takes the narrow `loadAddon` cast noted above.
+  still takes the narrow `loadAddon` cast noted above. **The default-import-then-destructure form is the
+  ONLY acceptable MECHANISM** — `createRequire(...)`, `require(...)`, dynamic `import(...)`, and ANY use of
+  `import.meta` (including `import.meta.url`) are ALL FORBIDDEN in this module. WHY (the two-runtime
+  reality): this cap must load in BOTH runtimes — the `node --import tsx --test` ESM runtime it is proven
+  under, AND the esbuild `--format=cjs` bundle it SHIPS in (`apps/desktop/dist/main.cjs`), where
+  `import.meta.url` is `undefined` and runtime `require` paths are NOT bundled. A form that is node:test-GREEN
+  can still be SHIP-BROKEN: the signed leaf reached `Terminal` via `createRequire(import.meta.url)`, which
+  passed node:test but crashed the electron main at load in the cjs bundle —
+  `TypeError [ERR_INVALID_ARG_VALUE]: The argument 'filename' must be... Received undefined` at
+  `createRequire` (caught by the survival e2e; a glue-worker swapped it back to the pinned form under
+  ADR-0158). The pinned `import xtermHeadless from "@xterm/headless"; const { Terminal } = xtermHeadless;`
+  is the ONE form esbuild lowers correctly for both runtimes — use it verbatim, never a runtime-require
+  shim.
 - **Electron-free core** — no `electron`/`dom` import; the ipc handlers + `webContents.send` stream are
   the operator-attested binding in `main.ts`, witnessed under the Story UAT, not asserted here.
 - **Fail closed, never crash** — an op on an unknown/disposed id is a typed no-op/`false`, never a throw;
