@@ -1112,3 +1112,34 @@ test("rule 5 (landlord): unitSourceFiles ABSENT skips the rule entirely, even wi
   } as Parameters<typeof checkBoundaries>[0]);
   assert.deepEqual(violations, []);
 });
+
+// ===================================================================================================
+// The NEW packages-forward-refusal rule (ADR-0192): a sibling to rule 5, sharing its evidence
+// (buildingDirOf / unitSourceFiles / dirOwners / the per-(S,T) dedup). The frozen grandfather
+// register (`hostedStories`) makes rule 5's either-declared-edge escape hatch INSUFFICIENT for a
+// story that isn't registered — a NEW story can no longer squat in a foreign building at all, even
+// with a declared edge to the host (ADR-0192 decision 2).
+// ===================================================================================================
+
+test("packages-forward-refusal: a mapped foreign-hosting pair is refused even with a DECLARED edge, when the hosted story is NOT in the frozen register", () => {
+  // studio-members's unit lives inside notice-board's building. Declare the edge here (forward, via
+  // storyGraph) so rule 5 alone is SILENT about it — isolating this assertion to the NEW rule, which
+  // must refuse the pair anyway because studio-members is absent from the (empty) register.
+  const violations = checkBoundaries({
+    ownership,
+    packageDeps: {},
+    storyGraph: { ...storyGraph, "studio-members": ["notice-board"] },
+    consumedBy,
+    unitSourceFiles: { "studio-members": ["packages/notice-board/src/a.ts"] },
+    dirOwners: { "packages/notice-board": "notice-board" },
+    hostedStories: [], // the frozen grandfather register — empty: nobody is grandfathered
+  } as Parameters<typeof checkBoundaries>[0]).violations;
+
+  assert.equal(
+    violations.length,
+    1,
+    `expected exactly one packages-forward refusal despite the declared edge, got: ${violations.join("\n")}`,
+  );
+  assert.match(violations[0]!, /studio-members/);
+  assert.match(violations[0]!, /notice-board/);
+});
