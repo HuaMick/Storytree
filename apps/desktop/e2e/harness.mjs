@@ -152,13 +152,19 @@ export async function launchOffline() {
       STORYTREE_DESKTOP_SKIP_DB_PRECONDITION: '1',
     },
   });
+  // Echo the Electron process's own output into THIS process's stderr, line-prefixed. The main
+  // relays the backend sidecar's stderr, so a sidecar that dies (or crawls) at boot states its
+  // reason HERE, live in the CI log — without this, a boot failure's cause exists only inside the
+  // window (and node:test defers failure bodies to the end-of-run summary, which a step timeout
+  // eats — exactly how the 2026-07-10..13 hang stayed causeless for three days).
+  app.process().stderr?.on('data', (chunk) => process.stderr.write(`[app] ${chunk}`));
   // From here to the return, the launch can FAIL — and a thrown launchOffline means the caller never
   // receives `app`, so its `finally { app.close() }` can never run. An undisposed Electron (live CDP
   // socket + child processes) keeps the node:test child's event loop alive FOREVER: the runner never
   // finishes the file and the CI step wedges to its timeout with zero output (the 2026-07-10..13 e2e
   // hang). So: on ANY failure, fold the visible page into the error (the main's launch/error page
-  // carries the actual reason the app couldn't start), CLOSE the app, and rethrow — a broken launch
-  // must fail RED in seconds, never hang.
+  // carries the actual reason the app couldn't start), print it INLINE (see above on eaten
+  // summaries), CLOSE the app, and rethrow — a broken launch must fail RED fast, never hang.
   try {
     const win = await app.firstWindow();
     await stubApi(win);
@@ -167,10 +173,10 @@ export async function launchOffline() {
     // since the terminal pivot (ADR-0174) grew the sidecar's import graph, that swap reliably loses
     // the race against this harness. Driving the launch page set `#/tree` on a page the swap then
     // replaced (hash lost → the SPA mounted on Home, which has no forest), so every spec timed out.
-    // Wait for the studio origin FIRST (the session-survival spec's proven pattern); the /api stubs
-    // registered above persist across the navigation. Generous timeout: the sidecar cold-boots a
-    // large TS graph under tsx on a 2-core CI runner.
-    await win.waitForURL(/^http:\/\/127\.0\.0\.1:/, { timeout: 120_000 });
+    // Wait for the studio origin FIRST (the session-survival spec's proven pattern) — but FAIL FAST
+    // with the page text the moment the main lands on its error page instead of burning the full
+    // timeout. The /api stubs registered above persist across the navigation.
+    await waitForStudioOrigin(win);
     await win.evaluate(() => {
       location.hash = '#/tree';
     });
@@ -179,8 +185,36 @@ export async function launchOffline() {
     return { app, win };
   } catch (err) {
     err.message = `${err.message}${await describeWindowState(app)}`;
+    console.error(`[launchOffline] FAILED: ${err.message}`);
     await closeHard(app);
     throw err;
+  }
+}
+
+/**
+ * Wait for the main's launch-page → studio-origin navigation by POLLING url/title (both survive
+ * navigations, unlike waitForURL/waitForFunction which can die "execution context destroyed" mid-swap).
+ * Fails FAST with the visible page text when the main lands on its error page ("storytree could not
+ * start") — that text carries the sidecar's exit reason, so the spec's failure states the cause in
+ * seconds instead of timing out. Generous ceiling: the sidecar cold-boots a large TS graph under tsx
+ * on a 2-core CI runner.
+ */
+export async function waitForStudioOrigin(win, { timeout = 120_000 } = {}) {
+  const deadline = Date.now() + timeout;
+  for (;;) {
+    const url = win.url();
+    if (/^http:\/\/127\.0\.0\.1:/.test(url)) return;
+    const title = await win.title().catch(() => '');
+    if (title === 'storytree could not start') {
+      const text = await win
+        .evaluate(() => (document.body ? document.body.innerText : ''))
+        .catch(() => '(page text unreadable)');
+      throw new Error(`the app failed to launch:\n${text.slice(0, 900)}`);
+    }
+    if (Date.now() > deadline) {
+      throw new Error(`timed out (${Math.round(timeout / 1000)}s) waiting for the studio origin — window still at: ${url.slice(0, 120)}`);
+    }
+    await new Promise((r) => setTimeout(r, 250));
   }
 }
 

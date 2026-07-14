@@ -21,7 +21,7 @@ import assert from 'node:assert/strict';
 import { _electron as electron } from 'playwright-core';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { appDir, stubApi, waitForForestSettled } from './harness.mjs';
+import { appDir, stubApi, waitForForestSettled, waitForStudioOrigin } from './harness.mjs';
 
 /** The repo the terminal opens in — the launch checkout (apps/desktop → repo root), a git repo. */
 const repoRoot = join(appDir, '..', '..');
@@ -65,6 +65,9 @@ test('pty sessions survive a route change: away to Overview and back re-attaches
       STORYTREE_DESKTOP_SKIP_DB_PRECONDITION: '1',
     },
   });
+  // Live-echo the app's (and, relayed through it, the sidecar's) stderr so a boot failure states its
+  // cause in the CI log even when a step timeout eats the end-of-run failure summary (harness.mjs).
+  app.process().stderr?.on('data', (chunk) => process.stderr.write(`[app] ${chunk}`));
   /** Restore whatever repo selection the machine really had (the spec borrows the owner's file). */
   let restoreSelection = () => {};
   try {
@@ -73,8 +76,9 @@ test('pty sessions survive a route change: away to Overview and back re-attaches
 
     // The main shows a "Starting storytree" launch page, boots the sidecar, then NAVIGATES the window
     // to the served studio URL — an evaluate racing that swap dies "execution context destroyed". Wait
-    // for the studio origin before driving the renderer (the /api stubs registered above persist).
-    await win.waitForURL(/^http:\/\/127\.0\.0\.1:/, { timeout: 120_000 });
+    // for the studio origin before driving the renderer (the /api stubs registered above persist);
+    // waitForStudioOrigin fails FAST with the page text if the main lands on its error page.
+    await waitForStudioOrigin(win);
 
     // Satisfy the repo gate BEFORE entering the forest: write the persisted selection main reads
     // (userData/repo-selection.json), backing up any real one so a dev box is left untouched.
