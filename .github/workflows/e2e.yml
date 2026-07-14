@@ -14,11 +14,20 @@ name: e2e-desktop
 #     (the surfaces the guarded forest-map pointer-capture regression actually lives in), the
 #     lockfile, or this workflow change. Deliberately NOT the whole of packages/** — that fired on
 #     nearly every PR (most PRs touch some package), so this heavy workflow churned constantly.
-#   • FAIL-FAST / CONTAINED — a healthy run of these offline specs is ~2 min. As of ~2026-07-10 the
-#     desktop E2E step HANGS (it starts, then never returns) and was being killed only by the old
-#     20-min job ceiling — i.e. a 20-min red run on every triggering PR. Until the hang is fixed, a
-#     6-min step timeout caps the waste and the 10-min job timeout is the outer backstop. Still
-#     NON-BLOCKING, so this never gates a merge; fixing the underlying hang is tracked separately.
+#   • FAIL-FAST / CONTAINED — a healthy run of these offline specs is ~2–3 min; the 6-min step timeout
+#     and 10-min job ceiling stay as containment hygiene so any future wedge is cheap. (History: the
+#     2026-07-10..13 hang, fixed 2026-07-14. Root cause: ADR-0176's fail-closed DB boot (PR #661,
+#     merged less than a minute after the last green run started) — the launch preflight probes/starts
+#     live Cloud SQL and the pool is constructed eagerly, both impossible in CI (no Google credentials,
+#     data port blocked) — so the sidecar exited before reporting a port and the app parked on its
+#     error page; every spec then timed out at 25 s waiting
+#     for a forest that could never paint, and each failed launch LEAKED a live Electron whose CDP
+#     socket kept the node:test child alive forever: three ✖ lines, then silence to the timeout.
+#     The fix: the harness sets STORYTREE_DESKTOP_SKIP_DB_PRECONDITION=1 (a test-only skip in
+#     backend-entry.ts; the specs stub every /api/* so nothing live is ever read), launchOffline waits
+#     out the launch-page → studio-origin swap (waitForURL — the swap also races the harness now that
+#     the sidecar boot grew), and a failed launch folds the visible page into the error and CLOSES the
+#     app so a broken boot fails RED in seconds; `--test-force-exit` on test:e2e backstops any leak.)
 
 on:
   pull_request:

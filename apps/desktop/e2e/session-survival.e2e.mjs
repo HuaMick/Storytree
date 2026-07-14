@@ -56,8 +56,14 @@ test('pty sessions survive a route change: away to Overview and back re-attaches
     // the launch-checkout fallback. NOTE a dev box may also pin via ~/.storytree/desktop.runtime.json —
     // that pin must resolve to a main worktree CONTAINING this feature (post-land it does), else stage
     // the walk with the config set aside. (Redirecting USERPROFILE to dodge the file is NOT an option:
-    // the native keychain hard-crashes Electron without a real profile.)
-    env: { ...process.env, STORYTREE_STUDIO_STORE: 'json', STORYTREE_DESKTOP_RUNTIME: '' },
+    // the native keychain hard-crashes Electron without a real profile.) The DB-precondition skip
+    // matches the shared harness: offline specs must not require live Cloud SQL to boot (see harness.mjs).
+    env: {
+      ...process.env,
+      STORYTREE_STUDIO_STORE: 'json',
+      STORYTREE_DESKTOP_RUNTIME: '',
+      STORYTREE_DESKTOP_SKIP_DB_PRECONDITION: '1',
+    },
   });
   /** Restore whatever repo selection the machine really had (the spec borrows the owner's file). */
   let restoreSelection = () => {};

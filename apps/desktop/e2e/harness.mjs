@@ -9,6 +9,11 @@
 // from a fixed fixture, every advisory endpoint answers benignly, and no DB is ever touched. The thing
 // under test — the REAL forest-map render + pointer handlers in the REAL Electron Chromium — is
 // untouched; only the data source is faked (these specs guard frontend interaction, not the backend).
+// Two more legs keep the app itself bootable offline: STORYTREE_DESKTOP_SKIP_DB_PRECONDITION=1 skips the
+// sidecar's fail-closed live-DB launch preflight (ADR-0176 §1 — it can never pass in CI, and without the
+// skip the sidecar dies before reporting a port), and launchOffline WAITS OUT the main's launch-page →
+// studio-origin navigation before driving the renderer (driving the launch page loses the `#/tree` hash
+// in the swap — the 2026-07-10..13 CI wedge).
 //
 // WHY REAL-INPUT CLICKS + RELOAD-RESET: the node-click bug this suite guards reproduces ONLY in Electron
 // (pointer capture retargets a captured click), so we drive `win.mouse` real input, never `.click()` on a
@@ -135,18 +140,82 @@ export async function launchOffline() {
   const app = await electron.launch({
     args: ['.', ...ciArgs],
     cwd: appDir,
-    // Inert for the desktop sidecar (see file header) but kept so intent reads as offline; the real
-    // offline guarantee is the stubs below, not this env.
-    env: { ...process.env, STORYTREE_STUDIO_STORE: 'json' },
+    env: {
+      ...process.env,
+      // Inert for the desktop sidecar (see file header) but kept so intent reads as offline; the real
+      // offline guarantee is the stubs, not this env.
+      STORYTREE_STUDIO_STORE: 'json',
+      // Skip the sidecar's DB launch precondition (ADR-0176 §1): the preflight probes/starts live
+      // Cloud SQL, which CANNOT succeed in CI (no credentials, data port blocked) — without the skip
+      // the sidecar exits before reporting a port and the app parks on its error page. The specs are
+      // genuinely offline (every /api/* stubbed), so the app never issues a live read.
+      STORYTREE_DESKTOP_SKIP_DB_PRECONDITION: '1',
+    },
   });
-  const win = await app.firstWindow();
-  await stubApi(win);
-  await win.evaluate(() => {
-    location.hash = '#/tree';
-  });
-  await win.reload();
-  await waitForForestSettled(win);
-  return { app, win };
+  // From here to the return, the launch can FAIL — and a thrown launchOffline means the caller never
+  // receives `app`, so its `finally { app.close() }` can never run. An undisposed Electron (live CDP
+  // socket + child processes) keeps the node:test child's event loop alive FOREVER: the runner never
+  // finishes the file and the CI step wedges to its timeout with zero output (the 2026-07-10..13 e2e
+  // hang). So: on ANY failure, fold the visible page into the error (the main's launch/error page
+  // carries the actual reason the app couldn't start), CLOSE the app, and rethrow — a broken launch
+  // must fail RED in seconds, never hang.
+  try {
+    const win = await app.firstWindow();
+    await stubApi(win);
+    // The main boots the window on a data: "Starting storytree" launch page, spawns the backend
+    // sidecar, and only then NAVIGATES to the served studio origin (http://127.0.0.1:<port>) — and
+    // since the terminal pivot (ADR-0174) grew the sidecar's import graph, that swap reliably loses
+    // the race against this harness. Driving the launch page set `#/tree` on a page the swap then
+    // replaced (hash lost → the SPA mounted on Home, which has no forest), so every spec timed out.
+    // Wait for the studio origin FIRST (the session-survival spec's proven pattern); the /api stubs
+    // registered above persist across the navigation. Generous timeout: the sidecar cold-boots a
+    // large TS graph under tsx on a 2-core CI runner.
+    await win.waitForURL(/^http:\/\/127\.0\.0\.1:/, { timeout: 120_000 });
+    await win.evaluate(() => {
+      location.hash = '#/tree';
+    });
+    await win.reload();
+    await waitForForestSettled(win);
+    return { app, win };
+  } catch (err) {
+    err.message = `${err.message}${await describeWindowState(app)}`;
+    await closeHard(app);
+    throw err;
+  }
+}
+
+/** The failing window's URL + visible text, foldable into an error message — the launch/error page's
+ *  body is usually the exact reason the app never reached the studio (e.g. a sidecar crash). */
+async function describeWindowState(app) {
+  try {
+    const win = app.windows()[0];
+    if (!win) return '\n[launchOffline] no window was open at failure';
+    const text = await win
+      .evaluate(() => (document.body ? document.body.innerText : ''))
+      .catch(() => '(page text unreadable)');
+    return `\n[launchOffline] window url at failure: ${win.url()}\n[launchOffline] page text: ${text.slice(0, 600)}`;
+  } catch (probeErr) {
+    return `\n[launchOffline] window state unreadable: ${probeErr.message}`;
+  }
+}
+
+/** Close the app, but never let a wedged quit re-introduce the hang this file exists to prevent:
+ *  if graceful close doesn't finish in time, kill the Electron process outright. */
+async function closeHard(app, { graceMs = 15_000 } = {}) {
+  const killTimer = setTimeout(() => {
+    try {
+      app.process().kill();
+    } catch {
+      /* already gone */
+    }
+  }, graceMs);
+  try {
+    await app.close();
+  } catch {
+    /* the kill path above is the backstop */
+  } finally {
+    clearTimeout(killTimer);
+  }
 }
 
 /** True iff the right-side story detail panel is open. */

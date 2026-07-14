@@ -109,7 +109,18 @@ shell.**
 7. **Scope: the DESKTOP launch posture only.** ADR-0033's per-read advisory contract is **unchanged for
    a running app** — a DB that blips MID-SESSION still nulls overlays (the tree under-claims, never a
    throw). What changes is LAUNCH: you cannot START half-wired. Remote web/VM sessions (ADR-0063) and
-   the DB-free gate / CI never run this sidecar, so the requirement cannot brick them.
+   the DB-free blocking gate (`pnpm gate`) never run this sidecar, so the requirement cannot brick them.
+
+   > **Correction (2026-07-14, test-seam — not a re-decision).** One CI path DOES launch this sidecar —
+   > the `e2e-desktop` suite drives the real Electron shell, and it has no DB — so the fail-closed
+   > default wedged that harness (each failed spec leaked a live Electron that hung `node:test`: the
+   > 2026-07-10..13 e2e hang PR #661's boot introduced). A **test-only** env
+   > `STORYTREE_DESKTOP_SKIP_DB_PRECONDITION`, set by `apps/desktop/e2e/harness.mjs` ONLY (never by the
+   > app), skips the DB precondition (the git precondition still gates first) and boots on a
+   > lazily-rejecting pool stub — the pre-this-ADR tolerant-boot shape, every `/api` read rejecting
+   > per-request — so the DB-free e2e can reach the studio page. The shipped app's fail-closed
+   > hard-require (Decisions 1–2) is untouched; this is a test carve-out, not a change to the launch
+   > posture.
 
 ## Consequences
 
