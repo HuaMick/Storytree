@@ -27,8 +27,12 @@ jobs:
     steps:
       # legacy/Agentic is a private submodule and not part of the pnpm workspace,
       # so the default no-submodule checkout is correct (and avoids needing creds).
+      # fetch-depth 2 keeps the PR merge commit's FIRST PARENT (the base tip the merge was cut
+      # against) available — the affected-scope step below diffs HEAD^1..HEAD (ADR-0195).
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
 
       # ADR-number collision check across OPEN PRs (ADR-0050, Layer 2). The adr-health
       # `adr-number-unique` gate (in `pnpm -r test` below) catches a number already on main / on this
@@ -138,13 +142,27 @@ jobs:
       - name: web experience guarded
         run: pnpm check:web-experience
 
+      # Affected-only PR scope (ADR-0195, amends ADR-0022): classify the PR's changed files and,
+      # when every one maps cleanly into the workspace graph, narrow typecheck+test to the changed
+      # projects PLUS their dependents (pnpm's `--filter "...<name>"`). Conservative by
+      # construction — any root-path file (stories/**, docs/decisions/**, scripts/**, lockfile, …),
+      # any package.json, or the cross-boundary corpus seed (apps/studio/data/**) forces the full
+      # `-r` run, because those inputs are read by tests the dependency graph can't see. The
+      # push-to-main run below never narrows (`|| '-r'` when this step is skipped) — the backstop
+      # that keeps main green if a PR gate ever under-selects; fix forward from there.
+      - name: Affected scope (PRs only)
+        id: affected
+        if: github.event_name == 'pull_request'
+        run: pnpm ci:affected
+
       - name: Typecheck
-        run: pnpm -r typecheck
+        run: pnpm ${{ steps.affected.outputs.pnpm_args || '-r' }} typecheck
 
       # @storytree/core corpus validation + the node:test suites across packages.
-      # This is the gate per CLAUDE.md ("Gate: pnpm -r typecheck · pnpm -r test").
+      # This is the gate per CLAUDE.md ("Gate: pnpm -r typecheck · pnpm -r test") — scoped to the
+      # affected projects on PRs (ADR-0195), full on pushes to main.
       - name: Test
-        run: pnpm -r test
+        run: pnpm ${{ steps.affected.outputs.pnpm_args || '-r' }} test
 
       # The only buildable target is apps/studio (`vite build`); the packages
       # export raw TS and have no build step. studio's `vite build` used to fail
