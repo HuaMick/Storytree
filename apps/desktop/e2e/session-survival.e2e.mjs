@@ -52,17 +52,14 @@ test('pty sessions survive a route change: away to Overview and back re-attaches
   const app = await electron.launch({
     args: ['.', ...ciArgs],
     cwd: appDir,
-    // Clear any env runtime pin (ADR-0181) so the walk serves THIS checkout's freshly-built code via
-    // the launch-checkout fallback. NOTE a dev box may also pin via ~/.storytree/desktop.runtime.json —
-    // that pin must resolve to a main worktree CONTAINING this feature (post-land it does), else stage
-    // the walk with the config set aside. (Redirecting USERPROFILE to dodge the file is NOT an option:
-    // the native keychain hard-crashes Electron without a real profile.) The DB-precondition skip
-    // matches the shared harness: offline specs must not require live Cloud SQL to boot (see harness.mjs).
+    // E2E mode (electron/main.ts, matching the shared harness): serve THIS checkout's freshly-built
+    // code, ignore ANY runtime pin (env or ~/.storytree/desktop.runtime.json — the dev-box staging
+    // dance this spec used to document is gone), and never spawn the backend sidecar; the pty manager
+    // under test lives in the MAIN process, and every /api read is stubbed.
     env: {
       ...process.env,
       STORYTREE_STUDIO_STORE: 'json',
-      STORYTREE_DESKTOP_RUNTIME: '',
-      STORYTREE_DESKTOP_SKIP_DB_PRECONDITION: '1',
+      STORYTREE_DESKTOP_E2E: '1',
     },
   });
   // Live-echo the app's (and, relayed through it, the sidecar's) stderr so a boot failure states its

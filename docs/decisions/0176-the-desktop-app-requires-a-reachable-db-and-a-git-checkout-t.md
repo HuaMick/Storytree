@@ -111,16 +111,16 @@ shell.**
    throw). What changes is LAUNCH: you cannot START half-wired. Remote web/VM sessions (ADR-0063) and
    the DB-free blocking gate (`pnpm gate`) never run this sidecar, so the requirement cannot brick them.
 
-   > **Correction (2026-07-14, test-seam — not a re-decision).** One CI path DOES launch this sidecar —
-   > the `e2e-desktop` suite drives the real Electron shell, and it has no DB — so the fail-closed
-   > default wedged that harness (each failed spec leaked a live Electron that hung `node:test`: the
-   > 2026-07-10..13 e2e hang PR #661's boot introduced). A **test-only** env
-   > `STORYTREE_DESKTOP_SKIP_DB_PRECONDITION`, set by `apps/desktop/e2e/harness.mjs` ONLY (never by the
-   > app), skips the DB precondition (the git precondition still gates first) and boots on a
-   > lazily-rejecting pool stub — the pre-this-ADR tolerant-boot shape, every `/api` read rejecting
-   > per-request — so the DB-free e2e can reach the studio page. The shipped app's fail-closed
-   > hard-require (Decisions 1–2) is untouched; this is a test carve-out, not a change to the launch
-   > posture.
+   > **Correction (2026-07-15, test-seam — not a re-decision).** One CI path DOES drive the real
+   > Electron shell with no DB — the `e2e-desktop` suite — and this ADR's fail-closed boot wedged it
+   > (the sidecar exited pre-handshake in the bare container; each failed spec launch leaked a live
+   > Electron that hung `node:test`: the 2026-07-10..14 e2e hang PR #661's boot introduced). The seam:
+   > a **test-only e2e mode** in the Electron main (`STORYTREE_DESKTOP_E2E`, set by
+   > `apps/desktop/e2e/*` ONLY, never by the app) that **never spawns this sidecar at all** — it
+   > serves the launch checkout's studio dist directly (the static server's no-sidecar `/api` 503
+   > fallback already existed), because the e2e specs stub every `/api` read and test the renderer +
+   > main-process pty, not the backend. The sidecar's own launch posture — this ADR's fail-closed
+   > hard-require (Decisions 1–2) — is untouched on every path that actually boots the sidecar.
 
 ## Consequences
 

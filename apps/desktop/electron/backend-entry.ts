@@ -309,27 +309,6 @@ function currentGitState(): { commitSha: string; clean: boolean } {
 
 // ---------- main ----------
 
-/**
- * TEST-ONLY (STORYTREE_DESKTOP_SKIP_DB_PRECONDITION): a pool handle whose every use rejects LAZILY —
- * the pre-ADR-0176 tolerant-boot shape, for the offline e2e harness. `createPool` cannot even be
- * CALLED without credentials (its connector.getOptions authenticates via ADC, and it requires
- * STORYTREE_DB_USER up front), so skip mode never constructs a real connector: the sidecar announces
- * and serves, `pool.query`/`pool.connect` reject per-request (every read path already catches — the
- * advisory wrappers, health's try/catch), and shutdown's closePool finds workable end/close.
- */
-function offlinePoolStub(): Awaited<ReturnType<typeof createPool>> {
-  const reject = (): Promise<never> =>
-    Promise.reject(new Error("offline e2e harness (STORYTREE_DESKTOP_SKIP_DB_PRECONDITION) — no live DB"));
-  const pool = {
-    query: reject,
-    connect: reject,
-    end: (): Promise<void> => Promise.resolve(),
-    on: (): void => {},
-  };
-  const connector = { close: (): void => {} };
-  return { pool, connector } as unknown as Awaited<ReturnType<typeof createPool>>;
-}
-
 async function main(): Promise<void> {
   // Launch update-check (ADR-0181 / ADR-0164): when serving a pinned-`main` runtime worktree, kick off a
   // single best-effort `git fetch origin` so runtime-status reads a TRUTHFUL behind-`main` count at
@@ -352,36 +331,19 @@ async function main(): Promise<void> {
     Object.values(CREDENTIAL_ENV_VAR).filter((name) => (process.env[name] ?? "").trim() !== ""),
   );
 
-  // TEST-ONLY escape hatch for the DB boot requirements (ADR-0176 §1 stays the fail-closed DEFAULT):
-  // the offline Electron E2E harness (apps/desktop/e2e/harness.mjs) stubs every renderer `/api/*` call,
-  // so the specs need the app to REACH the studio page with no database at all — impossible in CI, where
-  // there are no Google credentials: the preflight's probe/db:up both fail AND createPool's connector
-  // cannot even construct (its getOptions authenticates via ADC), killing the sidecar before it reports
-  // a port (the 2026-07-10..13 e2e wedge, introduced by PR #661's fail-closed boot). With the skip, the
-  // sidecar boots on a lazily-failing pool stub — the pre-ADR-0176 tolerant-boot shape: it announces and
-  // serves, and any real `/api` read fails per-request (every handler already catches; the harness never
-  // lets one through anyway). Never set by the app itself.
-  const skipDbPrecondition = (process.env.STORYTREE_DESKTOP_SKIP_DB_PRECONDITION ?? "").trim() !== "";
   const preconditions = await ensureLaunchPreconditions({
     probeGitRepo: async () => (await gitHead(repoRoot)) !== null,
-    ensureDb: skipDbPrecondition
-      ? async () => {
-          console.error(
-            "[backend-entry] DB launch precondition SKIPPED (STORYTREE_DESKTOP_SKIP_DB_PRECONDITION) — offline e2e harness mode; live /api reads will fail until a DB is reachable",
-          );
-          return { ok: true, started: false };
-        }
-      : async () => {
-          // Fill STORYTREE_DB_USER before the DB preflight authenticates. The git probe above remains the
-          // first launch precondition, so a non-checkout never wakes the database.
-          loadLocalSecrets();
-          return ensureLiveDb((message) => console.error(`[backend-entry] ${message}`));
-        },
+    ensureDb: async () => {
+      // Fill STORYTREE_DB_USER before the DB preflight authenticates. The git probe above remains the
+      // first launch precondition, so a non-checkout never wakes the database.
+      loadLocalSecrets();
+      return ensureLiveDb((message) => console.error(`[backend-entry] ${message}`));
+    },
     log: (message) => console.error(`[backend-entry] ${message}`),
   });
   if (!preconditions.ok) throw new Error(describeLaunchRefusal(preconditions));
 
-  const { pool, connector } = skipDbPrecondition ? offlinePoolStub() : await createPool();
+  const { pool, connector } = await createPool();
   const library = new PgLibraryStore(pool);
   const comments = new PgCommentStore(pool);
   const presence = new PgPresenceStore(pool);
@@ -915,10 +877,9 @@ async function main(): Promise<void> {
     // whole corpus reliably overruns 16 and returns a false ✗ after already writing valid stories/**.
     // DEGRADE-QUIET also on a THROW: buildSpawnDeps returns { ok:false } for the failures it
     // anticipates, but a store read rejecting inside it (its agent-prompt render queries the live
-    // corpus) would otherwise crash the whole sidecar at boot — both in the offline e2e harness
-    // (whose pool stub rejects every query) and in production when the DB drops between the launch
-    // preflight and this line. A missing spawn surface is the designed propose-only degradation,
-    // never a boot failure.
+    // corpus) would otherwise crash the whole sidecar at boot — e.g. when the DB drops between the
+    // launch preflight passing and this line running. A missing spawn surface is the designed
+    // propose-only degradation, never a boot failure.
     const composed = await buildSpawnDeps({
       store: library,
       claimStore,

@@ -9,11 +9,13 @@
 // from a fixed fixture, every advisory endpoint answers benignly, and no DB is ever touched. The thing
 // under test — the REAL forest-map render + pointer handlers in the REAL Electron Chromium — is
 // untouched; only the data source is faked (these specs guard frontend interaction, not the backend).
-// Two more legs keep the app itself bootable offline: STORYTREE_DESKTOP_SKIP_DB_PRECONDITION=1 skips the
-// sidecar's fail-closed live-DB launch preflight (ADR-0176 §1 — it can never pass in CI, and without the
-// skip the sidecar dies before reporting a port), and launchOffline WAITS OUT the main's launch-page →
-// studio-origin navigation before driving the renderer (driving the launch page loses the `#/tree` hash
-// in the swap — the 2026-07-10..13 CI wedge).
+// Two more legs keep the app itself bootable offline: STORYTREE_DESKTOP_E2E=1 puts the Electron main in
+// e2e mode — it serves the LAUNCH CHECKOUT's studio dist directly and never spawns the backend sidecar
+// (whose fail-closed boot — DB preflight, git probe, IAM pool — can never pass in a bare CI container
+// and is irrelevant to these stubbed specs; it also means a dev box's runtime pin cannot redirect the
+// suite to another checkout) — and launchOffline WAITS OUT the main's launch-page → studio-origin
+// navigation before driving the renderer (driving the launch page loses the `#/tree` hash in the swap —
+// the 2026-07-10..14 CI wedge).
 //
 // WHY REAL-INPUT CLICKS + RELOAD-RESET: the node-click bug this suite guards reproduces ONLY in Electron
 // (pointer capture retargets a captured click), so we drive `win.mouse` real input, never `.click()` on a
@@ -145,11 +147,11 @@ export async function launchOffline() {
       // Inert for the desktop sidecar (see file header) but kept so intent reads as offline; the real
       // offline guarantee is the stubs, not this env.
       STORYTREE_STUDIO_STORE: 'json',
-      // Skip the sidecar's DB launch precondition (ADR-0176 §1): the preflight probes/starts live
-      // Cloud SQL, which CANNOT succeed in CI (no credentials, data port blocked) — without the skip
-      // the sidecar exits before reporting a port and the app parks on its error page. The specs are
-      // genuinely offline (every /api/* stubbed), so the app never issues a live read.
-      STORYTREE_DESKTOP_SKIP_DB_PRECONDITION: '1',
+      // E2E mode (electron/main.ts): serve THIS checkout's studio dist, never spawn the backend
+      // sidecar, ignore any runtime pin. The specs stub every /api/* call, so the sidecar's absence is
+      // invisible to them — and its fail-closed boot (DB preflight, git probe, IAM pool) stops being
+      // an environment lottery the suite can lose (the 2026-07-10..14 CI wedge).
+      STORYTREE_DESKTOP_E2E: '1',
     },
   });
   // Echo the Electron process's own output into THIS process's stderr, line-prefixed. The main
@@ -168,14 +170,12 @@ export async function launchOffline() {
   try {
     const win = await app.firstWindow();
     await stubApi(win);
-    // The main boots the window on a data: "Starting storytree" launch page, spawns the backend
-    // sidecar, and only then NAVIGATES to the served studio origin (http://127.0.0.1:<port>) — and
-    // since the terminal pivot (ADR-0174) grew the sidecar's import graph, that swap reliably loses
-    // the race against this harness. Driving the launch page set `#/tree` on a page the swap then
-    // replaced (hash lost → the SPA mounted on Home, which has no forest), so every spec timed out.
-    // Wait for the studio origin FIRST (the session-survival spec's proven pattern) — but FAIL FAST
-    // with the page text the moment the main lands on its error page instead of burning the full
-    // timeout. The /api stubs registered above persist across the navigation.
+    // The main boots the window on a data: "Starting storytree" launch page and then NAVIGATES to the
+    // served studio origin (http://127.0.0.1:<port>). Driving the launch page would set `#/tree` on a
+    // page the swap then replaces (hash lost → the SPA mounts on Home, which has no forest — the
+    // 2026-07-10..14 wedge), so wait for the studio origin FIRST — and FAIL FAST with the page text
+    // the moment the main lands on its error page instead of burning the full timeout. The /api stubs
+    // registered above persist across the navigation.
     await waitForStudioOrigin(win);
     await win.evaluate(() => {
       location.hash = '#/tree';
@@ -195,21 +195,31 @@ export async function launchOffline() {
  * Wait for the main's launch-page → studio-origin navigation by POLLING url/title (both survive
  * navigations, unlike waitForURL/waitForFunction which can die "execution context destroyed" mid-swap).
  * Fails FAST with the visible page text when the main lands on its error page ("storytree could not
- * start") — that text carries the sidecar's exit reason, so the spec's failure states the cause in
- * seconds instead of timing out. Generous ceiling: the sidecar cold-boots a large TS graph under tsx
- * on a 2-core CI runner.
+ * start") — that text carries the boot failure's reason, so the spec's failure states the cause in
+ * seconds instead of timing out. In e2e mode the swap is just serve-static + navigate (~2s); 60s is
+ * a deep ceiling for a slow CI container.
  */
-export async function waitForStudioOrigin(win, { timeout = 120_000 } = {}) {
+export async function waitForStudioOrigin(win, { timeout = 60_000 } = {}) {
   const deadline = Date.now() + timeout;
   for (;;) {
     const url = win.url();
-    if (/^http:\/\/127\.0\.0\.1:/.test(url)) return;
-    const title = await win.title().catch(() => '');
-    if (title === 'storytree could not start') {
-      const text = await win
-        .evaluate(() => (document.body ? document.body.innerText : ''))
-        .catch(() => '(page text unreadable)');
-      throw new Error(`the app failed to launch:\n${text.slice(0, 900)}`);
+    if (/^http:\/\/127\.0\.0\.1:/.test(url)) {
+      // The URL flips at navigation COMMIT, but the main's own `loadURL(url)` is still awaiting the
+      // page's 'load' — a reload issued in that window ABORTS the pending load, and the main treats
+      // ERR_ABORTED as a failed launch (it swaps to its error page and the spec's page dies under
+      // it). Hand the page back only once the document has finished loading.
+      const ready = await win
+        .evaluate(() => document.readyState === 'complete')
+        .catch(() => false); // evaluate mid-navigation throws → not ready yet, keep polling
+      if (ready) return;
+    } else {
+      const title = await win.title().catch(() => '');
+      if (title === 'storytree could not start') {
+        const text = await win
+          .evaluate(() => (document.body ? document.body.innerText : ''))
+          .catch(() => '(page text unreadable)');
+        throw new Error(`the app failed to launch:\n${text.slice(0, 900)}`);
+      }
     }
     if (Date.now() > deadline) {
       throw new Error(`timed out (${Math.round(timeout / 1000)}s) waiting for the studio origin — window still at: ${url.slice(0, 120)}`);
@@ -385,35 +395,6 @@ export async function waitForCameraChange(win, prevRaw, { timeout = 4000 } = {})
   }
 }
 
-// ── left-panel drawer helpers ────────────────────────────────────────────────────────────────────────
-//
-// The Shared-Islands panel carries two independent `<details>` drawers — `.panel-drawer.panel-legend`
-// (uncontrolled) and `.panel-drawer.panel-islands` (controlled by React state) — each a clickable
-// `summary.panel-drawer-head` bar, both collapsed by default. They are plain HTML, NOT subject to the
-// SVG pointer-capture trap the map clicks guard against, so a Playwright locator click (real input,
-// with actionability + scroll-into-view) is the right tool here — coordinate clicks are only needed
-// for the SVG viewport.
-
-/** Click a drawer's summary bar to toggle it. `drawerSelector` targets the `<details>`, e.g.
- *  '.panel-drawer.panel-legend'. */
-export const toggleDrawer = (win, drawerSelector) =>
-  win.locator(`${drawerSelector} > summary.panel-drawer-head`).click();
-
-/** Whether a `<details>` drawer is currently open (its DOM `.open`). */
-export const drawerOpen = (win, drawerSelector) =>
-  win.evaluate((sel) => {
-    const d = document.querySelector(sel);
-    return !!(d && d.open);
-  }, drawerSelector);
-
-/** Wait until a drawer reaches the wanted open state (throws on timeout — the controlled islands drawer
- *  confirms its toggle through a React re-render, so a spec waits for the state rather than racing it). */
-export const waitDrawer = (win, drawerSelector, want, { timeout = 4000 } = {}) =>
-  win.waitForFunction(
-    ([sel, w]) => {
-      const d = document.querySelector(sel);
-      return !!(d && d.open) === w;
-    },
-    [drawerSelector, want],
-    { timeout },
-  );
+// (The drawer-toggle helpers that once lived here left with map-interactions.e2e.mjs — the 2026-07-15
+// scope cut keeps this suite to the two Electron-only regression walls: the pointer-capture map spec
+// and the pty session-survival spec. Plain-HTML drawer behavior belongs to the studio's unit tests.)
