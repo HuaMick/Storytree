@@ -77,9 +77,21 @@ function readRuntimeConfigRaw(): string | null {
     return null;
   }
 }
+// E2E TEST MODE (STORYTREE_DESKTOP_E2E, set only by apps/desktop/e2e): the suite proves the RENDERER
+// (forest-map pointer capture in real Electron Chromium) and the MAIN-process pty lifecycle — never the
+// thick-local backend, whose every /api read the specs stub. So e2e serves the LAUNCH CHECKOUT's studio
+// dist directly and never spawns the sidecar: no runtime pin (the suite must test the code it launched
+// from, never a pinned main worktree), no DB preflight, no credentials — the boot cannot wedge on
+// environment, which is exactly how the 2026-07-10..14 CI hang class arose (the sidecar's fail-closed
+// boot — DB preflight, git probe, IAM pool — can never pass in a bare CI container, and the suite never
+// needed it). The static server already answers /api with a clean 503 when no sidecar is running.
+// Never set by the real app.
+const E2E_MODE = (process.env.STORYTREE_DESKTOP_E2E ?? "").trim() !== "";
 const runtime = resolveRuntimeRoot(
   {
-    configured: pickConfiguredRuntime(process.env[RUNTIME_ROOT_ENV] ?? null, readRuntimeConfigRaw()),
+    configured: E2E_MODE
+      ? null // e2e always tests the launch checkout — a dev box's runtime pin must not redirect it
+      : pickConfiguredRuntime(process.env[RUNTIME_ROOT_ENV] ?? null, readRuntimeConfigRaw()),
     launchRoot,
   },
   { exists: (p) => existsSync(p), branchOf: branchOfSync, pinnedToOriginMain: pinnedToOriginMainSync },
@@ -371,8 +383,10 @@ function startBackend(): Promise<number> {
 
 async function ensureStudioServed(): Promise<string> {
   if (studioUrl === null) {
-    if (backendPort === null) throw new Error("backend port is unavailable");
-    const served = await serveStudio(STUDIO_DIST, { backendPort });
+    if (!E2E_MODE && backendPort === null) throw new Error("backend port is unavailable");
+    // Without a sidecar (e2e mode) the static server answers /api with its clean 503 fallback —
+    // the e2e specs stub every /api call in the renderer, so nothing ever reaches it anyway.
+    const served = await serveStudio(STUDIO_DIST, backendPort === null ? {} : { backendPort });
     studioUrl = served.url;
   }
   return studioUrl;
@@ -396,7 +410,7 @@ function launchBackendForWindow(win: BrowserWindow, showStarting = true): Promis
       }
       requireRuntime();
       requireStudioDist();
-      backendPort = await startBackend();
+      if (!E2E_MODE) backendPort = await startBackend();
       const url = await ensureStudioServed();
       await safeLoadURL(win, url);
     } catch (err) {

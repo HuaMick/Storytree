@@ -1,16 +1,16 @@
-// Electron E2E: the forest-map node-click MUST open the right-side detail panel — clean clicks AND
-// clicks with a few px of mouse jitter — and an empty-map tap must clear it. This guards a regression
-// that ONLY reproduced in the desktop's Electron Chromium (not plain Chrome): the pan feature's
+// Electron E2E: the forest-map POINTER-CAPTURE regression wall — both halves of the one bug class
+// that ONLY reproduces in the desktop's Electron Chromium (not plain Chrome): the pan feature's
 // `setPointerCapture` on pointerdown made the captured click retarget to the viewport, so node clicks
 // ran clearSelection instead of selecting. The studio now (a) captures lazily — only once a real drag
 // starts — and (b) selects by COORDINATE hit-test on the viewport, which is immune to capture-retarget
-// and to a moved click landing on a non-leaf SVG common ancestor.
+// and to a moved click landing on a non-leaf SVG common ancestor. The wall's two halves:
+//   • a CLICK (clean or jittered under the slop) SELECTS — and an empty-map tap clears;
+//   • a DRAG past the slop PANS and does NOT select (the gesture that motivated the capture).
 //
 // Run: pnpm --filter desktop test:e2e  (pretest:e2e builds the studio dist + the electron main first).
 // Genuinely OFFLINE + deterministic: the shared harness stubs every `/api/*` call with a fixed fixture
-// (the desktop sidecar has no json mode — it always opens a live DB — so without the stubs this renders
-// live data on a dev box and nothing in CI). See harness.mjs for the offline contract and the
-// reload-reset that keeps re-clicks reliable.
+// and launches the app in e2e mode (no backend sidecar — see harness.mjs for the offline contract and
+// the reload-reset that keeps re-clicks reliable).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -21,6 +21,8 @@ import {
   panelOpen,
   renderedStoryIds,
   FIXTURE_MAP_STORY_IDS,
+  readCameraTransform,
+  waitForCameraChange,
 } from './harness.mjs';
 
 test('forest map: a story-node click opens the detail panel (clean + jittered); empty map clears', async () => {
@@ -65,6 +67,29 @@ test('forest map: a story-node click opens the detail panel (clean + jittered); 
       await win.waitForSelector('.tree-detail', { state: 'detached', timeout: 4000 });
       assert.equal(await panelOpen(win), false, 'clicking empty map clears the selection');
     }
+
+    // 4) the OTHER half of the capture wall: a drag past DRAG_SLOP (10px) pans the camera —
+    //    translation moves, scale holds — and does NOT select a node.
+    await resetToForest(win);
+    const before = await readCameraTransform(win);
+    assert.ok(before, 'the camera transform is present before the pan');
+    const sea = await findEmptyPoint(win);
+    assert.ok(sea, 'should find an empty sea point to start the drag from');
+    // Real-input drag well past the slop: down, move, move, up. Two moves so the gesture both
+    // crosses the slop (turning the press into a pan) and keeps tracking — mirrors a real drag.
+    await win.mouse.move(sea.x, sea.y);
+    await win.mouse.down();
+    await win.mouse.move(sea.x + 60, sea.y + 40);
+    await win.mouse.move(sea.x + 120, sea.y + 80);
+    await win.mouse.up();
+    const after = await waitForCameraChange(win, before.raw);
+    assert.ok(after, 'the camera transform is present after the pan');
+    assert.ok(
+      after.tx !== before.tx || after.ty !== before.ty,
+      `a pan must change the camera translation (before=${before.raw} after=${after.raw})`,
+    );
+    assert.equal(after.scale, before.scale, 'a pan must not change the zoom scale');
+    assert.equal(await panelOpen(win), false, 'a pan past the slop must not select a node');
   } finally {
     await app.close();
   }

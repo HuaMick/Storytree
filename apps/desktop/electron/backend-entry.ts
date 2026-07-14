@@ -875,6 +875,11 @@ async function main(): Promise<void> {
     // brake), so raising it here does not weaken the runaway brake elsewhere (ADR-0130). Env-tunable via
     // STORYTREE_SPAWN_MAX_TURNS; defaults to DEFAULT_STORY_AUTHOR_MAX_TURNS because authoring against the
     // whole corpus reliably overruns 16 and returns a false ✗ after already writing valid stories/**.
+    // DEGRADE-QUIET also on a THROW: buildSpawnDeps returns { ok:false } for the failures it
+    // anticipates, but a store read rejecting inside it (its agent-prompt render queries the live
+    // corpus) would otherwise crash the whole sidecar at boot — e.g. when the DB drops between the
+    // launch preflight passing and this line running. A missing spawn surface is the designed
+    // propose-only degradation, never a boot failure.
     const composed = await buildSpawnDeps({
       store: library,
       claimStore,
@@ -883,7 +888,10 @@ async function main(): Promise<void> {
       cwd: repoRoot,
       build,
       maxTurns: resolveSpawnMaxTurns(process.env.STORYTREE_SPAWN_MAX_TURNS),
-    });
+    }).catch((err: unknown) => ({
+      ok: false as const,
+      error: `spawn-deps composition threw: ${err instanceof Error ? err.message : String(err)}`,
+    }));
     if (composed.ok) {
       spawn = composed.deps;
       console.error(

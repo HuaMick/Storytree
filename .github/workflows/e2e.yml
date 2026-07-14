@@ -14,11 +14,19 @@ name: e2e-desktop
 #     (the surfaces the guarded forest-map pointer-capture regression actually lives in), the
 #     lockfile, or this workflow change. Deliberately NOT the whole of packages/** — that fired on
 #     nearly every PR (most PRs touch some package), so this heavy workflow churned constantly.
-#   • FAIL-FAST / CONTAINED — a healthy run of these offline specs is ~2 min. As of ~2026-07-10 the
-#     desktop E2E step HANGS (it starts, then never returns) and was being killed only by the old
-#     20-min job ceiling — i.e. a 20-min red run on every triggering PR. Until the hang is fixed, a
-#     6-min step timeout caps the waste and the 10-min job timeout is the outer backstop. Still
-#     NON-BLOCKING, so this never gates a merge; fixing the underlying hang is tracked separately.
+#   • FAIL-FAST / CONTAINED — a healthy run is ~2 min; the 6-min step timeout and 10-min job ceiling
+#     stay as hygiene so any future wedge is cheap. (History — the 2026-07-10..14 red streak, fixed
+#     2026-07-15: PR #661's fail-closed backend-sidecar boot (DB preflight, git probe, IAM pool;
+#     ADR-0176) can never pass in this bare container, so the app parked on its error launch page,
+#     every spec timed out waiting for a forest that could never paint, and each failed launch LEAKED
+#     a live Electron whose CDP socket kept the node:test child alive forever — bare ✖ lines, then
+#     silence to the timeout. Fixed by REMOVING the sidecar from the equation instead of patching its
+#     boot obstacles one by one: the harness launches the main in e2e mode (STORYTREE_DESKTOP_E2E=1 —
+#     serve the launch checkout's studio dist directly, never spawn the backend that these fully
+#     stubbed specs never call), waits out the launch-page → studio-origin swap, fails FAST with the
+#     app's own error-page text on a broken boot, always closes the app on a failed launch, and
+#     `--test-force-exit` backstops any leak. The suite was also cut to the two Electron-only
+#     regression walls: the pointer-capture map spec and pty session survival.)
 
 on:
   pull_request:

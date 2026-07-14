@@ -109,7 +109,18 @@ shell.**
 7. **Scope: the DESKTOP launch posture only.** ADR-0033's per-read advisory contract is **unchanged for
    a running app** — a DB that blips MID-SESSION still nulls overlays (the tree under-claims, never a
    throw). What changes is LAUNCH: you cannot START half-wired. Remote web/VM sessions (ADR-0063) and
-   the DB-free gate / CI never run this sidecar, so the requirement cannot brick them.
+   the DB-free blocking gate (`pnpm gate`) never run this sidecar, so the requirement cannot brick them.
+
+   > **Correction (2026-07-15, test-seam — not a re-decision).** One CI path DOES drive the real
+   > Electron shell with no DB — the `e2e-desktop` suite — and this ADR's fail-closed boot wedged it
+   > (the sidecar exited pre-handshake in the bare container; each failed spec launch leaked a live
+   > Electron that hung `node:test`: the 2026-07-10..14 e2e hang PR #661's boot introduced). The seam:
+   > a **test-only e2e mode** in the Electron main (`STORYTREE_DESKTOP_E2E`, set by
+   > `apps/desktop/e2e/*` ONLY, never by the app) that **never spawns this sidecar at all** — it
+   > serves the launch checkout's studio dist directly (the static server's no-sidecar `/api` 503
+   > fallback already existed), because the e2e specs stub every `/api` read and test the renderer +
+   > main-process pty, not the backend. The sidecar's own launch posture — this ADR's fail-closed
+   > hard-require (Decisions 1–2) — is untouched on every path that actually boots the sidecar.
 
 ## Consequences
 
