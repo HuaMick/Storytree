@@ -62,6 +62,11 @@ proof:
       sourceGlobs:
         - "packages/library/src/lifecycle.ts"
         - "packages/library/src/store/render-doc.ts"
+        # The barrel re-export IS in scope: llw-lifecycleof-exported-and-browser-safe covers
+        # index.ts (`export * from "./lifecycle.js"`), so the write fence must admit it — the
+        # first real run failed closed at CONFIRM_GREEN with three scope-wall hits on exactly
+        # this file (run real-mrkq0bfp, 2026-07-15).
+        - "packages/library/src/index.ts"
     install: true
     typecheck:
       file: pnpm
