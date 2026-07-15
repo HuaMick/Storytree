@@ -161,6 +161,34 @@ const bridgeMock = vi.hoisted(() => {
   };
 });
 
+// ── the fake ResizeObserver — jsdom has NO native ResizeObserver at all, so this fake both makes
+//    the constructor available to the component under test and records the callback + observed
+//    elements so a test can simulate a container-size-change (a window/layout resize with no drag
+//    and no tab switch) deterministically, with no real layout engine involved. ───────────────────
+class FakeResizeObserver {
+  static instances: FakeResizeObserver[] = [];
+  observed: Element[] = [];
+  disconnected = false;
+  private readonly callback: ResizeObserverCallback;
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
+    FakeResizeObserver.instances.push(this);
+  }
+  observe(el: Element): void {
+    this.observed.push(el);
+  }
+  unobserve(): void {
+    /* no-op — not exercised by this suite */
+  }
+  disconnect(): void {
+    this.disconnected = true;
+  }
+  /** test-only: simulate the observer firing for its observed container. */
+  fire(): void {
+    this.callback([] as unknown as ResizeObserverEntry[], this as unknown as ResizeObserver);
+  }
+}
+
 import { TerminalDock } from './TerminalDock';
 
 /** Flush the microtask queue the bridge's `spawn()` promise resolves on. */
@@ -212,6 +240,7 @@ function closeTabButton(n: number): HTMLElement {
 beforeEach(() => {
   xtermMock.FakeTerminal.instances.length = 0;
   fitMock.FakeFitAddon.instances.length = 0;
+  FakeResizeObserver.instances.length = 0;
   bridgeMock.resetSessionCounter();
   bridgeMock.spawn.mockClear();
   bridgeMock.write.mockClear();
@@ -222,6 +251,8 @@ beforeEach(() => {
   bridgeMock.list.mockClear();
   bridgeMock.snapshot.mockClear();
   (window as unknown as { desktopTerminal?: typeof bridgeMock }).desktopTerminal = bridgeMock;
+  (globalThis as unknown as { ResizeObserver: typeof ResizeObserver }).ResizeObserver =
+    FakeResizeObserver as unknown as typeof ResizeObserver;
 });
 
 afterEach(() => {
@@ -813,5 +844,36 @@ describe('TerminalDock', () => {
     // and re-attach on the next mount, `tdp-reattaches-live-sessions-on-mount`); the pty-reap duty
     // moved to the Electron main's app lifecycle (disposeAllTerminals on window-close/app-quit).
     expect(bridgeMock.dispose).not.toHaveBeenCalled();
+  });
+
+  // ── tdp-refits-on-container-resize (the remaining fit-lifecycle gap, ADR-0190 — a container-size
+  //    change with NO drag and NO tab switch, e.g. a window/layout resize, must still refit the
+  //    active terminal to its (now different) container and forward the new dims to the pty via the
+  //    SAME bridge.resize wiring contracts 3/11 use). Today's source wires the fit lifecycle only to
+  //    the drag handle (contract 3), the fresh-spawn fit (contract 10), and the expand/activation
+  //    effect (contract 11) — it observes no `ResizeObserver` on the dock body at all, so a bare
+  //    container-size change currently leaves the terminal at its stale geometry. This must fail
+  //    against current behaviour. ──────────────────────────────────────────────────────────────────
+  it('tdp-refits-on-container-resize: a ResizeObserver firing for the dock body refits the active terminal and forwards the new dims to the bridge, with no drag and no tab switch', async () => {
+    render(<TerminalDock />);
+    await expand();
+
+    const fit = fitMock.FakeFitAddon.instances[0]!;
+    fit.nextDims = { cols: 150, rows: 50 };
+    const fitCallsBefore = fit.fitCalls;
+    bridgeMock.resize.mockClear();
+
+    // The dock must have installed a ResizeObserver on its body to notice a bare container-size
+    // change (no drag, no tab switch involved).
+    expect(FakeResizeObserver.instances.length).toBeGreaterThan(0);
+    const ro = FakeResizeObserver.instances[0]!;
+
+    // Simulate the observed container changing size.
+    act(() => {
+      ro.fire();
+    });
+
+    expect(fit.fitCalls).toBeGreaterThan(fitCallsBefore);
+    expect(bridgeMock.resize).toHaveBeenCalledWith(SESSION_ID, 150, 50);
   });
 });
