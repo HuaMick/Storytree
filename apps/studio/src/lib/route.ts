@@ -2,21 +2,18 @@
 // into a single hash segment so slashes in doc relpaths don't break parsing.
 
 import { useSyncExternalStore } from 'react';
-import { ASSET_CATEGORIES, type AssetCategory } from '../types';
 
+// The standalone `#/library` page is retired (ADR-0185 dec 6): the Library lives as a lens over
+// the forest map, opened via `libraryHref()`'s `?overlay=library#/tree` href. `parseRoute` never
+// produces a library route — `/library` paths redirect to the tree route below.
 export type Route =
   | { name: 'home' }
   | { name: 'doc'; id: string }
-  | { name: 'library'; category: AssetCategory | null }
   | { name: 'asset'; id: string }
   | { name: 'asset-edit'; id: string }
   | { name: 'asset-new' }
   | { name: 'tree'; focus: string | null }
   | { name: 'members' };
-
-function asCategory(value: string): AssetCategory | null {
-  return (ASSET_CATEGORIES as string[]).includes(value) ? (value as AssetCategory) : null;
-}
 
 export function parseRoute(hash: string): Route {
   const path = hash.replace(/^#/, '');
@@ -27,10 +24,7 @@ export function parseRoute(hash: string): Route {
     const focus = decodeURIComponent(path.slice('/tree/'.length));
     return { name: 'tree', focus: focus || null };
   }
-  if (path === '/library') return { name: 'library', category: null };
-  if (path.startsWith('/library/')) {
-    return { name: 'library', category: asCategory(path.slice('/library/'.length)) };
-  }
+  if (path === '/library' || path.startsWith('/library/')) return { name: 'tree', focus: null };
   if (path.startsWith('/doc/')) {
     return { name: 'doc', id: decodeURIComponent(path.slice('/doc/'.length)) };
   }
@@ -67,8 +61,7 @@ export const homeHref = '#/';
 export const membersHref = '#/members';
 export const treeHref = '#/tree';
 export const treeFocusHref = (storyId: string): string => `#/tree/${encodeURIComponent(storyId)}`;
-export const libraryHref = (category?: AssetCategory | null): string =>
-  category ? `#/library/${category}` : '#/library';
+export const libraryHref = (): string => '?overlay=library#/tree';
 export const docHref = (id: string): string => `#/doc/${encodeURIComponent(id)}`;
 export const assetHref = (id: string): string => `#/asset/${encodeURIComponent(id)}`;
 export const assetEditHref = (id: string): string => `#/asset/${encodeURIComponent(id)}/edit`;
