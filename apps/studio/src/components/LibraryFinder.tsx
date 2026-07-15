@@ -92,17 +92,24 @@ export function LibraryFinder({ assets, docs, onSelect, selectedId }: LibraryFin
 
   return (
     <div className="library-finder" data-testid="library-finder">
-      <div className="library-lifecycle-selector" data-testid="library-lifecycle-selector">
+      <div
+        className="library-lifecycle-selector"
+        role="group"
+        aria-label="Lifecycle state"
+        data-testid="library-lifecycle-selector"
+      >
         {LIFECYCLE_STATES.map((state) => (
           <button
             key={state}
             type="button"
             className="library-lifecycle-selector-button"
+            data-state={state}
             data-testid={`library-lifecycle-selector-${state}`}
             aria-pressed={lifecycleState === state ? 'true' : 'false'}
             onClick={() => setLifecycleState(state)}
           >
-            {state}
+            <span className="library-lifecycle-selector-dot" aria-hidden="true" />
+            <span className="library-lifecycle-selector-label">{state}</span>
           </button>
         ))}
       </div>
