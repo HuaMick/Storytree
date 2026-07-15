@@ -4955,6 +4955,80 @@ button.legend-tile:hover {
   border-color: var(--lp-sprout, var(--accent));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--lp-sprout, var(--accent)) 22%, transparent);
 }
+/* ── the three-state lifecycle selector (ADR-0197; the LOOK is the operator-attested leg) ──
+   A seed-packet segmented pill: an --lp-bar track (the handle-bar ground) holding three equal
+   segments; the pressed one fills moss with cream text (the collapsed drawer-toggle idiom);
+   each segment carries a small state-coloured seed dot — sun=open (needs attention),
+   sprout=active (growing), muted=archived (composted). */
+.library-lifecycle-selector {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--lp-border);
+  border-radius: 999px;
+  background: var(--lp-bar);
+  box-shadow: inset 0 1px 3px rgba(87, 60, 38, 0.1);
+}
+.library-lifecycle-selector-button {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: transparent;
+  color: var(--lp-ink-soft);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82em;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: capitalize;
+  line-height: 1;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+.library-lifecycle-selector-button:hover {
+  color: var(--lp-moss);
+  background: color-mix(in srgb, var(--lp-sprout) 16%, transparent);
+}
+.library-lifecycle-selector-button:focus-visible {
+  outline: 2px solid var(--lp-sprout);
+  outline-offset: 1px;
+}
+.library-lifecycle-selector-button[aria-pressed='true'] {
+  background: var(--lp-moss);
+  color: #fffdf4;
+  box-shadow: 0 1px 3px rgba(56, 46, 26, 0.3);
+}
+.library-lifecycle-selector-button[aria-pressed='true']:hover {
+  background: color-mix(in srgb, var(--lp-moss) 88%, #000000 12%);
+  color: #fffdf4;
+}
+.library-lifecycle-selector-dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(58, 51, 35, 0.18);
+}
+.library-lifecycle-selector-button[data-state='open'] .library-lifecycle-selector-dot {
+  background: var(--lp-sun);
+}
+.library-lifecycle-selector-button[data-state='active'] .library-lifecycle-selector-dot {
+  background: var(--lp-sprout);
+}
+.library-lifecycle-selector-button[data-state='archived'] .library-lifecycle-selector-dot {
+  background: color-mix(in srgb, var(--lp-ink-soft) 65%, var(--lp-panel) 35%);
+}
+.library-lifecycle-selector-button[aria-pressed='true'] .library-lifecycle-selector-dot {
+  box-shadow: inset 0 0 0 1px rgba(255, 253, 244, 0.55);
+}
 .library-finder-results {
   flex: 1 1 auto;
   min-height: 0;
