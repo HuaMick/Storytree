@@ -44,16 +44,34 @@ proof:
   real:
     testFile: "apps/studio/src/components/TerminalDock.test.tsx"
     sourceFile: "apps/studio/src/components/TerminalDock.tsx"
+    # ┌─ THE ONE AND ONLY TEST TO ADD ─────────────────────────────────────────────────────────────────┐
+    # │ `it('tdp-ctrl-c-copies-selection-ctrl-v-pastes: …')` — the Ctrl+C-COPY / Ctrl+V-PASTE keyboard   │
+    # │ handler (`term.attachCustomKeyEventHandler` in `initTab`), and NOTHING ELSE. IF YOU FIND YOURSELF │
+    # │ WRITING A TEST ABOUT ResizeObserver, fit, resize, snapshot, tabs, OR seeds — STOP: that is the    │
+    # │ WRONG contract. Every one of those is ALREADY BUILT and its test ALREADY EXISTS in this file      │
+    # │ (freeze list below). This drive is ONLY the Ctrl+C-copy / Ctrl+V-paste handler.                   │
+    # └────────────────────────────────────────────────────────────────────────────────────────────────┘
+    #
     # RE-PROVE (ADR-0057 §3 expansion C): TerminalDock.tsx + its test ALREADY EXIST at HEAD. THIS CAP IS
     # ALL-BUILT EXCEPT CONTRACT 12. Contracts 1–8 (original build + the 6/7/8 re-proves + the terminal-tabs
     # multi-session/seed re-drives), contract 9 `tdp-reattaches-live-sessions-on-mount` (the ADR-0190 replay
     # re-tense — restore-at-dims → write → fit → forward, BUILT+SIGNED @ 60280a0c), contract 10
-    # `tdp-fits-before-spawn-and-passes-initial-dims` (@ a90e30b), and contract 11
-    # `tdp-refits-on-expand-activation-and-resize` (@ 9439df5) are ALL BUILT AND SIGNED. Contract 12
+    # `tdp-fits-before-spawn-and-passes-initial-dims` (@ a90e30b), contract 11
+    # `tdp-refits-on-expand-activation-and-resize` (@ 9439df5), and contract 13
+    # `tdp-refits-on-container-resize` (the container-size-change / ResizeObserver refit, @ eee0314) are ALL
+    # BUILT AND SIGNED. Contract 12
     # `tdp-ctrl-c-copies-selection-ctrl-v-pastes` is the ONE unbuilt behaviour: the owner-reported defect
     # that Ctrl+C in the embedded terminal never copies a selection (xterm consumes the keydown and always
     # forwards \x03 / SIGINT to the pty) and Ctrl+V is not explicitly handled. This drive closes contract 12
     # and nothing else.
+    #
+    # WRONG-CONTRACT WARNING (observed-defect tally now 3): a prior --real drive @ eee0314, briefed for
+    # contract 12, instead built the container-size-change / ResizeObserver refit — the slice this spec USED
+    # TO name "A LATER SLICE, NOT YET CONTRACTED". That green PASS is real and is now ADOPTED as contract 13
+    # (`tdp-refits-on-container-resize`). DO NOT build it again: a `tdp-refits-on-container-resize` test
+    # ALREADY EXISTS in TerminalDock.test.tsx and MUST stay BYTE-IDENTICAL, as must its `ResizeObserver` impl
+    # in TerminalDock.tsx and its `FakeResizeObserver` mock. The prior "later slice" language that steered
+    # that drive has been removed from this spec — do not re-derive it.
     #
     # THE DEFECT (Windows Terminal convention): Ctrl+C WITH an active selection = copy to the clipboard, NO
     # SIGINT; Ctrl+C WITHOUT a selection = interrupt as before (the \x03 reaches the pty); Ctrl+V = paste the
@@ -68,8 +86,9 @@ proof:
     # the test stubs `navigator.clipboard` with `vi.fn` `writeText`/`readText`. Every EXISTING test's title
     # AND body stays BYTE-IDENTICAL — do NOT rename any id, do NOT touch any other test's body, do NOT build a
     # different contract. Adding/renaming an EXISTING test, or building a different contract, IS the exact
-    # defect this brief exists to prevent — 7 observed instances of id/title drift, and 2 observed instances
-    # of building a DIFFERENT contract than briefed. The mock extensions are PURELY ADDITIVE (new members on
+    # defect this brief exists to prevent — 7 observed instances of id/title drift, and 3 observed instances
+    # of building a DIFFERENT contract than briefed (the latest @ eee0314 → contract 13, above). The mock
+    # extensions are PURELY ADDITIVE (new members on
     # FakeTerminal, a new navigator.clipboard stub) — they must not change what any existing test observes.
     #
     # THE RED THE SPINE MUST OBSERVE (write this new test, watch it fail, THEN implement): at HEAD
@@ -97,9 +116,11 @@ proof:
     #
     # FREEZE EVERYTHING ELSE BY NAME: contracts 1–8, contract 9 (`tdp-reattaches-live-sessions-on-mount` @
     # 60280a0c, plus its companion `tdp-restores-snapshot-at-recorded-size-then-fits`), contract 10
-    # (`tdp-fits-before-spawn-and-passes-initial-dims` @ a90e30b), and contract 11
-    # (`tdp-refits-on-expand-activation-and-resize` @ 9439df5) STAND — their test bodies are UNTOUCHED; the
-    # terminal-tabs `mst-*` and `son-*` tests SHARE this file and stay GREEN under their EXACT titles.
+    # (`tdp-fits-before-spawn-and-passes-initial-dims` @ a90e30b), contract 11
+    # (`tdp-refits-on-expand-activation-and-resize` @ 9439df5), and contract 13
+    # (`tdp-refits-on-container-resize` @ eee0314, with its `FakeResizeObserver` mock) STAND — their test
+    # bodies are UNTOUCHED; the terminal-tabs `mst-*` and `son-*` tests SHARE this file and stay GREEN under
+    # their EXACT titles.
     editsExisting: true
     scope:
       testGlobs: ["apps/studio/src/components/TerminalDock.test.tsx"]
@@ -176,7 +197,8 @@ nothing from it — they share the bridge WIRE SHAPE as a cross-boundary contrac
 > the re-tensed `tdp-reattaches-live-sessions-on-mount` and a companion
 > `tdp-restores-snapshot-at-recorded-size-then-fits` test. **Contract 11 `tdp-refits-on-expand-activation-and-resize`** is
 > built+signed @ 9439df5 — but only its EXPAND + TAB-ACTIVATION triggers (an `[expanded, activeId]` fit
-> effect); the container-size-change / `ResizeObserver` refit is a LATER SLICE, not yet contracted.** The pty
+> effect); the container-size-change / `ResizeObserver` refit is NOW CONTRACTED AS contract 13
+> `tdp-refits-on-container-resize`, built+signed @ eee0314.** The pty
 > LIFECYCLE it drives (over the bridge) is
 > [`pty-session-manager`](pty-session-manager.md); the real `desktopTerminal` bridge
 > (`apps/desktop/electron/preload.ts`, including the re-attach `list`/`snapshot` relay) and the real-pty
@@ -261,11 +283,11 @@ session table but calls NO `bridge.dispose` — the ptys stay alive, app-owned; 
 the unmount half; clearing the table on unmount also keeps a stale bridge callback from writing to a
 disposed xterm).
 
-FIT THE TERMINAL TO ITS CONTAINER — TWO CONTRACTS, ONE BUILT (ADR-0190, the missing fit lifecycle). Today
-the ONLY thing that fits the xterm to its container is the manual drag handle (the resize edge, contract
-3) — so a tab that mounts, expands, activates, or whose container changes size keeps xterm's 80×24 default,
-and a FRESH spawn asks the pty for 80×24 even under a wide dock (the defect the owner walked: fresh tabs
-are the wrong size). The fit lifecycle splits into TWO contracts:
+FIT THE TERMINAL TO ITS CONTAINER — THREE CONTRACTS, ALL BUILT (ADR-0190, the missing fit lifecycle).
+Before this, the ONLY thing that fit the xterm to its container was the manual drag handle (the resize
+edge, contract 3) — so a tab that mounts, expands, activates, or whose container changes size kept xterm's
+80×24 default, and a FRESH spawn asked the pty for 80×24 even under a wide dock (the defect the owner
+walked: fresh tabs are the wrong size). The fit lifecycle splits into THREE contracts:
 
 - **Contract 10 `tdp-fits-before-spawn-and-passes-initial-dims` (BUILT+SIGNED @ a90e30b).** A FRESH tab
   computes the fit BEFORE spawning and passes the fitted `cols`/`rows` into `bridge.spawn({ …, cols, rows })`
@@ -278,19 +300,20 @@ are the wrong size). The fit lifecycle splits into TWO contracts:
   same fit-and-forward wiring contract 3's drag-resize uses. Mount-time fit is NOT here: for a FRESH tab it
   is subsumed by contract 10's fit-before-spawn, and for an ADOPTED tab it belongs to contract 9's
   restore-then-fit — contract 11 covers neither.
-- **A LATER SLICE, NOT YET CONTRACTED — container-size-change refit.** A `ResizeObserver` on the dock body
-  (so a window/layout resize refits WITHOUT a drag or a tab-switch) is a genuine remaining piece of the fit
-  lifecycle, but NO contract covers it yet — it is neither built nor pinned. Left as a named future slice so
-  the 11/11 coverage reads TRUE: contract 11 asserts ONLY the two triggers its test proves (expand +
-  activation).
+- **Contract 13 `tdp-refits-on-container-resize` (BUILT+SIGNED @ eee0314) — container-size-change refit.** A
+  `ResizeObserver` installed once per dock on the body-row wrapper refits the ACTIVE tab WITHOUT a drag or a
+  tab-switch (a window/layout resize), forwarding the fitted dims to the pty via the existing onResize path
+  (`bridge.resize(sessionId, cols, rows)`); it is feature-guarded where `ResizeObserver` is undefined and
+  disconnected on unmount-cleanup. This closes the last piece of the fit lifecycle — contract 11 stays scoped
+  to ONLY its expand + activation triggers, and this container-resize trigger is its own contract 13.
 
-THE JSDOM-PROVABLE PART (both built contracts): the mocked `FitAddon`/xterm records `fit()` (and the
+THE JSDOM-PROVABLE PART (all three built contracts): the mocked `FitAddon`/xterm records `fit()` (and the
 resulting dims) on the covered events and the scripted bridge records the `resize`/`spawn` dims — assert the
 fit fires and that the dims flow to `spawn`/`resize`; whether the glyphs then physically reflow is the
 story's operator-attested UAT leg (ADR-0070), never a jsdom/visual assertion. (jsdom lays out no real
 geometry, so the test drives the fit-triggering state — the fold/unfold and the active-tab switch — and
-reads the fit's computed dims through the mock, exactly as it drives the drag fit; the deferred
-`ResizeObserver` slice would drive its observer callback the same way once it is contracted.)
+reads the fit's computed dims through the mock, exactly as it drives the drag fit; contract 13's
+`ResizeObserver` refit drives its observer callback the same way via a `FakeResizeObserver` mock.)
 
 XTERM IS MOCKED AT TEST TIME (jsdom lays out no terminal; the SAME discipline `ChatPanel.test.tsx` uses
 on `../api`). The test `vi.mock`s the xterm module with a fake `Terminal` (recording `write` / `onData` /
@@ -410,7 +433,7 @@ The integration test would:
    disabled "terminal unavailable here" state, NEVER calls `spawn`, does NOT hang, and does NOT crash —
    the honest absent-bridge degradation.
 
-## Contracts (12)
+## Contracts (13)
 
 The test-proven leaf behaviours — each **one isolated automated test** in the `studio` suite (vitest
 jsdom, `apps/studio/src/components/TerminalDock.test.tsx`), the xterm + bridge seams mocked/scripted.
@@ -422,12 +445,14 @@ forward) — BUILT+SIGNED @ 60280a0c; contract 10
 (`tdp-fits-before-spawn-and-passes-initial-dims`) is the fit-before-spawn slice BUILT+SIGNED @ a90e30b
 (adopted from the drive's real green test, id verbatim); contract 11
 (`tdp-refits-on-expand-activation-and-resize`) is the refit-on-expand-and-activation slice BUILT+SIGNED @
-9439df5 (its container-size-change / `ResizeObserver` piece is a later slice, not yet contracted); contract
+9439df5 (its EXPAND + TAB-ACTIVATION triggers only); contract 13
+(`tdp-refits-on-container-resize`) is the container-size-change / `ResizeObserver` refit slice BUILT+SIGNED
+@ eee0314 (adopted from the drive's real green test, id verbatim); contract
 12 (`tdp-ctrl-c-copies-selection-ctrl-v-pastes`) is the owner-reported Ctrl+C-copies-selection /
 Ctrl+V-pastes keyboard wiring — UNBUILT and the NEXT drive. Per
 ADR-0122 (`storytree coverage`), each contract id is the lead of a distinctly-named test (the
-`it("<id>: …")` convention); contracts 1–11 are present and green, so the coverage check reports 11/12
-until contract 12's new test lands (`tdp-ctrl-c-copies-selection-ctrl-v-pastes`). None is an APPEARANCE
+`it("<id>: …")` convention); contracts 1–11 and 13 are present and green, so the coverage check reports
+12/13 until contract 12's new test lands (`tdp-ctrl-c-copies-selection-ctrl-v-pastes`). None is an APPEARANCE
 assertion — the look is the story's operator-attested UAT leg 5 (ADR-0070).
 
 1. **`tdp-spawns-on-open-and-writes-data`** — opening the terminal spawns over the bridge and pipes bridge data into xterm
@@ -521,7 +546,8 @@ assertion — the look is the story's operator-attested UAT leg 5 (ADR-0070).
      MOUNT-time fit is NOT covered here: for a FRESH tab it is subsumed by contract 10
      (`tdp-fits-before-spawn-and-passes-initial-dims`) and for an ADOPTED tab it belongs to contract 9's
      restore-then-fit, so this contract covers neither. A container-size-change (`ResizeObserver`) refit is
-     a LATER slice, NOT covered by this contract. Asserts the `fit()` INVOCATION + the dims flowing to
+     its own contract 13 (`tdp-refits-on-container-resize`, built @ eee0314), NOT covered by this contract.
+     Asserts the `fit()` INVOCATION + the dims flowing to
      `resize` only; the visual reflow is the story's UAT leg (ADR-0070).
    - **covers —** `apps/studio/src/components/TerminalDock.tsx` (the expand + activation refit effect) — built @ 9439df5
 
@@ -541,6 +567,20 @@ assertion — the look is the story's operator-attested UAT leg 5 (ADR-0070).
      story's operator-attested UAT leg (ADR-0070), never asserted here — the jsdom test asserts only the
      handler return values, the clipboard `vi.fn` calls, and that no '\x03' reaches `desktopTerminal.write`.
    - **covers —** `apps/studio/src/components/TerminalDock.tsx` (the per-tab custom-key-handler: Ctrl+C-copies-selection / Ctrl+V-pastes wiring) *(provisional path)*
+
+13. **`tdp-refits-on-container-resize`** — a `ResizeObserver` firing for the dock body refits the active terminal and forwards the new dims to the bridge, with no drag and no tab switch — **BUILT+SIGNED @ eee0314** (id adopted verbatim from the drive's real green test)
+   - **asserts —** with the bridge present and a session active, a `ResizeObserver` is installed once per
+     dock on the body-row wrapper; the observer firing (a bare container-size change — no drag, no
+     tab-switch, e.g. a window/layout resize) recomputes the fit and refits the ACTIVE tab's xterm, forwarding
+     the fitted dims to `desktopTerminal.resize(sessionId, cols, rows)` via the existing onResize path (the
+     same fit-and-forward wiring contract 3's drag-resize and contract 11's expand/activation fit use). The
+     observer is feature-guarded where `ResizeObserver` is undefined (never a throw in an older runtime) and
+     is disconnected on unmount-cleanup. This closes the last piece of the fit lifecycle; it covers ONLY the
+     container-size-change trigger — the expand + activation triggers are contract 11, the fit-before-spawn is
+     contract 10, and the adopted-tab restore-then-fit is contract 9, so this contract covers none of those.
+     Asserts the `fit()` INVOCATION + the dims flowing to `resize` only; the visual reflow is the story's
+     operator-attested UAT leg (ADR-0070), never a jsdom assertion.
+   - **covers —** `apps/studio/src/components/TerminalDock.tsx` (the once-per-dock ResizeObserver refit on the body-row) — built @ eee0314
 
 ## Guidance — the net-new slice that earns the signed verdict
 
@@ -589,15 +629,16 @@ Rules:
   do NOT fold into or behaviourally change `ChatDock`/`ChatPanel` (their suites must stay green).
 - **Fail closed, never hang** — an absent bridge renders an honest disabled state, never a spawn, never a
   hung stream, never a crash (`tdp-degrades-when-bridge-absent`).
-- **Fit the terminal across its lifecycle, forward the dims — three non-overlapping contracts** (ADR-0190).
+- **Fit the terminal across its lifecycle, forward the dims — four non-overlapping contracts** (ADR-0190).
   A fresh tab fits BEFORE spawn and passes the fitted dims into `bridge.spawn`
   (`tdp-fits-before-spawn-and-passes-initial-dims`, built @ a90e30b). The standing refit on expand +
   tab-activation, each forwarding to `bridge.resize`, is `tdp-refits-on-expand-activation-and-resize`
   (built @ 9439df5). The adopted-tab restore path fits AFTER resizing to the snapshot dims and writing the
-  serialized screen (`tdp-reattaches-live-sessions-on-mount`, built @ 60280a0c). Mount-time fit lives with
-  the fresh-spawn OR the restore — never double-covered by the refit contract. A container-size-change
-  (`ResizeObserver`) refit is a LATER slice, NOT YET CONTRACTED. Assert the invocation + dims, never the
-  visual reflow.
+  serialized screen (`tdp-reattaches-live-sessions-on-mount`, built @ 60280a0c). The container-size-change
+  (`ResizeObserver`) refit of the active tab, forwarding to `bridge.resize`, is
+  `tdp-refits-on-container-resize` (built @ eee0314). Mount-time fit lives with the fresh-spawn OR the
+  restore — never double-covered by a refit contract; each trigger is its OWN contract. Assert the
+  invocation + dims, never the visual reflow.
 - **Renderer terminal only (slow growth)** — render + wire the terminal over the bridge shape. Do NOT
   implement the pty lifecycle (that is `pty-session-manager`'s), do NOT compose the build command to
   inject (the ADR-0174 map-spawn re-point is a separate follow-on), do NOT reach cloud/web terminals
