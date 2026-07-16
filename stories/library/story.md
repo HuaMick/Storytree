@@ -17,7 +17,7 @@ proof_mode: UAT
 # `uat_witness: machine` drives the story-level structural gate-as-proof node; it does not claim every
 # per-leg witness is machine.
 uat_witness: machine
-capabilities: [library-schema-and-write-validation, migrate-on-write-upcaster, event-sourced-store-seam, eager-batch-migrate, seed-corpus-scripts, library-health-gate, library-cli]
+capabilities: [library-schema-and-write-validation, migrate-on-write-upcaster, event-sourced-store-seam, eager-batch-migrate, seed-corpus-scripts, library-health-gate, library-cli, graduation-park-lease]
 # Consumer-side outbound edge (ADR-0075): the library validates/upcasts every doc against the verdict
 # vocabulary's Tier/Status, so it imports the proof-protocol ROOT port — now a declared edge (was an
 # exempt substrate dependency before ADR-0075 collapsed that class). library is no longer the graph
@@ -88,7 +88,7 @@ Lineage of the v2 capabilities to their V1 ancestors (reference only — the V1 
 
 What deliberately does **not** carry: V1's Rust crates and `Cargo.toml` dependency-floor mechanics (v2 is TS + pnpm workspaces), the SurrealDB/surrealkv embedded engine (replaced by Cloud SQL Postgres, ADR-0017), and V1's per-build `runs`/`test_runs` evidence grain (this tier persists history-as-events + a current projection, not run rows).
 
-## Capabilities (7)
+## Capabilities (8)
 
 Listed roots-first (a capability appears after everything it depends on). The `status` column is the honest per-capability call: `mapped` = a real passing offline test observationally verifies the dominant behaviour; `proposed` = no standalone test verifies it yet; the Proof note in each file marks the `proposed` pockets inside a `mapped` capability.
 
@@ -101,6 +101,7 @@ Listed roots-first (a capability appears after everything it depends on). The `s
 | 5 | [`seed-corpus-scripts`](seed-corpus-scripts.md) | The store seeds every studio knowledge unit and template through the validated write boundary. | proposed | `event-sourced-store-seam`, `migrate-on-write-upcaster` |
 | 6 | [`library-health-gate`](library-health-gate.md) | Five health checks classify every stored doc into PASS, WARN, or FAIL. | mapped | `library-schema-and-write-validation`, `migrate-on-write-upcaster` |
 | 7 | [`library-cli`](library-cli.md) | An agent curates library artifacts through guidance-enveloped, `--pg`-gated commands. | mapped | `event-sourced-store-seam`, `eager-batch-migrate`, `seed-corpus-scripts`, `library-health-gate`, `library-schema-and-write-validation`, `migrate-on-write-upcaster` |
+| 8 | [`graduation-park-lease`](graduation-park-lease.md) | A librarian's parked-memory verdict becomes a lease — a content-hash + review-date + lease-length record whose worklist projection counts only new, changed, or lease-expired candidates. | proposed | — |
 
 ## Dependency graph (code-derived)
 
