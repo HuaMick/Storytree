@@ -12,7 +12,12 @@ import { handleClaims } from './devApi';
 import { HttpError } from './httpUtil';
 import { groupClaimsBySession, type ClaimDocT } from '@storytree/notice-board';
 
-const now = new Date('2026-07-16T12:00:00.000Z');
+// Fixtures are stamped RELATIVE to the real clock, never absolute ISO literals: handleClaims folds
+// with `new Date()` at request time (not injectable), and groupClaimsBySession DROPS a claim whose
+// heartbeat is past the 2 h stale-reclaim window — an absolute heartbeat is a time bomb that starts
+// failing the moment the wall clock outruns it (this file's original fixtures did exactly that).
+const now = new Date();
+const ago = (ms: number): string => new Date(now.getTime() - ms).toISOString();
 
 const workClaim: ClaimDocT = {
   unitId: 'story-a',
@@ -20,8 +25,8 @@ const workClaim: ClaimDocT = {
   branch: 'claude/sess-old',
   intent: 'real',
   grade: 'work',
-  claimedAt: '2026-07-16T10:00:00.000Z',
-  heartbeatAt: '2026-07-16T11:59:00.000Z',
+  claimedAt: ago(2 * 60 * 60 * 1_000),
+  heartbeatAt: ago(60_000),
 };
 
 const exploringClaim: ClaimDocT = {
@@ -30,8 +35,8 @@ const exploringClaim: ClaimDocT = {
   branch: 'claude/sess-new',
   intent: 'scoping the map',
   grade: 'exploring',
-  claimedAt: '2026-07-16T11:30:00.000Z',
-  heartbeatAt: '2026-07-16T11:58:00.000Z',
+  claimedAt: ago(30 * 60 * 1_000),
+  heartbeatAt: ago(2 * 60_000),
 };
 
 // The stub flips per test — handleClaims only needs sessionClaims().
