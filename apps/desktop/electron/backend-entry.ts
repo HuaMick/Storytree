@@ -57,6 +57,8 @@ import {
 import { createBootReadRoutes } from "../src/backend/boot-read-routes.js";
 import { createChatSseMount } from "../src/backend/chat-sse-mount.js";
 import { createBuildRouteMount } from "../src/backend/build-route.js";
+import { createAdoptRouteMount } from "../src/backend/adopt-route.js";
+import type { AdoptContext } from "../src/backend/adopt-route.js";
 import { credentialedBuildRunner } from "../src/backend/credentialed-build-runner.js";
 import { resolveSpawnMaxTurns } from "../src/backend/spawn-turns.js";
 import { resolveOrchestratorMaxTurns } from "../src/backend/orchestrator-turns.js";
@@ -66,7 +68,7 @@ import { NapiKeychain } from "../src/keychain/napi-adapter.js";
 // The build worker REGISTRY + routedBuildRunner come from the shared @storytree/drive package (ADR-0133
 // d.3 — never apps/studio/server, ADR-0100). build-worker imports only node:crypto, so it is safe to
 // import statically here (the build ENTRIES nodeBuild/storyBuild are lazily imported inside the runner).
-import { BuildRegistry, routedBuildRunner } from "@storytree/drive/build-worker";
+import { BuildRegistry, routedBuildRunner, adoptRunnerFromAdoptStory } from "@storytree/drive/build-worker";
 import type { BuildContext } from "@storytree/drive/build-worker";
 import { PgAttestationStore } from "@storytree/orchestrator/store";
 
@@ -348,6 +350,10 @@ async function main(): Promise<void> {
   const comments = new PgCommentStore(pool);
   const presence = new PgPresenceStore(pool);
   const attestations = new PgAttestationStore(pool);
+  // The ledger read behind the session dock's GET /api/claims view (ADR-0200 D7) — the SAME store the
+  // CLI board reads; listLiveClaims staleness-filters in SQL. Separate instance from the PgClaimStore
+  // built inside the spawn-surface block below (that one adapts the narrow claim/bumpHeartbeat seam).
+  const claimLedger = new PgClaimStore(pool);
 
   // The RAW signed-verdict event stream (events.verdict ORDER BY seq) shaped as `{ kind: 'signing',
   // seq, doc }` — shared by the backend's advisory overlay read below AND the orientation runner's
@@ -535,6 +541,12 @@ async function main(): Promise<void> {
         },
         { timeoutMs: 15_000, retryOnce: true },
       ),
+    // EVERY live claim row (ADR-0200 D7 — the session dock's claims-grouped-by-session view): the raw
+    // ClaimDocT[] from events.node_claim via PgClaimStore.listLiveClaims (staleness-filtered in SQL),
+    // which the /api/claims handler folds through the pure groupClaimsBySession. Advisory (null on any
+    // failure), the SAME contract as activeSessions — mirrors the studio PgBackend.sessionClaims
+    // (re-composed here, the surface boundary — no apps/studio/server import, ADR-0100).
+    sessionClaims: async () => advisory("session-claims", async () => claimLedger.listLiveClaims()),
   };
 
   // The THREE dispatchers the Electron main mounts in sequence (ADR-0119 §2 + the chat-SSE increment):
@@ -668,6 +680,71 @@ async function main(): Promise<void> {
     },
   };
   const buildRouteMount = createBuildRouteMount(build);
+
+  // ---------- the desktop ADOPT seam (ADR-0097 — the unmounted sibling of the build route) ----------
+  //
+  // Compose the REAL adopt context and mount POST /api/adopt so the desktop AdoptPanel's Adopt click on a
+  // brownfield (`mapped`) story drives a real adoption — observe-and-sign its `observe` reliability gates
+  // to `adopted` verdicts + flip it `mapped → proposed` (ADR-0097). Without this route the studio SPA's
+  // Adopt button (api.adopt → POST /api/adopt) 404'd on the desktop while the sibling POST /api/build was
+  // served — the split-pair gap this closes. It SHARES the build registry (one in-flight run; progress
+  // polls the EXISTING GET /api/build?runId), and drives the EXISTING `adoptStory` drive entry lazily
+  // (the raw-TS `.js` re-export trap). isAdoptable reuses the SAME `storyGoGreen === 'adopt'` predicate
+  // the go-green affordance is computed from, fed the SAME `rollupStoryGreen` crown, so the worker never
+  // adopts a story the panel would not offer. Re-composed from devApi.ts's adopt wiring, NOT imported
+  // from apps/studio/server (ADR-0100).
+  //
+  // NO CREDENTIAL BROKER (unlike the build path): adoptStory observe-and-signs shell reliability gates +
+  // resolves the live pg verdict store — it invokes NO SDK/model, so it needs the DB (STORYTREE_DB_USER,
+  // hydrated by loadLocalSecrets) + a git-email signer, not the keychain SDK token. Matches devApi's bare
+  // adopt runner (a build INTENT-shaped SAFE write; the spine signs, CI re-proves green before trunk).
+  //
+  // OPERATOR-ATTESTED GLUE (like the build path above): a node:test over this composition would spawn a
+  // subscription-billed live adoption on a gate pass (ADR-0010 §5 forbids the live spend); the CI-proven
+  // core is createAdoptRouteMount over an INJECTED AdoptContext (adopt-route.test.ts). The spend is the
+  // human's Adopt click, not this wiring.
+  const adopt: AdoptContext = {
+    registry: build.registry,
+    runner: adoptRunnerFromAdoptStory(async (storyId, opts) => {
+      // Hydrate STORYTREE_DB_USER (env always wins) so adoptStory resolves the live verdict store; the
+      // adopt entry + its self-wiring are lazily imported inside the closure (the raw-TS `.js` trap).
+      loadLocalSecrets();
+      const { adoptStory } = await import("@storytree/drive/build");
+      return adoptStory(storyId, opts);
+    }),
+    isAdoptable: async (storyId) => {
+      const unit = await loadBuildUnit(storyId);
+      if (unit === null || unit.kind !== "story") {
+        return { ok: false, reason: `no story "${storyId}" (or its spec did not load)` };
+      }
+      const { storyGoGreen, rollupStoryGreen } = await import("@storytree/orchestrator");
+      // ADR-0040 / ADR-0094 d.1: a story already PROVEN green has nothing to adopt — refuse it here just
+      // as the /api/tree panel hides the Adopt button, fed the SAME rollupStoryGreen crown (reconstructed
+      // from the live verdict events). Offline (no verdict events) ⇒ proven=false: the status-only reading
+      // matching the panel. Exactly devApi.ts's isAdoptable, re-composed here (the surface boundary).
+      const events = (await backend.verdictEvents?.()) ?? null;
+      const proven =
+        events !== null &&
+        rollupStoryGreen(
+          unit.spec.capabilities,
+          [...unit.spec.uatTests.filter((t) => !t.wouldBe), ...unit.spec.reliabilityGates].map((o) => ({
+            id: o.id,
+          })),
+          events as Parameters<typeof rollupStoryGreen>[2],
+          unit.spec.reliabilityGates.map((g) => ({ id: g.id, covers: g.covers })),
+        ) === "healthy";
+      if (storyGoGreen(unit.spec, unit.caps, proven) !== "adopt") {
+        return {
+          ok: false,
+          reason: proven
+            ? `story "${storyId}" is already proven green — its reliability gates carry a signed pass, so there is nothing to adopt (ADR-0040 / ADR-0094 d.1).`
+            : `story "${storyId}" is not adoptable — Adopt is the mapped→proposed entry for a brownfield story with \`## Reliability Gates\` (ADR-0097).`,
+        };
+      }
+      return { ok: true };
+    },
+  };
+  const adoptRouteMount = createAdoptRouteMount(adopt);
 
   // ---------- /api/uat/attest (POST — local human proof, persisted through IAP broker) ----------
   const uatAttestMount = async (
@@ -1007,6 +1084,7 @@ async function main(): Promise<void> {
         if (await bootRoutes(req, res, pathname)) return;
         if (await chatMount(req, res, pathname)) return;
         if (await buildRouteMount(req, res, pathname)) return;
+        if (await adoptRouteMount(req, res, pathname)) return;
         if (await uatAttestMount(req, res, pathname)) return;
         if (await attestationsMount(req, res, pathname)) return;
         await localHandler(req, res);
