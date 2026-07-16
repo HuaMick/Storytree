@@ -195,6 +195,19 @@ async function listDocs(docsDir: string): Promise<DocMeta[]> {
   });
 }
 
+/**
+ * Resolve a doc `id` (a POSIX relpath under `docsDir`) to an absolute path, or `null` when it escapes
+ * `docsDir` or is not a `.md` file. Reproduces the studio's `safeDocPath` (apiRouter.ts) verbatim — the
+ * read-only doc-serving guard that refuses path traversal and non-markdown ids. Do NOT import from studio.
+ */
+function safeDocPath(docsDir: string, id: string): string | null {
+  const resolved = path.resolve(docsDir, id);
+  const rel = path.relative(docsDir, resolved);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) return null;
+  if (!resolved.endsWith(".md")) return null;
+  return resolved;
+}
+
 // ---------- minimal HTTP helper ----------
 
 function sendJson(res: ServerResponse, status: number, data: unknown): void {
@@ -209,10 +222,11 @@ function sendJson(res: ServerResponse, status: number, data: unknown): void {
  * Create the boot read routes dispatcher.
  *
  * ROUTE TABLE:
- * - GET /api/me       → LOCAL_ME as a bare JSON object
- * - GET /api/docs     → bare DocMeta[] from a real recursive FS walk of `docsDir`
- * - GET /api/comments → bare array from the injected `listComments` seam
- * - *   (anything else) → returns `false` (fall-through to the next dispatcher)
+ * - GET /api/me           → LOCAL_ME as a bare JSON object
+ * - GET /api/docs         → bare DocMeta[] from a real recursive FS walk of `docsDir`
+ * - GET /api/docs/content → one doc's `{ id, title, markdown }` (traversal + non-.md guarded)
+ * - GET /api/comments     → bare array from the injected `listComments` seam
+ * - *   (anything else)   → returns `false` (fall-through to the next dispatcher)
  *
  * Returns an async handler `(req, res, pathname) => Promise<boolean>` that returns `true`
  * when it handled the path and `false` otherwise — so the Electron main can mount it BEFORE
@@ -234,6 +248,23 @@ export function createBootReadRoutes(
     if (pathname === "/api/docs") {
       const docs = await listDocs(deps.docsDir);
       sendJson(res, 200, docs);
+      return true;
+    }
+
+    if (pathname === "/api/docs/content") {
+      // One doc's markdown body, read ON DEMAND — the endpoint DocView calls (via api.docContent) to
+      // render an ADR body in the library tech-tree overlay dive. Reproduces the studio's handleDocs
+      // content branch (path-traversal + non-.md guarded), re-composed here so the desktop backend OWNS
+      // it rather than letting the request fall through to the local-backend 404 'unknown endpoint'.
+      const url = new URL(_req.url ?? "/", "http://localhost");
+      const id = url.searchParams.get("id") ?? "";
+      const file = safeDocPath(deps.docsDir, id);
+      if (file === null || !existsSync(file)) {
+        sendJson(res, 404, { error: "doc not found" });
+        return true;
+      }
+      const markdown = stripFrontmatter(await fs.readFile(file, "utf8"));
+      sendJson(res, 200, { id, title: deriveTitle(markdown, path.basename(file)), markdown });
       return true;
     }
 
