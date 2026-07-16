@@ -382,6 +382,94 @@ test("local-backend: GET /api/presence returns the active-session overlay { sess
   });
 });
 
+// ===========================================================================
+// GET /api/claims — the claim-ledger DOCK view (ADR-0200 D7). Re-composes the studio's handleClaims:
+// fold the backend's raw live claim rows through the pure `groupClaimsBySession`. Sibling to
+// /api/presence + /api/activity but its OWN endpoint (the studio dock fetches it only while open). Before
+// this route existed the request fell through to the local-backend 404 'unknown endpoint' — the exact
+// class of desktop-only gap PR #751 fixed for /api/docs/content. Advisory: a null/absent seam answers
+// 200 { sessions: null }, never a 503; the only error path is the 405 method guard.
+// ===========================================================================
+
+// A fresh (non-stale) claim row: heartbeat = NOW so `groupClaimsBySession` keeps it (a claim whose
+// heartbeat aged past CLAIM_STALE_RECLAIM_MS = 2h is dropped as a dead holder). Mirrors the ClaimDocT
+// shape (packages/notice-board/src/claim.ts) the pg store's listLiveClaims yields.
+function freshClaim(over: Record<string, unknown> = {}): Record<string, unknown> {
+  const nowIso = new Date().toISOString();
+  return {
+    unitId: "notice-board",
+    sessionId: "sess-1",
+    branch: "claude/dock",
+    intent: "wiring the dock",
+    grade: "work",
+    claimedAt: nowIso,
+    heartbeatAt: nowIso,
+    ...over,
+  };
+}
+
+test("local-backend: GET /api/claims folds the backend's live claim rows into session groups", async () => {
+  const backend = overlayBackend({
+    sessionClaims: async () => [
+      freshClaim({ unitId: "notice-board", sessionId: "sess-1", branch: "claude/dock" }),
+      freshClaim({ unitId: "library", sessionId: "sess-1", branch: "claude/dock", grade: "exploring" }),
+    ],
+  });
+  const handler = createLocalBackend({ storiesDir: NO_STORIES_DIR, docsDir: NO_DOCS_DIR, backend, store: "pg" });
+
+  await withServer(handler, async (base) => {
+    const res = await fetch(`${base}/api/claims`);
+    // Deletion test: before the /api/claims route existed this fell through to the 404 'unknown endpoint'.
+    assert.equal(res.status, 200, "claims must be 200 — the route is mounted, not a 404 fall-through");
+    const body = (await res.json()) as {
+      sessions: Array<{ sessionId: string; branch: string; claims: unknown[] }>;
+    };
+    assert.ok(Array.isArray(body.sessions), "the answer carries a grouped `sessions` array");
+    assert.equal(body.sessions.length, 1, "both claims share one session → one group");
+    assert.equal(body.sessions[0]!.sessionId, "sess-1");
+    assert.equal(body.sessions[0]!.branch, "claude/dock");
+    assert.equal(body.sessions[0]!.claims.length, 2, "the session's two live claims are folded in");
+  });
+});
+
+test("local-backend: GET /api/claims is advisory — 200 { sessions: null } when the seam is absent", async () => {
+  // stubBackend omits sessionClaims → the handler falls back to null (the json / down-DB posture).
+  const handler = createLocalBackend({
+    storiesDir: NO_STORIES_DIR,
+    docsDir: NO_DOCS_DIR,
+    backend: stubBackend(),
+    store: "pg",
+  });
+  await withServer(handler, async (base) => {
+    const res = await fetch(`${base}/api/claims`);
+    assert.equal(res.status, 200, "advisory absence is a 200, never a 503");
+    assert.deepEqual(await res.json(), { sessions: null }, "{ sessions: null } is the honest advisory answer");
+  });
+});
+
+test("local-backend: GET /api/claims is advisory — 200 { sessions: null } when the seam answers null", async () => {
+  const backend = overlayBackend({ sessionClaims: async () => null });
+  const handler = createLocalBackend({ storiesDir: NO_STORIES_DIR, docsDir: NO_DOCS_DIR, backend, store: "pg" });
+  await withServer(handler, async (base) => {
+    const res = await fetch(`${base}/api/claims`);
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { sessions: null });
+  });
+});
+
+test("local-backend: /api/claims refuses a non-GET method with 405 (the only error path)", async () => {
+  const handler = createLocalBackend({
+    storiesDir: NO_STORIES_DIR,
+    docsDir: NO_DOCS_DIR,
+    backend: stubBackend(),
+    store: "pg",
+  });
+  await withServer(handler, async (base) => {
+    const res = await fetch(`${base}/api/claims`, { method: "POST" });
+    assert.equal(res.status, 405, "claims is a read — non-GET is a typed 405, never a silent fall-through");
+  });
+});
+
 // Pins that the read-dispatch seam is wired: listAssets is called and its result (the stub's
 // empty array) is serialised as the response body.
 test("local-backend: GET /api/assets returns the stub backend's result as an array", async () => {
