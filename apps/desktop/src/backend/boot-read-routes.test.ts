@@ -300,6 +300,85 @@ test("boot-read-routes: GET /api/docs with a missing docsDir returns an empty ar
   });
 });
 
+// Pins the /api/docs/content route: the handler reads ONE doc's body from the seeded docs dir over
+// REAL node:fs, strips frontmatter, and returns { id, title, markdown } as a bare object. This is the
+// endpoint DocView calls via api.docContent(id) to render an ADR body in the library tech-tree overlay
+// dive — the desktop backend must SERVE it, not fall through to the local-backend 404 'unknown endpoint'.
+test("boot-read-routes: GET /api/docs/content returns { id, title, markdown } for a seeded doc, frontmatter stripped", async () => {
+  const { dir, cleanup } = await seedDocsDir();
+  try {
+    const handler = createBootReadRoutes({
+      docsDir: dir,
+      listComments: async () => [],
+    });
+
+    await withServer(handler, async (base) => {
+      const res = await fetch(`${base}/api/docs/content?id=decisions%2F0001-some-decision.md`);
+      assert.equal(res.status, 200, "/api/docs/content must return 200 for a real doc");
+
+      const body = (await res.json()) as Record<string, unknown>;
+      assert.ok(!Array.isArray(body), "/api/docs/content must be a BARE OBJECT, not an array");
+      assert.equal(body["id"], "decisions/0001-some-decision.md", "id must echo the requested relpath");
+      assert.equal(
+        body["title"],
+        "Some Decision",
+        "title must be derived from the H1 (after frontmatter strip)",
+      );
+      assert.ok(typeof body["markdown"] === "string", "markdown must be a string");
+      const markdown = body["markdown"] as string;
+      assert.ok(markdown.includes("# Some Decision"), "markdown must contain the doc body");
+      assert.ok(
+        markdown.includes("This records the rationale"),
+        "markdown must contain the doc's prose",
+      );
+      assert.ok(
+        !markdown.includes("status: accepted"),
+        "the YAML frontmatter must be STRIPPED — the reader shows prose, not the frontmatter block",
+      );
+    });
+  } finally {
+    await cleanup();
+  }
+});
+
+// Pins the read-only doc-serving GUARD: /api/docs/content refuses a path-traversal id, a non-.md id,
+// and a non-existent doc with 404 'doc not found' and NEVER leaks file contents. Fall-through (the
+// unimplemented state) yields the wrapper's 'not handled' body, so asserting the exact 'doc not found'
+// message keeps this red until the route actually OWNS and guards the request.
+test("boot-read-routes: GET /api/docs/content 404s traversal / non-md / missing ids with 'doc not found' and no leak", async () => {
+  const { dir, cleanup } = await seedDocsDir();
+  try {
+    const handler = createBootReadRoutes({
+      docsDir: dir,
+      listComments: async () => [],
+    });
+
+    await withServer(handler, async (base) => {
+      for (const badId of [
+        "..%2F..%2Fpackage.json", // path traversal out of docsDir
+        "decisions%2F0001-some-decision", // valid file but non-.md id
+        "decisions%2F9999-does-not-exist.md", // valid shape, no such file
+      ]) {
+        const res = await fetch(`${base}/api/docs/content?id=${badId}`);
+        assert.equal(res.status, 404, `id=${badId} must 404`);
+        const body = (await res.json()) as Record<string, unknown>;
+        assert.equal(
+          body["error"],
+          "doc not found",
+          `id=${badId} must return the guard's 'doc not found' — not fall through, not leak`,
+        );
+        assert.equal(
+          body["markdown"],
+          undefined,
+          `id=${badId} must never leak file contents`,
+        );
+      }
+    });
+  } finally {
+    await cleanup();
+  }
+});
+
 // Pins the /api/comments route: the handler calls the injected listComments seam and returns its
 // result as a BARE ARRAY. The studio frontend's boot Promise.all calls /api/comments with no
 // filter; a wrong envelope (e.g. { comments: [...] }) reads as malformed — the exact "boots to
