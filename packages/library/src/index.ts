@@ -50,6 +50,9 @@ export { renderBody, generateTemplate } from "./knowledge-render.js";
 // Browser-safe (no node:, no fs, no clock) — the CLI reads the memory files off disk and passes
 // already-parsed `MemoryFile[]` in; the librarian-curator finalises the emitted candidates.
 export * from "./graduation/graduation.js";
+// ADR-0202: the parked-memory lease compute (content-hash change detection, lease-expiry date
+// math, and the new/changed/expired/parked classifier). Pure, browser-safe — see the module header.
+export * from "./graduation/park.js";
 export {
   groupSources,
   SOURCE_GROUP_ORDER,
