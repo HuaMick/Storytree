@@ -65,7 +65,15 @@ import { agentsCommand, agentStepCommand, agentsHelp } from "./agents.js";
 import { attestCommand, attestHelp, type AttestationStoreLike, type AttestDeps } from "./attest.js";
 import { runDrift, driftHelp } from "./drift.js";
 import { renderDoctrine } from "./doctrine.js";
-import { graduateCommand, defaultMemoryDir, defaultSnapshotPath } from "./graduate.js";
+import {
+  graduateCommand,
+  defaultLedgerPath,
+  defaultMemoryDir,
+  defaultSnapshotPath,
+  parkCommand,
+  parseParkFile,
+  type ParkItem,
+} from "./graduate.js";
 import { emitNodeEnvelope, type Envelope } from "./envelope.js";
 import {
   libraryHealth,
@@ -814,15 +822,20 @@ function graduateHelp(): Envelope {
   return {
     ok: true,
     body: [
-      "storytree library graduate — the agent-memory → Library graduation worklist (ADR-0095).",
+      "storytree library graduate — the agent-memory → Library graduation worklist (ADR-0095 / ADR-0202).",
       "",
       "Reads the harness agent-memory store, classifies each durable memory to its Library kind,",
-      "resolves its [[wiki-links]] against the seed corpus, and flags duplicates. READ-ONLY: it",
-      "prints a worklist for the librarian-curator to finalise — it never authors Library docs.",
+      "resolves its [[wiki-links]] against the seed corpus, and flags duplicates. The worklist is",
+      "park-lease-filtered (ADR-0202): only new / changed / lease-expired candidates show LIVE; a",
+      "reviewed wont-graduate verdict PARKS a memory until it changes or its lease expires.",
       "",
-      "  storytree library graduate                    the summary worklist",
+      "  storytree library graduate                    the summary worklist (read-only)",
       "  storytree library graduate --review           full per-candidate detail (incl. the body)",
       "  storytree library graduate --memory-dir <p>   read memory from <p> (default: the harness store)",
+      '  storytree library graduate park <name> --reason "<why>" [--lease-days <n>]',
+      "                                                record a park verdict (default lease 60 days)",
+      "  storytree library graduate park --file <parks.json>",
+      "                                                batch: [{ name, reason, leaseDays? }]",
     ].join("\n"),
     next: ["storytree library graduate --review", "storytree library"],
   };
@@ -1600,6 +1613,7 @@ export async function run(argv: readonly string[], deps: RunDeps): Promise<Envel
     reason?: string;
     "superseded-by"?: string;
     "memory-dir"?: string;
+    "lease-days"?: string;
     review?: boolean;
     readings?: string;
     write?: boolean;
@@ -1660,6 +1674,8 @@ export async function run(argv: readonly string[], deps: RunDeps): Promise<Envel
         reason: { type: "string" },
         "superseded-by": { type: "string" },
         "memory-dir": { type: "string" },
+        // `storytree library graduate park` — the lease override in days (ADR-0202; default 60).
+        "lease-days": { type: "string" },
         review: { type: "boolean", default: false },
         readings: { type: "string" },
         write: { type: "boolean", default: false },
@@ -2309,18 +2325,72 @@ export async function run(argv: readonly string[], deps: RunDeps): Promise<Envel
   if (sub === "export-corpus") return exportCorpusCommand(deps, { write: values.write === true });
 
   if (sub === "graduate") {
-    if (help) return graduateHelp();
     // Default the memory dir to the harness store keyed by the MAIN checkout (works from a worktree);
     // --memory-dir overrides. The snapshot is the offline seed corpus (ADR-0095 reads it, not the DB).
-    // `defaultMemoryDir`/`defaultSnapshotPath` are shared with the `check:graduation-worklist` gate
-    // nudge so the two never drift on where memory / the seed live (@storytree/cli graduate.ts).
+    // `defaultMemoryDir`/`defaultSnapshotPath`/`defaultLedgerPath` are shared with the
+    // `check:graduation-worklist` gate nudge so the two never drift on where memory / the seed /
+    // the park ledger live (@storytree/cli graduate.ts).
     const memoryDir = values["memory-dir"] ?? defaultMemoryDir(os.homedir());
+    const now = new Date().toISOString().slice(0, 10);
+
+    if (third === "park") {
+      // ADR-0202: record a librarian park verdict (wont-graduate + reason + hash + lease). A
+      // machine-local ledger write, deliberately NOT --pg-gated (agent memory is per-machine).
+      if (help) return graduateHelp();
+      let items: ParkItem[];
+      if (values.file !== undefined) {
+        try {
+          items = parseParkFile(readFileSync(values.file, "utf8"));
+        } catch (e) {
+          return {
+            ok: false,
+            body: `could not read the park batch file ${values.file}: ${(e as Error).message}\n\nExpected a JSON array of { "name": "<memory>", "reason": "<why it stays>", "leaseDays"?: <days> }.`,
+            next: ["storytree library graduate   (the current worklist)"],
+          };
+        }
+      } else {
+        if (fourth === undefined || values.reason === undefined) {
+          return {
+            ok: false,
+            body: [
+              "graduate park needs a memory name AND a reason (the recorded verdict is the point, ADR-0202):",
+              "",
+              '  storytree library graduate park <name> --reason "<why it stays in memory>" [--lease-days <n>]',
+              "  storytree library graduate park --file <parks.json>   (batch: [{ name, reason, leaseDays? }])",
+            ].join("\n"),
+            next: ["storytree library graduate   (the current worklist)"],
+          };
+        }
+        let leaseDays: number | undefined;
+        if (values["lease-days"] !== undefined) {
+          leaseDays = Number.parseInt(values["lease-days"], 10);
+          if (!Number.isInteger(leaseDays) || leaseDays <= 0) {
+            return {
+              ok: false,
+              body: `--lease-days must be a positive integer (got ${JSON.stringify(values["lease-days"])})`,
+              next: ["storytree library graduate park <name> --reason <why> --lease-days 60"],
+            };
+          }
+        }
+        items = [
+          {
+            name: fourth,
+            reason: values.reason,
+            ...(leaseDays !== undefined ? { leaseDays } : {}),
+          },
+        ];
+      }
+      return parkCommand(items, { memoryDir, ledgerPath: defaultLedgerPath(memoryDir), now });
+    }
+
+    if (help) return graduateHelp();
     return graduateCommand(
       { review: values.review === true },
       {
         memoryDir,
         snapshotPath: defaultSnapshotPath(),
-        now: new Date().toISOString().slice(0, 10),
+        ledgerPath: defaultLedgerPath(memoryDir),
+        now,
       },
     );
   }

@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+
+import { parseParkLedger } from "@storytree/library";
 
 import {
   parseMemoryFile,
@@ -12,7 +14,11 @@ import {
   harnessMemoryDir,
   graduateCommand,
   graduationNudge,
+  defaultLedgerPath,
   defaultSnapshotPath,
+  parkCommand,
+  parseParkFile,
+  readParkLedger,
   GRADUATION_NUDGE_TAG,
 } from "./graduate.js";
 
@@ -133,9 +139,9 @@ function mem(m: Mem): string {
   ].join("\n");
 }
 
-/** Stand up a temp memory dir + a temp seed snapshot, run graduate, and clean up. */
+/** Stand up a temp memory dir + a temp seed snapshot + a ledger path, run graduate, and clean up. */
 function withFixture(
-  run: (deps: { memoryDir: string; snapshotPath: string; now: string }) => void,
+  run: (deps: { memoryDir: string; snapshotPath: string; ledgerPath: string; now: string }) => void,
 ): void {
   const dir = mkdtempSync(path.join(tmpdir(), "grad-"));
   try {
@@ -158,7 +164,7 @@ function withFixture(
         { id: "another-doc", kind: "principle", title: "Another Doc" },
       ]),
     );
-    run({ memoryDir, snapshotPath, now: "2026-06-22" });
+    run({ memoryDir, snapshotPath, ledgerPath: defaultLedgerPath(memoryDir), now: "2026-06-22" });
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -168,12 +174,16 @@ test("graduate (summary) lists novel candidates and surfaces every suppression",
   withFixture((deps) => {
     const env = graduateCommand({ review: false }, deps);
     assert.equal(env.ok, true);
-    // The always-visible tally — counts can never be silently hidden (ADR-0095).
-    assert.match(env.body, /tally: 2 novel, 1 duplicate suppressed, 1 user-tier deferred, 1 unparseable\./);
-    // Novel: the reference (→ definition, with a resolved wiki-link) and the feedback (→ principle).
-    assert.match(env.body, /NOVEL candidates \(2\)/);
-    assert.match(env.body, /a-reference {2}→ definition {3}refs: asset:existing-thing/);
-    assert.match(env.body, /feedback-rule {2}→ principle {3}refs: —/);
+    // The always-visible tally — counts can never be silently hidden (ADR-0095 / ADR-0202).
+    assert.match(
+      env.body,
+      /tally: 2 live \(2 new, 0 changed, 0 lease-expired\), 0 parked, 1 duplicate suppressed, 1 user-tier deferred, 1 unparseable\./,
+    );
+    // Live: the reference (→ definition, with a resolved wiki-link) and the feedback (→ principle),
+    // both `[new]` under an empty park ledger.
+    assert.match(env.body, /LIVE candidates \(2\)/);
+    assert.match(env.body, /a-reference {2}→ definition {3}refs: asset:existing-thing {3}\[new\]/);
+    assert.match(env.body, /feedback-rule {2}→ principle {3}refs: — {3}\[new\]/);
     // Suppressed: existing-thing dedupes by name against the snapshot doc id.
     assert.match(env.body, /SUPPRESSED as duplicates \(1\)/);
     assert.match(env.body, /existing-thing {2}→ covered by existing-thing {2}"An Existing Thing"/);
@@ -199,9 +209,10 @@ test("graduate --review expands each candidate with provenance + body", () => {
 });
 
 test("graduate returns ok:false with guidance when the memory dir is unreadable", () => {
+  const missing = path.join(tmpdir(), "definitely-not-here-grad");
   const env = graduateCommand(
     { review: false },
-    { memoryDir: path.join(tmpdir(), "definitely-not-here-grad"), snapshotPath: "x", now: "2026-06-22" },
+    { memoryDir: missing, snapshotPath: "x", ledgerPath: defaultLedgerPath(missing), now: "2026-06-22" },
   );
   assert.equal(env.ok, false);
   assert.match(env.body, /could not read memory dir/);
@@ -210,29 +221,46 @@ test("graduate returns ok:false with guidance when the memory dir is unreadable"
 
 // ---- the pre-merge nudge (the `check:graduation-worklist` gate surface) -----------------------
 
-test("graduationNudge: zero candidates reports OK with no WARN noise", () => {
-  const n = graduationNudge(0);
-  assert.equal(n.level, "OK");
-  assert.equal(n.lines.length, 1);
-  assert.match(n.lines[0] ?? "", /OK — no agent-memory candidates await graduation/);
+test("graduationNudge: zero live candidates reports OK, naming the parked suppression (ADR-0202)", () => {
+  const quiet = graduationNudge({ new: 0, changed: 0, expired: 0, parked: 0 });
+  assert.equal(quiet.level, "OK");
+  assert.equal(quiet.lines.length, 1);
+  assert.match(quiet.lines[0] ?? "", /OK — no live agent-memory candidates await graduation\./);
+
+  // Parked-but-quiet: the suppression is visible on the OK line, never silent (ADR-0095).
+  const parked = graduationNudge({ new: 0, changed: 0, expired: 0, parked: 70 });
+  assert.equal(parked.level, "OK");
+  assert.match(parked.lines[0] ?? "", /\(70 parked under lease, ADR-0202\)/);
   // Every line is tagged so the gate output stays greppable.
-  assert.ok(n.lines.every((l) => l.startsWith(GRADUATION_NUDGE_TAG)));
+  assert.ok(parked.lines.every((l) => l.startsWith(GRADUATION_NUDGE_TAG)));
 });
 
-test("graduationNudge: N>0 WARNs with the count and the actionable next step", () => {
-  const n = graduationNudge(3);
+test("graduationNudge: live candidates WARN with the new/changed/expired breakdown", () => {
+  const n = graduationNudge({ new: 2, changed: 1, expired: 0, parked: 67 });
   assert.equal(n.level, "WARN");
-  // The count is named so the orchestrator sees the backlog at the pre-merge moment (ADR-0095 D7).
-  assert.match(n.lines[0] ?? "", /WARN — 3 agent-memory candidate\(s\) await a librarian graduation pass/);
-  // The pointer routes to the review command AND names who applies the durability bar (D8).
+  // The count + breakdown are named so the orchestrator sees the backlog pre-merge (ADR-0095 D7).
+  assert.match(n.lines[0] ?? "", /WARN — 3 live agent-memory candidate\(s\)/);
+  assert.match(n.lines[0] ?? "", /2 new, 1 changed since review/);
+  // The pointer routes to the review command, the librarian, AND the park verdict (ADR-0202).
   const joined = n.lines.join("\n");
   assert.match(joined, /storytree library graduate --review/);
   assert.match(joined, /librarian-curator/);
+  assert.match(joined, /graduate park <name> --reason/);
   assert.ok(n.lines.every((l) => l.startsWith(GRADUATION_NUDGE_TAG)));
 });
 
-test("graduationNudge: a negative count is treated as empty (defensive), not a WARN", () => {
-  assert.equal(graduationNudge(-1).level, "OK");
+test("graduationNudge: lease-expired candidates surface the inverted re-review question", () => {
+  const n = graduationNudge({ new: 0, changed: 0, expired: 2, parked: 68 });
+  assert.equal(n.level, "WARN");
+  assert.match(n.lines[0] ?? "", /2 lease-expired/);
+  const joined = n.lines.join("\n");
+  // The expiry inverts the question (ADR-0202 D3): alive-check, three honest outcomes.
+  assert.match(joined, /is this still alive\?/);
+  assert.match(joined, /re-park \/ delete \/ graduate-then-delete/);
+});
+
+test("graduationNudge: negative counts are treated as empty (defensive), not a WARN", () => {
+  assert.equal(graduationNudge({ new: -1, changed: 0, expired: 0, parked: 0 }).level, "OK");
 });
 
 test("defaultSnapshotPath resolves to the seed corpus under apps/studio/data", () => {
@@ -240,4 +268,135 @@ test("defaultSnapshotPath resolves to the seed corpus under apps/studio/data", (
     defaultSnapshotPath().endsWith(path.join("apps", "studio", "data", "knowledge.json")),
     defaultSnapshotPath(),
   );
+});
+
+// ---- ADR-0202: the park verdict (ledger seam + `graduate park` + the lease-filtered worklist) --
+
+test("defaultLedgerPath sits BESIDE the memory dir (machine-local, carried by --memory-dir)", () => {
+  const d = defaultLedgerPath(path.join("home", ".claude", "projects", "C--code-storytree", "memory"));
+  assert.equal(d, path.join("home", ".claude", "projects", "C--code-storytree", "graduation-park.json"));
+});
+
+test("readParkLedger: a missing file is the normal empty state, not a problem", () => {
+  const r = readParkLedger(path.join(tmpdir(), "no-such-ledger-here.json"));
+  assert.deepEqual(r.ledger, { version: 1, parks: {} });
+  assert.equal(r.problem, undefined);
+});
+
+test("park records the verdict, silences the candidate, and an edit re-enters it (ADR-0202 D1/D2)", () => {
+  withFixture((deps) => {
+    // Park one of the two live candidates with a reason.
+    const parked = parkCommand(
+      [{ name: "a-reference", reason: "machine-specific ops trap — saves re-discovery" }],
+      deps,
+    );
+    assert.equal(parked.ok, true, parked.body);
+    assert.match(parked.body, /a-reference {2}parked — lease expires 2026-08-21 \(60d, hash [0-9a-f]{8}\)/);
+
+    // The ledger persisted the full record.
+    const ledger = parseParkLedger(JSON.parse(readFileSync(deps.ledgerPath, "utf8")));
+    const rec = ledger.parks["a-reference"];
+    assert.ok(rec !== undefined);
+    assert.equal(rec.verdict, "wont-graduate");
+    assert.equal(rec.reason, "machine-specific ops trap — saves re-discovery");
+    assert.equal(rec.reviewedAt, "2026-06-22");
+    assert.equal(rec.leaseDays, 60);
+
+    // The worklist now shows 1 live / 1 parked, with the parked reason + expiry surfaced.
+    const env = graduateCommand({ review: false }, deps);
+    assert.match(env.body, /tally: 1 live \(1 new, 0 changed, 0 lease-expired\), 1 parked/);
+    assert.match(env.body, /PARKED \(1\)/);
+    assert.match(env.body, /a-reference {2}— machine-specific ops trap — saves re-discovery {2}\(lease expires 2026-08-21\)/);
+
+    // Edit the parked memory — the hash breaks and it re-enters the worklist immediately (D2).
+    writeFileSync(
+      path.join(deps.memoryDir, "a-reference.md"),
+      mem({ name: "a-reference", type: "reference", body: "EDITED body — see [[An Existing Thing]]." }),
+    );
+    const after = graduateCommand({ review: false }, deps);
+    assert.match(after.body, /tally: 2 live \(1 new, 1 changed, 0 lease-expired\), 0 parked/);
+    assert.match(after.body, /a-reference {2}→ definition.*\[changed\]/);
+  });
+});
+
+test("park refuses an unknown memory all-or-nothing (nothing written)", () => {
+  withFixture((deps) => {
+    const env = parkCommand(
+      [
+        { name: "a-reference", reason: "valid" },
+        { name: "no-such-memory", reason: "typo" },
+      ],
+      deps,
+    );
+    assert.equal(env.ok, false);
+    assert.match(env.body, /park refused — 1 of 2 item\(s\) failed validation/);
+    assert.match(env.body, /no-such-memory: no such memory/);
+    // All-or-nothing: the valid item was NOT written either.
+    assert.equal(readParkLedger(deps.ledgerPath).ledger.parks["a-reference"], undefined);
+  });
+});
+
+test("park --file batch parses, applies a lease override, and re-park refreshes (ADR-0202 D3)", () => {
+  withFixture((deps) => {
+    const items = parseParkFile(
+      JSON.stringify([
+        { name: "a-reference", reason: "keeper", leaseDays: 10 },
+        { name: "feedback-rule", reason: "un-graduated preference" },
+      ]),
+    );
+    const env = parkCommand(items, deps);
+    assert.equal(env.ok, true, env.body);
+    assert.match(env.body, /parked 2 memories/);
+    // The 10-day override: 2026-06-22 + 10 = 2026-07-02.
+    assert.match(env.body, /a-reference {2}parked — lease expires 2026-07-02 \(10d/);
+
+    // Everything live is now parked → the worklist is quiet.
+    const quiet = graduateCommand({ review: false }, deps);
+    assert.match(quiet.body, /tally: 0 live \(0 new, 0 changed, 0 lease-expired\), 2 parked/);
+    assert.match(quiet.body, /LIVE candidates \(0\)/);
+
+    // Past the short lease the candidate returns as lease-expired (inclusive boundary).
+    const expired = graduateCommand({ review: false }, { ...deps, now: "2026-07-02" });
+    assert.match(expired.body, /tally: 1 live \(0 new, 0 changed, 1 lease-expired\), 1 parked/);
+    assert.match(expired.body, /a-reference {2}→ definition.*\[lease-expired\]/);
+
+    // Re-park (the re-park outcome of the expiry re-review) refreshes the record in place.
+    const reparked = parkCommand([{ name: "a-reference", reason: "still alive" }], { ...deps, now: "2026-07-02" });
+    assert.equal(reparked.ok, true, reparked.body);
+    assert.match(reparked.body, /a-reference {2}parked \(refreshed\) — lease expires 2026-08-31 \(60d/);
+  });
+});
+
+test("park fails CLOSED on a corrupt ledger; the read paths treat it as empty and SURFACE it", () => {
+  withFixture((deps) => {
+    writeFileSync(deps.ledgerPath, "{ not json");
+    // The write refuses — recorded verdicts are never silently clobbered.
+    const env = parkCommand([{ name: "a-reference", reason: "r" }], deps);
+    assert.equal(env.ok, false);
+    assert.match(env.body, /park refused — the existing ledger file does not parse/);
+    // The read path stays advisory: worklist shows everything live + surfaces the problem.
+    const read = graduateCommand({ review: false }, deps);
+    assert.equal(read.ok, true);
+    assert.match(read.body, /tally: 2 live/);
+    assert.match(read.body, /PARK LEDGER unreadable — treated as EMPTY/);
+  });
+});
+
+test("park prunes an orphaned record (memory deleted) on write, surfaced by name", () => {
+  withFixture((deps) => {
+    parkCommand([{ name: "a-reference", reason: "keeper" }], deps);
+    rmSync(path.join(deps.memoryDir, "a-reference.md"));
+    const env = parkCommand([{ name: "feedback-rule", reason: "also keeper" }], deps);
+    assert.equal(env.ok, true, env.body);
+    assert.match(env.body, /pruned 1 orphaned record\(s\) \(memory deleted\): a-reference/);
+    const ledger = readParkLedger(deps.ledgerPath).ledger;
+    assert.equal(ledger.parks["a-reference"], undefined);
+    assert.ok(ledger.parks["feedback-rule"] !== undefined);
+  });
+});
+
+test("parseParkFile rejects an empty array, a missing reason, and a non-positive lease", () => {
+  assert.throws(() => parseParkFile("[]"));
+  assert.throws(() => parseParkFile(JSON.stringify([{ name: "x" }])));
+  assert.throws(() => parseParkFile(JSON.stringify([{ name: "x", reason: "r", leaseDays: 0 }])));
 });
