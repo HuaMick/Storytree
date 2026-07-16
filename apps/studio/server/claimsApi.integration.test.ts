@@ -12,7 +12,15 @@ import { handleClaims } from './devApi';
 import { HttpError } from './httpUtil';
 import { groupClaimsBySession, type ClaimDocT } from '@storytree/notice-board';
 
-const now = new Date('2026-07-16T12:00:00.000Z');
+// Time-RELATIVE fixtures (not a fixed date): the endpoint folds with its OWN `new Date()`, so fixed
+// past timestamps age the heartbeats past CLAIM_STALE_RECLAIM_MS (2h) and `groupClaimsBySession` DROPS
+// them — a date-rollover time-bomb that fired the day after these were authored (the endpoint answered
+// `{ sessions: [] }` while `expected`, folded at the fixed `now`, still had two groups). Anchor every
+// timestamp to a real `now` so the claims stay live whenever the suite runs; `ageMs` — the only
+// now-sensitive output — is stripped before the comparison below.
+const now = new Date();
+const ago = (ms: number): string => new Date(now.getTime() - ms).toISOString();
+const MIN = 60_000;
 
 const workClaim: ClaimDocT = {
   unitId: 'story-a',
@@ -20,8 +28,8 @@ const workClaim: ClaimDocT = {
   branch: 'claude/sess-old',
   intent: 'real',
   grade: 'work',
-  claimedAt: '2026-07-16T10:00:00.000Z',
-  heartbeatAt: '2026-07-16T11:59:00.000Z',
+  claimedAt: ago(120 * MIN), // the older session — grouped first (by oldest claim)
+  heartbeatAt: ago(1 * MIN), // fresh — well inside the 2h stale-reclaim window
 };
 
 const exploringClaim: ClaimDocT = {
@@ -30,8 +38,8 @@ const exploringClaim: ClaimDocT = {
   branch: 'claude/sess-new',
   intent: 'scoping the map',
   grade: 'exploring',
-  claimedAt: '2026-07-16T11:30:00.000Z',
-  heartbeatAt: '2026-07-16T11:58:00.000Z',
+  claimedAt: ago(30 * MIN),
+  heartbeatAt: ago(2 * MIN),
 };
 
 // The stub flips per test — handleClaims only needs sessionClaims().

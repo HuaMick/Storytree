@@ -104,6 +104,16 @@ export interface LocalBackendBackend {
    * `null` (advisory absence). Production wires it (electron/backend-entry.ts) to fold events.node_claim.
    */
   inFlightClaims?: () => Promise<unknown[] | null>;
+  /**
+   * EVERY live claim row, all units, all grades (ADR-0200 D7 — the session dock's
+   * claims-grouped-by-session view): the raw claim docs from events.node_claim (PgClaimStore.listLiveClaims,
+   * staleness-filtered in SQL). Distinct from {@link inFlightClaims} (which folds to a map-wisp and drops
+   * the grade): this stays the raw shape so the `/api/claims` handler folds it through the pure
+   * `groupClaimsBySession`. Optional like {@link inFlightClaims}: a narrow stub may omit it, and
+   * `/api/claims` falls back to `{ sessions: null }` (advisory absence, never an over-claim). Production
+   * wires it (electron/backend-entry.ts) over PgClaimStore.listLiveClaims.
+   */
+  sessionClaims?: () => Promise<unknown[] | null>;
 }
 
 /**
@@ -201,6 +211,8 @@ async function buildTreePayload(deps: LocalBackendDeps): Promise<Record<string, 
  * - GET  /api/activity — the map-activity wisp layer: in-flight builds (ADR-0048) + story claims
  *                        (ADR-0138), `{ builds, claims }` — both advisory
  * - GET  /api/presence — the active-session layer (ADR-0033), `{ sessions }`
+ * - GET  /api/claims   — the claim-ledger DOCK view (ADR-0200 D7), `{ sessions }` — live claim rows
+ *                        grouped by session (advisory: `{ sessions: null }` when the seam/DB is silent)
  * - GET  /api/assets   — library assets from the injected `backend`
  * - POST /api/build    — dispatch a build intent via the injected `build` seam (404 when absent)
  * - *    /api/*        — 404 with an error body
@@ -238,6 +250,30 @@ export function createLocalBackend(
         // the backend can't answer). Mirrors the studio's GET /api/presence (handlePresence).
         if ((req.method ?? "GET") !== "GET") throw new HttpError(405, "method not allowed");
         sendJson(res, 200, { sessions: await deps.backend.activeSessions() });
+      } else if (url.pathname === "/api/claims") {
+        // The claim-ledger DOCK view (ADR-0200 D7): every live claim row folded by session through the
+        // pure `groupClaimsBySession` so the desktop session dock renders "who's doing what, grouped by
+        // session" — the SAME shape the studio's GET /api/claims produces (handleClaims), re-composed
+        // here (no apps/studio/server import, ADR-0100). Sibling to /api/presence + /api/activity, but its
+        // OWN endpoint (the dock fetches it only while open, not on the world's poll cadence). Advisory:
+        // `sessionClaims` absent / a down DB → 200 `{ sessions: null }`, never a 503; the only error path
+        // is the 405 method guard. `groupClaimsBySession` rides the existing `loadNoticeBoard` lazy loader
+        // (browser-safe zod, no `node:`/`pg` import), so this module stays bundle-safe.
+        if ((req.method ?? "GET") !== "GET") throw new HttpError(405, "method not allowed");
+        const claims = (await (deps.backend.sessionClaims?.() ?? Promise.resolve(null))) as
+          | unknown[]
+          | null;
+        if (claims === null) {
+          sendJson(res, 200, { sessions: null });
+        } else {
+          const { groupClaimsBySession } = await loadNoticeBoard();
+          sendJson(res, 200, {
+            sessions: groupClaimsBySession(
+              claims as Parameters<typeof groupClaimsBySession>[0],
+              new Date(),
+            ),
+          });
+        }
       } else if (url.pathname === "/api/assets") {
         if ((req.method ?? "GET") !== "GET") throw new HttpError(405, "method not allowed");
         const assets = await deps.backend.listAssets();
