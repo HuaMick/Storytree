@@ -173,7 +173,7 @@ drive are human-witness actions (`_(witness: human)_`, ADR-0070 / ADR-0040), rec
    replacement with status `open`, author = the member.
 6. **A member cannot accept/reject.** _(witness: machine)_ As a member, attempt accept and reject on
    the suggestion. **Success —** both refused (member scope); the suggestion stays `open`.
-7. **The owner accepts.** _(witness: human + machine)_ As the owner/admin, click Accept. **Success —**
+7. **The owner accepts.** _(witness: human)_ As the owner/admin, click Accept. **Success —**
    the suggestion flips `open → accepted`, the edit is applied to the document through the admin
    asset-write path, and re-deciding the now-closed suggestion is refused.
 8. **Live refresh, no reload.** _(witness: human)_ With the open-question open, a second comment /
