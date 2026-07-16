@@ -588,13 +588,20 @@ export function worktreeHelp(): Envelope {
   return {
     ok: true,
     body: [
-      "storytree worktree — worktree lifecycle hygiene (ADR-0142 / ADR-0033).",
+      "storytree worktree — worktree lifecycle hygiene (ADR-0200 / ADR-0142 / ADR-0033): create and reap are inverse ceremonies.",
+      "",
+      '  storytree worktree create --node <story>… --intent "<what>" --pg',
+      "                                             the claim-gated workspace ceremony (ADR-0200 D3): takes the",
+      "                                             exploring claim(s) FIRST (no claim, no workspace), mints the",
+      "                                             <arc>-<story>-<suffix> name (basename = your session id),",
+      "                                             cuts the worktree off origin/main, installs, and returns the",
+      "                                             start payload (claims + board digest + work-from-this-path).",
       "",
       "  storytree worktree prune [--force --yes]   reap DEAD worktrees under .claude/worktrees/:",
       "                                             registered worktrees merged into origin/main, clean,",
       "                                             and idle; plus orphaned dirs git no longer tracks.",
       "",
-      "flags:",
+      "prune flags:",
       "  --dry-run            (default) print what WOULD be reaped, remove nothing",
       "  --force --yes        actually remove (both required — there is no interactive prompt)",
       "  --cap <n>            reap at most n this run (the SessionStart hook caps it small)",
@@ -605,6 +612,10 @@ export function worktreeHelp(): Envelope {
       "NEVER reaped: the primary checkout, the current worktree, unmerged branches, dirty trees,",
       "or (without --include-detached) detached-HEAD gate worktrees.",
     ].join("\n"),
-    next: ["storytree worktree prune", "storytree worktree prune --force --yes"],
+    next: [
+      'storytree worktree create --node <story> --intent "<what>" --pg',
+      "storytree worktree prune",
+      "storytree worktree prune --force --yes",
+    ],
   };
 }

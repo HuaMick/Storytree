@@ -39,6 +39,8 @@ import {
   type WorktreeIo,
   type PruneOptions,
 } from "./worktree.js";
+// `worktree create` — the claim-gated workspace ceremony (ADR-0200 D3).
+import { createWorktree, type WorktreeCreateIo } from "./worktree-create.js";
 import {
   desktopHelp,
   desktopInstallShortcut,
@@ -844,7 +846,7 @@ async function topHelp(store: Store): Promise<Envelope> {
       "  friction         file what fought you → the Library (ADR-0168) — new | migrate | reinforce | route | list",
       "  noticeboard      the claim ledger (ADR-0200/0033) — view | declare | done | claim | upgrade | downgrade | release | claims",
       "  branch next      a branch dies on merge (ADR-0142) — succeed a dead branch: fresh cut + re-declare",
-      "  worktree prune   reap DEAD worktrees under .claude/worktrees/ (ADR-0142/0033) — merged+clean+idle; dry-run by default",
+      "  worktree         create (the claim-gated workspace ceremony, ADR-0200 D3) | prune (reap dead worktrees, ADR-0142/0033)",
       "  coverage         does every declared contract have an observed test? the coverage-honesty check (ADR-0020)",
       "  drift            is a proof's bound code still fresh? the binding-staleness flag (ADR-0016)",
       "  adr              search the decision log (adr list) + allocate numbers (ADR-0050/0086)",
@@ -1076,6 +1078,15 @@ export interface RunDeps {
   readonly worktree?: {
     readonly io?: WorktreeIo;
     readonly now?: () => number;
+    /**
+     * The `storytree worktree create` seams (ADR-0200 D3) — injected IO (git/fs/pnpm), arc stamps,
+     * and suffix draws keep the claim-gated ceremony offline-testable (no real worktree cut, no real
+     * install). Absent in production — real git/fs/pnpm, `storyArcStamps`, and random hex are used.
+     * The ledger itself rides `presence.ledger` (the same live claim store as the noticeboard verbs).
+     */
+    readonly createIo?: WorktreeCreateIo;
+    readonly stamps?: () => ReadonlyArray<{ story: string; arc: string }>;
+    readonly generateSuffix?: () => string;
   };
   /**
    * The `storytree desktop launch` seam: an injected `spawn`/`repoRoot`/`platform` make the
@@ -1847,11 +1858,31 @@ export async function run(argv: readonly string[], deps: RunDeps): Promise<Envel
     // dead — merged + clean + idle — with the primary, the current worktree, live sessions, dirty
     // trees, and detached gates all held back. Destructive, so a dry run is the default.
     if (help || sub === undefined) return worktreeHelp();
+    if (sub === "create") {
+      // ADR-0200 D3 — the claim-gated workspace ceremony: exploring claim(s) FIRST (no claim, no
+      // workspace), then mint → cut off origin/main → synchronous install → the start payload.
+      // The ledger is the SAME live claim store the noticeboard verbs drive (null offline → refuse).
+      return createWorktree(
+        { nodes: values.node ?? [], intent: values.intent ?? "" },
+        {
+          ledger: deps.presence?.ledger ?? null,
+          ...(deps.worktree?.createIo !== undefined ? { io: deps.worktree.createIo } : {}),
+          ...(deps.worktree?.stamps !== undefined ? { stamps: deps.worktree.stamps } : {}),
+          ...(deps.worktree?.generateSuffix !== undefined
+            ? { generateSuffix: deps.worktree.generateSuffix }
+            : {}),
+        },
+      );
+    }
     if (sub !== "prune") {
       return {
         ok: false,
-        body: `unknown worktree command "${sub}". try: storytree worktree prune`,
-        next: ["storytree worktree prune", "storytree worktree --help"],
+        body: `unknown worktree command "${sub}". try: storytree worktree create | storytree worktree prune`,
+        next: [
+          'storytree worktree create --node <story> --intent "<what>" --pg',
+          "storytree worktree prune",
+          "storytree worktree --help",
+        ],
       };
     }
     // Optional --pg consult: the notice board is the authoritative "is a session live here" signal;
