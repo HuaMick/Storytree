@@ -712,15 +712,17 @@ test("statuslineGlance: no claims dep (older caller) → beat unchanged, nothing
 });
 
 // ---------------------------------------------------------------------------
-// undeclaredSessionNudge (ADR-0143)
+// undeclaredSessionNudge (ADR-0143, re-aimed by ADR-0200 D3)
 // ---------------------------------------------------------------------------
 
-test("undeclaredSessionNudge: a worktree identity gets the one-line anchor prompt naming the declare command", () => {
+test("undeclaredSessionNudge: a worktree identity gets the one-line claim-ledger prompt naming the claim command", () => {
   const line = undeclaredSessionNudge(IDENTITY);
-  assert.match(line, /UNDECLARED/);
+  assert.match(line, /UNCLAIMED/);
   assert.match(line, new RegExp(IDENTITY.sessionId));
-  assert.match(line, /noticeboard declare --working-on "<what>" --node <story-id> --pg/);
-  assert.match(line, /ADR-0142/);
+  assert.match(line, /noticeboard claim <story-id> --grade exploring --intent "<why>" --pg/);
+  assert.match(line, /worktree create --node <story-id> --intent "<what>" --pg/);
+  assert.match(line, /ADR-0200/);
+  assert.doesNotMatch(line, /noticeboard declare/, "the nudge no longer aims at declare (ADR-0200 D3)");
   assert.equal(line.trim().split("\n").length, 1, "exactly one line — SessionStart stdout is model context");
 });
 

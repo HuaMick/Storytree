@@ -202,7 +202,7 @@ export async function statuslineGlance(
 }
 
 // ---------------------------------------------------------------------------
-// undeclaredSessionNudge (ADR-0143)
+// undeclaredSessionNudge (ADR-0143, re-aimed at the claim ledger by ADR-0200 D3)
 // ---------------------------------------------------------------------------
 
 /**
@@ -210,15 +210,19 @@ export async function statuslineGlance(
  * the narrow, deliberate amendment of the hook's print-nothing contract. PURE and offline: no store
  * read, no clock — a recognised worktree identity in, the static anchor prompt out (`""` for a
  * plain checkout, so non-session shells stay silent). One line only: SessionStart stdout lands in
- * the model's context, and this is the ceremony the session must see first — anchoring via
- * `noticeboard declare --node` is what lights the story wisp (ADR-0142).
+ * the model's context, and this is the ceremony the session must see first. ADR-0200 D3's
+ * enforcement ratchet re-aims the nudge at the claim ledger: a hand-opened session anchors by
+ * claiming its story directly (the exploring claim is the hovering wisp on the map), while fresh
+ * workspaces are born claimed via the `worktree create` lobby ceremony.
  */
 export function undeclaredSessionNudge(identity: SessionIdentity | null): string {
   if (identity === null) return "";
   return (
-    `[storytree] Session "${identity.sessionId}" is UNDECLARED — once you know your unit, anchor it ` +
-    "(this lights the story wisp on the map, ADR-0142): " +
-    'pnpm storytree noticeboard declare --working-on "<what>" --node <story-id> --pg\n'
+    `[storytree] Session "${identity.sessionId}" is UNCLAIMED on the ledger (ADR-0200) — once you ` +
+    "know your story, claim it (the exploring claim is the hovering wisp on the map): " +
+    'pnpm storytree noticeboard claim <story-id> --grade exploring --intent "<why>" --pg. ' +
+    "Fresh workspaces are born claimed instead via the lobby ceremony (ADR-0200 D3): " +
+    'pnpm storytree worktree create --node <story-id> --intent "<what>" --pg\n'
   );
 }
 

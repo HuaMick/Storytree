@@ -45,7 +45,13 @@ Two never-blocking mechanisms, replacing discipline with structure without a cre
    deliberately printed NOTHING (SessionStart stdout lands in the model's context) — now prints
    exactly ONE line when the session is a recognised `.claude/worktrees/*` worktree: the undeclared-
    session nudge naming the `noticeboard declare --working-on … --node … --pg` command and why
-   (ADR-0142: the declare lights the story wisp). This is a deliberate, narrow amendment of the
+   (ADR-0142: the declare lights the story wisp). **[Corrected 2026-07-16 per ADR-0200 D3, which
+   amends this ADR: the nudge is re-aimed at the claim ledger — it now names `noticeboard claim
+   <story> --grade exploring --intent "<why>" --pg` for a hand-opened session (the exploring claim
+   is the hovering wisp) and the `worktree create` lobby ceremony for fresh workspaces; the
+   presence half of `noticeboard declare` is retiring with the presence store. The
+   SessionStart-injects-the-anchor mechanism below stands unchanged; only the command the one line
+   names has moved.]** This is a deliberate, narrow amendment of the
    print-nothing contract: one static line, offline-computable (no store read), fail-silent, still
    never registered on a blocking event. The agent sees the ceremony as its first instruction every
    session; no re-reading CLAUDE.md required. Machine sessions (build leaves in generated worktrees)
