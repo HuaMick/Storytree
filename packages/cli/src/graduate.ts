@@ -12,7 +12,7 @@
  * nothing is silently dropped (ADR-0095: no silent caps).
  */
 import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -21,11 +21,19 @@ import { z } from "zod";
 
 import {
   classifyMemory,
+  classifyWorklist,
+  emptyParkLedger,
   graduationCandidates,
+  leaseExpiresOn,
+  makeParkRecord,
   novelCandidates,
+  parseParkLedger,
   type GraduationCandidate,
   type LibrarySnapshot,
   type MemoryFile,
+  type ParkLedger,
+  type ParkWorklist,
+  type ParkWorklistCounts,
   type SnapshotDoc,
 } from "@storytree/library";
 
@@ -159,6 +167,49 @@ export function defaultSnapshotPath(): string {
   return path.join(cliRepoRoot(), "apps", "studio", "data", "knowledge.json");
 }
 
+// ---- ADR-0202: the park-ledger node seam ------------------------------------------------------
+
+/**
+ * The park ledger's default location: `graduation-park.json` BESIDE the memory dir (the project
+ * store dir, `~/.claude/projects/<slug>/graduation-park.json`). Machine-local state alongside the
+ * agent memory it describes (ADR-0202 — agent memory is per-machine, so its review ledger is too);
+ * derived from the memory dir so a `--memory-dir` override carries the ledger with it.
+ */
+export function defaultLedgerPath(memoryDir: string): string {
+  return path.join(path.dirname(memoryDir), "graduation-park.json");
+}
+
+export interface LedgerReadResult {
+  readonly ledger: ParkLedger;
+  /** why an existing ledger file was ignored (surfaced, never silently dropped — ADR-0095) */
+  readonly problem?: string;
+}
+
+/**
+ * Read the park ledger. A MISSING file is the normal pre-backfill state (empty ledger — every
+ * candidate classifies `new`); an EXISTING-but-invalid file is surfaced as `problem` and treated as
+ * empty for READ paths (the check stays advisory), while {@link parkCommand} fails closed on it
+ * (a write must never silently clobber recorded verdicts).
+ */
+export function readParkLedger(ledgerPath: string): LedgerReadResult {
+  let raw: string;
+  try {
+    raw = readFileSync(ledgerPath, "utf8");
+  } catch {
+    return { ledger: emptyParkLedger() };
+  }
+  try {
+    return { ledger: parseParkLedger(JSON.parse(raw)) };
+  } catch (e) {
+    return { ledger: emptyParkLedger(), problem: `${ledgerPath}: ${(e as Error).message}` };
+  }
+}
+
+/** Write the park ledger (pretty-printed — the owner may read/diff it by hand). */
+export function writeParkLedger(ledgerPath: string, ledger: ParkLedger): void {
+  writeFileSync(ledgerPath, JSON.stringify(ledger, null, 2) + "\n");
+}
+
 // ---- node: read the memory dir + the snapshot -----------------------------------------------
 
 /** A memory file that could not be parsed — surfaced, never silently dropped (ADR-0095). */
@@ -218,6 +269,8 @@ export interface GraduateDeps {
   readonly memoryDir: string;
   /** The seed corpus the offline snapshot is built from (apps/studio/data/knowledge.json). */
   readonly snapshotPath: string;
+  /** The park ledger beside the memory dir (ADR-0202) — see {@link defaultLedgerPath}. */
+  readonly ledgerPath: string;
   /** The ISO date stamped into each candidate's provenance — injected so the command is deterministic. */
   readonly now: string;
 }
@@ -235,12 +288,66 @@ function indentBlock(text: string, pad = "      "): string {
     .join("\n");
 }
 
+/** A live (non-parked) candidate with its park classification (`new` / `changed` / `expired`). */
+interface LiveCandidate {
+  readonly candidate: GraduationCandidate;
+  readonly status: "new" | "changed" | "expired";
+}
+
+/** A parked candidate with the recorded verdict that silences it (ADR-0202). */
+interface ParkedCandidate {
+  readonly candidate: GraduationCandidate;
+  readonly reason: string;
+  readonly expiresOn: string;
+}
+
 interface Worklist {
-  readonly novel: GraduationCandidate[];
+  /** the engine-novel candidates that are LIVE under the park ledger (ADR-0202 D4) */
+  readonly live: LiveCandidate[];
+  /** the engine-novel candidates silenced by a held park lease */
+  readonly parked: ParkedCandidate[];
+  readonly counts: ParkWorklistCounts;
   readonly duplicates: GraduationCandidate[];
   readonly userTier: MemoryFile[];
   readonly unparseable: Unparseable[];
+  /** an existing-but-invalid ledger file, surfaced (treated as empty on this read path) */
+  readonly ledgerProblem?: string;
   readonly titleOf: (id: string) => string;
+}
+
+/**
+ * Fold the park ledger over the engine-novel candidates (ADR-0202): classify each candidate's
+ * source memory against its (possibly absent) park record, split live from parked, and carry the
+ * parked verdict's reason + lease expiry for the suppressed section.
+ */
+function foldParkLedger(
+  novel: readonly GraduationCandidate[],
+  memories: readonly MemoryFile[],
+  ledger: ParkLedger,
+  now: string,
+): { live: LiveCandidate[]; parked: ParkedCandidate[]; counts: ParkWorklistCounts } {
+  const byName = new Map(memories.map((m) => [m.name, m] as const));
+  const novelMemories = novel
+    .map((c) => byName.get(c.source))
+    .filter((m): m is MemoryFile => m !== undefined);
+  const w: ParkWorklist = classifyWorklist(novelMemories, ledger, { now });
+  const statusOf = new Map(w.entries.map((e) => [e.memory.name, e.status] as const));
+  const live: LiveCandidate[] = [];
+  const parked: ParkedCandidate[] = [];
+  for (const candidate of novel) {
+    const status = statusOf.get(candidate.source) ?? "new";
+    if (status === "parked") {
+      const record = ledger.parks[candidate.source];
+      parked.push({
+        candidate,
+        reason: record?.reason ?? "",
+        expiresOn: record === undefined ? "" : leaseExpiresOn(record),
+      });
+    } else {
+      live.push({ candidate, status });
+    }
+  }
+  return { live, parked, counts: w.counts };
 }
 
 function header(deps: GraduateDeps, read: MemoryReadResult, snapshot: LibrarySnapshot): string[] {
@@ -256,15 +363,36 @@ function header(deps: GraduateDeps, read: MemoryReadResult, snapshot: LibrarySna
 /** The always-visible tally so a zero-count section is honest, not silently absent (ADR-0095). */
 function tally(w: Worklist): string {
   return [
-    `tally: ${w.novel.length} novel`,
+    `tally: ${w.live.length} live (${w.counts.new} new, ${w.counts.changed} changed, ${w.counts.expired} lease-expired)`,
+    `${w.parked.length} parked`,
     `${w.duplicates.length} duplicate${w.duplicates.length === 1 ? "" : "s"} suppressed`,
     `${w.userTier.length} user-tier deferred`,
     `${w.unparseable.length} unparseable.`,
   ].join(", ");
 }
 
+/** The `[new]` / `[changed]` / `[lease-expired]` label a live candidate carries in the worklist. */
+function liveLabel(status: LiveCandidate["status"]): string {
+  return status === "expired" ? "[lease-expired]" : `[${status}]`;
+}
+
 function suppressedSections(w: Worklist): string[] {
   const lines: string[] = [];
+  if (w.parked.length > 0) {
+    lines.push(
+      "",
+      `PARKED (${w.parked.length}) — reviewed wont-graduate, silenced while the lease holds (ADR-0202; an edit or lease expiry re-enters them):`,
+    );
+    for (const p of w.parked) {
+      lines.push(`  ${p.candidate.source}  — ${p.reason}  (lease expires ${p.expiresOn})`);
+    }
+  }
+  if (w.ledgerProblem !== undefined) {
+    lines.push(
+      "",
+      `PARK LEDGER unreadable — treated as EMPTY on this read (every novel candidate shows live): ${w.ledgerProblem}`,
+    );
+  }
   if (w.duplicates.length > 0) {
     lines.push(
       "",
@@ -292,22 +420,26 @@ function suppressedSections(w: Worklist): string[] {
 function formatSummary(deps: GraduateDeps, read: MemoryReadResult, snapshot: LibrarySnapshot, w: Worklist): string {
   const lines = [...header(deps, read, snapshot), "", tally(w), ""];
   lines.push(
-    `NOVEL candidates (${w.novel.length}) — the librarian-curator's worklist (this command does NOT write):`,
+    `LIVE candidates (${w.live.length}) — new / changed / lease-expired (ADR-0202); the librarian-curator's worklist (this command does NOT write):`,
   );
-  if (w.novel.length === 0) lines.push("  (none)");
-  else for (const c of w.novel) lines.push(`  ${c.source}  → ${c.target}   refs: ${refsLabel(c)}`);
+  if (w.live.length === 0) lines.push("  (none)");
+  else
+    for (const { candidate: c, status } of w.live)
+      lines.push(`  ${c.source}  → ${c.target}   refs: ${refsLabel(c)}   ${liveLabel(status)}`);
   lines.push(...suppressedSections(w));
   return lines.join("\n");
 }
 
 function formatReview(deps: GraduateDeps, read: MemoryReadResult, snapshot: LibrarySnapshot, w: Worklist): string {
   const lines = [...header(deps, read, snapshot), "", tally(w), ""];
-  lines.push(`NOVEL candidates (${w.novel.length}) — the librarian-curator authors the final fields from these:`);
-  if (w.novel.length === 0) lines.push("  (none)");
-  w.novel.forEach((c, i) => {
+  lines.push(
+    `LIVE candidates (${w.live.length}) — the librarian-curator authors the final fields from these (or parks: \`storytree library graduate park <name> --reason "…"\`):`,
+  );
+  if (w.live.length === 0) lines.push("  (none)");
+  w.live.forEach(({ candidate: c, status }, i) => {
     lines.push(
       "",
-      `[${i + 1}] ${c.source}`,
+      `[${i + 1}] ${c.source}   ${liveLabel(status)}`,
       `    target:     ${c.target}`,
       `    rationale:  ${c.rationale}`,
       `    provenance: ${c.provenance}`,
@@ -351,13 +483,18 @@ export function graduateCommand(opts: { review: boolean }, deps: GraduateDeps): 
 
   const candidates = graduationCandidates(read.memories, snapshot, { now: deps.now });
   const titleById = new Map(snapshot.docs.map((d) => [d.id, d.title] as const));
+  const { ledger, problem } = readParkLedger(deps.ledgerPath);
+  const fold = foldParkLedger(novelCandidates(candidates), read.memories, ledger, deps.now);
   const w: Worklist = {
-    novel: novelCandidates(candidates),
+    live: fold.live,
+    parked: fold.parked,
+    counts: fold.counts,
     duplicates: candidates.filter((c) => c.duplicateOf !== undefined),
     // The engine drops the `user` tier silently (it never graduates) — recover it from the parsed
     // memories so the worklist can SURFACE the deferral rather than hide it (ADR-0095: no silent caps).
     userTier: read.memories.filter((m) => classifyMemory(m.type) === null),
     unparseable: read.unparseable,
+    ...(problem !== undefined ? { ledgerProblem: problem } : {}),
     titleOf: (id) => titleById.get(id) ?? "(missing target)",
   };
 
@@ -391,28 +528,172 @@ export interface GraduationNudge {
 }
 
 /**
- * The pre-merge graduation NUDGE (ADR-0095 Decision 7): given the count of NOVEL agent-memory
- * candidates the offline engine surfaced, decide whether a librarian graduation pass is due before
- * the merge ceremony. Pure + deterministic — the {@link import("./check-graduation-worklist.js")}
- * gate script does the I/O and prints these lines.
+ * The pre-merge graduation NUDGE (ADR-0095 Decision 7, park-lease-filtered per ADR-0202 D4): given
+ * the park classification of the NOVEL agent-memory candidates, decide whether a librarian
+ * graduation pass is due before the merge ceremony. Pure + deterministic — the
+ * {@link import("./check-graduation-worklist.js")} gate script does the I/O and prints these lines.
  *
- * This is the missing PROMPT, not a graduation decision: it surfaces that candidates EXIST so the
- * orchestrator runs the pass; the genuine-durability judgment (and rejecting the event-specific
- * majority, ADR-0095 D8) stays the librarian-curator's. So it is advisory-only — never an error
- * level, exit 0 always (the best-effort posture of check:corpus-sync). `novel <= 0` → OK.
+ * This is the missing PROMPT, not a graduation decision: it surfaces that LIVE candidates EXIST so
+ * the orchestrator runs the pass; the genuine-durability judgment (and the park verdict) stays the
+ * librarian-curator's. Advisory-only — never an error level, exit 0 always. Only `new` + `changed`
+ * + `expired` count (ADR-0202: the WARN is normally zero and meaningful when it isn't); `parked`
+ * candidates are silenced while their lease holds, and their count rides the OK line so the
+ * suppression is visible, never silent (ADR-0095: no silent caps).
  */
-export function graduationNudge(novel: number): GraduationNudge {
-  if (novel <= 0) {
+export function graduationNudge(counts: ParkWorklistCounts): GraduationNudge {
+  const live = Math.max(0, counts.new) + Math.max(0, counts.changed) + Math.max(0, counts.expired);
+  const parked = Math.max(0, counts.parked);
+  if (live <= 0) {
+    const parkedNote = parked > 0 ? ` (${parked} parked under lease, ADR-0202)` : "";
     return {
       level: "OK",
-      lines: [`${GRADUATION_NUDGE_TAG} OK — no agent-memory candidates await graduation.`],
+      lines: [
+        `${GRADUATION_NUDGE_TAG} OK — no live agent-memory candidates await graduation${parkedNote}.`,
+      ],
     };
   }
+  const breakdown = [
+    counts.new > 0 ? `${counts.new} new` : undefined,
+    counts.changed > 0 ? `${counts.changed} changed since review` : undefined,
+    counts.expired > 0 ? `${counts.expired} lease-expired` : undefined,
+  ]
+    .filter((p): p is string => p !== undefined)
+    .join(", ");
+  const lines = [
+    `${GRADUATION_NUDGE_TAG} WARN — ${live} live agent-memory candidate(s) await a librarian pass before merge (ADR-0095 D7 / ADR-0202): ${breakdown}.`,
+    `${GRADUATION_NUDGE_TAG}   Review with \`pnpm storytree library graduate --review\`, then spawn the librarian-curator: graduate the genuinely durable, PARK the keepers with a reason (\`storytree library graduate park <name> --reason "…"\`).`,
+  ];
+  if (counts.expired > 0) {
+    lines.push(
+      `${GRADUATION_NUDGE_TAG}   Lease-expired items invert the question — "is this still alive?": re-park / delete / graduate-then-delete (ADR-0202 D3).`,
+    );
+  }
+  return { level: "WARN", lines };
+}
+
+// ---- `storytree library graduate park` (ADR-0202 — the librarian's park verdict write) ---------
+
+/** One park verdict: the memory's `name`, the recorded reason, an optional lease override (days). */
+export const ParkItemSchema = z.object({
+  name: z.string().min(1),
+  reason: z.string().min(1),
+  leaseDays: z.number().int().positive().optional(),
+});
+export type ParkItem = z.infer<typeof ParkItemSchema>;
+
+/** Parse a `--file` batch: a JSON array of {@link ParkItem}s. Throws (loud) on any shape violation. */
+export function parseParkFile(content: string): ParkItem[] {
+  return z.array(ParkItemSchema).min(1).parse(JSON.parse(content));
+}
+
+export interface ParkDeps {
+  readonly memoryDir: string;
+  readonly ledgerPath: string;
+  /** ISO `yyyy-mm-dd` — stamped as each record's `reviewedAt`. */
+  readonly now: string;
+}
+
+/**
+ * `storytree library graduate park` — record a librarian park verdict (ADR-0202): per memory, the
+ * `wont-graduate` verdict + reason + the CURRENT content hash + review date + lease (default
+ * 60 days, `DEFAULT_LEASE_DAYS`). All-or-nothing: every item is validated against the parsed
+ * memory store before ANY write (an unknown or unparseable memory refuses the whole batch), and an
+ * existing-but-invalid ledger fails CLOSED (recorded verdicts are never silently clobbered).
+ * Re-parking an already-parked memory refreshes its record (hash + date + lease) — that IS the
+ * re-park outcome of the expiry re-review. Ledger entries whose memory no longer exists on disk are
+ * pruned on write, surfaced by name (the memory died; its park record follows it).
+ */
+export function parkCommand(items: readonly ParkItem[], deps: ParkDeps): Envelope {
+  let read: MemoryReadResult;
+  try {
+    read = readMemoryDir(deps.memoryDir);
+  } catch (e) {
+    return {
+      ok: false,
+      body: `${(e as Error).message}\n\nNothing to park. Point --memory-dir at the harness store (~/.claude/projects/<project>/memory).`,
+      next: ["storytree library graduate --memory-dir <path>", "storytree library graduate"],
+    };
+  }
+
+  const byName = new Map(read.memories.map((m) => [m.name, m] as const));
+  const problems: string[] = [];
+  for (const item of items) {
+    if (!byName.has(item.name)) {
+      const unparsed = read.unparseable.find((u) => u.file === `${item.name}.md`);
+      problems.push(
+        unparsed !== undefined
+          ? `${item.name}: its memory file exists but does not parse (${unparsed.reason}) — fix the file first; a park record hashes the parsed content`
+          : `${item.name}: no such memory in ${deps.memoryDir}`,
+      );
+    }
+  }
+  if (problems.length > 0) {
+    return {
+      ok: false,
+      body: [
+        `park refused — ${problems.length} of ${items.length} item(s) failed validation (all-or-nothing, nothing written):`,
+        ...problems.map((p) => `  ${p}`),
+      ].join("\n"),
+      next: ["storytree library graduate   (the current worklist)"],
+    };
+  }
+
+  const { ledger, problem } = readParkLedger(deps.ledgerPath);
+  if (problem !== undefined) {
+    return {
+      ok: false,
+      body: [
+        "park refused — the existing ledger file does not parse, and overwriting it would silently drop recorded verdicts:",
+        `  ${problem}`,
+        "Fix or delete the ledger file, then re-run.",
+      ].join("\n"),
+      next: ["storytree library graduate"],
+    };
+  }
+
+  const parks = { ...ledger.parks };
+  const lines: string[] = [];
+  for (const item of items) {
+    const memory = byName.get(item.name);
+    if (memory === undefined) continue; // unreachable — validated above
+    const record = makeParkRecord(memory, {
+      reason: item.reason,
+      now: deps.now,
+      ...(item.leaseDays !== undefined ? { leaseDays: item.leaseDays } : {}),
+    });
+    const refreshed = parks[item.name] !== undefined;
+    parks[item.name] = record;
+    lines.push(
+      `  ${item.name}  parked${refreshed ? " (refreshed)" : ""} — lease expires ${leaseExpiresOn(record)} (${record.leaseDays}d, hash ${record.contentHash})`,
+    );
+  }
+
+  // Prune orphans: a park record whose memory no longer exists on disk (neither parsed nor sitting
+  // unparseable) — the memory died, its record follows. Surfaced by name, never silent.
+  const unparseableNames = new Set(read.unparseable.map((u) => u.file.replace(/\.md$/i, "")));
+  const pruned: string[] = [];
+  for (const name of Object.keys(parks)) {
+    if (!byName.has(name) && !unparseableNames.has(name)) {
+      delete parks[name];
+      pruned.push(name);
+    }
+  }
+
+  writeParkLedger(deps.ledgerPath, { version: 1, parks });
+
+  const body = [
+    `parked ${items.length} memor${items.length === 1 ? "y" : "ies"} (ADR-0202) → ${deps.ledgerPath}`,
+    ...lines,
+    ...(pruned.length > 0
+      ? ["", `pruned ${pruned.length} orphaned record(s) (memory deleted): ${pruned.join(", ")}`]
+      : []),
+  ].join("\n");
   return {
-    level: "WARN",
-    lines: [
-      `${GRADUATION_NUDGE_TAG} WARN — ${novel} agent-memory candidate(s) await a librarian graduation pass before merge (ADR-0095 D7).`,
-      `${GRADUATION_NUDGE_TAG}   Review with \`pnpm storytree library graduate --review\`, then spawn the librarian-curator to graduate the genuinely durable ones (most may be event-specific and rejected, ADR-0095 D8).`,
+    ok: true,
+    body,
+    next: [
+      "storytree library graduate   (the worklist — parked items now silenced)",
+      "pnpm check:graduation-worklist   (the gate nudge)",
     ],
   };
 }

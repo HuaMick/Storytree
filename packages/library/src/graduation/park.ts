@@ -1,0 +1,166 @@
+/**
+ * Parked-memory lease compute (ADR-0202).
+ *
+ * The PURE compute half of ADR-0202's parked-memory lease: a content-hash change detector, a
+ * schema + defaults surface for the park record/ledger, ISO lease-expiry date math, a four-way
+ * classifier (`new | changed | expired | parked`), and a worklist projection that counts only
+ * LIVE candidates (excludes `parked`). Sibling of `graduation.ts`, held to the same purity
+ * discipline: no `node:` / `pg` / `fs` import, no filesystem, no clock — the caller passes `now`
+ * as an ISO `yyyy-mm-dd` string. The ledger's file I/O, the CLI subcommand, and the
+ * `check:graduation-worklist` rewire are after-PASS supplement glue, out of this module's scope.
+ */
+import { z } from "zod";
+
+import type { MemoryFile } from "./graduation.js";
+
+/** The default lease length (days) a parked memory is re-review-exempt for (ADR-0202 D3). */
+export const DEFAULT_LEASE_DAYS = 60;
+
+/** A single parked memory's review record. */
+export const ParkRecordSchema = z.object({
+  verdict: z.literal("wont-graduate"),
+  reason: z.string().min(1),
+  contentHash: z.string(),
+  /** ISO `yyyy-mm-dd` */
+  reviewedAt: z.string(),
+  leaseDays: z.number().int().positive(),
+});
+export type ParkRecord = z.infer<typeof ParkRecordSchema>;
+
+/** The park ledger: every parked memory's record, keyed by memory `name`. */
+export const ParkLedgerSchema = z.object({
+  version: z.literal(1),
+  parks: z.record(z.string(), ParkRecordSchema),
+});
+export type ParkLedger = z.infer<typeof ParkLedgerSchema>;
+
+/** A fresh, empty park ledger. */
+export function emptyParkLedger(): ParkLedger {
+  return { version: 1, parks: {} };
+}
+
+/** Fail-loud parse of an unknown value into a {@link ParkLedger}; throws on any shape violation. */
+export function parseParkLedger(raw: unknown): ParkLedger {
+  return ParkLedgerSchema.parse(raw);
+}
+
+/**
+ * Deterministic FNV-1a hash (plain JS, NOT `node:crypto` — kept browser-safe) over the memory's
+ * `description` + `type` + `body`. `name` is deliberately EXCLUDED: it is the ledger key, so a
+ * pure rename re-keys the ledger entry rather than reading as a content change.
+ */
+export function hashMemoryContent(m: MemoryFile): string {
+  const input = `${m.description}\u0000${m.type}\u0000${m.body}`;
+  let hash = 0x811c9dc5; // FNV offset basis (32-bit)
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    // FNV prime multiplication via shifts/adds (32-bit, matches `hash *= 0x01000193`)
+    hash = (hash + ((hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24))) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
+}
+
+export interface MakeParkRecordOptions {
+  readonly reason: string;
+  /** ISO `yyyy-mm-dd` — the caller passes this so the module stays clockless. */
+  readonly now: string;
+  readonly leaseDays?: number;
+}
+
+/** Stamp a fresh {@link ParkRecord} for `m`, defaulting `leaseDays` to {@link DEFAULT_LEASE_DAYS}. */
+export function makeParkRecord(m: MemoryFile, opts: MakeParkRecordOptions): ParkRecord {
+  return {
+    verdict: "wont-graduate",
+    reason: opts.reason,
+    contentHash: hashMemoryContent(m),
+    reviewedAt: opts.now,
+    leaseDays: opts.leaseDays ?? DEFAULT_LEASE_DAYS,
+  };
+}
+
+/**
+ * The ISO `yyyy-mm-dd` date `leaseDays` days after `reviewedAt`, handling month/year rollover.
+ * Pure date math — no `Date.now()`, no ambient clock; reads only the record.
+ */
+export function leaseExpiresOn(record: Pick<ParkRecord, "reviewedAt" | "leaseDays">): string {
+  const parts = record.reviewedAt.split("-").map((p) => Number.parseInt(p, 10));
+  const year = parts[0] ?? 0;
+  const month = parts[1] ?? 1;
+  const day = parts[2] ?? 1;
+  // UTC to avoid local-timezone/DST drift affecting the date arithmetic.
+  const base = Date.UTC(year, month - 1, day);
+  const expiry = new Date(base + record.leaseDays * 24 * 60 * 60 * 1000);
+  const y = expiry.getUTCFullYear();
+  const m = expiry.getUTCMonth() + 1;
+  const d = expiry.getUTCDate();
+  return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+/** The four-way parked-memory classification. */
+export type ParkStatus = "new" | "changed" | "expired" | "parked";
+
+/**
+ * Classify a memory against its (possibly absent) park record:
+ * - no `record` -> `'new'`.
+ * - hash mismatch -> `'changed'` (wins over lease state — an edit re-enters the worklist
+ *   immediately, ADR-0202 D2).
+ * - hash matches AND `now >= leaseExpiresOn(record)` -> `'expired'` (inclusive boundary).
+ * - otherwise -> `'parked'`.
+ */
+export function classifyMemoryPark(
+  m: MemoryFile,
+  record: ParkRecord | undefined,
+  now: string,
+): ParkStatus {
+  if (record === undefined) return "new";
+  if (record.contentHash !== hashMemoryContent(m)) return "changed";
+  if (now >= leaseExpiresOn(record)) return "expired";
+  return "parked";
+}
+
+export interface ClassifyWorklistOptions {
+  /** ISO `yyyy-mm-dd` */
+  readonly now: string;
+}
+
+export interface ParkWorklistEntry {
+  readonly memory: MemoryFile;
+  readonly status: ParkStatus;
+}
+
+export interface ParkWorklistCounts {
+  readonly new: number;
+  readonly changed: number;
+  readonly expired: number;
+  readonly parked: number;
+}
+
+export interface ParkWorklist {
+  readonly entries: readonly ParkWorklistEntry[];
+  /** the non-`parked` subset (`new` + `changed` + `expired`) — the count that matters (ADR-0202 D4) */
+  readonly live: readonly ParkWorklistEntry[];
+  readonly counts: ParkWorklistCounts;
+}
+
+/**
+ * Classify every memory against the ledger and project a worklist whose `live` count excludes
+ * only `parked` (ADR-0202 D4). An empty ledger classifies everything as `new`.
+ */
+export function classifyWorklist(
+  memories: readonly MemoryFile[],
+  ledger: ParkLedger,
+  opts: ClassifyWorklistOptions,
+): ParkWorklist {
+  const entries: ParkWorklistEntry[] = memories.map((memory) => ({
+    memory,
+    status: classifyMemoryPark(memory, ledger.parks[memory.name], opts.now),
+  }));
+  const live = entries.filter((e) => e.status !== "parked");
+  const counts: ParkWorklistCounts = {
+    new: entries.filter((e) => e.status === "new").length,
+    changed: entries.filter((e) => e.status === "changed").length,
+    expired: entries.filter((e) => e.status === "expired").length,
+    parked: entries.filter((e) => e.status === "parked").length,
+  };
+  return { entries, live, counts };
+}
