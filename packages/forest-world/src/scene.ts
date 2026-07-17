@@ -132,6 +132,19 @@ export type SceneKind =
   | 'conifer'
   | 'conifer-body'
   | 'conifer-snow'
+  // capability PARCELS (forest-parcels inc 1) — a capability rendered as a parcel of the island's
+  // existing relaxed-cell ground, tinted by the cap's status and surfaced by a `SurfaceTheme`. The
+  // ground cells stay the existing `cell`/`cell-wheat` kinds (per-cell `status` now set) so no new
+  // ground CSS is needed; `parcel` is a transparent identity/delegation `<g>` (carries the capId).
+  // The flora marks are a small GENERIC vocabulary shared across themes — the theme reaches the
+  // mapper via the node's `theme` field (a `theme-<t>` class), the parcel's status via `status`; the
+  // colour itself stays CSS-side (ADR-0093 §4). `variant` distinguishes facets within a kind.
+  | 'parcel' // per-capability ground group (transparent — cells inside carry the visible tint)
+  | 'parcel-flora' // one placed flora item (a grass tuft / tree / shrub), positioned by transform
+  | 'parcel-blade' // a grass blade / tussock / young sprout stroke
+  | 'parcel-shrub' // a foliage blob — bush dome / tree crown
+  | 'parcel-stem' // a woody stem / trunk / bare twig
+  | 'parcel-flower' // a small accent disc — flower petal (variant 0) / core or berry (variant 1) / dead fleck
   // the recently-landed bloom
   | 'bloom-anchor'
   | 'bloom-crown'
@@ -216,6 +229,10 @@ export interface SceneNodeBase {
   strokeWidth?: number;
   /** An additive accent modifier (a node that wears a second semantic class). */
   accent?: boolean;
+  /** A capability parcel's SURFACE THEME (forest-parcels inc 1) — the mapper appends its
+   *  `theme-<t>` class so meadow / woodland / heath flora read as distinct country. Carried on the
+   *  `parcel-flora` item group; the colour itself stays CSS-side (ADR-0093 §4). */
+  theme?: SurfaceTheme;
   /** A bloom's verdict outcome (drives the mapper's `verdict-<outcome>`). */
   outcome?: 'pass' | 'fail';
   /** A wisp's orbit phase in degrees (the mapper drives the rotation from it). */
@@ -258,6 +275,13 @@ export type ClaimColourState = 'authoring' | 'proving' | 'supplementing';
  *  ABSENT grade IS the work claim (the D2 back-compat default), so every pre-grade surface keeps
  *  today's orbit unchanged. */
 export type ClaimGrade = 'exploring' | 'waiting' | 'work';
+
+/** A capability parcel's SURFACE THEME (forest-parcels inc 1) — which per-theme surface function
+ *  (`SURFACES[theme]`) paints its patch of ground + flora. DUPLICATED as the core's OWN input
+ *  vocabulary (the scene-graph is a foundational root that depends on nothing — ADR-0093 §Open
+ *  call 2), mirroring the surface swarm's theme set (meadow / woodland / heath) rather than importing
+ *  it. The surface fold folds each capability's real theme into this. */
+export type SurfaceTheme = 'meadow' | 'woodland' | 'heath';
 
 /** The prove-it-gate's phases (ADR-0020 §1), DUPLICATED as the core's OWN input vocabulary — the
  *  scene-graph is a foundational root that depends on nothing (ADR-0093 §Open call 2), so it mirrors
@@ -368,6 +392,22 @@ export interface ScenePlantInput {
   bloom?: { ageRatio: number; outcome: 'pass' | 'fail' };
 }
 
+/** A capability rendered as a PARCEL of the island's ground (forest-parcels inc 1) — its id (the
+ *  delegation/hover hook + the deterministic flora seed), its folded `status` (the per-cell ground
+ *  tint), its `testCount` (drives the flora DENSITY, not the parcel's area — island size stays keyed
+ *  to the caps count), the `theme` that surfaces it, and a `seed` position. The island's EXISTING
+ *  relaxed substrate cells are sub-partitioned among the parcels by equal-weight Voronoi over the
+ *  `seed` points (nearest seed wins); a parcel owns the cells nearest its seed. */
+export interface SceneParcelInput {
+  capId: string;
+  status: SceneStatus;
+  /** The capability's test-criteria count — the flora density knob (0 ⇒ bare ground). */
+  testCount: number;
+  theme: SurfaceTheme;
+  /** The parcel's Voronoi seed point, in island/map space (the same space `relaxedCells[].poly` is in). */
+  seed: Pt;
+}
+
 /** One island's drawable data — geometry the surface computed (centroid / treeSpot
  *  / coast / decor seeds), folded status, and the surface's folded marks (signpost
  *  presence, crown bloom, in-flight wisps) + nameplate box & text. */
@@ -383,9 +423,18 @@ export interface SceneTerritoryInput {
   /** The nameplate baseline y (also the delegation hit's bottom). */
   labelY: number;
   coastPaths: string[];
-  /** Conifer-clump seeds; the core expands each into 2–3 deterministic conifers. */
+  /** Conifer-clump seeds; the core expands each into 2–3 deterministic conifers.
+   *  RETIRED for a parcels-present island (the parcel flora replaces the decorative conifers). */
   decor: { x: number; y: number; seed: number }[];
   plants: ScenePlantInput[];
+  /** Capability PARCELS (forest-parcels inc 1). When PRESENT (and the island has relaxed substrate
+   *  cells), the island's existing cells are sub-partitioned among these capabilities by equal-weight
+   *  Voronoi over each parcel's `seed`, each cell tinted by its assigned cap's `status`, and each
+   *  parcel's flora emitted through its `theme`'s surface function with density ∝ `testCount` — and
+   *  the decorative conifers (`decor`) + the one-plant-per-cap ring (`plants`) are RETIRED for this
+   *  island. OPTIONAL and back-compat: absent ⇒ today's ground + conifers + plant ring render
+   *  byte-for-byte (the public website omits it entirely). */
+  parcels?: SceneParcelInput[];
   /** The crown tooltip (surface vocabulary). */
   treeTitle: string;
   /** Present only for a human-witness story; `outcome` null = a blank (unsigned) seal. */
@@ -969,26 +1018,336 @@ function buildPlate(t: SceneTerritoryInput): SceneG {
 }
 
 // ---------------------------------------------------------------------------
+// capability PARCELS — the land IS the capability (forest-parcels inc 1)
+// ---------------------------------------------------------------------------
+//
+// A parcels-present island sub-partitions its EXISTING relaxed substrate cells among its
+// capabilities (equal-weight Voronoi over each parcel's seed), tints each cell by its assigned cap's
+// status, and surfaces each parcel through its theme's `SurfaceFn`. THE SPLICE SEAM below (`SurfaceFn`
+// + the `SURFACES` registry) is the contract a designer swarm plugs into (ADR-0208): each theme
+// returns `{ ground, flora }` from the parcel's cells / status / testCount / a seeded rand. The three
+// functions ported here are the INITIAL in-repo implementations — designer-refined ones splice over
+// them later (the seam's shape + the kinds vocabulary are frozen; the craft is not). Everything is
+// deterministic (a seeded rand stream, no Math.random).
+
+/** One ground cell handed to a `SurfaceFn`: the resolved polygon + its centroid (the flora anchor).
+ *  The spike's `{ poly, cx, cy }`; its `boundary` flag drove a per-cell hem stroke that would need
+ *  NEW ground CSS, so it is dropped here — the ground reuses the existing `st-<status>` cell CSS. */
+export interface ParcelCell {
+  poly: Pt[];
+  cx: number;
+  cy: number;
+}
+
+/** One placed flora item a `SurfaceFn` emits — the spike's `{ y, svg }`, with `svg` now a SceneNode.
+ *  `y` is the item's painter-anchor (the island y-sorts flora with the tree so southern art overlaps
+ *  northern). */
+export interface ParcelFloraMark {
+  y: number;
+  node: SceneNode;
+}
+
+/** THE SPLICE SEAM (ADR-0208): a per-theme surface painter. Frozen contract
+ *  `(cells, status, testCount, rand) => { ground, flora }` — turns a capability parcel's cells into
+ *  its tinted ground cell nodes + its placed flora marks. `rand` is a seeded STATEFUL stream (the
+ *  core seeds it per parcel), so a `SurfaceFn` MUST stay deterministic — draw only from `rand`, never
+ *  Math.random. A designer swarm ships refined implementations that splice into `SURFACES`. */
+export type SurfaceFn = (
+  cells: ParcelCell[],
+  status: SceneStatus,
+  testCount: number,
+  rand: () => number,
+) => { ground: SceneNode[]; flora: ParcelFloraMark[] };
+
+/** A seeded mulberry32 STREAM `() => number` (a `SurfaceFn` draws many values). Mirrors the spike's
+ *  `mulberry32(hash(seed))`; `rand01` in rng.ts is a single-STEP variant, so the stream lives here.
+ *  Browser-safe, deterministic. */
+function streamRand(seed: string): () => number {
+  let a = hash(seed);
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** The flora DENSITY curve (forest-parcels inc 1) — how many flora items a parcel grows from its test
+ *  count. A 0-test parcel stays BARE ground (0 marks); above that it is roughly linear (≈0.9 marks
+ *  per test, floored at 1 so a 1-test parcel still shows a sprig). A Stage-1 default the owner reviews
+ *  later — kept as one small named knob so it is easy to tune. */
+const FLORA_PER_TEST = 0.9;
+function floraCount(testCount: number): number {
+  if (testCount <= 0) return 0;
+  return Math.max(1, Math.round(testCount * FLORA_PER_TEST));
+}
+
+/** Deterministic Fisher–Yates over the seeded stream — spreads flora across a parcel's cells. */
+function shuffled<T>(arr: readonly T[], rand: () => number): T[] {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    const ai = a[i]!;
+    a[i] = a[j]!;
+    a[j] = ai;
+  }
+  return a;
+}
+
+/** A jittered flora spot on a cell centroid (top-down squash on y, like the wisp/bloom orbits). */
+function spotOn(cell: ParcelCell, jit: number, rand: () => number): Pt {
+  return { x: cell.cx + (rand() - 0.5) * jit, y: cell.cy + (rand() - 0.5) * jit * 0.7 };
+}
+
+/** The shared parcel GROUND: every cell reused as the existing `cell` kind carrying the parcel's
+ *  folded status (so `st-<status>` colours it — ZERO new ground CSS) + a rand tone variant. */
+function parcelGround(cells: ParcelCell[], status: SceneStatus, rand: () => number): SceneNode[] {
+  return cells.map((c) =>
+    path(polyPath(c.poly), { kind: 'cell', variant: Math.floor(rand() * 3), status }),
+  );
+}
+
+/** Wrap a theme's local-coordinate marks as one placed flora item at `spot`. */
+function floraItem(
+  theme: SurfaceTheme,
+  status: SceneStatus,
+  spot: Pt,
+  marks: SceneNode[],
+): ParcelFloraMark {
+  return {
+    y: spot.y,
+    node: g(marks, {
+      kind: 'parcel-flora',
+      theme,
+      status,
+      transform: `translate(${f(spot.x)} ${f(spot.y)})`,
+    }),
+  };
+}
+
+// --- the three ported theme mark builders (LOCAL coords; designer-refined later) ---
+
+/** meadow — grass tufts, most healthy ones crowned with a cream wildflower; an amber sprout when
+ *  proposed; a fallen dead twig + a wilt-red fleck when unhealthy. */
+function meadowMark(status: SceneStatus, rand: () => number): SceneNode[] {
+  const marks: SceneNode[] = [ellipse(0, 0.6, 2, 0.7, { kind: 'shadow' })];
+  if (status === 'unhealthy') {
+    marks.push(path('M -3 0 L -1 0.7 L 0.5 -0.5 L 3 0.4', { kind: 'parcel-stem', strokeWidth: 0.8 }));
+    marks.push(circle(1, -1, 0.6, { kind: 'parcel-flower' }));
+    return marks;
+  }
+  if (status === 'proposed') {
+    const lean = (rand() - 0.5) * 1.8;
+    marks.push(path(`M 0 0 Q ${f(lean * 0.4)} -2 ${f(lean)} -3.4`, { kind: 'parcel-blade', strokeWidth: 0.8 }));
+    marks.push(circle(lean, -4.3, 1.1, { kind: 'parcel-flower', variant: 1 }));
+    return marks;
+  }
+  for (let b = 0; b < 3; b++) {
+    const bx = -1.8 + b * 1.8;
+    const lean = (rand() - 0.5) * 2.4;
+    marks.push(path(`M ${f(bx)} 0 Q ${f(bx + lean * 0.4)} -1.8 ${f(bx + lean)} -3.2`, { kind: 'parcel-blade', strokeWidth: 0.7 }));
+  }
+  if (rand() < 0.7) {
+    const top = -4.5;
+    for (const [dx, dy] of [[-1.1, 0], [1.1, 0], [0, -1.1], [0, 1.1]] as const) {
+      marks.push(circle(dx, top + dy, 1, { kind: 'parcel-flower' }));
+    }
+    marks.push(circle(0, top, 0.8, { kind: 'parcel-flower', variant: 1 }));
+  }
+  return marks;
+}
+
+/** woodland — a small cel-shaded tree (trunk + two crown blobs); a young amber tree when proposed; a
+ *  bare withered branch + red flecks when unhealthy. */
+function woodlandMark(status: SceneStatus, rand: () => number): SceneNode[] {
+  const s = 0.85 + rand() * 0.3;
+  if (status === 'unhealthy') {
+    return [
+      ellipse(0, 0, 3, 1, { kind: 'shadow' }),
+      path(
+        `M 0 0 L 0 ${f(-9 * s)} M 0 ${f(-4.5 * s)} L ${f(-3.2 * s)} ${f(-8 * s)} M 0 ${f(-6 * s)} L ${f(2.8 * s)} ${f(-9.5 * s)}`,
+        { kind: 'parcel-stem', strokeWidth: 1.1 },
+      ),
+      circle(-3.2 * s, -8.4 * s, 0.8, { kind: 'parcel-flower' }),
+      circle(2.8 * s, -10 * s, 0.8, { kind: 'parcel-flower' }),
+    ];
+  }
+  const young = status === 'proposed';
+  const r = (young ? 3.2 : 5.2) * s;
+  const trunkH = (young ? 3.5 : 5) * s;
+  const cy0 = -trunkH - r * 0.85;
+  return [
+    ellipse(0, 0, r * 0.85, r * 0.3, { kind: 'shadow' }),
+    path(`M 0 0 L 0 ${f(-trunkH - 1)}`, { kind: 'parcel-stem', strokeWidth: young ? 1 : 1.6 }),
+    circle(0, cy0, r, { kind: 'parcel-shrub' }),
+    circle(-r * 0.28, cy0 - r * 0.3, r * 0.8, { kind: 'parcel-shrub', variant: 1 }),
+  ];
+}
+
+/** heath — a lumpy shrub dome with berries; young-growth specks when proposed; bare twigs + a dark
+ *  berry when unhealthy. */
+function heathMark(status: SceneStatus, rand: () => number): SceneNode[] {
+  const s = 0.9 + rand() * 0.3;
+  const marks: SceneNode[] = [ellipse(0.5 * s, 2.6 * s, 4.8 * s, 1.3 * s, { kind: 'shadow' })];
+  if (status === 'unhealthy') {
+    for (let w = 0; w < 3; w++) {
+      const wx = (w - 1) * 2.2 * s;
+      marks.push(
+        path(`M ${f(wx)} 0 Q ${f(wx + (w - 1) * 0.8)} ${f(-2 * s)} ${f(wx + (w - 1) * 1.4)} ${f(-3.6 * s)}`, {
+          kind: 'parcel-stem',
+          strokeWidth: 0.55,
+        }),
+      );
+    }
+    marks.push(circle(0, -2, 0.55, { kind: 'parcel-flower' }));
+    return marks;
+  }
+  marks.push(ellipse(0, 0, 4.4 * s, 3.1 * s, { kind: 'parcel-shrub' }));
+  marks.push(ellipse(-1.5 * s, -1.1 * s, 2.4 * s, 1.5 * s, { kind: 'parcel-shrub', variant: 1 }));
+  const healthy = status === 'healthy';
+  for (let b = 0; b < 3; b++) {
+    marks.push(
+      circle((rand() * 2 - 1) * 3 * s, -rand() * 2 * s, healthy ? 0.75 : 0.5, {
+        kind: 'parcel-flower',
+        variant: healthy ? 0 : 1,
+      }),
+    );
+  }
+  return marks;
+}
+
+/** Build a `SurfaceFn` from a theme tag, a flora jitter, and a per-item mark builder — the shared
+ *  ground + density + placement skeleton the three ports hang off. */
+function makeSurface(
+  theme: SurfaceTheme,
+  jitter: number,
+  mark: (status: SceneStatus, rand: () => number) => SceneNode[],
+): SurfaceFn {
+  return (cells, status, testCount, rand) => {
+    const ground = parcelGround(cells, status, rand);
+    const flora: ParcelFloraMark[] = [];
+    const n = cells.length ? floraCount(testCount) : 0;
+    if (n > 0) {
+      const order = shuffled(cells, rand);
+      for (let k = 0; k < n; k++) {
+        const cell = order[k % order.length]!;
+        const spot = spotOn(cell, jitter, rand);
+        flora.push(floraItem(theme, status, spot, mark(status, rand)));
+      }
+    }
+    return { ground, flora };
+  };
+}
+
+/** THE SURFACE REGISTRY (ADR-0208) — the splice point: theme → its `SurfaceFn`. A designer swarm
+ *  replaces these initial ports with refined implementations behind the same frozen seam. */
+export const SURFACES: Record<SurfaceTheme, SurfaceFn> = {
+  meadow: makeSurface('meadow', 8, meadowMark),
+  woodland: makeSurface('woodland', 9, woodlandMark),
+  heath: makeSurface('heath', 6, heathMark),
+};
+
+// --- Voronoi assignment + the once-computed per-territory surface ---
+
+function cellCentroid(poly: Pt[]): Pt {
+  let x = 0;
+  let y = 0;
+  for (const p of poly) {
+    x += p.x;
+    y += p.y;
+  }
+  const n = poly.length || 1;
+  return { x: x / n, y: y / n };
+}
+
+/** The equal-weight VORONOI assignment: a cell → the nearest parcel seed (ties → lowest index). */
+function nearestParcel(centroid: Pt, seeds: readonly Pt[]): number {
+  let best = 0;
+  let bd = Infinity;
+  for (let i = 0; i < seeds.length; i++) {
+    const s = seeds[i]!;
+    const d = (centroid.x - s.x) ** 2 + (centroid.y - s.y) ** 2;
+    if (d < bd) {
+      bd = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
+/** One parcels-present island's full surface, computed ONCE (buildScene threads the `ground` to
+ *  `buildGround` and the `flora` to `buildTerritoryFlora`). Each parcel's ground cells are wrapped in
+ *  a transparent `parcel` group carrying the capId (the hover/delegation hook). Returns null when the
+ *  island has no parcels or no substrate cells (the feature needs the relaxed mesh), so every caller
+ *  falls back to today's render. */
+export interface ParcelSurface {
+  ground: SceneNode[];
+  flora: ParcelFloraMark[];
+}
+function buildTerritorySurface(t: SceneTerritoryInput, ownerCells: RelaxedCell[]): ParcelSurface | null {
+  const parcels = t.parcels;
+  if (!parcels || !parcels.length || !ownerCells.length) return null;
+  const seeds = parcels.map((p) => p.seed);
+  const groups: ParcelCell[][] = parcels.map(() => []);
+  for (const c of ownerCells) {
+    const cen = cellCentroid(c.poly);
+    const idx = nearestParcel(cen, seeds);
+    groups[idx]!.push({ poly: c.poly, cx: cen.x, cy: cen.y });
+  }
+  const ground: SceneNode[] = [];
+  const flora: ParcelFloraMark[] = [];
+  parcels.forEach((parcel, i) => {
+    const cells = groups[i]!;
+    if (!cells.length) return;
+    const rand = streamRand(`parcel:${t.id}:${parcel.capId}`);
+    const out = SURFACES[parcel.theme](cells, parcel.status, parcel.testCount, rand);
+    ground.push(
+      g(out.ground, { kind: 'parcel', id: parcel.capId, status: parcel.status, title: parcel.capId }),
+    );
+    // Stamp each flora item with its capId (the SurfaceFn is capId-agnostic, so attribution — the
+    // hover-flora → capability hook — is added here, where the parcel identity is known).
+    for (const fm of out.flora) {
+      fm.node.id = parcel.capId;
+      flora.push(fm);
+    }
+  });
+  return { ground, flora };
+}
+
+// ---------------------------------------------------------------------------
 // a whole island's flora layer (TerritoryFlora)
 // ---------------------------------------------------------------------------
 
 /** One island's flora group: conifers (expanded from the decor seeds), capability
  *  plants, and the central tree — all y-sorted so southern art overlaps northern —
- *  then the nameplate and the wisp orbit. */
-export function buildTerritoryFlora(t: SceneTerritoryInput): SceneG {
+ *  then the nameplate and the wisp orbit.
+ *
+ *  When `parcelFlora` is provided (a parcels-present island, forest-parcels inc 1), the decorative
+ *  conifers (`decor`) and the one-plant-per-cap ring (`plants`) are RETIRED — the parcel surface
+ *  flora replaces them, y-sorted into the same list as the tree so the interleave with the canopy
+ *  still holds. Absent ⇒ today's conifer + plant render is byte-for-byte unchanged. */
+export function buildTerritoryFlora(
+  t: SceneTerritoryInput,
+  parcelFlora?: ParcelFloraMark[] | null,
+): SceneG {
   const drawables: { y: number; node: SceneNode }[] = [];
 
-  for (const d of t.decor) {
-    const count = 2 + (d.seed % 2);
-    for (let i = 0; i < count; i++) {
-      const a = rand01(d.seed + i * 7) * Math.PI * 2;
-      const rr = rand01(d.seed + i * 13) * HEX_R * 0.55;
-      const x = d.x + Math.cos(a) * rr;
-      const y = d.y + Math.sin(a) * rr * 0.8 + 4;
-      drawables.push({ y, node: buildConifer(x, y, 7 + rand01(d.seed + i) * 4, d.seed + i) });
+  if (parcelFlora) {
+    // parcels-present: the parcel surface flora IS the island's flora (conifers + plant ring retired).
+    for (const fm of parcelFlora) drawables.push({ y: fm.y, node: fm.node });
+  } else {
+    for (const d of t.decor) {
+      const count = 2 + (d.seed % 2);
+      for (let i = 0; i < count; i++) {
+        const a = rand01(d.seed + i * 7) * Math.PI * 2;
+        const rr = rand01(d.seed + i * 13) * HEX_R * 0.55;
+        const x = d.x + Math.cos(a) * rr;
+        const y = d.y + Math.sin(a) * rr * 0.8 + 4;
+        drawables.push({ y, node: buildConifer(x, y, 7 + rand01(d.seed + i) * 4, d.seed + i) });
+      }
     }
+    for (const plant of t.plants) drawables.push({ y: plant.y, node: buildPlant(plant) });
   }
-  for (const plant of t.plants) drawables.push({ y: plant.y, node: buildPlant(plant) });
   drawables.push({ y: t.treeSpot.y, node: buildTree(t) });
   drawables.sort((a, b) => a.y - b.y);
 
@@ -1040,13 +1399,19 @@ function buildCoast(input: SceneInput): SceneG {
   return g(groups, { kind: 'coast-layer' });
 }
 
-function buildGround(input: SceneInput): SceneG {
+function buildGround(input: SceneInput, surfaces: (ParcelSurface | null)[]): SceneG {
   if (input.relaxedCells) {
     const cells = input.relaxedCells;
     const groups = input.territories
       .map((t, owner): SceneG | null => {
         const owned = cells.filter((c) => c.owner === owner);
         if (!owned.length) return null;
+        const surf = surfaces[owner];
+        if (surf) {
+          // parcels-present: the per-parcel, per-cell status-tinted ground replaces the plain cells
+          // (the per-territory status tint that keyed today's ground moves down to per-cell cap status).
+          return g(surf.ground, { kind: 'ground', status: t.status, id: t.id });
+        }
         return g(
           owned.map((c) =>
             path(polyPath(c.poly), c.wheat ? { kind: 'cell-wheat' } : { kind: 'cell', variant: c.variant }),
@@ -1215,15 +1580,26 @@ function buildHits(input: SceneInput): SceneG {
  * layered on top.
  */
 export function buildScene(input: SceneInput): SceneG {
+  // Compute each parcels-present island's surface ONCE (forest-parcels inc 1) — the ground threads to
+  // `buildGround`, the flora to `buildTerritoryFlora`. Null (no parcels / no mesh cells) ⇒ today's
+  // render on both seams, byte-for-byte.
+  const cells = input.relaxedCells;
+  const surfaces: (ParcelSurface | null)[] = input.territories.map((t, owner) =>
+    cells ? buildTerritorySurface(t, cells.filter((c) => c.owner === owner)) : null,
+  );
   return g(
     [
       buildEmpties(input),
       buildCoast(input),
-      buildGround(input),
+      buildGround(input, surfaces),
       buildTrails(input),
-      g([...input.territories.map(buildTerritoryFlora), ...buildCaves(input)], {
-        kind: 'flora-layer',
-      }),
+      g(
+        [
+          ...input.territories.map((t, i) => buildTerritoryFlora(t, surfaces[i]?.flora ?? null)),
+          ...buildCaves(input),
+        ],
+        { kind: 'flora-layer' },
+      ),
       buildHits(input),
     ],
     { kind: 'world', transform: `translate(${f(input.offset.x)} ${f(input.offset.y)})` },
