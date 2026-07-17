@@ -52,6 +52,7 @@ proof:
       testGlobs: ["packages/uat-criterion/src/uat-criterion-detail.uat.test.ts"]
       sourceGlobs: ["packages/uat-criterion/src/index.ts"]
     install: true
+    editsExisting: true
     proofCommand:
       file: pnpm
       args: ["--filter", "@storytree/uat-criterion", "test"]
