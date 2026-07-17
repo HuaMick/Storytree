@@ -211,11 +211,13 @@ Adopt, the spine runs the declared command at a clean committed HEAD, validates 
 `proof-gate` binding first (no fallback / no partial signing), and then mints one `adopted` verdict per
 criterion only when the command is green.
 
-1. **The public model-judged-uat port suite is green** _(gate: observe)_ `pnpm --filter @storytree/model-judged-uat test`.
+1. **The public model-judged-uat port suite is green** _(gate: observe)_ _(covers: judge-result-shape, independent-judge-seam, spine-judge-validation, model-escalation-ladder)_ `pnpm --filter @storytree/model-judged-uat test`.
    The spine observes the real package suite: result-shape schema, independent read-only judge seam,
    spine validation + signable payload, escalation ladder, FAIL-laundering refusal, and offline
-   scripted end-to-end. It then signs `model-judged-uat#gate-1`; all six machine criteria above bind
-   to this exact command-bearing gate.
+   scripted end-to-end. The suite genuinely exercises each covered capability's contracts (ADR-0085 /
+   ADR-0097 — not a rubber-stamp smoke import). It then signs `model-judged-uat#gate-1`; all six
+   machine criteria above bind to this exact command-bearing gate, and the adopted pass greens the
+   four capabilities via `(covers:)`.
 
 Run from a clean committed rebuilt HEAD:
 `pnpm storytree adopt model-judged-uat --signer <email> --pg`. Because the story is `proposed`,
