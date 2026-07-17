@@ -42,6 +42,22 @@ export function isLegacyUnresolved(witness: CriterionWitness): witness is "eithe
 }
 
 // ---------------------------------------------------------------------------
+// Model capability tier (ADR-0209 D2)
+// ---------------------------------------------------------------------------
+
+/**
+ * The two ORDERED minimum capability tiers a `model` witness may declare
+ * (ADR-0209 D2): `advanced` (a registered Opus-class or approved-equivalent
+ * judge) < `frontier` (Fable today). `advanced` is a hard floor — nothing
+ * below it may judge UAT. This capability owns only the field, its allowed
+ * values, and the refusals below; the ordering ("at least this tier",
+ * substitute-upward) comparison lives in `model-eligibility-registry`.
+ */
+export const TIER_LEVELS = ["advanced", "frontier"] as const;
+export const Tier = z.enum(TIER_LEVELS);
+export type Tier = z.infer<typeof Tier>;
+
+// ---------------------------------------------------------------------------
 // Schema
 // ---------------------------------------------------------------------------
 
@@ -52,6 +68,12 @@ export function isLegacyUnresolved(witness: CriterionWitness): witness is "eithe
  * `witness` defaults to `either` — the conservative legacy default (ADR-0209 D8): an
  * omitted/untagged witness never defaults into `model` (or any classified kind); it
  * stays visibly unresolved until an explicit migration tags it.
+ *
+ * `tier` (ADR-0209 D2) is meaningful only on a classified `model` witness: a
+ * `model` criterion MUST declare a preclassified minimum tier (`advanced` or
+ * `frontier`) — an omitted or unrecognised tier is refused, never defaulted or
+ * clamped up — and a non-`model` witness (`machine`/`human`/legacy `either`)
+ * carrying a tier is refused, since tier is exclusive to `model`.
  */
 export const Criterion = z
   .object({
@@ -61,8 +83,28 @@ export const Criterion = z
     title: z.string().min(1),
     /** Who/what may attest this criterion. */
     witness: CriterionWitness.default("either"),
+    /** Preclassified minimum capability tier — `model` witness only. */
+    tier: Tier.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((val, ctx) => {
+    if (val.witness === "model") {
+      if (val.tier === undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["tier"],
+          message:
+            "a model witness must declare a preclassified minimum tier (advanced|frontier) — an ambiguous minimum is forbidden",
+        });
+      }
+    } else if (val.tier !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["tier"],
+        message: "tier is exclusive to the model witness",
+      });
+    }
+  });
 
 export type Criterion = z.infer<typeof Criterion>;
 
@@ -88,6 +130,12 @@ const BOLD_LEAD = /^\*\*(.+?)\*\*/;
  * loosely so an explicit-but-invalid value can be REFUSED (not silently defaulted).
  */
 const WITNESS_TAG = /\(witness:\s*([A-Za-z]+)\)/i;
+/**
+ * Optional inline tier annotation, e.g. `(tier: advanced)` (ADR-0209 D2). Captures
+ * the raw value loosely so an explicit-but-invalid value can be REFUSED (not
+ * silently defaulted or clamped up).
+ */
+const TIER_TAG = /\(tier:\s*([A-Za-z]+)\)/i;
 
 /** Extract the `## UAT Test Criteria` section (between its heading and the next `##`). `null` when absent. */
 function criteriaSection(body: string): string | null {
@@ -140,11 +188,30 @@ function itemWitness(item: string, id: string): CriterionWitness {
 }
 
 /**
+ * Pull the declared tier from an item (ADR-0209 D2). Absent → `undefined` (the
+ * schema refinement decides whether that's acceptable — required on `model`,
+ * forbidden elsewhere). An explicit but invalid value (e.g. `(tier: basic)`)
+ * THROWS, refused rather than defaulted or clamped up.
+ */
+function itemTier(item: string, id: string): Tier | undefined {
+  const tag = TIER_TAG.exec(item);
+  if (tag === null) return undefined;
+  const parsed = Tier.safeParse(tag[1]!.toLowerCase());
+  if (!parsed.success) {
+    throw new Error(`${id}: invalid tier "${tag[1]}" — must be one of ${TIER_LEVELS.join("|")}`);
+  }
+  return parsed.data;
+}
+
+/**
  * PURE: parse a story's markdown `body` into addressable {@link Criterion} units.
  * Each numbered item under `## UAT Test Criteria` becomes one criterion with a
  * positional, stable id (`<story>#uat-<n>`, 1-based). A story with no such section
  * yields `[]`; an item with no witness annotation defaults to `either`; an explicit
- * but invalid witness value throws at the parsing boundary.
+ * but invalid witness value throws at the parsing boundary. A `model` witness must
+ * also carry a `(tier: advanced|frontier)` annotation (ADR-0209 D2) — missing,
+ * unrecognised, or misplaced (on a non-`model` witness) tiers are refused, never
+ * defaulted or clamped up.
  */
 export function parseCriteria(storyId: string, body: string): Criterion[] {
   const section = criteriaSection(body);
@@ -156,6 +223,7 @@ export function parseCriteria(storyId: string, body: string): Criterion[] {
       id,
       title: itemTitle(item),
       witness: itemWitness(item, id),
+      tier: itemTier(item, id),
     });
   });
 }

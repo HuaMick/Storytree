@@ -25,12 +25,17 @@ import {
 
 const STORY = "demo-story";
 
-/** A story body with one leg of each explicit classified kind, plus one untagged legacy leg. */
+/**
+ * A story body with one leg of each explicit classified kind, plus one untagged legacy leg.
+ * The `model` leg carries a `(tier: advanced)` annotation (ADR-0209 D2): a classified
+ * `model` witness must declare its preclassified minimum tier, so a fixture exercising
+ * `model` classification must supply one.
+ */
 const BODY = `## UAT Test Criteria
 
 1. **Decompose** _(witness: machine)_: a criterion resolves to addressable ids.
 2. **Human relay** _(witness: human)_: the owner tells the agent it works.
-3. **Model judged** _(witness: model)_: a model attests structured judgment.
+3. **Model judged** _(witness: model)(tier: advanced)_: a model attests structured judgment.
 4. **Not yet migrated:** a legacy untagged criterion.
 `;
 
@@ -143,4 +148,100 @@ test("invalid witness: the schema refuses an unknown witness value directly", ()
 
 test("invalid witness: the schema rejects unknown fields (strict)", () => {
   assert.throws(() => Criterion.parse({ id: "s#uat-1", title: "t", witness: "human", extra: 1 }));
+});
+
+// ── model tier classification (ADR-0209 D2) ─────────────────────────────────
+//
+// A `model` criterion must declare a preclassified MINIMUM capability tier —
+// `advanced` or `frontier`, nothing below. Tier is meaningful only on a
+// classified `model` witness: a `machine`/`human`/legacy-unresolved `either`
+// criterion carrying a tier is refused, and a `model` criterion with no tier
+// (or an unrecognised tier value) is refused at the parse boundary — never
+// silently defaulted or clamped up.
+
+const TIER_ADVANCED_BODY = `## UAT Test Criteria
+
+1. **Model judged, advanced** _(witness: model)(tier: advanced)_: judged by a registered advanced-tier model.
+`;
+
+const TIER_FRONTIER_BODY = `## UAT Test Criteria
+
+1. **Model judged, frontier** _(witness: model)(tier: frontier)_: judged by a frontier-tier model.
+`;
+
+const TIER_MISSING_BODY = `## UAT Test Criteria
+
+1. **Model judged, no tier** _(witness: model)_: a model witness with no preclassified minimum.
+`;
+
+const TIER_UNKNOWN_BODY = `## UAT Test Criteria
+
+1. **Model judged, unknown tier** _(witness: model)(tier: basic)_: an unrecognised tier value.
+`;
+
+const TIER_ON_NON_MODEL_BODY = `## UAT Test Criteria
+
+1. **Machine with a tier** _(witness: machine)(tier: advanced)_: tier is exclusive to the model witness.
+`;
+
+test("tier classification: (witness: model)(tier: advanced) parses to the advanced tier", () => {
+  const criteria = parseCriteria(STORY, TIER_ADVANCED_BODY);
+  assert.equal(criteria[0]!.tier, "advanced");
+});
+
+test("tier classification: (witness: model)(tier: frontier) parses to the frontier tier", () => {
+  const criteria = parseCriteria(STORY, TIER_FRONTIER_BODY);
+  assert.equal(criteria[0]!.tier, "frontier");
+});
+
+test("tier classification: the three-kind-witness fixture's model leg carries an advanced tier", () => {
+  const criteria = parseCriteria(STORY, BODY);
+  assert.equal(criteria[2]!.witness, "model");
+  assert.equal(criteria[2]!.tier, "advanced");
+});
+
+test("tier classification: a model criterion with no tier annotation is refused at the parse boundary", () => {
+  assert.throws(
+    () => parseCriteria(STORY, TIER_MISSING_BODY),
+    /tier/i,
+    "a model witness with no preclassified minimum tier must be refused, never defaulted",
+  );
+});
+
+test("tier classification: a model criterion with an unrecognised tier value is refused", () => {
+  assert.throws(() => parseCriteria(STORY, TIER_UNKNOWN_BODY), /tier/i);
+});
+
+test("tier classification: a non-model criterion carrying a tier annotation is refused", () => {
+  assert.throws(
+    () => parseCriteria(STORY, TIER_ON_NON_MODEL_BODY),
+    /tier/i,
+    "tier is exclusive to the model witness",
+  );
+});
+
+// ── model tier classification: schema-level refinement ─────────────────────
+
+test("tier schema: a model criterion with tier=advanced parses successfully", () => {
+  const parsed = Criterion.parse({ id: "s#uat-1", title: "t", witness: "model", tier: "advanced" });
+  assert.equal(parsed.tier, "advanced");
+});
+
+test("tier schema: a model criterion with tier=frontier parses successfully", () => {
+  const parsed = Criterion.parse({ id: "s#uat-1", title: "t", witness: "model", tier: "frontier" });
+  assert.equal(parsed.tier, "frontier");
+});
+
+test("tier schema: a model criterion with no tier is refused (ambiguous minimum forbidden)", () => {
+  assert.throws(() => Criterion.parse({ id: "s#uat-1", title: "t", witness: "model" }));
+});
+
+test("tier schema: a model criterion with an unknown tier string is refused", () => {
+  assert.throws(() => Criterion.parse({ id: "s#uat-1", title: "t", witness: "model", tier: "basic" }));
+});
+
+test("tier schema: a non-model criterion (machine/human/either) carrying a tier is refused", () => {
+  assert.throws(() => Criterion.parse({ id: "s#uat-1", title: "t", witness: "machine", tier: "advanced" }));
+  assert.throws(() => Criterion.parse({ id: "s#uat-1", title: "t", witness: "human", tier: "frontier" }));
+  assert.throws(() => Criterion.parse({ id: "s#uat-1", title: "t", witness: "either", tier: "advanced" }));
 });
