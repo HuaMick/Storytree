@@ -16,6 +16,7 @@ const cap = (id: string, status: WorkStatus = 'mapped'): TreeCapability => ({
   status,
   proofMode: 'red-green',
   dependsOn: [],
+  testCount: 0,
 });
 
 const story = (id: string, over: Partial<TreeStory> = {}): TreeStory => ({
