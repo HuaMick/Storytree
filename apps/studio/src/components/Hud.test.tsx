@@ -73,7 +73,7 @@ const docs: DocMeta[] = [
 ];
 
 describe('Hud — no brand chip (ADR-0205)', () => {
-  it('hud-no-brand-chip: the HUD renders no brand chip or forest-return link outside the avatar', () => {
+  it('hud-no-navigation-chrome: the HUD renders no brand chip or forest-return link — the avatar is the only floating control', () => {
     const { container } = render(<Hud me={admin} docs={docs} posture="desktop" />);
     expect(container.querySelector('.hud-brand')).toBeNull();
     expect(screen.queryByRole('link', { name: /storytree/i })).toBeNull();
@@ -98,7 +98,7 @@ describe('Hud — avatar identity', () => {
 });
 
 describe('Hud — avatar menu composition', () => {
-  it('hud-avatar-menu-core-and-lenses: the identity/role line renders as read-only text, never an input', () => {
+  it('hud-avatar-menu-account-only: the identity/role line renders as read-only text, never an input', () => {
     render(<Hud me={admin} docs={docs} posture="desktop" />);
     fireEvent.click(screen.getByTestId('hud-avatar'));
     const identity = screen.getByTestId('hud-menu-identity');
@@ -119,7 +119,7 @@ describe('Hud — avatar menu composition', () => {
     expect(screen.queryByRole('menuitem', { name: 'Documents' })).toBeNull();
   });
 
-  it('hud-avatar-menu-gated-items: Members is present for an admin', () => {
+  it('hud-menu-members-present-for-admin: Members is present for an admin', () => {
     render(<Hud me={admin} docs={docs} posture="desktop" />);
     fireEvent.click(screen.getByTestId('hud-avatar'));
     const link = screen.getByRole('menuitem', { name: 'Members' });
