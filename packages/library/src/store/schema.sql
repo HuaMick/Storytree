@@ -64,26 +64,6 @@ CREATE TABLE IF NOT EXISTS events.suggestion (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Session-presence history (ADR-0033): one append-only event per declare/done. `id` is the
--- worktree-derived sessionId; presence is advisory, so rows carry no signer chain.
-CREATE TABLE IF NOT EXISTS events.session_event (
-  seq   BIGSERIAL PRIMARY KEY,
-  id    TEXT NOT NULL,
-  type  TEXT NOT NULL,
-  doc   JSONB,
-  actor TEXT NOT NULL,
-  at    TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- Session-presence current-state projection: one row per session (upserted; staleness is always
--- derived from the doc's lastSeenAt, never stored).
-CREATE TABLE IF NOT EXISTS events.session (
-  id         TEXT PRIMARY KEY,
-  doc        JSONB NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
 -- Members (ADR-0043): app-owned identity. IAP authenticates; the app authorizes from
 -- here. History append-only; current = a one-row-per-email projection keyed by the lowercased,
 -- verified email. The doc is zod-validated in @storytree/core at the write boundary; the last-admin
@@ -291,7 +271,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS node_claim_work_excl
 
 -- Claim audit history: one append-only row per claim/reclaim/release/conflict-refused, so a refusal
 -- is a TYPED event (ADR-0009 "a conflict is a hard refusal, never a warning") and the evidence for
--- "overlap conflicts are routine" accrues here (ADR-0033 §4). Sibling to events.session_event.
+-- "overlap conflicts are routine" accrues here (ADR-0033 §4). Same append-only shape as the other
+-- events.*_event history streams.
 CREATE TABLE IF NOT EXISTS events.claim_event (
   seq        BIGSERIAL PRIMARY KEY,
   unit_id    TEXT NOT NULL,
@@ -321,3 +302,16 @@ CREATE INDEX IF NOT EXISTS usage_event_unit_idx ON events.usage_event (unit_id);
 CREATE INDEX IF NOT EXISTS user_event_id_idx ON events.user_event (id);
 CREATE INDEX IF NOT EXISTS attestation_test_idx ON events.attestation (test_id);
 CREATE INDEX IF NOT EXISTS change_event_unit_idx ON events.change_event (unit_id);
+
+-- RETIREMENT (ADR-0200 D7): the self-reported session-presence tables (ADR-0033's
+-- events.session_event history + events.session projection) are DROPPED — the claim ledger
+-- (events.node_claim + events.claim_event above) is the one session-coordination machinery now.
+-- Every reader/writer was deleted first (the presence core + all consumers, #760–#765), so
+-- nothing can touch these tables by the time this runs. `IF EXISTS` is the guard — the second
+-- droppable-migration precedent in this file (after the ADR-0200 D2 node_claim ALTER block):
+-- applySchema runs on every boot, so the first run drops, every later run (and a fresh install,
+-- which never created them) no-ops. History is dropped WITH the projection: presence rows were
+-- always advisory, carried no signer chain, and audit-grade coordination history lives in
+-- events.claim_event. Ordered history-then-projection for symmetry with creation order.
+DROP TABLE IF EXISTS events.session_event;
+DROP TABLE IF EXISTS events.session;

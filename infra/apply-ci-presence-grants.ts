@@ -20,7 +20,7 @@ const { pool, connector } = await createPool();
 try {
   await pool.query(sql);
   console.log(
-    "ci-presence grants applied (events.session{,_event} + events.node_claim/claim_event → storytree-ci-presence@…iam).",
+    "ci-presence grants applied (events.node_claim/claim_event → storytree-ci-presence@…iam; session-presence grants retired, ADR-0200 D7).",
   );
 } finally {
   await closePool(pool, connector);
