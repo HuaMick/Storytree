@@ -36,7 +36,10 @@ import { rowsToBuildActivity } from './inFlightBuilds';
 import type { BuildRow } from './inFlightBuilds';
 import { claimsToActivity } from './inFlightActivity';
 import type { ClaimActivity, ClaimRow } from './inFlightActivity';
-import { deriveOfflineAssets } from './deriveOfflineCorpus';
+// deriveOfflineAssets is safe to import statically: its own `@storytree/library` use is a DYNAMIC
+// package import, so esbuild leaves it external and vite config-load never resolves the library's
+// raw-TS `.js` specifiers (the config-load trap). See deriveOfflineCorpus's header.
+import { deriveOfflineAssets, type KnowledgeUnitLike } from './deriveOfflineCorpus';
 
 /** Latest-per-(testId,witness) attestation marks for one story's tests, keyed by test id. */
 export type StoryAttestations = Record<string, { human?: Attestation; machine?: Attestation }>;
@@ -297,8 +300,8 @@ export class JsonBackend implements LibraryBackend {
   async #ensureSeeded(): Promise<void> {
     if (this.#knowledgeFile === undefined) return;
     if (existsSync(this.#assetsFile)) return;
-    const units = await readStore<Parameters<typeof deriveOfflineAssets>[0]>(this.#knowledgeFile, []);
-    await writeStore(this.#assetsFile, deriveOfflineAssets(units));
+    const units = await readStore<KnowledgeUnitLike[]>(this.#knowledgeFile, []);
+    await writeStore(this.#assetsFile, await deriveOfflineAssets(units));
   }
 
   async listAssets(): Promise<GuidanceAsset[]> {

@@ -5,7 +5,6 @@
 // first run, so no committed generated file (the retired `assets.json`) has to stand in for the
 // DB-backed corpus. The hosted/default studio reads the live Postgres store and never touches this.
 
-import { renderBody, libraryTemplates } from '@storytree/library';
 import type { GuidanceAsset } from '../src/types';
 
 /** A raw knowledge unit as read from knowledge.json (validated downstream at the render boundary). */
@@ -21,28 +20,33 @@ export interface KnowledgeUnitLike {
   [k: string]: unknown;
 }
 
-/** Render one structured knowledge unit into the GuidanceAsset wire shape (category = the unit's kind). */
-function renderKnowledgeAsset(doc: KnowledgeUnitLike): GuidanceAsset {
-  return {
+/**
+ * The offline corpus: every structured knowledge unit rendered to a GuidanceAsset, then the generated
+ * `template` artifacts. Ordering is knowledge.json order followed by the templates — the offline
+ * browse UI sorts and filters, so exact historical ordering is not load-bearing.
+ *
+ * ASYNC on purpose: `@storytree/library` is imported DYNAMICALLY (the `loadOrchestrator` pattern in
+ * apiRouter). Its root barrel does `export * from "./schema.js"` (raw TS with `.js` specifiers) which
+ * Node's ESM resolver at vite CONFIG-LOAD cannot resolve. esbuild leaves a dynamic import of an
+ * EXTERNAL package as a runtime `import()` (a static import — or a dynamic import of a LOCAL file — it
+ * follows and bundles instead), so this keeps `vite build` green while tsx resolves it at runtime.
+ */
+export async function deriveOfflineAssets(units: KnowledgeUnitLike[]): Promise<GuidanceAsset[]> {
+  const { renderBody, libraryTemplates } = await import('@storytree/library');
+
+  // renderBody is driven by KIND_SPECS off the structured fields — the same render build-corpus used.
+  const renderKnowledgeAsset = (doc: KnowledgeUnitLike): GuidanceAsset => ({
     id: doc.id,
     category: doc.kind as GuidanceAsset['category'],
     title: doc.title,
     description: doc.description,
-    // renderBody is driven by KIND_SPECS off the structured fields — the same render build-corpus used.
     body: renderBody(doc as unknown as Parameters<typeof renderBody>[0]),
     references: doc.references ?? [],
     ...(doc.provenance !== undefined ? { provenance: doc.provenance } : {}),
     createdAt: doc.createdAt ?? '',
     updatedAt: doc.updatedAt ?? '',
-  };
-}
+  });
 
-/**
- * The offline corpus: every structured knowledge unit rendered to a GuidanceAsset, then the generated
- * `template` artifacts. Ordering is knowledge.json order followed by the templates — the offline
- * browse UI sorts and filters, so exact historical ordering is not load-bearing.
- */
-export function deriveOfflineAssets(units: KnowledgeUnitLike[]): GuidanceAsset[] {
   const knowledge = units.map(renderKnowledgeAsset);
   const templates: GuidanceAsset[] = libraryTemplates().map((t) => ({
     id: t.id,

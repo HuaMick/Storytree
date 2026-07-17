@@ -16,8 +16,8 @@ const unit = (over: Partial<KnowledgeUnitLike> & { id: string; kind: string }): 
 });
 
 describe('deriveOfflineAssets', () => {
-  it('maps knowledge units to assets (category = kind) then appends the 13 templates', () => {
-    const assets = deriveOfflineAssets([
+  it('maps knowledge units to assets (category = kind) then appends the 13 templates', async () => {
+    const assets = await deriveOfflineAssets([
       unit({ id: 'u1', kind: 'definition', references: ['doc:x.md'] }),
       unit({ id: 'u2', kind: 'principle' }),
     ]);
@@ -34,14 +34,14 @@ describe('deriveOfflineAssets', () => {
     expect(assets.filter((a) => a.category === 'template')).toHaveLength(13);
   });
 
-  it('an empty knowledge seed yields exactly the templates', () => {
-    const assets = deriveOfflineAssets([]);
+  it('an empty knowledge seed yields exactly the templates', async () => {
+    const assets = await deriveOfflineAssets([]);
     expect(assets).toHaveLength(13);
     expect(assets.every((a) => a.category === 'template')).toBe(true);
   });
 
-  it('carries provenance through only when the unit has it', () => {
-    const [withProv, withoutProv] = deriveOfflineAssets([
+  it('carries provenance through only when the unit has it', async () => {
+    const [withProv, withoutProv] = await deriveOfflineAssets([
       unit({ id: 'p1', kind: 'definition', provenance: 'Imported from v1' }),
       unit({ id: 'p2', kind: 'definition' }),
     ]);
