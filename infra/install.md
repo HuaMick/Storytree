@@ -1,0 +1,61 @@
+# Explorer onboarding — the one-liner installer (ADR-0207 D1)
+
+`infra/install.ps1` is the single re-runnable command an owner sends a trusted dev to onboard them
+as an **explorer** (read-only) on Windows. The dev pastes it and enters one GitHub device code;
+everything else is automatic and idempotent.
+
+## What it does
+
+In dependency order, each step no-ops when already satisfied (see *Idempotency* below):
+
+1. **git** — installs Git via winget if absent.
+2. **node** — ensures Node 24+ (the workspace engine floor); brings corepack.
+3. **pnpm** — activates pnpm 9 via corepack.
+4. **gh-cli** — installs the GitHub CLI (drives the device sign-in).
+5. **github-auth** — GitHub device sign-in (the one code the dev enters). Read access comes from
+   the owner-granted **Read** role on the `storytree-ai` org (ADR-0207 D2).
+6. **clone** — clones the read-only checkout (`storytree-ai/Storytree`) to `%USERPROFILE%\storytree`.
+7. **provision** — `pnpm install` (no-op once `node_modules/.modules.yaml` exists).
+8. **claude-cli** — installs the Claude Code CLI (`irm https://claude.ai/install.ps1 | iex`).
+
+Then it detects whether the dev's Claude CLI is logged in (the `~/.claude/.credentials.json`
+existence probe — **never** the contents) and, pre-D5, launches the desktop app from the checkout
+(`pnpm desktop:start`).
+
+## The trust invariant (ADR-0207 D3)
+
+storytree **never handles Claude credentials**. The script installs the CLI and points the dev at
+`claude` login; the dev completes OAuth in their own browser with their own subscription, and the
+token lands in their own `~/.claude`. The script only **detects** a logged-in CLI — it never
+captures, reads, or transmits a credential. `packages/cli/src/install-script.test.ts` guards this.
+
+## Idempotency (load-bearing — ADR-0207 D1 / D6)
+
+Every step is safely re-runnable: `Invoke-Step` runs a step's `Check` first and, when satisfied,
+returns **before** the install action. Re-running the whole script is therefore both the retry
+story and the **repair** story — D6's `storytree doctor` guide re-invokes these same steps to fix a
+broken environment. An install step that is not safely re-runnable is a bug even when a first
+install succeeds. `install-script.test.ts` asserts this structurally.
+
+## Delivery
+
+Once D5 ships the public distribution bucket, the one-liner is:
+
+```powershell
+irm https://storage.googleapis.com/storytree-dist/install.ps1 | iex
+```
+
+**Until D5 lands** (the bucket does not exist yet), the repo is private, so a raw GitHub URL will
+not fetch unauthenticated. Deliver the script by pasting its contents or hosting it at a temporary
+public URL, then:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File infra/install.ps1
+```
+
+## Scope (v1)
+
+Windows-first. Deferred to follow-on increments: the `sh` variant (macOS/Linux), the public GCS
+bucket + auto-update feed (D5), and the packaged-binary desktop install (until then the app launches
+from the provisioned checkout in dev mode). The fresh-machine walk is **owner-attested** — only a
+real run on a clean machine proves the one command onboards end-to-end.
