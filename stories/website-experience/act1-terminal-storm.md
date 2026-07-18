@@ -7,7 +7,7 @@ outcome: "On the live home page, one visitor gesture breeds the storm: a single 
 status: proposed
 proof_mode: operator-attested
 depends_on: [experience-rollout-guardrails]
-decisions: [134, 157]
+decisions: [134]
 # OPERATOR-ATTESTED (ADR-0070) — web-repo work. The storm lands in storytree-web (a separate public
 # repo, its own CD; branch off ITS origin/main), which is NOT a pnpm workspace member, so the parent
 # spine cannot observe a red→green inside it — and the storm's real risk is FEEL (pacing, overwhelm,
