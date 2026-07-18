@@ -470,7 +470,8 @@ export interface SceneTerritoryInput {
   /** The UAT markers (forest-parcels inc 2). When PRESENT and non-empty, the island grows ONE
    *  standing-stone marker per criterion, SCATTERED deterministically around the island (owner call
    *  2026-07-18 — stones stand among the parcels rather than lining a path; each spot is id-seeded
-   *  with keep-outs for the tree well, the signpost, the nameplate band, and other stones). Each
+   *  with keep-outs for the tree well, the signpost, the nameplate band, and other stones, and a
+   *  keep-IN to the island's substrate land cells so no stone drifts into the water). Each
    *  criterion's `state` is encoded in its wrapper KIND (`standing-stone-proven`/`-pending`/
    *  `-failing`) and its `id` carried as the node id (the hover/delegation hook). The human-witness
    *  `signpost` seal is RETAINED unconditionally — the markers never replace it. OPTIONAL and
@@ -699,7 +700,8 @@ function buildSignpost(s: { outcome: 'pass' | 'fail' | null }, R: number): Scene
 // deterministically around the island (owner call 2026-07-18: stones, not braziers, and scattered
 // rather than lining a path — the earlier trail-walk placement + its visible bed are retired).
 // Each spot is id-seeded with keep-outs for the tree well (which also covers the signpost beside
-// it), the nameplate band, and the other stones; every stone is its OWN y-sorted drawable so it
+// it), the nameplate band, and the other stones — and a keep-IN to the island's substrate land
+// cells (no stone in the water); every stone is its OWN y-sorted drawable so it
 // interleaves honestly with the tree + flora in painter order. The human-witness signpost seal is
 // RETAINED. Everything is seeded from the story id via the existing `hash`/`rand01` helpers —
 // same input ⇒ byte-identical output.
@@ -840,33 +842,74 @@ function standingStoneMarks(state: MarkerState, k: number): SceneNode[] {
   return marks;
 }
 
+/** The stones' wrapper scale (owner feedback 2026-07-18: the full-size stone read as half the
+ *  tree — signpost-weight instead). The body painter stays untouched behind the frozen ADR-0208
+ *  splice seam; the whole marker scales at the WRAPPER (translate + scale — CSS only ever animates
+ *  the glow-circle CHILDREN, so the wrapper transform is never clobbered). */
+const STONE_SCALE = 0.6;
+
+/** Ray-cast point-in-polygon over a substrate cell ring. */
+function pointInPoly(x: number, y: number, poly: Pt[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i]!;
+    const b = poly[j]!;
+    if (a.y > y !== b.y > y && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+}
+
 /** The island's UAT markers as INDIVIDUAL y-sorted drawables — one standing-stone per criterion,
  *  scattered deterministically (owner call 2026-07-18: no path). Each stone is its own painter
  *  entry so it interleaves honestly with the tree + flora by depth. Placement: per-criterion
  *  id-seeded polar samples inside the island (radius 0.30–0.80·R, the wisp-orbit 0.7 y-squash),
- *  re-drawn up to 12 times to clear the tree well (which also covers the signpost beside it), the
- *  nameplate band, and previously-placed stones — deterministic rejection sampling: same input ⇒
- *  the same spots, and a failed clearance after 12 draws keeps the last sample rather than dropping
- *  the stone (every criterion ALWAYS renders). Empty/absent `uatCriteria` ⇒ nothing (the
- *  byte-for-byte absence path — the public website never sends it). */
-function buildUatMarkers(t: SceneTerritoryInput): Array<{ y: number; node: SceneG }> {
+ *  re-drawn up to 20 times to clear the tree well (which also covers the signpost beside it), the
+ *  nameplate band, other stones — and, when the island's relaxed substrate cells are provided, to
+ *  land ON the island (the keep-IN, owner feedback 2026-07-18: the radius-only scatter drifted
+ *  stones into the water on concave hex clusters). Deterministic rejection sampling: same input ⇒
+ *  the same spots. Exhausting the draws SNAPS to the nearest free land-cell centroid (never the
+ *  water) when cells are known, else keeps the last sample — every criterion ALWAYS renders.
+ *  Empty/absent `uatCriteria` ⇒ nothing (the byte-for-byte absence path — the public website
+ *  never sends it). */
+function buildUatMarkers(
+  t: SceneTerritoryInput,
+  ownerCells: RelaxedCell[] | null,
+): Array<{ y: number; node: SceneG }> {
   const criteria = t.uatCriteria ?? [];
   if (!criteria.length) return [];
+  const land = ownerCells && ownerCells.length ? ownerCells : null;
+  const onLand = (x: number, y: number): boolean =>
+    !land || land.some((c) => pointInPoly(x, y, c.poly));
+  const clearsSpacing = (placed: Pt[], x: number, y: number): boolean =>
+    placed.every((p) => Math.hypot(x - p.x, y - p.y) > 15);
   const placed: Pt[] = [];
   const out: Array<{ y: number; node: SceneG }> = [];
   criteria.forEach((c) => {
     const k = hash(`${t.id}:marker:${c.id}`);
     let x = t.centroid.x;
     let y = t.centroid.y;
-    for (let attempt = 0; attempt < 12; attempt++) {
+    let settled = false;
+    for (let attempt = 0; attempt < 20; attempt++) {
       const ang = rand01(k + attempt * 2) * Math.PI * 2;
       const rr = (0.3 + rand01(k + attempt * 2 + 1) * 0.5) * t.radius;
       x = t.centroid.x + Math.cos(ang) * rr;
       y = t.centroid.y + Math.sin(ang) * rr * 0.7; // top-down squash, same as the wisp orbit
-      const clearsTree = Math.hypot(x - t.treeSpot.x, y - t.treeSpot.y) > 42;
+      const clearsTree = Math.hypot(x - t.treeSpot.x, y - t.treeSpot.y) > 36;
       const clearsPlate = y < t.labelY - 14;
-      const clearsOthers = placed.every((p) => Math.hypot(x - p.x, y - p.y) > 22);
-      if (clearsTree && clearsPlate && clearsOthers) break;
+      if (clearsTree && clearsPlate && clearsSpacing(placed, x, y) && onLand(x, y)) {
+        settled = true;
+        break;
+      }
+    }
+    if (!settled && land) {
+      // A hard-to-fit (concave) island exhausted its draws: snap to the nearest land-cell
+      // centroid that keeps the stone spacing (nearest of all when every cell is crowded).
+      const spots = land
+        .map((cell) => cellCentroid(cell.poly))
+        .sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y));
+      const free = spots.find((p) => clearsSpacing(placed, p.x, p.y)) ?? spots[0]!;
+      x = free.x;
+      y = free.y;
     }
     placed.push({ x, y });
     const kind: SceneKind =
@@ -880,7 +923,7 @@ function buildUatMarkers(t: SceneTerritoryInput): Array<{ y: number; node: Scene
       node: g(standingStoneMarks(c.state, k), {
         kind,
         id: c.id,
-        transform: `translate(${f(x)} ${f(y)})`,
+        transform: `translate(${f(x)} ${f(y)}) scale(${STONE_SCALE})`,
       }),
     });
   });
@@ -2019,6 +2062,7 @@ function buildTerritorySurface(t: SceneTerritoryInput, ownerCells: RelaxedCell[]
 export function buildTerritoryFlora(
   t: SceneTerritoryInput,
   parcelFlora?: ParcelFloraMark[] | null,
+  ownerCells?: RelaxedCell[] | null,
 ): SceneG {
   const drawables: { y: number; node: SceneNode }[] = [];
 
@@ -2040,8 +2084,9 @@ export function buildTerritoryFlora(
   }
   drawables.push({ y: t.treeSpot.y, node: buildTree(t) });
   // the UAT markers (forest-parcels inc 2) — each scattered stone is its OWN y-sorted drawable so
-  // it interleaves with the tree + flora by depth. Absent/empty uatCriteria ⇒ nothing (the lock).
-  drawables.push(...buildUatMarkers(t));
+  // it interleaves with the tree + flora by depth. The island's substrate cells (when known) are
+  // the scatter's keep-in. Absent/empty uatCriteria ⇒ nothing (the lock).
+  drawables.push(...buildUatMarkers(t, ownerCells ?? null));
   drawables.sort((a, b) => a.y - b.y);
 
   const children: SceneNode[] = drawables.map((d) => d.node);
@@ -2277,9 +2322,15 @@ export function buildScene(input: SceneInput): SceneG {
   // `buildGround`, the flora to `buildTerritoryFlora`. Null (no parcels / no mesh cells) ⇒ today's
   // render on both seams, byte-for-byte.
   const cells = input.relaxedCells;
-  const surfaces: (ParcelSurface | null)[] = input.territories.map((t, owner) =>
-    cells ? buildTerritorySurface(t, cells.filter((c) => c.owner === owner)) : null,
+  // Each territory's substrate cells, computed once — the parcel surface AND the UAT-marker
+  // keep-in both read them.
+  const ownerCells: (RelaxedCell[] | null)[] = input.territories.map((_, owner) =>
+    cells ? cells.filter((c) => c.owner === owner) : null,
   );
+  const surfaces: (ParcelSurface | null)[] = input.territories.map((t, i) => {
+    const own = ownerCells[i];
+    return own ? buildTerritorySurface(t, own) : null;
+  });
   return g(
     [
       buildEmpties(input),
@@ -2288,7 +2339,9 @@ export function buildScene(input: SceneInput): SceneG {
       buildTrails(input),
       g(
         [
-          ...input.territories.map((t, i) => buildTerritoryFlora(t, surfaces[i]?.flora ?? null)),
+          ...input.territories.map((t, i) =>
+            buildTerritoryFlora(t, surfaces[i]?.flora ?? null, ownerCells[i] ?? null),
+          ),
           ...buildCaves(input),
         ],
         { kind: 'flora-layer' },
