@@ -68,7 +68,8 @@ export type KnowledgeKind =
   | "proposal"
   | "friction"
   | "arc"
-  | "plan";
+  | "plan"
+  | "uat-criterion";
 
 /**
  * The per-kind field tables. ORDER IS SIGNIFICANT: the renderer emits fields in this order
@@ -584,6 +585,42 @@ export const KIND_SPECS: Readonly<Record<KnowledgeKind, readonly KindFieldSpec[]
         "_Known traps on this surface, and the escalation points where the executor halts for the owner rather than pushing through. Omit if none are known._",
     },
   ],
+  // A `uat-criterion` (ADR-0209 D5/D6) is the seed-canonical detailed UAT acceptance contract:
+  // action / success / evidence (+ optional principle/process refs). The story criterion keeps the
+  // one-line display title — this kind deliberately has NO title-shaped lead field (action is the
+  // lead). Port authority for the narrow detail body is `@storytree/uat-criterion`; this KIND_SPECS
+  // entry is the Library recognition surface so Studio/CLI can resolve detail pointers.
+  "uat-criterion": [
+    {
+      field: "action",
+      lead: true,
+      heading: "**Action.**",
+      required: true,
+      placeholder: "_What the UAT walk actually does._",
+    },
+    {
+      field: "successConditions",
+      lead: false,
+      heading: "Success conditions",
+      required: true,
+      placeholder: "_What observable state constitutes success._",
+    },
+    {
+      field: "evidenceExpectations",
+      lead: false,
+      heading: "Evidence expectations",
+      required: true,
+      placeholder: "_What evidence must be captured to attest the walk._",
+    },
+    {
+      field: "refs",
+      lead: false,
+      heading: "References",
+      required: false,
+      refList: true,
+      placeholder: "_Optional `asset:<id>` refs to reusable Library principles/processes._",
+    },
+  ],
 } as const;
 
 /**
@@ -884,6 +921,11 @@ export const Plan = buildKindSchema("plan").extend({
   anchor: PlanAnchor,
   status: PlanStatus.default("draft"),
 });
+// The `uat-criterion` kind (ADR-0209 D5/D6): seed-canonical detailed UAT acceptance. Built from
+// KIND_SPECS only — no structured extras. commonShape still supplies Library card `title` /
+// `description` for navigation; the story criterion remains display-canonical for UAT row
+// one-liners (`displayTitle` from `@storytree/uat-criterion`). NEW kind → no schemaVersion bump.
+export const UatCriterion = buildKindSchema("uat-criterion");
 
 /** A knowledge unit at any kind. The discriminator is `kind` (ADR-0017). */
 export const Knowledge = z.discriminatedUnion("kind", [
@@ -899,6 +941,7 @@ export const Knowledge = z.discriminatedUnion("kind", [
   Friction,
   Arc,
   Plan,
+  UatCriterion,
 ]);
 
 export type Knowledge = z.infer<typeof Knowledge>;
@@ -914,3 +957,4 @@ export type Proposal = z.infer<typeof Proposal>;
 export type Friction = z.infer<typeof Friction>;
 export type Arc = z.infer<typeof Arc>;
 export type Plan = z.infer<typeof Plan>;
+export type UatCriterion = z.infer<typeof UatCriterion>;
