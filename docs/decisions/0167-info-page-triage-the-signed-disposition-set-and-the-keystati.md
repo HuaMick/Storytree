@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded
 decided: 2026-07-06
 supersedes: [101]
 amends: [134]
@@ -8,10 +8,15 @@ amends: [134]
 
 ## Status
 
-accepted (2026-07-06) — decided/directed by the owner in conversation on 2026-07-06. Design-time
+superseded (2026-07-19) by
+[ADR-0215](0215-public-website-story-frame-two-act-experience-is-the-entire.md) — website-story
+frame authority consolidates there (with 0134/0172). Historical decision text below is unchanged.
+Keystatic retirement (supersedes 0101) stands as carried forward by 0215 D3.
+
+~~accepted (2026-07-06) — decided/directed by the owner in conversation on 2026-07-06. Design-time
 alignment IS the ratification (ADR-0110); no second end-of-flow ask. The owner signed the per-page
 disposition table at the gate, attested the executed result the same session (UAT 2), and the set
-is live (web main `be960873`, PR #28).
+is live (web main `be960873`, PR #28).~~
 
 ## Context
 

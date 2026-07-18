@@ -20,10 +20,9 @@ end-of-flow ask.
 [ADR-0157](0157-act-2-reads-the-database-directly-and-teaches-plainly-retire.md), and
 [ADR-0165](0165-act-2-redesign-one-growing-system-diagram-advanced-through-t.md) — the Act 2
 experience amend stack. Their bodies stay as history; **this ADR is the sole current authority for
-the Act 2 visitor experience.** It does **not** supersede
-[ADR-0134](0134-public-website-as-a-two-act-vibe-coding-experience-terminal.md) or
-[ADR-0172](0172-retire-the-remaining-brochure-pages-the-experience-is-the-en.md) (website-story
-frame — a separate consolidating ADR) or Act 1's as-built (a separate Act 1 consolidating ADR).
+the Act 2 visitor experience.** It does **not** supersede the website-story frame
+([ADR-0215](0215-public-website-story-frame-two-act-experience-is-the-entire.md) — consolidates
+0134/0167/0172) or Act 1's as-built (a separate Act 1 consolidating ADR, still pending).
 
 ## Context
 
@@ -41,10 +40,10 @@ one current-state decision, no archaeology in the body. Expression details that 
 taste stay explicitly **open** (§Open iteration) so later sessions can reshape the LOOK without
 another full-stack supersede — unless a change breaks a Decision point below.
 
-**Sibling consolidations (planned, not this ADR):** a website-story ADR (two-act pitch,
-experience-is-the-site, diorama/boundary, a11y-only escapes, replay-only) and an Act 1 ADR (felt
-overwhelm → finale → transform; attested freeze). Parent/engine contracts stay on
-[`act2-beat-director`](../../stories/website-experience/act2-beat-director.md) — cited, not
+**Sibling consolidations:** website-story frame is
+[ADR-0215](0215-public-website-story-frame-two-act-experience-is-the-entire.md) (landed). Act 1
+(felt overwhelm → finale → transform; attested freeze) remains planned. Parent/engine contracts
+stay on [`act2-beat-director`](../../stories/website-experience/act2-beat-director.md) — cited, not
 restated.
 
 ## Decision
@@ -188,16 +187,16 @@ change breaks a Decision point above:
 
 - **Consolidation is not a terminal LOOK close.** Landed builds were attested as step-forward; Act 2
   still needs iteration. Treat §Open iteration as the work queue, not as unfinished Decision prose.
-- **Sibling ADRs still pending.** Until the website-story and Act 1 consolidations land, 0134/0172
-  and Act 1 framing remain the (still-amended) authorities for those slices — do not re-litigate them
-  inside Act 2 caps.
+- **Act 1 consolidating ADR still pending.** Website-story frame is ADR-0215; until Act 1
+  consolidates, Act 1 as-built caps remain that slice's choreography record — do not re-litigate
+  frame or Act 1 inside Act 2 caps.
 - **Caps and site copy may still cite superseded ADR numbers** until a follow-on pass rewrites
   citations to 0213. Citation drift is curation debt, not a re-decision.
 
 ## Out of scope
 
-- Two-act framing, brochure retirement, a11y marker policy, site-wide replay-only → website-story
-  consolidating ADR.
+- Two-act framing, brochure retirement, a11y marker policy, site-wide replay-only →
+  [ADR-0215](0215-public-website-story-frame-two-act-experience-is-the-entire.md).
 - Act 1 terminal swarm / finale / transform choreography → Act 1 consolidating ADR.
 - `act2-beat-director` zod / `dependsOn` / `abd-*` contracts / `--real` proofs → the LEAF cap.
 - `worldSvg` / sync / grounding rail mechanism → ADR-0093 / 0056 / 0066 (cite).
@@ -212,8 +211,7 @@ change breaks a Decision point above:
   [0153](0153-act-2-uses-the-real-app-ui-hides-the-unwalked-and-grows-a-co.md),
   [0157](0157-act-2-reads-the-database-directly-and-teaches-plainly-retire.md),
   [0165](0165-act-2-redesign-one-growing-system-diagram-advanced-through-t.md).
-- Sibling frame (not superseded here): [0134](0134-public-website-as-a-two-act-vibe-coding-experience-terminal.md),
-  [0172](0172-retire-the-remaining-brochure-pages-the-experience-is-the-en.md).
+- Sibling frame (not superseded here): [0215](0215-public-website-story-frame-two-act-experience-is-the-entire.md).
 - Cited: [0058](0058-cross-story-dependency-direction-the-no-cycle-rule-and-the-b.md),
   [0020](0020-red-green-enforcement-on-the-owned-loop.md),
   [0030](0030-all-in-on-claude-agent-sdk.md),

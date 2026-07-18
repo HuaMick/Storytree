@@ -7,7 +7,7 @@ outcome: "The visitor who just grew the mock website green in increment G (act2-
 status: proposed
 proof_mode: operator-attested
 depends_on: [act2-guided-walkthrough]
-decisions: [134, 213]
+decisions: [213, 215]
 # OPERATOR-ATTESTED (ADR-0070) — web-repo work, the extend-next half of the Act 2 re-scope (ADR-0148),
 # RE-SHAPED by ADR-0150 (owner-directed at the G attestation gate 2026-07-04): H is ONE
 # CONTINUOUS WALK growing UPSTREAM (not a CTA-gated separate phase), and the dependency-layer-as-
