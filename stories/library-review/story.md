@@ -155,31 +155,31 @@ every surface; the list grows only when a real defect earns a permanent case. Ea
 witness — the backend legs are machine-exercised (`_(witness: machine)_`); the UI legs an agent cannot
 drive are human-witness actions (`_(witness: human)_`, ADR-0070 / ADR-0040), recorded not skipped.
 
-1. **Open an open-question in Review.** _(witness: human)_ Open a library open-question in the studio
+1. **Open an open-question in Review.** _(witness: human)(detail: library-review#uat-1)_ Open a library open-question in the studio
    and flip the View → Review toggle. **Success —** the surface enters Review mode; the commenting +
    suggesting affordances appear, View was read-only.
-2. **Comment at a block position.** _(witness: human)_ In Review mode, drop an inline comment above a
+2. **Comment at a block position.** _(witness: human)(detail: library-review#uat-2)_ In Review mode, drop an inline comment above a
    specific block (not a side panel; not a text selection). **Success —** the comment thread renders
    IN the document flow above that block, like a code-review thread.
-3. **The comment persisted with a block anchor.** _(witness: machine)_ Inspect the stored comment.
+3. **The comment persisted with a block anchor.** _(witness: machine)(detail: library-review#uat-3)_ Inspect the stored comment.
    **Success —** it carries a block-position anchor (which block), NOT a `quote`/`prefix`/`suffix`
    text-span anchor — the block-position model end-to-end.
-4. **Propose a suggestion.** _(witness: human)_ As a member, edit a block's prose in Review mode and
+4. **Propose a suggestion.** _(witness: human)(detail: library-review#uat-4)_ As a member, edit a block's prose in Review mode and
    submit it as a suggestion. **Success —** a suggestion record is created `open` (a proposal, not a
    direct overwrite); the surface shows the PROPOSED RESULT by default with the original collapsed
    behind a "show change" toggle — no strikethrough.
-5. **The suggestion is a proposal, not an overwrite.** _(witness: machine)_ Inspect the stored doc +
+5. **The suggestion is a proposal, not an overwrite.** _(witness: machine)(detail: library-review#uat-5)_ Inspect the stored doc +
    the suggestion record. **Success —** the document is UNCHANGED; the suggestion holds the proposed
    replacement with status `open`, author = the member.
-6. **A member cannot accept/reject.** _(witness: machine)_ As a member, attempt accept and reject on
+6. **A member cannot accept/reject.** _(witness: machine)(detail: library-review#uat-6)_ As a member, attempt accept and reject on
    the suggestion. **Success —** both refused (member scope); the suggestion stays `open`.
-7. **The owner accepts.** _(witness: human)_ As the owner/admin, click Accept. **Success —**
+7. **The owner accepts.** _(witness: human)(detail: library-review#uat-7)_ As the owner/admin, click Accept. **Success —**
    the suggestion flips `open → accepted`, the edit is applied to the document through the admin
    asset-write path, and re-deciding the now-closed suggestion is refused.
-8. **Live refresh, no reload.** _(witness: human)_ With the open-question open, a second comment /
+8. **Live refresh, no reload.** _(witness: human)(detail: library-review#uat-8)_ With the open-question open, a second comment /
    suggestion is posted (another session / a scripted POST). **Success —** it appears on the Review
    surface within the poll window WITHOUT a manual reload (the 30 s visibility-gated refresh feed).
-9. **The old text-selection commenting is gone.** _(witness: machine)_ Search the built studio for the
+9. **The old text-selection commenting is gone.** _(witness: machine)(detail: library-review#uat-9)_ Search the built studio for the
    removed path. **Success —** `annotate.ts` quote-matching, the select-to-highlight popover, the
    `kind:'text'` comment anchor, and the range `<mark>` highlights are absent; `pnpm --filter studio
    test` + `pnpm --filter studio typecheck` are green — a clean swap, no two systems side by side.

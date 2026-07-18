@@ -273,7 +273,7 @@ forest map, walks from a search to an artifact's neighbourhood, dives into its b
 whole-corpus constellation, and closes the drawer — the map staying live the whole time except during a
 deliberate dive.
 
-1. Open the studio map (`#/tree`). **Success (machine — `library-top-drawer`) —** the Library presents by
+1. **Open the Library drawer on the map.** _(witness: machine)(detail: library-tech-tree-overlay#uat-1)_ Open the studio map (`#/tree`). **Success (machine — `library-top-drawer`) —** the Library presents by
    DEFAULT as a collapsed top drawer handle at the top edge of the forest (visible on load with no URL
    knowledge); clicking the handle slides the lens down (expanded), the forest map staying fully live and
    interactive beneath it (no dimming scrim, in either state) — and a deep link that already carries
@@ -281,26 +281,26 @@ deliberate dive.
    parent glue writing the flag via `commitSearch`). **Look (operator-attested) —** the drawer spans the
    full width of the forest frame, expanded takes ~the top 1/3, and reads as part of the world (the map's
    forest-cozy palette), legible against the map.
-2. Type a query into the finder. **Success (machine — `finder`) —** results narrow client-side over the
+2. **Find an artifact in the drawer.** _(witness: machine)(detail: library-tech-tree-overlay#uat-2)_ Type a query into the finder. **Success (machine — `finder`) —** results narrow client-side over the
    loaded corpus (id/title/description/body + ADR titles), each result showing its kind as a muted
    sub-line (via `kindLabel`, so `arc` reads "Epic"); selecting one sets the finder selection.
-3. Read the selected artifact's neighbourhood. **Success (machine — `library-dag-canvas`) —** the selected
+3. **Read the selected neighbourhood DAG.** _(witness: machine)(detail: library-tech-tree-overlay#uat-3)_ Read the selected artifact's neighbourhood. **Success (machine — `library-dag-canvas`) —** the selected
    artifact is centred in a layered reference DAG, its `references[]` fanning upstream (stands on) left
    and downstream (stood on by) right to ONE level each way (ADR-0193 dec 3), with DRAWN edges between rank-adjacent
    nodes and per-branch ⊕ expanders taming breadth (no global depth stepper) and a fit-to-view viewBox
    holding every node; clicking a neighbour re-centres the DAG on it — no ← Back / breadcrumb / pan-zoom. **Look (operator-attested) —** two-line kind-in-node
    plaques (title / kind), colour encoding STATE only (the selected chain lights purple, ephemeral
    plan nodes dashed).
-4. Open the selected artifact to read it. **Success (machine — `dive-body`) —** the drawer collapses to
+4. **Dive into the selected artifact.** _(witness: machine)(detail: library-tech-tree-overlay#uat-4)_ Open the selected artifact to read it. **Success (machine — `dive-body`) —** the drawer collapses to
    a bar and the artifact's full body + Sources render over the rest of the map (ADR bodies fetched via
    `docContent()`); the route syncs to `#/asset/<id>`; Esc unwinds dive → peek → map. **Look
    (operator-attested) —** the dive body reads over the world without losing the peek bar.
-5. Clear the finder to the empty state. **Success (machine — `overview`) —** the whole corpus renders as
+5. **See the whole-corpus overview.** _(witness: machine)(detail: library-tech-tree-overlay#uat-5)_ Clear the finder to the empty state. **Success (machine — `overview`) —** the whole corpus renders as
    a dot constellation (circle = artifact, square = ADR), sized by importance, one SVG element per node
    at far zoom; a search match pulses independent of zoom; nodes swap to plaques at close zoom. **Look
    (operator-attested) —** the constellation reads as a tech-tree overview and stays smooth as the corpus
    grows toward ~2000 nodes (the LOD ladder holds).
-6. Click the handle to close the lens. **Success (machine — `library-top-drawer`) —** the lens slides back
+6. **Close the Library drawer.** _(witness: machine)(detail: library-tech-tree-overlay#uat-6)_ Click the handle to close the lens. **Success (machine — `library-top-drawer`) —** the lens slides back
    up to the collapsed top drawer handle (the handle firing `onToggle`, the parent glue clearing the
    `?overlay=library` flag via `commitSearch`); the operator is returned to the full live map with the handle
    still visible at the top edge, and a reload with the flag cleared stays collapsed to the handle.
