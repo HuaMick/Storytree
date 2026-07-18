@@ -1439,15 +1439,35 @@ function parcelFloraItem(
   };
 }
 
-/** A soft ground-contact shadow — reuses the shared `shadow` kind (zero new shadow CSS). */
-function parcelShadow(x: number, y: number, rx: number, ry: number): SceneNode {
-  return ellipse(x, y, rx, ry, { kind: 'shadow' });
+/** DRIFTS & CLEARINGS (the owner-directed vegetation refinement, 2026-07-18): every theme spends
+ *  its density budget inside 1–2 seeded drift BEDS per parcel instead of an even all-cells
+ *  scatter — massed vegetation with open lawn between reads as a garden, not static. The drift's
+ *  AREA grows with the test count (spread = 7 + tests·0.55; two beds once tests ≥ 7), so density
+ *  stays legible as "how big is the bed" while the counts themselves are untouched. Deterministic:
+ *  anchors and every placement draw only from the parcel's seeded `rand`. The y-radius wears the
+ *  same top-down squash the wisp orbit uses. */
+function driftSpot(cells: ParcelCell[], tests: number, rand: () => number): () => Pt {
+  const anchors: Pt[] = [];
+  const n = tests >= 7 ? 2 : 1;
+  for (let d = 0; d < n; d++) {
+    const c = cells[Math.floor(rand() * cells.length)]!;
+    anchors.push({ x: c.cx, y: c.cy });
+  }
+  const spread = 7 + Math.max(0, tests) * 0.55;
+  return (): Pt => {
+    const a = anchors[Math.floor(rand() * anchors.length)]!;
+    const ang = rand() * Math.PI * 2;
+    const rr = Math.sqrt(rand()) * spread;
+    return { x: a.x + Math.cos(ang) * rr, y: a.y + Math.sin(ang) * rr * 0.6 };
+  };
 }
 
 /** MEADOW (meadow.js) — long-grass tufts are the density bulk, healthy ground crowned with 4-petal
- *  wildflowers (colour rotated across cream/white/yellow/pink), amber sprouts while proposed/building,
- *  fallen twigs + wilt-red flecks when unhealthy. grass → `parcel-blade`, shrub → `parcel-shrub`,
- *  flower/bud/berry/fleck → `parcel-flower`, flower-stem/sprout-stem/twig/wilt → `parcel-stem`. */
+ *  wildflowers (ONE species — the colour rotation retired with the drift refinement; hue is CSS's),
+ *  amber sprouts while proposed/building, fallen twigs + wilt-red flecks when unhealthy. Budget is
+ *  planted in drift beds (`driftSpot`), per-item ground shadows retired — the marks sit in massed
+ *  beds, not as individually-shadowed objects. grass → `parcel-blade`, shrub → `parcel-shrub`,
+ *  flower/bud/fleck → `parcel-flower`, flower-stem/sprout-stem/twig/wilt → `parcel-stem`. */
 function meadowSurface(
   cells: ParcelCell[],
   status: SceneStatus,
@@ -1460,8 +1480,6 @@ function meadowSurface(
 
   const item = (y: number, marks: SceneNode[]): ParcelFloraMark =>
     parcelFloraItem('meadow', status, y, marks);
-  const shadow = (x: number, y: number, rx: number): SceneNode =>
-    parcelShadow(x, y + 0.7, rx, rx * 0.32);
 
   // density budget (verbatim): grass is the ramp bulk; shrubs a "grown" mark only where standing bulk
   // grows (healthy/building/unhealthy); flowers a healthy (mapped-rare) accent.
@@ -1490,30 +1508,14 @@ function meadowSurface(
   if (status === 'mapped' || status === 'proposed') grassCount = Math.round(grassCount * 0.85);
   const lushBlade = (status === 'healthy' || status === 'building') && tests >= 6;
 
-  // deal cells with reshuffle-on-exhaust so density can exceed cell count
-  let deck: number[] = [];
-  const nextCell = (): ParcelCell => {
-    if (deck.length === 0) {
-      deck = cells.map((_, k) => k);
-      for (let k = deck.length - 1; k > 0; k--) {
-        const j = Math.floor(rand() * (k + 1));
-        const tmp = deck[k]!;
-        deck[k] = deck[j]!;
-        deck[j] = tmp;
-      }
-    }
-    return cells[deck.pop()!]!;
-  };
-  const spot = (jx: number, jy: number): Pt => {
-    const cell = nextCell();
-    return { x: cell.cx + (rand() - 0.5) * jx, y: cell.cy + (rand() - 0.5) * jy };
-  };
+  // the drift beds: the whole budget plants inside them (open lawn is part of the drawing)
+  const spot = driftSpot(cells, tests, rand);
 
   // mark: long grass tuft — 3-4 filled two-face blades (dark back-face v1 under a narrower light
-  // front-face v0), one soft shared base shadow.
+  // front-face v0).
   const grassTuft = (x: number, y: number): SceneNode[] => {
     const n = status === 'unknown' ? 2 : lushBlade && rand() < 0.55 ? 4 : 3;
-    const marks: SceneNode[] = [shadow(x, y, 1.9 + n * 0.35)];
+    const marks: SceneNode[] = [];
     for (let b = 0; b < n; b++) {
       const bx = x + (b - (n - 1) / 2) * 2.0 + (rand() - 0.5) * 0.7;
       const lean = (rand() - 0.5) * 3.4;
@@ -1538,11 +1540,11 @@ function meadowSurface(
     return marks;
   };
 
-  // mark: small shrub — 3 dark under-lobes (v1) set a bushy silhouette, 2 light crown lobes (v0), an
-  // optional berry (v3, healthy or unhealthy-dark via status).
+  // mark: small shrub — 3 dark under-lobes (v1) set a bushy silhouette, 2 light crown lobes (v0), a
+  // dark berry only when unhealthy (the healthy red-berry accent retired with the quiet palette).
   const shrub = (x: number, y: number): SceneNode[] => {
     const s = 1.1 + rand() * 0.4;
-    const marks: SceneNode[] = [shadow(x, y + 1.5 * s, 3.8 * s)];
+    const marks: SceneNode[] = [];
     const lobes: readonly (readonly [number, number, number])[] = [
       [-2.3, 0.9, 1.9],
       [2.1, 1.1, 2.0],
@@ -1560,18 +1562,16 @@ function meadowSurface(
     );
     if (status === 'unhealthy' && rand() < 0.7) {
       marks.push(circle(x + (rand() - 0.5) * 3.4 * s, y - rand() * 1.4 * s, 0.65 * s, { kind: 'parcel-flower', variant: 3 }));
-    } else if (status === 'healthy' && rand() < 0.55) {
-      marks.push(circle(x + (rand() - 0.5) * 3 * s, y - rand() * 1.6 * s, 0.7 * s, { kind: 'parcel-flower', variant: 3 }));
     }
     return marks;
   };
 
-  // mark: flower — stem (parcel-stem v1) + 4-petal blossom (rotated petal variant 0/4/5/6) + core (v1)
-  // + a tiny core speck (v2).
+  // mark: flower — stem (parcel-stem v1) + 4-petal blossom (ONE species: petal v0 — the island
+  // agrees on a flower; the old 0/4/5/6 hue rotation read as confetti) + core (v1) + a speck (v2).
   const flower = (x: number, y: number): SceneNode[] => {
-    const petalV = [0, 4, 5, 6][Math.floor(rand() * 4)]!;
+    const petalV = 0;
     const top = y - 4.6 - rand() * 1.6;
-    const marks: SceneNode[] = [shadow(x, y, 1.3)];
+    const marks: SceneNode[] = [];
     marks.push(path(`M ${f(x)} ${f(y)} L ${f(x)} ${f(top + 1.0)}`, { kind: 'parcel-stem', variant: 1, strokeWidth: 0.9 }));
     for (const [dx, dy] of [[-1.4, 0], [1.4, 0], [0, -1.4], [0, 1.4]] as const) {
       marks.push(circle(x + dx, top + dy, 1.35, { kind: 'parcel-flower', variant: petalV }));
@@ -1588,7 +1588,7 @@ function meadowSurface(
     const lean = (rand() - 0.5) * 2.0;
     const tipx = x + lean;
     const tipy = y - h;
-    const marks: SceneNode[] = [shadow(x, y, 2.0)];
+    const marks: SceneNode[] = [];
     marks.push(path(`M ${f(x)} ${f(y)} Q ${f(x + lean * 0.4)} ${f(y - h * 0.55)} ${f(tipx)} ${f(tipy)}`, { kind: 'parcel-stem', variant: 1, strokeWidth: 1.0 }));
     marks.push(circle(tipx, tipy - 0.9, 1.45, { kind: 'parcel-flower', variant: 1 }));
     marks.push(circle(tipx - 0.35, tipy - 1.25, 0.8, { kind: 'parcel-flower', variant: 0 }));
@@ -1611,42 +1611,41 @@ function meadowSurface(
     const dir = rand() < 0.5 ? -1 : 1;
     const th = 3.6 + rand() * 1.6;
     return [
-      shadow(x, y, 1.9),
       path(`M ${f(x)} ${f(y)} Q ${f(x + dir * 0.5)} ${f(y - th)} ${f(x + dir * 2.3)} ${f(y - th + 1.6)}`, { kind: 'parcel-stem', variant: 1, strokeWidth: 1.0 }),
       circle(x + dir * 2.3, y - th + 1.6, 1.05, { kind: 'parcel-flower', variant: 1 }),
       circle(x + dir * 1.9, y - th + 1.3, 0.5, { kind: 'parcel-flower', variant: 0 }),
     ];
   };
 
-  // assembly (verbatim): shrubs first (grass reads over them), then the grass bulk, then the
-  // status-specific accent layer.
+  // assembly (counts verbatim): shrubs first (grass reads over them), then the grass bulk, then
+  // the status-specific accent layer — all planted inside the drift beds.
   for (let k = 0; k < shrubCount; k++) {
-    const ps = spot(5, 3.5);
+    const ps = spot();
     flora.push(item(ps.y + 1, shrub(ps.x, ps.y)));
   }
   for (let k = 0; k < grassCount; k++) {
-    const pg = spot(8.5, 5);
+    const pg = spot();
     const marks = grassTuft(pg.x, pg.y);
     if (status === 'unhealthy' && rand() < 0.4) marks.push(...wilt(pg.x + 3, pg.y));
     flora.push(item(pg.y, marks));
   }
   if (status === 'healthy' || (status === 'mapped' && flowerCount)) {
     for (let k = 0; k < flowerCount; k++) {
-      const pf = spot(6.5, 4.2);
+      const pf = spot();
       flora.push(item(pf.y, flower(pf.x, pf.y)));
     }
   }
   if (status === 'proposed' || status === 'building') {
     const sproutCount = tests <= 0 ? 0 : Math.max(1, Math.round(tests * (status === 'building' ? 0.6 : 0.45)));
     for (let k = 0; k < sproutCount; k++) {
-      const psp = spot(6.5, 4.2);
+      const psp = spot();
       flora.push(item(psp.y, sprout(psp.x, psp.y)));
     }
   }
   if (status === 'unhealthy') {
     const wiltCount = tests <= 0 ? 0 : Math.max(1, Math.round(tests * 0.4));
     for (let k = 0; k < wiltCount; k++) {
-      const pw = spot(6.5, 4.2);
+      const pw = spot();
       flora.push(item(pw.y, wilt(pw.x, pw.y)));
     }
   }
@@ -1670,7 +1669,6 @@ function woodlandSurface(
 
   const item = (y: number, marks: SceneNode[]): ParcelFloraMark =>
     parcelFloraItem('woodland', status, y, marks);
-  const shadow = (x: number, y: number, rx: number): SceneNode => parcelShadow(x, y, rx, rx * 0.34);
   const fleck = (x: number, y: number): SceneNode => circle(x, y, 0.8, { kind: 'parcel-flower', variant: 0 });
   const distressed = status === 'unhealthy';
 
@@ -1685,45 +1683,15 @@ function woodlandSurface(
   ): string =>
     `M${f(x - bw * 0.5)} ${f(y)} Q${f(midx - bw * 0.4)} ${f(midy)} ${f(tipx)} ${f(tipy)} Q${f(midx + bw * 0.4)} ${f(midy)} ${f(x + bw * 0.5)} ${f(y)} Z`;
 
-  // cell picking: deal without replacement + a 3-candidate min-spacing pick so flora spreads.
-  let deck: number[] = [];
-  const pickCell = (): ParcelCell => {
-    if (deck.length === 0) {
-      deck = cells.map((_, k) => k);
-      for (let k = deck.length - 1; k > 0; k--) {
-        const j = Math.floor(rand() * (k + 1));
-        const tmp = deck[k]!;
-        deck[k] = deck[j]!;
-        deck[j] = tmp;
-      }
-    }
-    return cells[deck.pop()!]!;
-  };
-  const placed: Pt[] = [];
-  const spot = (jx: number, jy: number): Pt => {
-    let best: { p: Pt; dMin: number } | null = null;
-    for (let a = 0; a < 3; a++) {
-      const cell = pickCell();
-      const p = { x: cell.cx + (rand() * 2 - 1) * jx, y: cell.cy + (rand() * 2 - 1) * jy };
-      let dMin = 1e9;
-      for (const q of placed) {
-        const dx = p.x - q.x;
-        const dy = p.y - q.y;
-        const d2 = dx * dx + dy * dy;
-        if (d2 < dMin) dMin = d2;
-      }
-      if (best === null || dMin > best.dMin) best = { p, dMin };
-      if (dMin > 64) break;
-    }
-    placed.push(best!.p);
-    return best!.p;
-  };
+  // the drift beds: the whole budget plants inside them (the old spread-maximising pick retired —
+  // massing is the point now).
+  const spot = driftSpot(cells, tests, rand);
 
   // mark: fern tuft — each blade a dark back-half (v1) under a narrower light front-half (v0).
   const fern = (x: number, y: number): { y: number; marks: SceneNode[] } => {
     const s = 1.05 + rand() * 0.4;
     if (distressed) {
-      const marks: SceneNode[] = [shadow(x, y, 2.4 * s)];
+      const marks: SceneNode[] = [];
       marks.push(
         path(
           `M${f(x - 1.2 * s)} ${f(y)} L${f(x - 2.3 * s)} ${f(y - 3 * s)} M${f(x + 0.6 * s)} ${f(y)} L${f(x + 1.9 * s)} ${f(y - 3.4 * s)} M${f(x - 0.3 * s)} ${f(y)} L${f(x)} ${f(y - 3.9 * s)}`,
@@ -1734,7 +1702,7 @@ function woodlandSurface(
       return { y, marks };
     }
     const n = 3 + Math.floor(rand() * 2);
-    const marks: SceneNode[] = [shadow(x, y + 0.3 * s, 2.8 * s)];
+    const marks: SceneNode[] = [];
     for (let b = 0; b < n; b++) {
       const t = n === 1 ? 0.5 : b / (n - 1);
       const lean = (t - 0.5) * 5.6 * s;
@@ -1758,7 +1726,7 @@ function woodlandSurface(
   const shrub = (x: number, y: number): { y: number; marks: SceneNode[] } => {
     const s = 0.85 + rand() * 0.35;
     if (distressed) {
-      const marks: SceneNode[] = [shadow(x, y, 3.2 * s)];
+      const marks: SceneNode[] = [];
       marks.push(
         path(
           `M${f(x - 1.6 * s)} ${f(y)} L${f(x - 3.0 * s)} ${f(y - 3.6 * s)} M${f(x + 1.0 * s)} ${f(y)} L${f(x + 2.6 * s)} ${f(y - 4.2 * s)} M${f(x - 0.2 * s)} ${f(y)} L${f(x + 0.2 * s)} ${f(y - 4.8 * s)}`,
@@ -1768,7 +1736,7 @@ function woodlandSurface(
       marks.push(fleck(x - 3.0 * s, y - 3.8 * s), fleck(x + 2.6 * s, y - 4.4 * s));
       return { y, marks };
     }
-    const marks: SceneNode[] = [shadow(x, y + 0.5 * s, 3.6 * s)];
+    const marks: SceneNode[] = [];
     const lumpSide = rand() < 0.5 ? -1 : 1;
     marks.push(ellipse(x + lumpSide * 2.6 * s, y + 0.7 * s, 2.3 * s, 1.7 * s, { kind: 'parcel-shrub', variant: 1 }));
     marks.push(ellipse(x, y, 3.8 * s, 2.7 * s, { kind: 'parcel-shrub', variant: 1 }));
@@ -1803,7 +1771,7 @@ function woodlandSurface(
   const sapling = (x: number, y: number): { y: number; marks: SceneNode[] } => {
     const s = 0.8 + rand() * 0.3;
     if (distressed) {
-      const marks: SceneNode[] = [shadow(x, y, 3 * s)];
+      const marks: SceneNode[] = [];
       marks.push(
         path(
           `M${f(x)} ${f(y)} L${f(x)} ${f(y - 9 * s)} M${f(x)} ${f(y - 4.5 * s)} L${f(x - 3.2 * s)} ${f(y - 8 * s)} M${f(x)} ${f(y - 6 * s)} L${f(x + 2.8 * s)} ${f(y - 9.5 * s)}`,
@@ -1816,7 +1784,7 @@ function woodlandSurface(
     const r = 4.4 * s;
     const trunkH = 4.4 * s;
     const cy0 = y - trunkH - r * 0.8;
-    const marks: SceneNode[] = [shadow(x, y, r * 0.8)];
+    const marks: SceneNode[] = [];
     marks.push(path(`M${f(x)} ${f(y)} L${f(x)} ${f(y - trunkH - 1)}`, { kind: 'parcel-stem', variant: 2, strokeWidth: 1.4 }));
     marks.push(circle(x, cy0, r, { kind: 'parcel-shrub', variant: 3 }));
     marks.push(circle(x - r * 0.3, cy0 - r * 0.3, r * 0.75, { kind: 'parcel-shrub', variant: 2 }));
@@ -1830,22 +1798,22 @@ function woodlandSurface(
   const nSaplings = Math.floor(tests / 4);
 
   for (let i = 0; i < nFerns; i++) {
-    const p = spot(3.5, 2.4);
+    const p = spot();
     const m = fern(p.x, p.y);
     flora.push(item(m.y, m.marks));
   }
   for (let i = 0; i < nShrubs; i++) {
-    const p = spot(4, 2.6);
+    const p = spot();
     const m = shrub(p.x, p.y);
     flora.push(item(m.y, m.marks));
   }
   for (let i = 0; i < nFlowers; i++) {
-    const p = spot(4.2, 2.6);
+    const p = spot();
     const m = flower(p.x, p.y);
     if (m) flora.push(item(m.y, m.marks));
   }
   for (let i = 0; i < nSaplings; i++) {
-    const p = spot(4.5, 3);
+    const p = spot();
     const m = sapling(p.x, p.y);
     flora.push(item(m.y, m.marks));
   }
@@ -1930,7 +1898,7 @@ function heathSurface(
   const grassTuft = (x: number, y: number): { y: number; marks: SceneNode[] } => {
     const s = conf.scale * (0.85 + rand() * 0.35);
     const n = 3 + Math.floor(rand() * 3);
-    const marks: SceneNode[] = [ellipse(x + 0.3 * s, y + 0.6 * s, 2.6 * s, 0.8 * s, { kind: 'shadow' })];
+    const marks: SceneNode[] = [];
     for (let i = 0; i < n; i++) {
       const dx = (i - (n - 1) / 2) * 1.15 * s;
       const h = (3.2 + rand() * 2.6) * s;
@@ -1953,8 +1921,7 @@ function heathSurface(
     const useAlt = conf.altShrubChance > 0 && rand() < conf.altShrubChance;
     const bodyV = useAlt ? 3 : 1;
     const hiV = useAlt ? 2 : 0;
-    const footprint = (hero ? 6.0 : 4.2) * s;
-    const marks: SceneNode[] = [ellipse(x + 0.4 * s, y + 2.6 * s, footprint, footprint * 0.28, { kind: 'shadow' })];
+    const marks: SceneNode[] = [];
 
     if (conf.twiggy) {
       const tn = 3 + Math.floor(rand() * 2);
@@ -2025,21 +1992,8 @@ function heathSurface(
     return { y, marks };
   };
 
-  // shuffle cell order so flora spreads across the whole parcel.
-  const order = cells.slice();
-  for (let j = order.length - 1; j > 0; j--) {
-    const k = Math.floor(rand() * (j + 1));
-    const tmp = order[j]!;
-    order[j] = order[k]!;
-    order[k] = tmp;
-  }
-  let idx = 0;
-  const next = (jx: number, jy?: number): Pt => {
-    const cell = order[idx % order.length]!;
-    idx++;
-    const jyy = jy == null ? jx * 0.7 : jy;
-    return { x: cell.cx + (rand() * 2 - 1) * jx, y: cell.cy + (rand() * 2 - 1) * jyy };
-  };
+  // the drift beds: the whole budget plants inside them (the all-cells spread retired).
+  const next = driftSpot(cells, tests, rand);
 
   // density budget: tests drives every tier, status only recolours/mutes.
   const t = Math.max(0, tests | 0);
@@ -2048,17 +2002,17 @@ function heathSurface(
   const flowerClusters = t < 2 ? 0 : Math.round((t - 1) * 0.3 * conf.flowerBoost);
 
   for (let i = 0; i < grassCount; i++) {
-    const p = next(4.2);
+    const p = next();
     const m = grassTuft(p.x, p.y);
     flora.push(item(m.y, m.marks));
   }
   for (let i = 0; i < shrubCount; i++) {
-    const p = next(3.4);
+    const p = next();
     const m = shrub(p.x, p.y, i < 2);
     flora.push(item(m.y, m.marks));
   }
   for (let i = 0; i < flowerClusters; i++) {
-    const p = next(4.4);
+    const p = next();
     const m = bellCluster(p.x, p.y);
     flora.push(item(m.y, m.marks));
   }
