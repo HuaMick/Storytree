@@ -1,0 +1,356 @@
+<svg viewBox="0 0 480 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A whimsical glowing giant-mushroom cottage on an isometric grass tile">
+  <defs>
+    <!-- ===== gradients ===== -->
+    <radialGradient id="md-ambient" cx="50%" cy="55%" r="60%">
+      <stop offset="0%" stop-color="#ffd75e" stop-opacity="0.28"/>
+      <stop offset="45%" stop-color="#c98a4a" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#101418" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="md-grass" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0%" stop-color="#74c47c"/>
+      <stop offset="45%" stop-color="#4f9d5d"/>
+      <stop offset="100%" stop-color="#357044"/>
+    </linearGradient>
+    <radialGradient id="md-grass-hi" cx="42%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#9adf99" stop-opacity="0.85"/>
+      <stop offset="60%" stop-color="#6bb96f" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#4f9d5d" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="md-earthL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8a5a44"/>
+      <stop offset="100%" stop-color="#4f3325"/>
+    </linearGradient>
+    <linearGradient id="md-earthR" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6f4633"/>
+      <stop offset="100%" stop-color="#3c261b"/>
+    </linearGradient>
+
+    <linearGradient id="md-stalk" x1="0.1" y1="0" x2="0.95" y2="0.65">
+      <stop offset="0%" stop-color="#fff7e4"/>
+      <stop offset="35%" stop-color="#f0e2bf"/>
+      <stop offset="70%" stop-color="#d8bf90"/>
+      <stop offset="100%" stop-color="#b39a68"/>
+    </linearGradient>
+    <linearGradient id="md-stalk-shade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#6f5a3a" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#5c4a2e" stop-opacity="0.6"/>
+    </linearGradient>
+    <linearGradient id="md-ring" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fdf3d8"/>
+      <stop offset="100%" stop-color="#cdb488"/>
+    </linearGradient>
+
+    <radialGradient id="md-cap" cx="40%" cy="26%" r="78%">
+      <stop offset="0%" stop-color="#ffc48a"/>
+      <stop offset="28%" stop-color="#f6864f"/>
+      <stop offset="62%" stop-color="#d24e30"/>
+      <stop offset="100%" stop-color="#992f24"/>
+    </radialGradient>
+    <linearGradient id="md-cap-rim" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0%" stop-color="#ffe0b0" stop-opacity="0.95"/>
+      <stop offset="18%" stop-color="#ffd75e" stop-opacity="0.25"/>
+      <stop offset="45%" stop-color="#ffd75e" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="md-cap-under" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8a2f26"/>
+      <stop offset="100%" stop-color="#4d1a1c"/>
+    </linearGradient>
+    <radialGradient id="md-gill" cx="50%" cy="10%" r="95%">
+      <stop offset="0%" stop-color="#fff3cf"/>
+      <stop offset="40%" stop-color="#ffd75e"/>
+      <stop offset="75%" stop-color="#f0993f"/>
+      <stop offset="100%" stop-color="#c86a2f"/>
+    </radialGradient>
+    <!-- interior ceiling of the cap hollow: dark at the top, warming toward the glowing gills -->
+    <linearGradient id="mushroomdwelling-hollow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#571d17"/>
+      <stop offset="55%" stop-color="#83341f"/>
+      <stop offset="100%" stop-color="#c06428"/>
+    </linearGradient>
+
+    <radialGradient id="md-window" cx="50%" cy="42%" r="62%">
+      <stop offset="0%" stop-color="#fffae6"/>
+      <stop offset="45%" stop-color="#ffe9a8"/>
+      <stop offset="80%" stop-color="#ffd75e"/>
+      <stop offset="100%" stop-color="#e9a63f"/>
+    </radialGradient>
+    <radialGradient id="md-door" cx="50%" cy="30%" r="80%">
+      <stop offset="0%" stop-color="#ffe9a8"/>
+      <stop offset="55%" stop-color="#e79a45"/>
+      <stop offset="100%" stop-color="#7a4a22"/>
+    </radialGradient>
+    <radialGradient id="md-spot" cx="42%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#fffaf0"/>
+      <stop offset="70%" stop-color="#f3e6c8"/>
+      <stop offset="100%" stop-color="#d9c39a"/>
+    </radialGradient>
+
+    <radialGradient id="md-shadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.55"/>
+      <stop offset="70%" stop-color="#000000" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="md-wisp" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff3cf" stop-opacity="1"/>
+      <stop offset="35%" stop-color="#ffd75e" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- ===== filters ===== -->
+    <filter id="md-soft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+    <filter id="md-glow" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+    <filter id="md-shadowblur" x="-40%" y="-60%" width="180%" height="240%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+  </defs>
+
+  <!-- ambient magical ground glow -->
+  <ellipse cx="240" cy="330" rx="210" ry="150" fill="url(#md-ambient)"/>
+
+  <!-- ground contact shadow -->
+  <ellipse cx="238" cy="404" rx="150" ry="42" fill="url(#md-shadow)" filter="url(#md-shadowblur)"/>
+
+  <!-- ============ ISOMETRIC GROUND TILE ============ -->
+  <!-- earth thickness (left + right faces) -->
+  <polygon points="92,375 240,450 240,482 92,407" fill="url(#md-earthL)"/>
+  <polygon points="240,450 388,375 388,407 240,482" fill="url(#md-earthR)"/>
+  <!-- earth strata lines -->
+  <polyline points="98,392 240,466 382,392" fill="none" stroke="#3a2418" stroke-width="1.4" stroke-opacity="0.5"/>
+  <polyline points="110,401 240,466 370,401" fill="none" stroke="#9c6a4c" stroke-width="1" stroke-opacity="0.35"/>
+  <!-- embedded root/stone in earth face -->
+  <ellipse cx="150" cy="418" rx="10" ry="6" fill="#5a4030" transform="rotate(28 150 418)"/>
+  <ellipse cx="320" cy="415" rx="9" ry="5" fill="#4a2f22" transform="rotate(-24 320 415)"/>
+
+  <!-- grass top face -->
+  <polygon points="240,300 388,375 240,450 92,375" fill="url(#md-grass)"/>
+  <polygon points="240,300 388,375 240,450 92,375" fill="url(#md-grass-hi)"/>
+  <!-- tile top edge rim light -->
+  <polyline points="92,375 240,300 388,375" fill="none" stroke="#bff0b4" stroke-width="1.6" stroke-opacity="0.55"/>
+
+  <!-- moss patches -->
+  <ellipse cx="180" cy="356" rx="34" ry="15" fill="#5fb268" opacity="0.55"/>
+  <ellipse cx="300" cy="400" rx="30" ry="13" fill="#3f8850" opacity="0.5"/>
+  <ellipse cx="150" cy="392" rx="22" ry="10" fill="#69bd70" opacity="0.45"/>
+
+  <!-- scattered pebbles on grass -->
+  <ellipse cx="322" cy="360" rx="7" ry="4" fill="#8f9aa0"/>
+  <ellipse cx="322" cy="359" rx="5" ry="2.4" fill="#c3ccd0"/>
+  <ellipse cx="118" cy="382" rx="6" ry="3.4" fill="#7f8a90"/>
+  <ellipse cx="118" cy="381" rx="4" ry="2" fill="#b6bfc4"/>
+
+  <!-- grass blades (all rooted inside the grass top face) -->
+  <g stroke-linecap="round" fill="none">
+    <path d="M110,372 q-3,-9 1,-15" stroke="#6cbd72" stroke-width="2"/>
+    <path d="M116,375 q1,-8 5,-12" stroke="#4f9d5d" stroke-width="2"/>
+    <path d="M126,381 q-2,-9 2,-14" stroke="#7fce80" stroke-width="1.8"/>
+    <path d="M348,381 q3,-9 -1,-15" stroke="#6cbd72" stroke-width="2"/>
+    <path d="M356,377 q-1,-8 -5,-12" stroke="#4f9d5d" stroke-width="2"/>
+    <path d="M338,388 q3,-9 -2,-14" stroke="#7fce80" stroke-width="1.8"/>
+    <path d="M210,431 q-3,-9 1,-15" stroke="#5aa864" stroke-width="2"/>
+    <path d="M222,437 q1,-9 5,-13" stroke="#74c47c" stroke-width="1.8"/>
+    <path d="M264,433 q3,-9 -1,-15" stroke="#5aa864" stroke-width="2"/>
+    <path d="M168,410 q-2,-9 2,-14" stroke="#6cbd72" stroke-width="1.8"/>
+    <path d="M298,416 q3,-9 -2,-13" stroke="#5aa864" stroke-width="1.8"/>
+  </g>
+  <!-- tiny flowers -->
+  <circle cx="152" cy="352" r="2.6" fill="#ffe9a8"/>
+  <circle cx="152" cy="352" r="1.1" fill="#f4a63f"/>
+  <circle cx="292" cy="412" r="2.4" fill="#ffe9a8"/>
+  <circle cx="292" cy="412" r="1" fill="#f4a63f"/>
+
+  <!-- stepping-stone path toward door (aligned to the door centreline x=230) -->
+  <g>
+    <ellipse cx="236" cy="434" rx="15" ry="7" fill="#8a949a"/>
+    <ellipse cx="236" cy="432.5" rx="12" ry="5" fill="#c0c8cc"/>
+    <ellipse cx="232" cy="418" rx="12" ry="6" fill="#818b91"/>
+    <ellipse cx="232" cy="416.6" rx="9.5" ry="4.2" fill="#b6bfc4"/>
+  </g>
+
+  <!-- ============ BABY MUSHROOMS (cluster, front-left) ============ -->
+  <!-- seat shadow so the cluster sits into the grass -->
+  <ellipse cx="139" cy="392" rx="19" ry="5.5" fill="#17301f" opacity="0.5"/>
+  <g transform="translate(6,-9)">
+    <path d="M126,398 q-1,-10 3,-13 q4,-3 5,7 l-2,7 z" fill="url(#md-stalk)"/>
+    <ellipse cx="128" cy="386" rx="11" ry="6.5" fill="#e2603c"/>
+    <ellipse cx="128" cy="384.5" rx="11" ry="5.5" fill="#ef6f45"/>
+    <circle cx="124" cy="384" r="1.6" fill="#fdeccd"/>
+    <circle cx="131" cy="386" r="1.3" fill="#fdeccd"/>
+    <path d="M140,404 q-1,-8 2,-11 q4,-2 4,6 l-1,6 z" fill="url(#md-stalk)"/>
+    <ellipse cx="142" cy="394" rx="8.5" ry="5" fill="#e2603c"/>
+    <ellipse cx="142" cy="393" rx="8.5" ry="4.2" fill="#ef6f45"/>
+    <circle cx="139" cy="392.5" r="1.3" fill="#fdeccd"/>
+    <circle cx="145" cy="394" r="1" fill="#fdeccd"/>
+  </g>
+
+  <!-- cap hollow interior (BEHIND the stalk): solid shaded ceiling so no background bleeds
+       through the rim; lit from the glowing gills below -->
+  <path d="M120,250 C142,236 180,226 240,226 C300,226 338,236 360,250 C356,268 302,285 240,285 C178,285 124,268 120,250 Z" fill="url(#mushroomdwelling-hollow)"/>
+
+  <!-- ============ STALK ============ -->
+  <!-- stalk top raised to y=224 so the cream body rises up under the cap and physically seats it -->
+  <path d="M204,224 C197,300 187,344 188,378 C189,404 208,418 240,418 C272,418 291,404 292,378 C293,344 283,300 276,224 Z" fill="url(#md-stalk)"/>
+  <!-- right-side form shadow -->
+  <path d="M240,224 C247,300 258,344 260,378 C261,402 254,416 240,418 C272,418 291,404 292,378 C293,344 283,300 276,224 Z" fill="url(#md-stalk-shade)"/>
+  <!-- left rim light -->
+  <path d="M204,224 C197,300 187,344 188,378 C188,392 193,402 202,409 C196,398 197,382 200,360 C205,320 210,285 213,226 Z" fill="#fffbe9" opacity="0.5"/>
+  <!-- ambient occlusion where stalk meets ground -->
+  <ellipse cx="240" cy="416" rx="54" ry="12" fill="#3a2c1a" opacity="0.4"/>
+  <!-- vertical fibre texture on stalk -->
+  <g stroke="#c7ad7f" stroke-width="1" stroke-opacity="0.4" fill="none" stroke-linecap="round">
+    <path d="M222,270 C219,320 214,360 214,392"/>
+    <path d="M240,266 C240,318 240,360 240,394"/>
+    <path d="M258,270 C261,320 266,360 266,392"/>
+  </g>
+
+  <!-- decorative ring / skirt collar -->
+  <path d="M186,300 C205,314 275,314 294,300 C296,308 297,314 296,318 C275,332 205,332 184,318 C183,314 184,308 186,300 Z" fill="url(#md-ring)"/>
+  <path d="M186,318 C205,331 275,331 294,318 C293,322 291,325 289,327 C272,337 208,337 191,327 C189,325 187,322 186,318 Z" fill="#b79c6e" opacity="0.8"/>
+  <!-- scalloped frill edge -->
+  <g fill="#e9d3a3">
+    <ellipse cx="196" cy="327" rx="5" ry="3"/>
+    <ellipse cx="212" cy="331" rx="5.5" ry="3.2"/>
+    <ellipse cx="230" cy="333" rx="5.5" ry="3.2"/>
+    <ellipse cx="248" cy="333" rx="5.5" ry="3.2"/>
+    <ellipse cx="266" cy="331" rx="5.5" ry="3.2"/>
+    <ellipse cx="282" cy="327" rx="5" ry="3"/>
+  </g>
+
+  <!-- ===== main round window (glowing) ===== -->
+  <ellipse cx="240" cy="352" rx="40" ry="38" fill="#ffd75e" opacity="0.28" filter="url(#md-glow)"/>
+  <circle cx="240" cy="352" r="27" fill="#7a5a34"/>
+  <circle cx="240" cy="352" r="24" fill="url(#md-window)"/>
+  <!-- muntins -->
+  <path d="M240,328 L240,376 M216,352 L264,352" stroke="#8a5a30" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M223,335 A24 24 0 0 1 257,335 M223,369 A24 24 0 0 0 257,369" fill="none" stroke="#8a5a30" stroke-width="1.6" opacity="0.7"/>
+  <!-- window inner glow highlight -->
+  <ellipse cx="232" cy="344" rx="7" ry="6" fill="#fffbe9" opacity="0.85"/>
+  <!-- window flower box -->
+  <path d="M214,374 L266,374 L262,384 L218,384 Z" fill="#7a4c2c"/>
+  <path d="M214,374 L266,374 L265,377 L215,377 Z" fill="#9a6238"/>
+  <circle cx="222" cy="373" r="3" fill="#ef6f45"/><circle cx="222" cy="371" r="1.2" fill="#ffe9a8"/>
+  <circle cx="232" cy="372" r="3" fill="#ffd75e"/><circle cx="242" cy="372" r="3" fill="#e2603c"/>
+  <circle cx="252" cy="372" r="3" fill="#ffd75e"/><circle cx="260" cy="373" r="2.6" fill="#ef6f45"/>
+  <path d="M226,374 q2,-6 -2,-9 M238,374 q-1,-6 3,-8 M250,374 q2,-6 -1,-9" fill="none" stroke="#4f9d5d" stroke-width="1.4"/>
+
+  <!-- ===== small upper round window ===== -->
+  <ellipse cx="214" cy="300" rx="20" ry="19" fill="#ffd75e" opacity="0.25" filter="url(#md-glow)"/>
+  <circle cx="214" cy="300" r="14" fill="#7a5a34"/>
+  <circle cx="214" cy="300" r="11.5" fill="url(#md-window)"/>
+  <path d="M214,288 L214,312 M203,300 L225,300" stroke="#8a5a30" stroke-width="1.8" stroke-linecap="round"/>
+  <ellipse cx="209" cy="295" rx="3.4" ry="2.8" fill="#fffbe9" opacity="0.85"/>
+
+  <!-- ===== lower-right round window ===== -->
+  <ellipse cx="270" cy="378" rx="17" ry="16" fill="#ffd75e" opacity="0.22" filter="url(#md-glow)"/>
+  <circle cx="270" cy="378" r="12" fill="#7a5a34"/>
+  <circle cx="270" cy="378" r="9.5" fill="url(#md-window)"/>
+  <path d="M270,368 L270,388 M261,378 L279,378" stroke="#8a5a30" stroke-width="1.6" stroke-linecap="round"/>
+  <ellipse cx="266" cy="374" rx="2.8" ry="2.4" fill="#fffbe9" opacity="0.85"/>
+
+  <!-- ===== arched door at base ===== -->
+  <path d="M210,414 L210,392 A20 20 0 0 1 250,392 L250,414 Z" fill="#3a2414"/>
+  <path d="M213,413 L213,393 A17 17 0 0 1 247,393 L247,413 Z" fill="url(#md-door)"/>
+  <!-- warm interior glow spill at threshold -->
+  <ellipse cx="230" cy="414" rx="20" ry="6" fill="#ffd75e" opacity="0.5" filter="url(#md-soft)"/>
+  <!-- door planks -->
+  <path d="M223,413 L223,392 M237,413 L237,392" stroke="#6b4020" stroke-width="1.4" opacity="0.6"/>
+  <circle cx="242" cy="404" r="1.8" fill="#3a2414"/>
+  <!-- wall lantern left of the door, on a little bracket (clear of the window glass) -->
+  <path d="M191,373 Q198,370 201,376" fill="none" stroke="#4a3320" stroke-width="1.6" stroke-linecap="round"/>
+  <ellipse cx="201" cy="386" rx="9" ry="12" fill="#ffd75e" opacity="0.4" filter="url(#md-glow)"/>
+  <path d="M196,380 L206,380 L205,390 L197,390 Z" fill="#6b4a26"/>
+  <rect x="197.5" y="381.5" width="7" height="7" rx="1" fill="url(#md-window)"/>
+  <circle cx="201" cy="379" r="1.6" fill="#4a3320"/>
+
+  <!-- ============ CAP UNDERSIDE + GLOWING GILLS ============ -->
+  <!-- glow spill from gills -->
+  <path d="M118,250 C118,272 178,290 240,290 C302,290 362,272 362,250 C340,266 300,278 240,278 C180,278 140,266 118,250 Z" fill="#ffd75e" opacity="0.35" filter="url(#md-glow)"/>
+  <!-- dark underside base (tips meet the dome tips at y=250) -->
+  <path d="M120,250 C120,270 180,288 240,288 C300,288 360,270 360,250 C338,262 300,272 240,272 C180,272 142,262 120,250 Z" fill="url(#md-cap-under)"/>
+  <!-- glowing gill crescent -->
+  <path d="M126,249 C130,266 182,283 240,283 C298,283 350,266 354,249 C336,261 298,270 240,270 C182,270 144,261 126,249 Z" fill="url(#md-gill)"/>
+  <!-- radial gill fins — trimmed at the stalk silhouette so the stalk occludes them -->
+  <g stroke="#b85f2c" stroke-width="1" stroke-opacity="0.55" stroke-linecap="round">
+    <line x1="202" y1="257" x2="150" y2="256"/>
+    <line x1="202" y1="261" x2="168" y2="264"/>
+    <line x1="202" y1="267" x2="188" y2="270"/>
+    <line x1="280" y1="257" x2="330" y2="256"/>
+    <line x1="280" y1="261" x2="312" y2="264"/>
+    <line x1="280" y1="267" x2="292" y2="270"/>
+  </g>
+
+  <!-- ============ CAP DOME ============ -->
+  <path d="M120,250 C120,172 162,116 240,114 C318,116 360,172 360,250 C338,236 300,226 240,226 C180,226 142,236 120,250 Z" fill="url(#md-cap)"/>
+  <!-- cap form shadow lower-right -->
+  <path d="M240,116 C318,118 360,172 360,250 C338,236 302,226 244,226 C255,200 258,160 250,118 Z" fill="#8f2d24" opacity="0.35"/>
+  <!-- cap rim light upper-left -->
+  <path d="M120,250 C120,172 162,116 240,114 C186,124 150,168 138,222 C132,236 126,244 120,250 Z" fill="url(#md-cap-rim)"/>
+  <!-- crisp top rim highlight -->
+  <path d="M150,170 C175,138 205,122 240,119" fill="none" stroke="#ffe6bd" stroke-width="2.4" stroke-linecap="round" opacity="0.85"/>
+
+  <!-- cap spots (raised warts) -->
+  <g>
+    <ellipse cx="205" cy="150" rx="15" ry="11" fill="url(#md-spot)"/>
+    <ellipse cx="200" cy="146" rx="6" ry="4" fill="#ffffff" opacity="0.6"/>
+    <ellipse cx="266" cy="146" rx="13" ry="10" fill="url(#md-spot)"/>
+    <ellipse cx="262" cy="142" rx="5" ry="3.4" fill="#ffffff" opacity="0.55"/>
+    <ellipse cx="160" cy="196" rx="15" ry="9" fill="url(#md-spot)"/>
+    <ellipse cx="155" cy="193" rx="5.5" ry="3.2" fill="#ffffff" opacity="0.5"/>
+    <ellipse cx="236" cy="184" rx="17" ry="12" fill="url(#md-spot)"/>
+    <ellipse cx="230" cy="179" rx="6.5" ry="4" fill="#ffffff" opacity="0.6"/>
+    <ellipse cx="312" cy="190" rx="14" ry="9" fill="url(#md-spot)"/>
+    <ellipse cx="308" cy="187" rx="5" ry="3" fill="#ffffff" opacity="0.45"/>
+    <ellipse cx="196" cy="212" rx="12" ry="7" fill="url(#md-spot)"/>
+    <ellipse cx="284" cy="214" rx="12" ry="7" fill="url(#md-spot)"/>
+    <ellipse cx="240" cy="214" rx="10" ry="6" fill="url(#md-spot)"/>
+    <ellipse cx="138" cy="230" rx="10" ry="5.5" fill="url(#md-spot)"/>
+    <ellipse cx="338" cy="228" rx="10" ry="5.5" fill="url(#md-spot)"/>
+    <ellipse cx="228" cy="132" rx="8" ry="5.5" fill="url(#md-spot)"/>
+  </g>
+
+  <!-- tiny chimney sprout mushroom on the cap top -->
+  <!-- stem planted into the dome apex so it grows from the cap, not hovering -->
+  <path d="M240,120 C240,111 242,103 243,100 L247,100 C248,103 250,111 250,120 Z" fill="url(#md-stalk)"/>
+  <ellipse cx="245" cy="100" rx="12" ry="7" fill="#e2603c"/>
+  <ellipse cx="245" cy="98.5" rx="12" ry="6" fill="#ef6f45"/>
+  <circle cx="241" cy="98" r="1.8" fill="#fdeccd"/>
+  <circle cx="249" cy="100" r="1.4" fill="#fdeccd"/>
+  <ellipse cx="245" cy="106" rx="9" ry="2.4" fill="#c86a2f" opacity="0.6"/>
+
+  <!-- little curling vine, anchored: starts on the skirt collar and hugs the stalk's right edge -->
+  <path d="M290,304 C301,299 303,317 292,326 C305,331 306,346 294,355 C288,359 284,352 290,347"
+        fill="none" stroke="#4f9d5d" stroke-width="2" stroke-linecap="round" opacity="0.9"/>
+  <path d="M296,310 q7,-3 9,3 q-6,3 -9,-3 Z" fill="#5fb268"/>
+  <path d="M295,338 q7,-3 9,3 q-6,3 -9,-3 Z" fill="#69bd70"/>
+
+  <!-- fern by the base -->
+  <g stroke="#3f8850" stroke-width="1.6" fill="none" stroke-linecap="round" opacity="0.9">
+    <path d="M300,408 C304,394 306,384 304,374"/>
+    <path d="M304,388 q7,-2 10,-8 M303,396 q8,-1 11,-6 M304,380 q6,-3 8,-8"/>
+    <path d="M301,390 q-7,-2 -9,-8 M302,398 q-7,-1 -10,-6"/>
+  </g>
+
+  <!-- ============ MAGICAL WISPS / FIREFLIES ============ -->
+  <g>
+    <circle cx="360" cy="150" r="10" fill="url(#md-wisp)"/>
+    <circle cx="360" cy="150" r="2.4" fill="#fffbe9"/>
+    <circle cx="392" cy="240" r="7" fill="url(#md-wisp)"/>
+    <circle cx="392" cy="240" r="1.8" fill="#fffbe9"/>
+    <circle cx="96" cy="196" r="8" fill="url(#md-wisp)"/>
+    <circle cx="96" cy="196" r="2" fill="#fffbe9"/>
+    <circle cx="128" cy="286" r="6" fill="url(#md-wisp)"/>
+    <circle cx="128" cy="286" r="1.6" fill="#fffbe9"/>
+    <circle cx="330" cy="316" r="6.5" fill="url(#md-wisp)"/>
+    <circle cx="330" cy="316" r="1.7" fill="#fffbe9"/>
+    <circle cx="176" cy="120" r="5" fill="url(#md-wisp)"/>
+    <circle cx="176" cy="120" r="1.4" fill="#fffbe9"/>
+    <circle cx="300" cy="90" r="5.5" fill="url(#md-wisp)"/>
+    <circle cx="300" cy="90" r="1.5" fill="#fffbe9"/>
+    <circle cx="70" cy="330" r="6" fill="url(#md-wisp)"/>
+    <circle cx="70" cy="330" r="1.6" fill="#fffbe9"/>
+  </g>
+</svg>

@@ -1,0 +1,464 @@
+<svg viewBox="0 0 480 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A cozy coastal stilt house raised on weathered wooden posts over a moonlit rockpool, with a glowing porthole window, a little jetty and ladder, and drifting wisp motes.">
+  <defs>
+    <!-- ===================== GRADIENTS ===================== -->
+    <radialGradient id="cshs-glowmote" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff4cf" stop-opacity="1"/>
+      <stop offset="35%" stop-color="#ffd75e" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="cshs-windowglow" cx="50%" cy="42%" r="62%">
+      <stop offset="0%" stop-color="#fff6da"/>
+      <stop offset="45%" stop-color="#ffe29a"/>
+      <stop offset="80%" stop-color="#ffbf4a"/>
+      <stop offset="100%" stop-color="#e79a2c"/>
+    </radialGradient>
+
+    <radialGradient id="cshs-porthole" cx="50%" cy="40%" r="65%">
+      <stop offset="0%" stop-color="#fff7e0"/>
+      <stop offset="50%" stop-color="#ffdf8f"/>
+      <stop offset="100%" stop-color="#f0ab3a"/>
+    </radialGradient>
+
+    <radialGradient id="cshs-lantern" cx="50%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#fff3c8"/>
+      <stop offset="60%" stop-color="#ffce62"/>
+      <stop offset="100%" stop-color="#e79a2c"/>
+    </radialGradient>
+
+    <radialGradient id="cshs-water" cx="46%" cy="34%" r="78%">
+      <stop offset="0%" stop-color="#7fb8cf"/>
+      <stop offset="34%" stop-color="#5d8fa8"/>
+      <stop offset="70%" stop-color="#3c6a83"/>
+      <stop offset="100%" stop-color="#274c60"/>
+    </radialGradient>
+
+    <linearGradient id="cshs-water-sheen" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#cfeaf2" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#cfeaf2" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="cshs-shore-top" x1="0.1" y1="0" x2="0.7" y2="1">
+      <stop offset="0%" stop-color="#a6835f"/>
+      <stop offset="55%" stop-color="#8a5a44"/>
+      <stop offset="100%" stop-color="#6c452f"/>
+    </linearGradient>
+
+    <linearGradient id="cshs-shore-left" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5c3a2a"/>
+      <stop offset="100%" stop-color="#3a2418"/>
+    </linearGradient>
+
+    <linearGradient id="cshs-shore-right" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4d3021"/>
+      <stop offset="100%" stop-color="#2c1c12"/>
+    </linearGradient>
+
+    <linearGradient id="cshs-deck-top" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0%" stop-color="#c2a381"/>
+      <stop offset="55%" stop-color="#a1815f"/>
+      <stop offset="100%" stop-color="#836547"/>
+    </linearGradient>
+
+    <linearGradient id="cshs-deck-side" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6b4d35"/>
+      <stop offset="100%" stop-color="#42301f"/>
+    </linearGradient>
+
+    <linearGradient id="cshs-post-lit" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#b98a63"/>
+      <stop offset="55%" stop-color="#8a5a44"/>
+      <stop offset="100%" stop-color="#5c3a2a"/>
+    </linearGradient>
+
+    <linearGradient id="cshs-post-shade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#6c4531"/>
+      <stop offset="100%" stop-color="#3d2518"/>
+    </linearGradient>
+
+    <linearGradient id="cshs-wall-left" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#a97a5c"/>
+      <stop offset="100%" stop-color="#7c5038"/>
+    </linearGradient>
+
+    <linearGradient id="cshs-wall-right" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7e523a"/>
+      <stop offset="100%" stop-color="#583524"/>
+    </linearGradient>
+
+    <linearGradient id="cshs-roof-left" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0%" stop-color="#93b9cc"/>
+      <stop offset="55%" stop-color="#6d8f9f"/>
+      <stop offset="100%" stop-color="#4d6f7f"/>
+    </linearGradient>
+
+    <linearGradient id="cshs-roof-right" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0%" stop-color="#5c8093"/>
+      <stop offset="100%" stop-color="#37525f"/>
+    </linearGradient>
+
+    <linearGradient id="cshs-gable" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8a5f45"/>
+      <stop offset="100%" stop-color="#5f3d2b"/>
+    </linearGradient>
+
+    <radialGradient id="cshs-groundshadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.55"/>
+      <stop offset="70%" stop-color="#000000" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="cshs-ambient" cx="50%" cy="38%" r="60%">
+      <stop offset="0%" stop-color="#ffd75e" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- ===================== FILTERS ===================== -->
+    <filter id="cshs-soft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="4.5"/>
+    </filter>
+    <filter id="cshs-softbig" x="-90%" y="-90%" width="280%" height="280%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+    <filter id="cshs-tiny" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="1.6"/>
+    </filter>
+
+    <!-- ===================== CLIP PATHS (keep shingle courses inside the roof slopes) ===================== -->
+    <clipPath id="cshs-clip-roofL"><polygon points="240,92 175,128 150,216 240,166"/></clipPath>
+    <clipPath id="cshs-clip-roofR"><polygon points="240,92 305,128 330,216 240,166"/></clipPath>
+  </defs>
+
+  <!-- ambient magical wash behind house -->
+  <ellipse cx="240" cy="200" rx="150" ry="150" fill="url(#cshs-ambient)"/>
+
+  <!-- ground / water contact shadow -->
+  <ellipse cx="240" cy="418" rx="176" ry="52" fill="url(#cshs-groundshadow)"/>
+
+  <!-- ============================================================
+       BASE ISOMETRIC SHORE TILE
+       corners: T(240,246) R(430,334) Bt(240,422) L(50,334)
+       ============================================================ -->
+  <!-- side faces (earth depth) -->
+  <polygon points="50,334 240,422 240,452 50,364" fill="url(#cshs-shore-left)"/>
+  <polygon points="240,422 430,334 430,364 240,452" fill="url(#cshs-shore-right)"/>
+  <!-- strata lines on the earth sides -->
+  <path d="M56,347 L238,432" stroke="#2c1a11" stroke-width="1.4" opacity="0.5"/>
+  <path d="M242,432 L424,347" stroke="#20130c" stroke-width="1.4" opacity="0.5"/>
+  <path d="M70,340 L120,362" stroke="#6c4630" stroke-width="2" opacity="0.4" stroke-linecap="round"/>
+  <path d="M300,398 L360,368" stroke="#573620" stroke-width="2" opacity="0.4" stroke-linecap="round"/>
+
+  <!-- top shore surface -->
+  <polygon points="240,246 430,334 240,422 50,334" fill="url(#cshs-shore-top)"/>
+  <!-- crisp rim light along the tile's far edges -->
+  <path d="M50,334 L240,246 L430,334" fill="none" stroke="#b98a63" stroke-width="1.2" opacity="0.35"/>
+  <!-- sandy dappling on shore -->
+  <ellipse cx="150" cy="300" rx="38" ry="15" fill="#b18d64" opacity="0.35"/>
+  <ellipse cx="330" cy="300" rx="34" ry="13" fill="#9a744f" opacity="0.3"/>
+  <ellipse cx="240" cy="272" rx="46" ry="14" fill="#b6926a" opacity="0.3"/>
+  <!-- scattered pebbles -->
+  <ellipse cx="120" cy="322" rx="7" ry="3.4" fill="#6f4a34"/>
+  <ellipse cx="120" cy="320.5" rx="5.5" ry="2.2" fill="#a07a56"/>
+  <ellipse cx="360" cy="322" rx="8" ry="3.8" fill="#5f4030"/>
+  <ellipse cx="360" cy="320" rx="6" ry="2.4" fill="#93704f"/>
+  <ellipse cx="98" cy="336" rx="5" ry="2.6" fill="#7a5236"/>
+  <ellipse cx="388" cy="340" rx="6" ry="3" fill="#6a4832"/>
+  <!-- mossy green tufts (healthy green accent) -->
+  <path d="M108,314 q-3,-11 2,-14 q3,7 6,2 q1,9 -2,12 z" fill="#4f9d5d" opacity="0.9"/>
+  <path d="M112,315 q1,-9 5,-11 q0,8 3,4 q1,7 -3,9 z" fill="#61b06f" opacity="0.85"/>
+  <path d="M396,335 q4,-10 8,-11 q-1,7 3,4 q1,8 -4,10 z" fill="#4f9d5d" opacity="0.85"/>
+  <path d="M84,344 q-2,-8 2,-10 q2,5 4,1 q1,7 -2,9 z" fill="#579e60" opacity="0.8"/>
+
+  <!-- ============================================================
+       ROCKPOOL WATER
+       ============================================================ -->
+  <path d="M126,352 Q182,338 240,335 Q300,338 352,353 Q360,368 336,382
+           Q286,400 240,404 Q190,400 142,382 Q118,368 126,352 Z"
+        fill="url(#cshs-water)"/>
+  <!-- water rim shadow -->
+  <path d="M126,352 Q182,338 240,335 Q300,338 352,353 Q360,368 336,382
+           Q286,400 240,404 Q190,400 142,382 Q118,368 126,352 Z"
+        fill="none" stroke="#1f3e4e" stroke-width="3" opacity="0.5"/>
+  <!-- surface sheen -->
+  <path d="M150,352 Q210,342 260,344 Q300,346 300,354 Q250,350 200,356 Q168,360 150,352 Z"
+        fill="url(#cshs-water-sheen)"/>
+  <!-- ripple rings -->
+  <path d="M180,372 Q210,364 244,372" fill="none" stroke="#9ecbdc" stroke-width="1.6" opacity="0.6" stroke-linecap="round"/>
+  <path d="M188,378 Q214,372 238,378" fill="none" stroke="#c7e6f0" stroke-width="1.1" opacity="0.5" stroke-linecap="round"/>
+  <path d="M262,366 Q292,360 322,368" fill="none" stroke="#8fc0d4" stroke-width="1.5" opacity="0.55" stroke-linecap="round"/>
+  <path d="M280,384 Q304,379 326,385" fill="none" stroke="#b7dded" stroke-width="1" opacity="0.45" stroke-linecap="round"/>
+  <path d="M158,364 Q176,360 196,364" fill="none" stroke="#bfe2ee" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+  <!-- little rock breaking the surface -->
+  <ellipse cx="150" cy="374" rx="13" ry="6" fill="#3a2a20"/>
+  <path d="M139,374 q6,-11 12,-11 q7,0 11,10 q-11,4 -23,1 z" fill="#5c3f2c"/>
+  <path d="M143,371 q4,-6 9,-6 q5,0 8,5 q-8,2 -17,1 z" fill="#7a563b"/>
+  <ellipse cx="322" cy="388" rx="10" ry="4.6" fill="#2f2118"/>
+  <path d="M314,388 q4,-8 9,-8 q6,0 8,7 q-8,3 -17,1 z" fill="#553a29"/>
+  <!-- seaweed strand -->
+  <path d="M336,384 q6,-14 1,-24 q-2,8 -6,4 q3,10 -2,18 z" fill="#3f7d4b" opacity="0.85"/>
+
+  <!-- ============================================================
+       STILTS (wooden posts) with reflections
+       ============================================================ -->
+  <!-- reflections first (kept inside the water) -->
+  <rect x="121" y="364" width="6" height="12" fill="#8a5a44" opacity="0.15"/>
+  <rect x="234" y="356" width="13" height="42" fill="#8a5a44" opacity="0.18"/>
+
+  <!-- back-center support (mostly hidden) -->
+  <rect x="234" y="214" width="12" height="150" fill="url(#cshs-post-shade)"/>
+
+  <!-- LEFT POST (base seated at the pool's left tip, on the shore top) -->
+  <ellipse cx="120" cy="361.5" rx="10" ry="3.2" fill="#1a1512" opacity="0.45"/>
+  <polygon points="114,250 124,250 124,362 114,362" fill="url(#cshs-post-lit)"/>
+  <polygon points="124,250 130,253 130,359 124,362" fill="url(#cshs-post-shade)"/>
+  <line x1="118" y1="256" x2="118" y2="356" stroke="#4a2e1e" stroke-width="1" opacity="0.5"/>
+  <line x1="121" y1="258" x2="121" y2="354" stroke="#c79a72" stroke-width="0.8" opacity="0.4"/>
+  <ellipse cx="124" cy="362.5" rx="9" ry="2.8" fill="none" stroke="#9ecbdc" stroke-width="1.2" opacity="0.5"/>
+
+  <!-- cross braces between left/right and center -->
+  <line x1="126" y1="300" x2="236" y2="336" stroke="#5c3a2a" stroke-width="6" stroke-linecap="round"/>
+  <line x1="126" y1="300" x2="236" y2="336" stroke="#8a5a44" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+  <line x1="356" y1="300" x2="248" y2="336" stroke="#4d3021" stroke-width="6" stroke-linecap="round"/>
+  <line x1="356" y1="300" x2="248" y2="336" stroke="#7c5038" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+  <line x1="128" y1="336" x2="236" y2="300" stroke="#5c3a2a" stroke-width="5" stroke-linecap="round" opacity="0.85"/>
+  <line x1="354" y1="336" x2="248" y2="300" stroke="#4d3021" stroke-width="5" stroke-linecap="round" opacity="0.85"/>
+
+  <!-- FRONT POST (nearest viewer, taller into the pool) -->
+  <polygon points="233,292 247,292 247,402 233,402" fill="url(#cshs-post-lit)"/>
+  <polygon points="247,292 254,296 254,398 247,402" fill="url(#cshs-post-shade)"/>
+  <line x1="238" y1="298" x2="238" y2="396" stroke="#4a2e1e" stroke-width="1.1" opacity="0.5"/>
+  <line x1="243" y1="300" x2="243" y2="394" stroke="#c79a72" stroke-width="0.9" opacity="0.45"/>
+  <!-- water collar splash around front post -->
+  <ellipse cx="243" cy="398" rx="18" ry="6" fill="none" stroke="#bfe2ee" stroke-width="1.4" opacity="0.55"/>
+
+  <!-- ============================================================
+       DECK PLATFORM  (top diamond centre ~240,250)
+       back(240,210) left(120,250) right(360,250) front(240,290)
+       ============================================================ -->
+  <!-- deck underside / thickness -->
+  <polygon points="120,250 240,290 240,304 120,264" fill="url(#cshs-deck-side)"/>
+  <polygon points="240,290 360,250 360,264 240,304" fill="url(#cshs-deck-side)"/>
+  <!-- joist tick marks under deck -->
+  <line x1="160" y1="257" x2="160" y2="271" stroke="#2c1c12" stroke-width="2" opacity="0.6"/>
+  <line x1="200" y1="270" x2="200" y2="284" stroke="#2c1c12" stroke-width="2" opacity="0.6"/>
+  <line x1="280" y1="270" x2="280" y2="284" stroke="#241811" stroke-width="2" opacity="0.6"/>
+  <line x1="320" y1="257" x2="320" y2="271" stroke="#241811" stroke-width="2" opacity="0.6"/>
+
+  <!-- deck top -->
+  <polygon points="240,210 360,250 240,290 120,250" fill="url(#cshs-deck-top)"/>
+  <!-- deck planking (lines parallel to right axis) -->
+  <path d="M175,229 L295,269" stroke="#6f523a" stroke-width="1.4" opacity="0.55"/>
+  <path d="M205,219 L325,259" stroke="#6f523a" stroke-width="1.4" opacity="0.55"/>
+  <path d="M145,239 L265,279" stroke="#6f523a" stroke-width="1.4" opacity="0.55"/>
+  <path d="M175,229 L295,269" stroke="#cdb08b" stroke-width="0.7" opacity="0.4" transform="translate(0,-2)"/>
+  <!-- deck edge rim light (front) -->
+  <path d="M120,250 L240,290 L360,250" fill="none" stroke="#d8bd97" stroke-width="1.4" opacity="0.6"/>
+
+  <!-- contact shadow seating the hut on the deck (in front of the wall base) -->
+  <polygon points="165,236 240,266 315,236 315,241 240,277 165,241" fill="#241610" opacity="0.24" filter="url(#cshs-soft)"/>
+
+  <!-- ============================================================
+       HANGING LANTERN hooked on the front-left deck edge (glow #2)
+       ============================================================ -->
+  <ellipse cx="150" cy="286" rx="30" ry="30" fill="url(#cshs-lantern)" opacity="0.5" filter="url(#cshs-softbig)"/>
+  <circle cx="150" cy="259.6" r="1.7" fill="#6b4a2e"/>
+  <line x1="150" y1="260" x2="150" y2="270" stroke="#3a2418" stroke-width="1.6"/>
+  <path d="M144,270 h12 v3 h-12 z" fill="#4a3020"/>
+  <rect x="144" y="273" width="12" height="15" rx="2.5" fill="url(#cshs-lantern)"/>
+  <rect x="144" y="273" width="12" height="15" rx="2.5" fill="none" stroke="#6b4526" stroke-width="1.2"/>
+  <line x1="150" y1="273" x2="150" y2="288" stroke="#a9702f" stroke-width="0.8" opacity="0.7"/>
+  <path d="M145,288 h10 l-1,3 h-8 z" fill="#4a3020"/>
+
+  <!-- ============================================================
+       THE HUT
+       ============================================================ -->
+  <!-- LEFT WALL  front(240,266->200) left(165,236->170) -->
+  <polygon points="240,266 165,236 165,170 240,200" fill="url(#cshs-wall-left)"/>
+  <!-- vertical weathered planks (left wall) -->
+  <path d="M186,242 L186,176" stroke="#5f3d29" stroke-width="1.2" opacity="0.55"/>
+  <path d="M204,247 L204,181" stroke="#5f3d29" stroke-width="1.2" opacity="0.55"/>
+  <path d="M222,252 L222,186" stroke="#5f3d29" stroke-width="1.2" opacity="0.55"/>
+  <path d="M195,244 L195,178" stroke="#b98a63" stroke-width="0.7" opacity="0.4"/>
+  <path d="M213,249 L213,183" stroke="#b98a63" stroke-width="0.7" opacity="0.4"/>
+  <!-- left-wall glowing window -->
+  <polygon points="180,225 205,232 205,205 180,199" fill="#2a1a12"/>
+  <polygon points="183,224 202,229.4 202,207 183,202" fill="url(#cshs-windowglow)"/>
+  <line x1="192.5" y1="203" x2="192.5" y2="228" stroke="#7c5030" stroke-width="1.3"/>
+  <line x1="182" y1="212.5" x2="204" y2="218.5" stroke="#7c5030" stroke-width="1.3"/>
+  <!-- window warm spill -->
+  <polygon points="180,225 205,232 205,205 180,199" fill="url(#cshs-windowglow)" opacity="0.25" filter="url(#cshs-soft)"/>
+
+  <!-- RIGHT WALL  front(240,266->200) right(315,236->170) -->
+  <polygon points="240,266 315,236 315,170 240,200" fill="url(#cshs-wall-right)"/>
+  <!-- planks (right wall) -->
+  <path d="M262,258 L262,192" stroke="#3f2617" stroke-width="1.2" opacity="0.6"/>
+  <path d="M282,250 L282,184" stroke="#3f2617" stroke-width="1.2" opacity="0.6"/>
+  <path d="M300,243 L300,177" stroke="#3f2617" stroke-width="1.2" opacity="0.6"/>
+  <path d="M272,254 L272,188" stroke="#946148" stroke-width="0.7" opacity="0.35"/>
+  <!-- planked door on right wall facing the jetty (seated on the wall base line) -->
+  <polygon points="270,254 296,244 296,204 270,214" fill="#3a2417"/>
+  <polygon points="272,253 294,245 294,206 272,215" fill="#5a3a27"/>
+  <path d="M278,250 L278,212" stroke="#3a2417" stroke-width="1" opacity="0.7"/>
+  <path d="M287,247 L287,208" stroke="#3a2417" stroke-width="1" opacity="0.7"/>
+  <circle cx="275" cy="234" r="1.6" fill="#ffd75e"/>
+  <!-- right-wall rim light on the shared front vertical edge -->
+  <line x1="240" y1="266" x2="240" y2="200" stroke="#d0a97f" stroke-width="1.5" opacity="0.7"/>
+
+  <!-- fishing net drying on the right wall: draped swag hung from two pegs -->
+  <circle cx="297" cy="207" r="1.4" fill="#caa170"/>
+  <circle cx="313" cy="205" r="1.4" fill="#caa170"/>
+  <path d="M297,207 Q305,212 313,205" fill="none" stroke="#b7b08a" stroke-width="0.9" opacity="0.6"/>
+  <path d="M297,207 L298,234" fill="none" stroke="#b7b08a" stroke-width="0.8" opacity="0.55"/>
+  <path d="M313,205 L310,236" fill="none" stroke="#b7b08a" stroke-width="0.8" opacity="0.55"/>
+  <path d="M298,234 Q304,239 310,236" fill="none" stroke="#b7b08a" stroke-width="0.8" opacity="0.55"/>
+  <path d="M298,213 l12,-3 M298,220 l12,-3 M298,227 l11,-3 M301,209 l1,27 M306,210 l1,25" stroke="#b7b08a" stroke-width="0.6" opacity="0.45" fill="none"/>
+  <circle cx="299" cy="233" r="1.5" fill="#c2b280" opacity="0.9"/>
+  <circle cx="309" cy="235" r="1.5" fill="#c2b280" opacity="0.9"/>
+
+  <!-- ============================================================
+       ROOF  (ridge front-back at x=240)
+       RB(240,92) RF(240,166); eaves L(175,128)-(150,216) R(305,128)-(330,216)
+       ============================================================ -->
+  <!-- LEFT slope (lit) -->
+  <polygon points="240,92 175,128 150,216 240,166" fill="url(#cshs-roof-left)"/>
+  <!-- shingle courses left (clipped to the slope so they never overshoot the eave) -->
+  <g clip-path="url(#cshs-clip-roofL)">
+    <path d="M222,102 L166,135" stroke="#4d6f7f" stroke-width="1.2" opacity="0.5"/>
+    <path d="M232,120 L160,158" stroke="#4d6f7f" stroke-width="1.2" opacity="0.5"/>
+    <path d="M237,142 L155,186" stroke="#4d6f7f" stroke-width="1.2" opacity="0.5"/>
+    <path d="M222,102 L166,135" stroke="#a9d0e0" stroke-width="0.7" opacity="0.45" transform="translate(0,-2)"/>
+    <path d="M232,120 L160,158" stroke="#9cc4d6" stroke-width="0.7" opacity="0.4" transform="translate(0,-2)"/>
+  </g>
+
+  <!-- RIGHT slope (shaded) -->
+  <polygon points="240,92 305,128 330,216 240,166" fill="url(#cshs-roof-right)"/>
+  <g clip-path="url(#cshs-clip-roofR)">
+    <path d="M258,102 L314,135" stroke="#2c4652" stroke-width="1.2" opacity="0.55"/>
+    <path d="M248,120 L320,158" stroke="#2c4652" stroke-width="1.2" opacity="0.55"/>
+    <path d="M243,142 L325,186" stroke="#2c4652" stroke-width="1.2" opacity="0.55"/>
+  </g>
+
+  <!-- FRONT GABLE triangle -->
+  <polygon points="240,166 150,216 330,216" fill="url(#cshs-gable)"/>
+  <!-- gable plank texture (kept inside the gable face) -->
+  <path d="M210,192 L270,192" stroke="#4b2f20" stroke-width="1.1" opacity="0.5"/>
+  <path d="M189,204 L291,204" stroke="#4b2f20" stroke-width="1.1" opacity="0.5"/>
+  <path d="M221,186 L259,186" stroke="#a5734f" stroke-width="0.7" opacity="0.35"/>
+  <!-- bargeboard trim along gable eaves -->
+  <polygon points="240,166 150,216 156,222 240,174" fill="#6a4530"/>
+  <polygon points="240,166 330,216 324,222 240,174" fill="#4a2f1f"/>
+  <!-- decorative finial at ridge front -->
+  <circle cx="240" cy="164" r="3.2" fill="#caa170"/>
+  <circle cx="240" cy="158.5" r="2" fill="#ffe9a8"/>
+
+  <!-- glowing round PORTHOLE in gable (the star window) -->
+  <circle cx="240" cy="192" r="20" fill="#ffd75e" opacity="0.45" filter="url(#cshs-soft)"/>
+  <circle cx="240" cy="192" r="14.5" fill="#33210f"/>
+  <circle cx="240" cy="192" r="12" fill="url(#cshs-porthole)"/>
+  <!-- porthole rim (weathered brass) -->
+  <circle cx="240" cy="192" r="14.5" fill="none" stroke="#8a5a44" stroke-width="2.4"/>
+  <circle cx="240" cy="192" r="14.5" fill="none" stroke="#d6b183" stroke-width="0.9" opacity="0.7"/>
+  <!-- porthole cross muntins + rivets -->
+  <line x1="226" y1="192" x2="254" y2="192" stroke="#7c5030" stroke-width="1.4" opacity="0.8"/>
+  <line x1="240" y1="178" x2="240" y2="206" stroke="#7c5030" stroke-width="1.4" opacity="0.8"/>
+  <circle cx="240" cy="177.5" r="1.3" fill="#e7c48f"/>
+  <circle cx="254.5" cy="192" r="1.3" fill="#c39a6c"/>
+  <circle cx="225.5" cy="192" r="1.3" fill="#e7c48f"/>
+  <circle cx="240" cy="206.5" r="1.3" fill="#c39a6c"/>
+  <!-- inner warm highlight -->
+  <ellipse cx="235" cy="187" rx="4" ry="3" fill="#fff6da" opacity="0.85"/>
+
+  <!-- RIDGE beam + rim light -->
+  <line x1="240" y1="92" x2="240" y2="166" stroke="#2c4652" stroke-width="3.2"/>
+  <line x1="240" y1="92" x2="240" y2="166" stroke="#bfe0ee" stroke-width="1.1" opacity="0.75"/>
+  <!-- ridge rim highlight along lit eave -->
+  <line x1="240" y1="92" x2="175" y2="128" stroke="#c7e2ee" stroke-width="1" opacity="0.55"/>
+
+  <!-- little crooked stovepipe + smoke (base slanted to pierce the shingle plane cleanly) -->
+  <polygon points="278,104 285,104 285,130 278,125" fill="#4a3020"/>
+  <path d="M278,125 L285,130" stroke="#33230f" stroke-width="1" opacity="0.65"/>
+  <rect x="276" y="102" width="11" height="5" rx="1.5" fill="#5c3a2a"/>
+  <path d="M281,102 q-6,-10 2,-16 q7,-5 1,-14" fill="none" stroke="#9fb4bd" stroke-width="3" opacity="0.35" stroke-linecap="round" filter="url(#cshs-tiny)"/>
+
+  <!-- ============================================================
+       LADDER  (front, down into the pool)
+       ============================================================ -->
+  <!-- ladder base contact shadow on the pool floor -->
+  <ellipse cx="241" cy="394" rx="27" ry="6.5" fill="#173039" opacity="0.42" filter="url(#cshs-tiny)"/>
+  <!-- ladder from deck-front down to water -->
+  <line x1="228" y1="290" x2="219" y2="396" stroke="#5c3a2a" stroke-width="4" stroke-linecap="round"/>
+  <line x1="252" y1="290" x2="263" y2="396" stroke="#4d3021" stroke-width="4" stroke-linecap="round"/>
+  <line x1="226" y1="308" x2="254" y2="308" stroke="#7c5038" stroke-width="2.6" stroke-linecap="round"/>
+  <line x1="224" y1="330" x2="256" y2="330" stroke="#7c5038" stroke-width="2.6" stroke-linecap="round"/>
+  <line x1="222" y1="352" x2="258" y2="352" stroke="#6c4531" stroke-width="2.6" stroke-linecap="round"/>
+  <line x1="221" y1="374" x2="260" y2="374" stroke="#6c4531" stroke-width="2.6" stroke-linecap="round"/>
+  <!-- ladder foot resting on the pool floor -->
+  <line x1="219" y1="393" x2="263" y2="393" stroke="#4d3021" stroke-width="3.2" stroke-linecap="round"/>
+  <ellipse cx="219" cy="395" rx="3.4" ry="2" fill="#3a2418"/>
+  <ellipse cx="263" cy="395" rx="3.4" ry="2" fill="#33200f"/>
+
+  <!-- ============================================================
+       GANGPLANK JETTY  (from the deck down onto the right shore)
+       top face A(300,250)-B(374,314), back edge D(315,258)-C(389,322)
+       ============================================================ -->
+  <!-- landing contact shadow on the shore -->
+  <ellipse cx="379" cy="321" rx="12" ry="4" fill="#241610" opacity="0.4" filter="url(#cshs-tiny)"/>
+  <!-- small trestle support under the gangplank, feet on the shore -->
+  <line x1="346" y1="290" x2="346" y2="327" stroke="#5c3a2a" stroke-width="4" stroke-linecap="round"/>
+  <line x1="346" y1="292" x2="346" y2="325" stroke="#8a5a44" stroke-width="1.4" opacity="0.6"/>
+  <ellipse cx="346" cy="328" rx="6" ry="2.2" fill="#241610" opacity="0.45"/>
+  <!-- gangplank: top end hooked on the deck edge, foot resting on the shore -->
+  <polygon points="317,265 370,311 370,319 317,273" fill="url(#cshs-deck-side)"/>
+  <polygon points="317,265 370,311 385,319 332,273" fill="url(#cshs-deck-top)"/>
+  <path d="M334,276 L366,304" stroke="#6f523a" stroke-width="1" opacity="0.5"/>
+  <path d="M324,272 L362,305" stroke="#2c1c12" stroke-width="1" opacity="0.35"/>
+  <path d="M332,273 L385,319" stroke="#d8bd97" stroke-width="1" opacity="0.5"/>
+  <!-- railing posts seated on the plank surface -->
+  <line x1="348" y1="289" x2="348" y2="264" stroke="#5c3a2a" stroke-width="3" stroke-linecap="round"/>
+  <line x1="378" y1="315" x2="378" y2="290" stroke="#5c3a2a" stroke-width="3" stroke-linecap="round"/>
+  <line x1="348" y1="265" x2="378" y2="291" stroke="#6c4531" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- mooring rope + buoy floating IN the pool -->
+  <path d="M378,316 Q346,353 309,371" fill="none" stroke="#3a2a20" stroke-width="1.4" opacity="0.7"/>
+  <ellipse cx="304" cy="380" rx="12" ry="5" fill="#1f3e4e" opacity="0.5"/>
+  <circle cx="304" cy="374" r="9" fill="#8a5a44"/>
+  <path d="M295,374 a9,9 0 0 1 18,0 z" fill="#a5674a"/>
+  <ellipse cx="304" cy="374" rx="9" ry="3" fill="#c2b280"/>
+  <circle cx="300" cy="371" r="2.4" fill="#fff2cf" opacity="0.8"/>
+  <ellipse cx="304" cy="382" rx="14" ry="4.6" fill="none" stroke="#9ecbdc" stroke-width="1.1" opacity="0.5"/>
+
+  <!-- RIGHT POST (drawn after the gangplank: it stands in front of it;
+       base seated on the shore top at the pool's right tip) -->
+  <ellipse cx="363" cy="360" rx="10" ry="3.2" fill="#1a1512" opacity="0.42"/>
+  <polygon points="356,250 366,250 366,360 356,360" fill="url(#cshs-post-lit)"/>
+  <polygon points="366,250 372,253 372,357 366,360" fill="url(#cshs-post-shade)"/>
+  <line x1="360" y1="256" x2="360" y2="354" stroke="#4a2e1e" stroke-width="1" opacity="0.5"/>
+  <line x1="363" y1="258" x2="363" y2="352" stroke="#c79a72" stroke-width="0.8" opacity="0.4"/>
+  <path d="M349,362 q7,3 14,2" fill="none" stroke="#9ecbdc" stroke-width="1.1" opacity="0.45"/>
+
+  <!-- coil of rope on the deck by the lantern -->
+  <ellipse cx="204" cy="272" rx="12" ry="3.6" fill="#241610" opacity="0.3"/>
+  <ellipse cx="204" cy="270" rx="11" ry="4.5" fill="#7a5236"/>
+  <ellipse cx="204" cy="269" rx="8" ry="3.2" fill="#a07a56"/>
+  <ellipse cx="204" cy="268.2" rx="5" ry="2" fill="#5c3a2a"/>
+
+  <!-- ============================================================
+       WISP MOTES & FIREFLIES (magical touch)
+       ============================================================ -->
+  <circle cx="120" cy="150" r="16" fill="url(#cshs-glowmote)"/>
+  <circle cx="120" cy="150" r="2.2" fill="#fff6d6"/>
+  <circle cx="366" cy="128" r="13" fill="url(#cshs-glowmote)"/>
+  <circle cx="366" cy="128" r="1.8" fill="#fff6d6"/>
+  <circle cx="300" cy="70" r="10" fill="url(#cshs-glowmote)"/>
+  <circle cx="300" cy="70" r="1.5" fill="#fff6d6"/>
+  <circle cx="170" cy="96" r="8" fill="url(#cshs-glowmote)"/>
+  <circle cx="170" cy="96" r="1.3" fill="#fff6d6"/>
+  <circle cx="404" cy="210" r="11" fill="url(#cshs-glowmote)"/>
+  <circle cx="404" cy="210" r="1.6" fill="#fff6d6"/>
+  <circle cx="66" cy="238" r="9" fill="url(#cshs-glowmote)"/>
+  <circle cx="66" cy="238" r="1.4" fill="#fff6d6"/>
+  <circle cx="330" cy="330" r="7" fill="url(#cshs-glowmote)"/>
+  <circle cx="330" cy="330" r="1.2" fill="#fff6d6"/>
+  <circle cx="150" cy="360" r="6" fill="url(#cshs-glowmote)"/>
+  <circle cx="150" cy="360" r="1" fill="#fff6d6"/>
+</svg>

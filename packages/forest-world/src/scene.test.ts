@@ -1008,11 +1008,63 @@ test('§ back-compat: parcels absent OR no substrate cells → today\'s conifer 
 
 type UatCriteria = NonNullable<SceneTerritoryInput['uatCriteria']>;
 
-/** A one-island scene whose territory carries `uatCriteria` + the human-witness signpost. */
-function markerScene(uatCriteria: UatCriteria, over: Partial<SceneTerritoryInput> = {}): SceneG {
+/** An owner-0 grid of square substrate cells covering [xMin,xMax)×[yMin,yMax) — a stand-in for
+ *  the island's relaxed land mesh (the marker scatter's keep-in). */
+function isleCells(box: { xMin: number; xMax: number; yMin: number; yMax: number }): RelaxedCell[] {
+  const cells: RelaxedCell[] = [];
+  for (let x = box.xMin; x < box.xMax; x += 20) {
+    for (let y = box.yMin; y < box.yMax; y += 20) {
+      cells.push({
+        owner: 0,
+        poly: [
+          { x, y },
+          { x: x + 20, y },
+          { x: x + 20, y: y + 20 },
+          { x, y: y + 20 },
+        ],
+        variant: 0,
+        wheat: false,
+      });
+    }
+  }
+  return cells;
+}
+
+/** The default marker-test land: a full grid over the island disc (centroid 100,200 / radius 60). */
+const FULL_LAND = isleCells({ xMin: 40, xMax: 160, yMin: 140, yMax: 260 });
+
+/** Test-local ray-cast (mirrors the scene core's keep-in predicate). */
+function inPoly(x: number, y: number, poly: { x: number; y: number }[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i]!;
+    const b = poly[j]!;
+    if (a.y > y !== b.y > y && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+}
+
+/** A one-island scene whose territory carries `uatCriteria` + the human-witness signpost. Land
+ *  cells default to the full-disc grid; pass `cells: null` for the no-mesh (classic ground) path. */
+function markerScene(
+  uatCriteria: UatCriteria,
+  over: Partial<SceneTerritoryInput> = {},
+  cells: RelaxedCell[] | null = FULL_LAND,
+): SceneG {
   return buildScene(
-    mkInput({ territories: [mkTerritory({ signpost: { outcome: null }, uatCriteria, ...over })] }),
+    mkInput({
+      territories: [mkTerritory({ signpost: { outcome: null }, uatCriteria, ...over })],
+      relaxedCells: cells,
+    }),
   );
+}
+
+const STONE_TRANSFORM = /^translate\((-?[\d.]+) (-?[\d.]+)\) scale\(0\.6\)$/;
+
+/** The stone wrapper's base point (the translate part of `translate(x y) scale(s)`). */
+function stoneSpot(m: SceneG): { x: number; y: number } {
+  const [, x, y] = STONE_TRANSFORM.exec(m.transform ?? '') ?? [];
+  return { x: Number(x), y: Number(y) };
 }
 
 const THREE_CRITERIA: UatCriteria = [
@@ -1044,7 +1096,8 @@ test('a uatCriteria-present island scatters one stone marker per criterion, stat
   assert.deepEqual(new Set(stones.map((m) => m.id)), new Set(['crit-a', 'crit-b', 'crit-c']));
   for (const m of stones) {
     assert.ok(m.children.length > 0, 'a marker wrapper carries body marks');
-    assert.match(m.transform ?? '', /^translate\(-?[\d.]+ -?[\d.]+\)$/);
+    // translate + the 0.6 wrapper scale (owner feedback 2026-07-18: signpost-weight, not half-tree).
+    assert.match(m.transform ?? '', STONE_TRANSFORM);
   }
 });
 
@@ -1052,10 +1105,7 @@ test('the stones respect the keep-outs, and the human-witness signpost seal is R
   const scene = markerScene(THREE_CRITERIA, { signpost: { outcome: 'pass' } });
   // the signpost is retained — the markers never replace it.
   assert.ok(firstByKind(scene, 'sign-pass'), 'the signpost seal survives the markers');
-  const spots = stonesOf(scene).map((m) => {
-    const [, x, y] = /^translate\((-?[\d.]+) (-?[\d.]+)\)$/.exec(m.transform ?? '') ?? [];
-    return { x: Number(x), y: Number(y) };
-  });
+  const spots = stonesOf(scene).map(stoneSpot);
   assert.ok(spots.every((s) => Number.isFinite(s.x) && Number.isFinite(s.y)));
   // distinct spots, all inside the island's reach, none in the tree well (mkTerritory geometry).
   assert.equal(new Set(spots.map((s) => `${s.x},${s.y}`)).size, spots.length, 'stones stand apart');
@@ -1081,6 +1131,26 @@ test('many criteria still place: every stone gets its own spot (rejection sampli
   const stones = stonesOf(markerScene(many));
   assert.equal(stones.length, 8);
   assert.equal(new Set(stones.map((m) => m.transform)).size, 8, 'no two stones stack on one spot');
+});
+
+test('the scatter keeps IN the island: on a concave land mass every stone stands on a substrate cell', () => {
+  // land = only the WEST half of the island disc — a concave hex-cluster stand-in. The old
+  // radius-only scatter drifted stones into the water here (owner feedback 2026-07-18).
+  const westLand = isleCells({ xMin: 40, xMax: 100, yMin: 140, yMax: 260 });
+  const spots = stonesOf(markerScene(THREE_CRITERIA, {}, westLand)).map(stoneSpot);
+  assert.equal(spots.length, THREE_CRITERIA.length, 'every criterion still renders');
+  for (const s of spots) {
+    assert.ok(
+      westLand.some((c) => inPoly(s.x, s.y, c.poly)),
+      `stone at ${s.x},${s.y} stands on land`,
+    );
+  }
+});
+
+test('no substrate cells (classic ground) still renders every stone — the radius-clamped fallback', () => {
+  const stones = stonesOf(markerScene(THREE_CRITERIA, {}, null));
+  assert.equal(stones.length, THREE_CRITERIA.length);
+  for (const m of stones) assert.match(m.transform ?? '', STONE_TRANSFORM);
 });
 
 test('§ back-compat ABSENCE LOCK: uatCriteria absent OR empty → NO marker kinds; absent and [] byte-identical', () => {

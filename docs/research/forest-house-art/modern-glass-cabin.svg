@@ -1,0 +1,333 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 460" width="480" height="460">
+  <defs>
+    <!-- ================= GRADIENTS ================= -->
+    <linearGradient id="mgc-grass" gradientUnits="userSpaceOnUse" x1="80" y1="300" x2="420" y2="392">
+      <stop offset="0" stop-color="#63b571"/>
+      <stop offset="0.5" stop-color="#4f9d5d"/>
+      <stop offset="1" stop-color="#3a7a48"/>
+    </linearGradient>
+    <linearGradient id="mgc-earthR" gradientUnits="userSpaceOnUse" x1="240" y1="450" x2="435" y2="360">
+      <stop offset="0" stop-color="#4f3325"/>
+      <stop offset="1" stop-color="#7a4e39"/>
+    </linearGradient>
+    <linearGradient id="mgc-earthL" gradientUnits="userSpaceOnUse" x1="45" y1="360" x2="240" y2="450">
+      <stop offset="0" stop-color="#4a3428"/>
+      <stop offset="1" stop-color="#33241b"/>
+    </linearGradient>
+    <radialGradient id="mgc-ambient" gradientUnits="userSpaceOnUse" cx="255" cy="300" r="210">
+      <stop offset="0" stop-color="#ffd75e" stop-opacity="0.16"/>
+      <stop offset="0.55" stop-color="#e8b25a" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#101418" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mgc-spill" gradientUnits="userSpaceOnUse" cx="340" cy="392" r="120">
+      <stop offset="0" stop-color="#ffdf8f" stop-opacity="0.55"/>
+      <stop offset="0.6" stop-color="#ffc766" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#ffc766" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="mgc-roof" gradientUnits="userSpaceOnUse" x1="222" y1="272" x2="340" y2="170">
+      <stop offset="0" stop-color="#28313b"/>
+      <stop offset="0.5" stop-color="#3a4653"/>
+      <stop offset="1" stop-color="#516576"/>
+    </linearGradient>
+    <linearGradient id="mgc-fascia" gradientUnits="userSpaceOnUse" x1="239" y1="290" x2="366" y2="204">
+      <stop offset="0" stop-color="#151a20"/>
+      <stop offset="1" stop-color="#222a33"/>
+    </linearGradient>
+    <linearGradient id="mgc-endwall" gradientUnits="userSpaceOnUse" x1="170" y1="290" x2="240" y2="340">
+      <stop offset="0" stop-color="#262d41"/>
+      <stop offset="1" stop-color="#39425a"/>
+    </linearGradient>
+    <linearGradient id="mgc-glass" gradientUnits="userSpaceOnUse" x1="240" y1="207" x2="240" y2="386">
+      <stop offset="0" stop-color="#34464f"/>
+      <stop offset="0.34" stop-color="#3d4750"/>
+      <stop offset="0.66" stop-color="#7d6a49"/>
+      <stop offset="1" stop-color="#cd9d5d"/>
+    </linearGradient>
+    <radialGradient id="mgc-glassGlow" gradientUnits="objectBoundingBox" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffe8ac" stop-opacity="0.92"/>
+      <stop offset="0.55" stop-color="#f4bc63" stop-opacity="0.38"/>
+      <stop offset="1" stop-color="#f4bc63" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="mgc-endwin" gradientUnits="userSpaceOnUse" x1="220" y1="300" x2="234" y2="368">
+      <stop offset="0" stop-color="#ffe7a6"/>
+      <stop offset="1" stop-color="#f0a94e"/>
+    </linearGradient>
+    <linearGradient id="mgc-deck" gradientUnits="userSpaceOnUse" x1="240" y1="386" x2="398" y2="355">
+      <stop offset="0" stop-color="#5f4330"/>
+      <stop offset="1" stop-color="#8a6446"/>
+    </linearGradient>
+    <linearGradient id="mgc-post" gradientUnits="userSpaceOnUse" x1="236" y1="300" x2="244" y2="300">
+      <stop offset="0" stop-color="#3a4149"/>
+      <stop offset="0.5" stop-color="#20252b"/>
+      <stop offset="1" stop-color="#12161a"/>
+    </linearGradient>
+    <radialGradient id="mgc-wisp" gradientUnits="objectBoundingBox" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fff2c4" stop-opacity="0.95"/>
+      <stop offset="0.45" stop-color="#ffcf5e" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#ffcf5e" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mgc-treelit" gradientUnits="objectBoundingBox" cx="0.35" cy="0.3" r="0.8">
+      <stop offset="0" stop-color="#5f9e79"/>
+      <stop offset="1" stop-color="#264c3d"/>
+    </radialGradient>
+    <linearGradient id="modernglasscabin-sheen" gradientUnits="userSpaceOnUse" x1="323" y1="177" x2="248" y2="227">
+      <stop offset="0" stop-color="#6f93aa" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#6f93aa" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- ================= FILTERS ================= -->
+    <filter id="mgc-shadowBlur" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+    <filter id="mgc-glow" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="3.2"/>
+    </filter>
+    <filter id="mgc-softGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="5.5"/>
+    </filter>
+
+    <!-- ================= CLIP PATHS ================= -->
+    <clipPath id="mgc-clip-glass">
+      <polygon points="240,386 350,331 350,207 240,280"/>
+    </clipPath>
+    <clipPath id="mgc-clip-end">
+      <polygon points="240,386 170,351 170,245 240,280"/>
+    </clipPath>
+    <clipPath id="mgc-clip-deck">
+      <polygon points="240,386 350,331 388,350 278,405"/>
+    </clipPath>
+    <clipPath id="modernglasscabin-clip-grass">
+      <polygon points="240,272 435,350 240,428 45,350"/>
+    </clipPath>
+  </defs>
+
+  <!-- ================= AMBIENT DUSK GLOW ================= -->
+  <ellipse cx="255" cy="300" rx="215" ry="180" fill="url(#mgc-ambient)"/>
+
+  <!-- distant wisps behind -->
+  <g filter="url(#mgc-glow)">
+    <circle cx="120" cy="182" r="13" fill="url(#mgc-wisp)"/>
+    <circle cx="395" cy="172" r="11" fill="url(#mgc-wisp)"/>
+    <circle cx="300" cy="112" r="9" fill="url(#mgc-wisp)"/>
+  </g>
+
+  <!-- ================= GROUND TILE ================= -->
+  <!-- earth side faces -->
+  <polygon points="45,350 240,428 240,450 45,372" fill="url(#mgc-earthL)"/>
+  <polygon points="435,350 240,428 240,450 435,372" fill="url(#mgc-earthR)"/>
+  <!-- soil striations -->
+  <g stroke-linecap="round" opacity="0.4">
+    <line x1="90" y1="366" x2="230" y2="422" stroke="#2e2018" stroke-width="1.4"/>
+    <line x1="150" y1="382" x2="235" y2="416" stroke="#2e2018" stroke-width="1.2"/>
+    <line x1="390" y1="366" x2="250" y2="422" stroke="#3d281c" stroke-width="1.4"/>
+    <line x1="330" y1="382" x2="248" y2="415" stroke="#3d281c" stroke-width="1.2"/>
+  </g>
+  <!-- grass top diamond -->
+  <polygon points="240,272 435,350 240,428 45,350" fill="url(#mgc-grass)"/>
+  <!-- grass rim highlight along lit (upper-left) edge -->
+  <polyline points="45,350 240,272 435,350" fill="none" stroke="#77c184" stroke-width="1.6" opacity="0.55" stroke-linejoin="round"/>
+  <!-- subtle grass shading blades / tufts -->
+  <g stroke-linecap="round" fill="none">
+    <g stroke="#3f8250" stroke-width="1.3" opacity="0.6">
+      <path d="M120,352 q-2,-7 1,-11 M124,352 q1,-6 4,-9 M128,353 q3,-6 6,-8"/>
+      <path d="M170,392 q-2,-7 1,-11 M174,392 q1,-6 4,-9 M178,393 q3,-6 6,-8"/>
+      <path d="M395,360 q-2,-7 1,-11 M399,360 q1,-6 4,-9 M403,361 q3,-6 6,-8"/>
+      <path d="M300,415 q-2,-7 1,-11 M304,415 q1,-6 4,-9 M308,416 q3,-6 6,-8"/>
+    </g>
+    <g stroke="#69bd78" stroke-width="1" opacity="0.5">
+      <path d="M122,349 q0,-6 2,-9 M172,389 q0,-6 2,-9 M397,357 q0,-6 2,-9 M302,412 q0,-6 2,-9"/>
+    </g>
+  </g>
+  <!-- ================= BACK CONIFER (frames, back-left) ================= -->
+  <g>
+    <ellipse cx="101" cy="331" rx="26" ry="8" fill="#05080a" opacity="0.38" filter="url(#mgc-shadowBlur)"/>
+    <rect x="96" y="320" width="8" height="14" fill="#3a2a1e"/>
+    <path d="M100,268 L128,308 L72,308 Z" fill="#264c3d"/>
+    <path d="M100,268 L100,308 L72,308 Z" fill="#1d3a2f"/>
+    <path d="M100,250 L120,284 L80,284 Z" fill="#2c5a49"/>
+    <path d="M100,250 L100,284 L80,284 Z" fill="#204538"/>
+    <path d="M100,236 L114,264 L86,264 Z" fill="#356b56"/>
+    <path d="M100,236 L100,264 L86,264 Z" fill="#275042"/>
+    <!-- warm rim on lit face -->
+    <path d="M100,236 L86,264 M100,250 L80,284 M100,268 L72,308" stroke="#6fae7a" stroke-width="1.1" opacity="0.5" fill="none" stroke-linecap="round"/>
+    <path d="M100,236 L107,250" stroke="#ffe1a0" stroke-width="1.2" opacity="0.7" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <!-- ================= HOUSE GROUND SHADOW + LIGHT SPILL (kept on the tile) ================= -->
+  <g clip-path="url(#modernglasscabin-clip-grass)">
+    <ellipse cx="248" cy="402" rx="142" ry="34" fill="#05080a" opacity="0.55" filter="url(#mgc-shadowBlur)"/>
+    <!-- warm light spill onto ground in front of glass -->
+    <ellipse cx="345" cy="392" rx="118" ry="50" fill="url(#mgc-spill)" filter="url(#mgc-softGlow)"/>
+  </g>
+
+  <!-- stepping-stone path (on the grass, leading to the deck corner; above the shadow so it reads) -->
+  <g>
+    <polygon points="232,415 244,420 233,424 221,419" fill="#6b7178"/>
+    <polygon points="232,414 244,419 233,421 221,418" fill="#878e95"/>
+    <polygon points="248,408 260,413 249,417 237,412" fill="#6b7178"/>
+    <polygon points="248,407 260,412 249,414 237,411" fill="#878e95"/>
+    <polygon points="264,401 276,406 265,410 253,405" fill="#6b7178"/>
+    <polygon points="264,400 276,405 265,407 253,404" fill="#878e95"/>
+  </g>
+
+  <!-- ================= DECK PLATFORM ================= -->
+  <polygon points="240,386 350,331 388,350 278,405" fill="url(#mgc-deck)"/>
+  <polygon points="240,386 350,331 388,350 278,405" fill="none" stroke="#3f2c1e" stroke-width="1.4" stroke-linejoin="round" opacity="0.8"/>
+  <!-- deck slab thickness (seats it into the ground) -->
+  <polygon points="278,405 388,350 388,354 278,409" fill="#46311f"/>
+  <polygon points="240,386 278,405 278,409 240,390" fill="#362617"/>
+  <line x1="278" y1="409" x2="388" y2="354" stroke="#241812" stroke-width="1" opacity="0.8" stroke-linecap="round"/>
+  <g clip-path="url(#mgc-clip-deck)" stroke="#4a3423" stroke-width="1.2" opacity="0.75">
+    <line x1="252" y1="392" x2="362" y2="337"/>
+    <line x1="265" y1="399" x2="375" y2="344"/>
+  </g>
+  <!-- warm reflection of interior light on deck -->
+  <polygon points="278,401 348,335 366,344 308,405" fill="#ffce76" opacity="0.14" clip-path="url(#mgc-clip-deck)"/>
+  <!-- deck railing -->
+  <g stroke="#2a2016" stroke-width="2.2" stroke-linecap="round">
+    <line x1="278" y1="405" x2="278" y2="391"/>
+    <line x1="333" y1="377" x2="333" y2="363"/>
+    <line x1="388" y1="350" x2="388" y2="336"/>
+  </g>
+  <line x1="278" y1="391" x2="388" y2="336" stroke="#3a2c1d" stroke-width="2" stroke-linecap="round"/>
+  <line x1="278" y1="390" x2="388" y2="335" stroke="#7a5a3c" stroke-width="0.8" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- ================= END WALL (left, clad) ================= -->
+  <polygon points="240,386 170,351 170,245 240,280" fill="url(#mgc-endwall)"/>
+  <!-- vertical batten cladding -->
+  <g clip-path="url(#mgc-clip-end)" stroke-linecap="round">
+    <line x1="184" y1="200" x2="184" y2="395" stroke="#181c26" stroke-width="2"/>
+    <line x1="200" y1="200" x2="200" y2="395" stroke="#181c26" stroke-width="2"/>
+    <line x1="216" y1="200" x2="216" y2="395" stroke="#181c26" stroke-width="2"/>
+    <line x1="232" y1="200" x2="232" y2="395" stroke="#181c26" stroke-width="2"/>
+    <line x1="192" y1="200" x2="192" y2="395" stroke="#3a4152" stroke-width="0.7" opacity="0.6"/>
+    <line x1="208" y1="200" x2="208" y2="395" stroke="#3a4152" stroke-width="0.7" opacity="0.6"/>
+    <line x1="224" y1="200" x2="224" y2="395" stroke="#3a4152" stroke-width="0.7" opacity="0.6"/>
+  </g>
+  <!-- ambient occlusion at base -->
+  <polygon points="240,386 170,351 170,363 240,398" fill="#0a0d13" opacity="0.5" clip-path="url(#mgc-clip-end)"/>
+  <!-- cool rim on the outer corner so the dark wall reads against the night -->
+  <line x1="170.7" y1="252" x2="170.7" y2="349" stroke="#5d7396" stroke-width="1.1" opacity="0.65" stroke-linecap="round"/>
+  <!-- warm slot window on end wall -->
+  <g clip-path="url(#mgc-clip-end)">
+    <polygon points="220,300 234,300 234,368 220,368" fill="url(#mgc-endwin)"/>
+    <polygon points="220,300 234,300 234,368 220,368" fill="none" stroke="#5a3a1e" stroke-width="1.4"/>
+    <line x1="220" y1="334" x2="234" y2="334" stroke="#5a3a1e" stroke-width="1.2"/>
+    <polygon points="220,300 234,300 234,368 220,368" fill="#fff3cf" opacity="0.18" filter="url(#mgc-glow)"/>
+  </g>
+
+  <!-- ================= GLASS WALL (right-front, the star) ================= -->
+  <polygon points="240,386 350,331 350,207 240,280" fill="url(#mgc-glass)"/>
+  <!-- warm interior hotspots -->
+  <g clip-path="url(#mgc-clip-glass)">
+    <ellipse cx="302" cy="352" rx="95" ry="70" fill="url(#mgc-glassGlow)"/>
+    <ellipse cx="272" cy="292" rx="52" ry="48" fill="url(#mgc-glassGlow)" opacity="0.7"/>
+    <!-- cool dusk-sky reflection near top -->
+    <polygon points="240,280 350,207 350,236 240,309" fill="#3b5a6b" opacity="0.35"/>
+    <!-- interior floor line silhouette -->
+    <polygon points="240,368 350,313 350,331 240,386" fill="#5a3f20" opacity="0.4"/>
+  </g>
+  <!-- horizontal glazing bars (transoms) -->
+  <g clip-path="url(#mgc-clip-glass)" stroke="#14191f" stroke-width="1.8" stroke-linecap="round">
+    <line x1="236" y1="354" x2="354" y2="295"/>
+    <line x1="236" y1="320" x2="354" y2="261"/>
+    <line x1="236" y1="288" x2="354" y2="229"/>
+  </g>
+  <!-- vertical mullions -->
+  <g clip-path="url(#mgc-clip-glass)" stroke="#12171d" stroke-width="2" stroke-linecap="round">
+    <line x1="258" y1="205" x2="258" y2="392"/>
+    <line x1="276" y1="205" x2="276" y2="392"/>
+    <line x1="294" y1="205" x2="294" y2="392"/>
+    <line x1="312" y1="205" x2="312" y2="392"/>
+    <line x1="330" y1="205" x2="330" y2="392"/>
+  </g>
+  <!-- warm frame inner highlight catching interior light -->
+  <g clip-path="url(#mgc-clip-glass)" stroke="#ffd98a" stroke-width="0.7" opacity="0.35" stroke-linecap="round">
+    <line x1="259" y1="205" x2="259" y2="392"/>
+    <line x1="295" y1="205" x2="295" y2="392"/>
+    <line x1="331" y1="205" x2="331" y2="392"/>
+  </g>
+  <!-- glass sheen / reflection streaks -->
+  <g clip-path="url(#mgc-clip-glass)">
+    <polygon points="255,394 269,394 331,205 317,205" fill="#ffffff" opacity="0.09"/>
+    <polygon points="300,394 309,394 348,214 339,214" fill="#ffffff" opacity="0.07"/>
+  </g>
+  <!-- pendant interior lights -->
+  <g filter="url(#mgc-glow)">
+    <circle cx="284" cy="268" r="2.4" fill="#fff4d6"/>
+    <circle cx="316" cy="256" r="2.4" fill="#fff4d6"/>
+    <circle cx="298" cy="330" r="3" fill="#ffe6ad"/>
+  </g>
+  <circle cx="284" cy="268" r="1.1" fill="#fffdf5"/>
+  <circle cx="316" cy="256" r="1.1" fill="#fffdf5"/>
+  <!-- sliding-door handle hint -->
+  <line x1="309" y1="330" x2="309" y2="352" stroke="#0e1216" stroke-width="1.6" stroke-linecap="round" clip-path="url(#mgc-clip-glass)"/>
+  <!-- glass frame outline -->
+  <polygon points="240,386 350,331 350,207 240,280" fill="none" stroke="#0d1116" stroke-width="2.4" stroke-linejoin="round"/>
+
+  <!-- near vertical corner (mullion post) warm rim -->
+  <line x1="240" y1="386" x2="240" y2="280" stroke="#ffdf8f" stroke-width="1.4" opacity="0.5" stroke-linecap="round"/>
+
+  <!-- ================= ROOF (crisp mono-pitch: low eave over the end wall, rising to the right) ================= -->
+  <!-- soffit shadow under fascias -->
+  <polygon points="239,284 366,199 366,212 239,297" fill="#0a0e12" opacity="0.85"/>
+  <polygon points="239,284 154,241 154,254 239,297" fill="#0a0e12" opacity="0.85"/>
+  <!-- fascia edges: raked verge over the glass, level eave over the end wall -->
+  <polygon points="239,284 366,199 366,208 239,293" fill="url(#mgc-fascia)"/>
+  <polygon points="239,284 154,241 154,250 239,293" fill="#151a20"/>
+  <!-- warm underglow on the verge fascia from interior light -->
+  <polygon points="239,289 366,204 366,208 239,293" fill="#ffce76" opacity="0.18"/>
+  <!-- roof top face: single planar slope, high edge at the back-right -->
+  <polygon points="239,284 366,199 281,156 154,241" fill="url(#mgc-roof)"/>
+  <!-- standing-seam lines running down the slope -->
+  <g stroke="#232c35" stroke-width="1.3" stroke-linecap="round" opacity="0.9">
+    <line x1="228.4" y1="271.2" x2="343.9" y2="193.8"/>
+    <line x1="211.4" y1="262.6" x2="326.9" y2="185.2"/>
+    <line x1="194.4" y1="254" x2="309.9" y2="176.6"/>
+    <line x1="177.4" y1="245.4" x2="292.9" y2="168"/>
+  </g>
+  <!-- cool sky sheen fading down from the high edge (no hard break in the plane) -->
+  <polygon points="239,284 366,199 281,156 154,241" fill="url(#modernglasscabin-sheen)"/>
+  <!-- high-edge rim light (catches dusk sky) -->
+  <polyline points="366,199 281,156 154,241" fill="none" stroke="#9bbdd2" stroke-width="1.6" opacity="0.7" stroke-linejoin="round"/>
+  <!-- warm rim on the near verge corner -->
+  <polyline points="239,284 283,254" fill="none" stroke="#ffe0a0" stroke-width="1.3" opacity="0.55" stroke-linecap="round"/>
+  <polygon points="239,284 366,199 281,156 154,241" fill="none" stroke="#141a20" stroke-width="1.6" stroke-linejoin="round" opacity="0.7"/>
+
+  <!-- ================= NEAR CORNER STEEL POST ================= -->
+  <polygon points="236,388 244,388 244,292 236,292" fill="url(#mgc-post)"/>
+  <line x1="236.6" y1="388" x2="236.6" y2="292" stroke="#ffd98a" stroke-width="1" opacity="0.55" stroke-linecap="round"/>
+  <line x1="243.4" y1="388" x2="243.4" y2="292" stroke="#0a0d10" stroke-width="1" opacity="0.8"/>
+  <!-- seated foundation footing under the corner post -->
+  <polygon points="232,394 248,394 248,388 232,388" fill="#0c1014"/>
+  <polygon points="232,389 248,389 248,391 232,391" fill="#3a4149" opacity="0.6"/>
+  <polygon points="232,394 248,394 248,395 232,395" fill="#05080a" opacity="0.7"/>
+
+  <!-- ================= FRONT SHRUB ================= -->
+  <g>
+    <ellipse cx="414" cy="380" rx="18" ry="7" fill="#05080a" opacity="0.4" filter="url(#mgc-shadowBlur)"/>
+    <circle cx="408" cy="372" r="11" fill="url(#mgc-treelit)"/>
+    <circle cx="420" cy="374" r="9" fill="url(#mgc-treelit)"/>
+    <circle cx="414" cy="366" r="9" fill="url(#mgc-treelit)"/>
+    <circle cx="410" cy="367" r="3.5" fill="#6fb283" opacity="0.7"/>
+    <circle cx="416" cy="363" r="2.5" fill="#84c497" opacity="0.6"/>
+  </g>
+
+  <!-- ================= FOREGROUND WISPS / FIREFLIES ================= -->
+  <g filter="url(#mgc-glow)">
+    <circle cx="150" cy="128" r="9" fill="url(#mgc-wisp)"/>
+    <circle cx="420" cy="300" r="11" fill="url(#mgc-wisp)"/>
+    <circle cx="106" cy="248" r="8" fill="url(#mgc-wisp)"/>
+    <circle cx="372" cy="388" r="8" fill="url(#mgc-wisp)"/>
+    <circle cx="238" cy="170" r="7" fill="url(#mgc-wisp)"/>
+  </g>
+  <g fill="#fff6d8">
+    <circle cx="150" cy="128" r="1.5"/>
+    <circle cx="420" cy="300" r="1.6"/>
+    <circle cx="106" cy="248" r="1.3"/>
+    <circle cx="372" cy="388" r="1.3"/>
+    <circle cx="238" cy="170" r="1.2"/>
+    <circle cx="395" cy="172" r="1.2"/>
+    <circle cx="120" cy="182" r="1.3"/>
+  </g>
+</svg>

@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded
 decided: 2026-07-03
 amends: [134, 145]
 ---
@@ -7,13 +7,17 @@ amends: [134, 145]
 
 ## Status
 
-accepted (2026-07-03) — decided/directed by the owner at the `act2-guided-walkthrough` attestation
+superseded (2026-07-18) by
+[ADR-0213](0213-act-2-experience-one-continuous-orchestrator-led-walk.md) — Act 2 experience
+authority consolidates there. Historical decision text below is unchanged.
+
+~~accepted (2026-07-03) — decided/directed by the owner at the `act2-guided-walkthrough` attestation
 gate on 2026-07-03. Design-time alignment IS the ratification
 ([ADR-0110](0110-collapse-the-redundant-end-of-flow-adr-ratification.md)); no second end-of-flow ask.
 Amends [ADR-0134](0134-public-website-as-a-two-act-vibe-coding-experience-terminal.md) (the two-act
 experience concept) and [ADR-0145](0145-act-2-walks-the-real-2-5d-map-the-r3f-forest-retreats-to-far.md)
 (whose R3F retreat this completes — the landing island too now goes; the 2.5D tutorial becomes the
-WHOLE of the post-storm experience).
+WHOLE of the post-storm experience).~~
 
 ## Context
 

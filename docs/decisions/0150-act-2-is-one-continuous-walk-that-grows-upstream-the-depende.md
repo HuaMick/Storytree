@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded
 decided: 2026-07-04
 amends: [134, 145, 148]
 ---
@@ -7,9 +7,13 @@ amends: [134, 145, 148]
 
 ## Status
 
-accepted (2026-07-04) — decided/directed by the owner at the `act2-guided-walkthrough` (increment G)
+superseded (2026-07-18) by
+[ADR-0213](0213-act-2-experience-one-continuous-orchestrator-led-walk.md) — Act 2 experience
+authority consolidates there. Historical decision text below is unchanged.
+
+~~accepted (2026-07-04) — decided/directed by the owner at the `act2-guided-walkthrough` (increment G)
 attestation gate on 2026-07-04. Design-time alignment IS the ratification
-([ADR-0110](0110-collapse-the-redundant-end-of-flow-adr-ratification.md)); no second end-of-flow ask.
+([ADR-0110](0110-collapse-the-redundant-end-of-flow-adr-ratification.md)); no second end-of-flow ask.~~
 
 **Overtakes the unlanded ADR-0147** (born accepted on branch `claude/laughing-galileo-fe1a0b`, never
 merged to main — so this is NOT a formal `supersedes` frontmatter edge: there is no on-main decision to

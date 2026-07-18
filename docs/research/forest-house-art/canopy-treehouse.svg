@@ -1,0 +1,503 @@
+<svg viewBox="0 0 480 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Isometric canopy treehouse built around a tall story-tree, with rope ladder, plank walkway and glowing lanterns">
+  <defs>
+    <radialGradient id="ct-bgglow" cx="46%" cy="34%" r="62%">
+      <stop offset="0%" stop-color="#ffd75e" stop-opacity="0.30"/>
+      <stop offset="45%" stop-color="#c79a45" stop-opacity="0.13"/>
+      <stop offset="100%" stop-color="#101418" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ct-grass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#74c67e"/>
+      <stop offset="45%" stop-color="#54a25f"/>
+      <stop offset="100%" stop-color="#3d874a"/>
+    </linearGradient>
+    <linearGradient id="ct-grassEdge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8ed894"/>
+      <stop offset="100%" stop-color="#5aa864"/>
+    </linearGradient>
+    <linearGradient id="ct-earthL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7e5139"/>
+      <stop offset="100%" stop-color="#543423"/>
+    </linearGradient>
+    <linearGradient id="ct-earthR" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5f3e2c"/>
+      <stop offset="100%" stop-color="#3c281d"/>
+    </linearGradient>
+    <linearGradient id="ct-trunk" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#9c6c46"/>
+      <stop offset="38%" stop-color="#7c5236"/>
+      <stop offset="72%" stop-color="#5b3b27"/>
+      <stop offset="100%" stop-color="#432a1b"/>
+    </linearGradient>
+    <linearGradient id="ct-branch" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#8a5c3b"/>
+      <stop offset="100%" stop-color="#4d3222"/>
+    </linearGradient>
+    <radialGradient id="ct-folA" cx="40%" cy="30%" r="72%">
+      <stop offset="0%" stop-color="#82d18b"/>
+      <stop offset="48%" stop-color="#57ab63"/>
+      <stop offset="100%" stop-color="#2f7a41"/>
+    </radialGradient>
+    <radialGradient id="ct-folB" cx="42%" cy="32%" r="74%">
+      <stop offset="0%" stop-color="#93dd9b"/>
+      <stop offset="55%" stop-color="#509e5e"/>
+      <stop offset="100%" stop-color="#2c6f3c"/>
+    </radialGradient>
+    <radialGradient id="ct-folC" cx="45%" cy="35%" r="72%">
+      <stop offset="0%" stop-color="#4fa05f"/>
+      <stop offset="100%" stop-color="#235631"/>
+    </radialGradient>
+    <radialGradient id="ct-folTeal" cx="42%" cy="32%" r="72%">
+      <stop offset="0%" stop-color="#7fbad0"/>
+      <stop offset="60%" stop-color="#5d8fa8"/>
+      <stop offset="100%" stop-color="#356279"/>
+    </radialGradient>
+    <linearGradient id="ct-deckTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#c69a6d"/>
+      <stop offset="100%" stop-color="#9d7449"/>
+    </linearGradient>
+    <linearGradient id="ct-deckSide" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6f4c32"/>
+      <stop offset="100%" stop-color="#472f20"/>
+    </linearGradient>
+    <linearGradient id="ct-wallL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e0af78"/>
+      <stop offset="100%" stop-color="#b68450"/>
+    </linearGradient>
+    <linearGradient id="ct-wallR" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#a67c53"/>
+      <stop offset="100%" stop-color="#755638"/>
+    </linearGradient>
+    <linearGradient id="ct-roofL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#b56c46"/>
+      <stop offset="100%" stop-color="#7b4630"/>
+    </linearGradient>
+    <linearGradient id="ct-roofR" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#874f37"/>
+      <stop offset="100%" stop-color="#583425"/>
+    </linearGradient>
+    <radialGradient id="ct-window" cx="50%" cy="42%" r="62%">
+      <stop offset="0%" stop-color="#fff8dc"/>
+      <stop offset="50%" stop-color="#ffde83"/>
+      <stop offset="85%" stop-color="#f1b34c"/>
+      <stop offset="100%" stop-color="#d5912f"/>
+    </radialGradient>
+    <radialGradient id="ct-winHalo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffe9a8" stop-opacity="0.85"/>
+      <stop offset="55%" stop-color="#ffd75e" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ct-lantern" cx="50%" cy="42%" r="60%">
+      <stop offset="0%" stop-color="#fff4c8"/>
+      <stop offset="45%" stop-color="#ffd75e"/>
+      <stop offset="100%" stop-color="#efa92e"/>
+    </radialGradient>
+    <radialGradient id="ct-halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffe6a0" stop-opacity="0.6"/>
+      <stop offset="55%" stop-color="#ffcb5a" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#ffcb5a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ct-wisp" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff5cf"/>
+      <stop offset="40%" stop-color="#ffe6a0" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#ffe6a0" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="ct-soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2.4"/>
+    </filter>
+    <filter id="ct-glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
+    <filter id="ct-shadow" x="-40%" y="-60%" width="180%" height="220%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+    <filter id="ct-halofx" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="4"/>
+    </filter>
+    <clipPath id="canopytreehouseMastClip">
+      <rect x="250" y="146" width="82" height="172"/>
+    </clipPath>
+  </defs>
+
+  <!-- ambient magical glow -->
+  <ellipse cx="228" cy="196" rx="205" ry="188" fill="url(#ct-bgglow)"/>
+
+  <!-- ground contact shadow -->
+  <ellipse cx="238" cy="418" rx="158" ry="33" fill="#05070a" opacity="0.55" filter="url(#ct-shadow)"/>
+
+  <!-- ===================== GROUND TILE ===================== -->
+  <g>
+    <!-- earth sides -->
+    <path d="M90,372 L240,440 L240,458 L90,390 Z" fill="url(#ct-earthL)"/>
+    <path d="M390,372 L240,440 L240,458 L390,390 Z" fill="url(#ct-earthR)"/>
+    <!-- strata lines -->
+    <path d="M96,381 L237,445 M120,384 L236,437" stroke="#42291c" stroke-width="1.4" opacity="0.5" fill="none"/>
+    <path d="M384,381 L243,445 M360,384 L244,437" stroke="#2c1c14" stroke-width="1.4" opacity="0.5" fill="none"/>
+    <!-- grass top -->
+    <path d="M240,304 L390,372 L240,440 L90,372 Z" fill="url(#ct-grass)"/>
+    <!-- back rim highlight -->
+    <path d="M240,304 L390,372 L384,375 L240,311 Z" fill="url(#ct-grassEdge)" opacity="0.85"/>
+    <path d="M240,304 L90,372 L96,375 L240,311 Z" fill="url(#ct-grassEdge)" opacity="0.7"/>
+    <!-- soft front shading on grass -->
+    <path d="M240,440 L120,384 L240,392 L360,384 Z" fill="#2f7040" opacity="0.35"/>
+    <!-- grass tufts -->
+    <g stroke="#3a8149" stroke-width="2" stroke-linecap="round" opacity="0.8" fill="none">
+      <path d="M150,372 l-3,-8 M154,373 l1,-9 M158,372 l4,-7"/>
+      <path d="M320,376 l-3,-8 M324,377 l1,-9 M328,376 l4,-7"/>
+      <path d="M205,410 l-3,-8 M209,411 l1,-9 M213,410 l4,-7"/>
+    </g>
+    <g stroke="#6fbf78" stroke-width="1.4" stroke-linecap="round" opacity="0.75" fill="none">
+      <path d="M151,371 l-2,-6 M155,372 l1,-7 M159,371 l3,-5"/>
+      <path d="M321,375 l-2,-6 M325,376 l1,-7 M329,375 l3,-5"/>
+    </g>
+    <!-- pebbles -->
+    <ellipse cx="176" cy="398" rx="7" ry="3.4" fill="#8a8f8c" opacity="0.8"/>
+    <ellipse cx="176" cy="397" rx="5" ry="2.2" fill="#b7bcb8" opacity="0.7"/>
+    <ellipse cx="300" cy="404" rx="8" ry="3.8" fill="#7d827f" opacity="0.8"/>
+    <ellipse cx="300" cy="403" rx="5.5" ry="2.2" fill="#adb2ae" opacity="0.65"/>
+    <!-- little mushrooms -->
+    <g>
+      <rect x="127" y="392" width="4" height="9" rx="2" fill="#efe4cf"/>
+      <ellipse cx="129" cy="392" rx="8" ry="4.6" fill="#c0523f"/>
+      <ellipse cx="129" cy="391" rx="8" ry="3.8" fill="#d16149"/>
+      <circle cx="126" cy="390.5" r="1.1" fill="#ffe9c9"/>
+      <circle cx="131" cy="391.5" r="1" fill="#ffe9c9"/>
+    </g>
+    <!-- ladder ground contact shadow -->
+    <ellipse cx="221" cy="430" rx="14" ry="4" fill="#05070a" opacity="0.35" filter="url(#ct-soft)"/>
+  </g>
+
+  <!-- ===================== TREE MAST (drawn behind deck & hut) ===================== -->
+  <g>
+    <!-- roots -->
+    <g fill="url(#ct-trunk)">
+      <path d="M290,360 C270,372 250,378 236,392 C246,384 268,378 292,372 Z"/>
+      <path d="M296,362 C316,374 330,378 316,394 C316,384 306,376 300,372 Z"/>
+      <path d="M292,366 C288,384 282,396 274,402 C284,392 292,380 300,372 Z"/>
+    </g>
+    <!-- lower trunk (base, below deck) -->
+    <path d="M262,300 C258,332 260,352 262,372 C270,378 316,378 320,372 C318,352 314,330 312,300 Z" fill="url(#ct-trunk)"/>
+    <!-- full mast upper portion -->
+    <path d="M270,300
+             C266,250 272,205 273,178
+             C274,150 276,120 279,96
+             C282,120 300,150 306,178
+             C310,205 314,250 312,300 Z" fill="url(#ct-trunk)"/>
+    <!-- trunk left rim light -->
+    <path d="M270,300 C266,250 272,205 273,178 C274,150 276,120 279,96"
+          fill="none" stroke="#c08a56" stroke-width="2.4" opacity="0.55" stroke-linecap="round"/>
+    <!-- bark cracks & knots -->
+    <g stroke="#3c2717" stroke-width="1.6" fill="none" opacity="0.6" stroke-linecap="round">
+      <path d="M288,110 C286,150 288,200 289,250 C290,280 289,300 288,330"/>
+      <path d="M296,130 C298,170 296,210 297,260"/>
+      <path d="M282,150 C280,190 282,230 281,270"/>
+    </g>
+    <ellipse cx="299" cy="196" rx="6" ry="9" fill="#3c2717" opacity="0.55"/>
+    <ellipse cx="299" cy="196" rx="3" ry="5" fill="#6b4830" opacity="0.7"/>
+    <!-- branches reaching over roof -->
+    <path d="M276,150 C240,140 190,138 150,158 C188,148 236,150 276,158 Z" fill="url(#ct-branch)"/>
+    <path d="M300,138 C332,126 360,120 384,132 C360,132 330,138 302,148 Z" fill="url(#ct-branch)"/>
+    <path d="M282,120 C266,96 250,74 236,58 C258,78 276,100 288,124 Z" fill="url(#ct-branch)"/>
+    <path d="M296,116 C314,92 336,74 356,66 C334,86 314,106 302,126 Z" fill="url(#ct-branch)"/>
+  </g>
+
+  <!-- ===================== CANOPY (crown of the tree) ===================== -->
+  <g>
+    <!-- deep back leaves -->
+    <ellipse cx="196" cy="96" rx="70" ry="52" fill="url(#ct-folC)"/>
+    <ellipse cx="330" cy="98" rx="66" ry="50" fill="url(#ct-folC)"/>
+    <ellipse cx="262" cy="60" rx="80" ry="56" fill="url(#ct-folC)"/>
+    <!-- mid volumes -->
+    <ellipse cx="212" cy="98" rx="58" ry="46" fill="url(#ct-folA)"/>
+    <ellipse cx="316" cy="100" rx="56" ry="44" fill="url(#ct-folA)"/>
+    <ellipse cx="266" cy="66" rx="66" ry="50" fill="url(#ct-folB)"/>
+    <ellipse cx="158" cy="120" rx="40" ry="34" fill="url(#ct-folA)"/>
+    <ellipse cx="372" cy="122" rx="42" ry="34" fill="url(#ct-folB)"/>
+    <!-- teal accent cluster (mapped-blue tie-in) -->
+    <ellipse cx="352" cy="86" rx="34" ry="27" fill="url(#ct-folTeal)" opacity="0.92"/>
+    <!-- top-lit highlight caps -->
+    <ellipse cx="250" cy="44" rx="46" ry="26" fill="#9fe0a6" opacity="0.55"/>
+    <ellipse cx="196" cy="80" rx="30" ry="18" fill="#8ad493" opacity="0.5"/>
+    <ellipse cx="322" cy="82" rx="28" ry="16" fill="#8ad493" opacity="0.45"/>
+    <!-- leaf speckle -->
+    <g fill="#bdeec2" opacity="0.7">
+      <circle cx="228" cy="40" r="2.2"/><circle cx="252" cy="34" r="2.6"/><circle cx="276" cy="42" r="2"/>
+      <circle cx="200" cy="66" r="2.2"/><circle cx="300" cy="62" r="2.4"/><circle cx="336" cy="70" r="2"/>
+      <circle cx="170" cy="106" r="2"/><circle cx="360" cy="108" r="2.2"/><circle cx="244" cy="58" r="1.8"/>
+      <circle cx="214" cy="52" r="1.8"/><circle cx="288" cy="54" r="2"/>
+    </g>
+    <g fill="#2b6a39" opacity="0.5">
+      <circle cx="188" cy="118" r="2.6"/><circle cx="332" cy="120" r="2.6"/><circle cx="238" cy="92" r="2.2"/>
+      <circle cx="294" cy="96" r="2.2"/><circle cx="150" cy="128" r="2.2"/><circle cx="384" cy="128" r="2.2"/>
+    </g>
+  </g>
+
+  <!-- ===================== ROPE LADDER (behind deck front) ===================== -->
+  <g stroke-linecap="round">
+    <path d="M214,352 C210,382 208,410 206,432" stroke="#caa66a" stroke-width="3" fill="none"/>
+    <path d="M236,352 C234,382 232,410 231,432" stroke="#b08b52" stroke-width="3" fill="none"/>
+    <g stroke="#8a5a3a" stroke-width="4">
+      <line x1="213" y1="360" x2="235" y2="360"/>
+      <line x1="212" y1="372" x2="234" y2="372"/>
+      <line x1="211" y1="384" x2="233" y2="384"/>
+      <line x1="210" y1="396" x2="232" y2="397"/>
+      <line x1="209" y1="408" x2="232" y2="409"/>
+      <line x1="208" y1="420" x2="231" y2="421"/>
+      <line x1="207" y1="431" x2="231" y2="432"/>
+    </g>
+    <g stroke="#caa06a" stroke-width="1.3" opacity="0.8">
+      <line x1="213" y1="358.5" x2="235" y2="358.5"/>
+      <line x1="211" y1="382.5" x2="233" y2="382.5"/>
+      <line x1="208" y1="418.5" x2="231" y2="419.5"/>
+    </g>
+  </g>
+
+  <!-- ===================== DECK / PLATFORM ===================== -->
+  <g>
+    <!-- side faces -->
+    <path d="M82,300 L240,368 L240,384 L82,316 Z" fill="url(#ct-deckSide)"/>
+    <path d="M398,300 L240,368 L240,384 L398,316 Z" fill="url(#ct-deckSide)"/>
+    <path d="M110,320 L240,376 M370,318 L240,374" stroke="#3b2718" stroke-width="1.3" opacity="0.5" fill="none"/>
+    <!-- top -->
+    <path d="M240,232 L398,300 L240,368 L82,300 Z" fill="url(#ct-deckTop)"/>
+    <!-- plank seams along one iso axis -->
+    <g stroke="#7d5a37" stroke-width="1.5" opacity="0.55" fill="none">
+      <path d="M124,282 L282,350"/>
+      <path d="M166,264 L324,332"/>
+      <path d="M208,246 L366,314"/>
+      <path d="M198,300 L356,232 M156,318 L314,250 M114,336 L272,268" opacity="0.35"/>
+    </g>
+    <!-- top rim highlight (back edges) -->
+    <path d="M240,232 L398,300 L392,303 L240,238 Z" fill="#dcb37e" opacity="0.7"/>
+    <path d="M240,232 L82,300 L88,303 L240,238 Z" fill="#d3a970" opacity="0.55"/>
+    <!-- front edge shade -->
+    <path d="M240,368 L398,300 L392,303 L240,374 Z" fill="#6b4a30" opacity="0.4"/>
+    <path d="M240,368 L82,300 L88,303 L240,374 Z" fill="#6b4a30" opacity="0.4"/>
+
+    <!-- railing: posts + rail along the two FRONT edges -->
+    <g>
+      <!-- front-left edge from dBo(240,368) to dL(82,300): posts -->
+      <g fill="#8a6038">
+        <rect x="236" y="352" width="5" height="20" rx="1.5"/>
+        <rect x="204" y="338" width="5" height="20" rx="1.5"/>
+        <rect x="172" y="324" width="5" height="20" rx="1.5"/>
+        <rect x="140" y="310" width="5" height="20" rx="1.5"/>
+        <rect x="108" y="296" width="5" height="20" rx="1.5"/>
+        <rect x="80" y="288" width="5" height="20" rx="1.5"/>
+      </g>
+      <!-- front-right edge from dBo to dR(398,300) -->
+      <g fill="#6f4c2e">
+        <rect x="270" y="340" width="5" height="20" rx="1.5"/>
+        <rect x="302" y="326" width="5" height="20" rx="1.5"/>
+        <rect x="334" y="312" width="5" height="20" rx="1.5"/>
+        <rect x="366" y="298" width="5" height="20" rx="1.5"/>
+        <rect x="395" y="288" width="5" height="20" rx="1.5"/>
+      </g>
+      <!-- top rails -->
+      <path d="M240,354 L84,286" stroke="#a5763f" stroke-width="3.4" stroke-linecap="round"/>
+      <path d="M240,354 L396,286" stroke="#7c5535" stroke-width="3.4" stroke-linecap="round"/>
+      <path d="M240,354 L84,286" stroke="#c79a5d" stroke-width="1.2" opacity="0.7"/>
+    </g>
+  </g>
+
+  <!-- ===================== PLANK WALKWAY (right, resting on a branch) ===================== -->
+  <g>
+    <!-- support branch stub -->
+    <path d="M312,300 C340,296 366,300 392,314 C368,306 340,304 314,308 Z" fill="url(#ct-branch)"/>
+    <!-- walkway deck -->
+    <path d="M300,296 L372,278 L392,288 L320,306 Z" fill="url(#ct-deckTop)"/>
+    <path d="M300,296 L320,306 L320,314 L300,304 Z" fill="url(#ct-deckSide)"/>
+    <path d="M320,306 L392,288 L392,296 L320,314 Z" fill="url(#ct-deckSide)"/>
+    <g stroke="#7d5a37" stroke-width="1.2" opacity="0.5" fill="none">
+      <path d="M312,300 L332,309 M328,296 L348,305 M344,292 L364,301 M360,288 L380,297"/>
+    </g>
+    <!-- little rail -->
+    <path d="M300,290 L372,272" stroke="#8a6038" stroke-width="2.4" stroke-linecap="round"/>
+    <rect x="299" y="288" width="4" height="9" rx="1.4" fill="#8a6038"/>
+    <rect x="335" y="279" width="4" height="9" rx="1.4" fill="#8a6038"/>
+    <rect x="369" y="270" width="4" height="9" rx="1.4" fill="#8a6038"/>
+  </g>
+
+  <!-- ===================== HUT ===================== -->
+  <g>
+    <!-- floor shadow strip under walls on deck -->
+    <path d="M196,301 L118,262 L118,266 L196,305 L274,266 L274,262 Z" fill="#3c2817" opacity="0.35"/>
+
+    <!-- front-left wall (lit) -->
+    <path d="M196,247 L118,208 L118,262 L196,301 Z" fill="url(#ct-wallL)"/>
+    <!-- plank seams (vertical) -->
+    <g stroke="#9a6f43" stroke-width="1.3" opacity="0.5">
+      <line x1="137" y1="217.5" x2="137" y2="271.5"/>
+      <line x1="156" y1="227" x2="156" y2="281"/>
+      <line x1="176" y1="237" x2="176" y2="291"/>
+    </g>
+    <!-- corner edge highlight -->
+    <path d="M196,247 L196,301" stroke="#f0c790" stroke-width="2" opacity="0.7"/>
+
+    <!-- front-right wall (shadow) -->
+    <path d="M196,247 L274,208 L274,262 L196,301 Z" fill="url(#ct-wallR)"/>
+    <g stroke="#5f4529" stroke-width="1.3" opacity="0.5">
+      <line x1="216" y1="217.5" x2="216" y2="271.5"/>
+      <line x1="235" y1="227" x2="235" y2="281"/>
+      <line x1="255" y1="237" x2="255" y2="291"/>
+    </g>
+
+    <!-- glowing window on front-left wall -->
+    <ellipse cx="156" cy="240" rx="34" ry="30" fill="url(#ct-winHalo)"/>
+    <path d="M145,224 L166.8,234.9 L166.8,264.9 L145,254.9 Z" fill="#6b4a2c"/>
+    <path d="M147,227 L164.8,235.9 L164.8,262.4 L147,253.4 Z" fill="url(#ct-window)"/>
+    <!-- muntins -->
+    <path d="M147,240.6 L164.8,249.6 M155.9,231.4 L155.9,257.9" stroke="#7a5330" stroke-width="1.4" opacity="0.85"/>
+    <!-- warm sill -->
+    <path d="M144,255 L167.2,266.6 L167.2,270 L144,258.4 Z" fill="#8a6038"/>
+
+    <!-- door on front-right wall -->
+    <path d="M215,291 L232.2,282.4 L232.2,236.4 L215,245 Z" fill="#4f371f"/>
+    <path d="M217,290 L230.5,283.2 L230.5,240 L217,246.6 Z" fill="#6a4a2a"/>
+    <!-- warm light leaking under/side of door -->
+    <path d="M215,291 L232.2,282.4 L232.2,285 L215,293.4 Z" fill="url(#ct-window)" opacity="0.8"/>
+    <circle cx="220" cy="268" r="1.8" fill="#ffe08a"/>
+
+    <!-- ROOF (hip, wraps around trunk) -->
+    <!-- left face (lit) -->
+    <path d="M196,138 L118,206 L196,246 Z" fill="url(#ct-roofL)"/>
+    <!-- right face (shadow) -->
+    <path d="M196,138 L274,206 L196,246 Z" fill="url(#ct-roofR)"/>
+    <!-- eave overhang shadow line -->
+    <path d="M118,206 L196,246 L274,206" fill="none" stroke="#3f2519" stroke-width="2" opacity="0.5"/>
+    <!-- ridge highlight -->
+    <path d="M196,138 L196,246" stroke="#d98a5c" stroke-width="2" opacity="0.7"/>
+    <path d="M196,138 L118,206" stroke="#c87f52" stroke-width="1.6" opacity="0.6"/>
+    <!-- shingle rows (left) -->
+    <g stroke="#6f3f2b" stroke-width="1.4" opacity="0.55" fill="none">
+      <path d="M170,160 L136,190"/>
+      <path d="M150,188 L128,208"/>
+      <path d="M182,178 L146,210"/>
+    </g>
+    <g stroke="#c87f52" stroke-width="1" opacity="0.5" fill="none">
+      <path d="M178,166 L142,197"/>
+      <path d="M190,186 L154,217"/>
+    </g>
+    <!-- shingle rows (right) -->
+    <g stroke="#4a2b1e" stroke-width="1.4" opacity="0.55" fill="none">
+      <path d="M222,160 L256,190"/>
+      <path d="M242,188 L264,208"/>
+      <path d="M210,178 L246,210"/>
+    </g>
+    <!-- scalloped eave (little roof edge tiles) -->
+    <g fill="#5c3626">
+      <circle cx="126" cy="204" r="3.2"/><circle cx="142" cy="212" r="3.2"/><circle cx="158" cy="220" r="3.2"/>
+      <circle cx="174" cy="228" r="3.2"/><circle cx="190" cy="236" r="3.2"/>
+      <circle cx="266" cy="204" r="3.2"/><circle cx="250" cy="212" r="3.2"/><circle cx="234" cy="220" r="3.2"/>
+      <circle cx="218" cy="228" r="3.2"/><circle cx="202" cy="236" r="3.2"/>
+    </g>
+    <!-- moss patch on roof -->
+    <ellipse cx="150" cy="182" rx="12" ry="7" fill="#5a9a54" opacity="0.6"/>
+    <ellipse cx="146" cy="180" rx="6" ry="4" fill="#7cc077" opacity="0.5"/>
+
+    <!-- pennant flag on ridge -->
+    <line x1="196" y1="138" x2="196" y2="112" stroke="#6a4a2a" stroke-width="2"/>
+    <path d="M196,114 L216,120 L196,127 Z" fill="#c2b280"/>
+    <path d="M196,114 L216,120 L206,120.5 L196,118 Z" fill="#d8c896"/>
+  </g>
+
+  <!-- ===== trunk redrawn IN FRONT: it pierces the deck and stands proud of the hut corner ===== -->
+  <g>
+    <!-- occlusion shadow where the trunk meets the deck planks -->
+    <ellipse cx="291" cy="302" rx="24" ry="8" fill="#2c1a10" opacity="0.4" filter="url(#ct-soft)"/>
+    <!-- front mast: identical silhouette to the behind copy (seamless), with an elliptical foot on the deck plane -->
+    <g clip-path="url(#canopytreehouseMastClip)">
+      <path d="M270,300 C266,250 272,205 273,178 C274,150 276,120 279,96 C282,120 300,150 306,178 C310,205 314,250 312,300 C306,312 276,312 270,300 Z" fill="url(#ct-trunk)"/>
+      <path d="M270,300 C266,250 272,205 273,178 C274,150 276,120 279,96"
+            fill="none" stroke="#c08a56" stroke-width="2.4" opacity="0.55" stroke-linecap="round"/>
+      <g stroke="#3c2717" stroke-width="1.6" fill="none" opacity="0.6" stroke-linecap="round">
+        <path d="M288,148 C287,195 289,250 289,278 C289,292 288.6,300 288.4,305"/>
+        <path d="M296.5,150 C298,180 296,215 297,260"/>
+        <path d="M282,152 C280,190 282,230 281,270"/>
+      </g>
+      <ellipse cx="299" cy="196" rx="6" ry="9" fill="#3c2717" opacity="0.55"/>
+      <ellipse cx="299" cy="196" rx="3" ry="5" fill="#6b4830" opacity="0.7"/>
+    </g>
+    <!-- soft light catch where planks meet the bark -->
+    <path d="M270,301.5 C276,313 306,313 312,301.5" fill="none" stroke="#c9a06a" stroke-width="1.3" opacity="0.3"/>
+    <!-- eave collar: the roof edge wraps around the trunk (pierced-roof join) -->
+    <path d="M269.5,209 Q289,222 309,213" fill="none" stroke="#2e1c12" stroke-width="5" opacity="0.3" stroke-linecap="round" filter="url(#ct-soft)"/>
+    <path d="M269.5,206 Q289,219 309,210" fill="none" stroke="#4a2b1e" stroke-width="2.6" stroke-linecap="round"/>
+    <path d="M269.5,204.5 Q289,217 309,208.5" fill="none" stroke="#a05f41" stroke-width="1" opacity="0.5" stroke-linecap="round"/>
+    <g fill="#5c3626">
+      <circle cx="279.3" cy="211" r="3"/><circle cx="289" cy="213.5" r="3"/><circle cx="299" cy="213" r="3"/>
+    </g>
+  </g>
+
+  <!-- ===================== HANGING LANTERNS ===================== -->
+  <g>
+    <!-- lantern over roof-left -->
+    <g>
+      <line x1="150" y1="158" x2="150" y2="176" stroke="#5a3f26" stroke-width="1.4"/>
+      <ellipse cx="150" cy="187" rx="18" ry="18" fill="url(#ct-halo)" filter="url(#ct-halofx)"/>
+      <rect x="147" y="174" width="6" height="3" rx="1" fill="#6a4a2a"/>
+      <path d="M144,178 Q150,175 156,178 L155,190 Q150,194 145,190 Z" fill="url(#ct-lantern)"/>
+      <path d="M147,177 L147,191 M153,177 L153,191" stroke="#c98a2e" stroke-width="0.8" opacity="0.7"/>
+      <circle cx="150" cy="193" r="1.4" fill="#6a4a2a"/>
+    </g>
+    <!-- lantern over roof-right -->
+    <g>
+      <line x1="332" y1="132" x2="332" y2="150" stroke="#5a3f26" stroke-width="1.4"/>
+      <ellipse cx="332" cy="161" rx="18" ry="18" fill="url(#ct-halo)" filter="url(#ct-halofx)"/>
+      <rect x="329" y="148" width="6" height="3" rx="1" fill="#6a4a2a"/>
+      <path d="M326,152 Q332,149 338,152 L337,164 Q332,168 327,164 Z" fill="url(#ct-lantern)"/>
+      <path d="M329,151 L329,165 M335,151 L335,165" stroke="#c98a2e" stroke-width="0.8" opacity="0.7"/>
+      <circle cx="332" cy="167" r="1.4" fill="#6a4a2a"/>
+    </g>
+    <!-- lantern at walkway end (hung from a small end post) -->
+    <g>
+      <rect x="384.5" y="273" width="4" height="13" rx="1.2" fill="#8a6038"/>
+      <line x1="386" y1="276" x2="386" y2="292" stroke="#5a3f26" stroke-width="1.4"/>
+      <ellipse cx="386" cy="301" rx="15" ry="15" fill="url(#ct-halo)" filter="url(#ct-halofx)"/>
+      <rect x="383" y="290" width="6" height="3" rx="1" fill="#6a4a2a"/>
+      <path d="M381,294 Q386,291 391,294 L390,304 Q386,308 382,304 Z" fill="url(#ct-lantern)"/>
+      <circle cx="386" cy="307" r="1.3" fill="#6a4a2a"/>
+    </g>
+    <!-- small lantern by the door, hung from the eave -->
+    <g>
+      <line x1="249" y1="218.5" x2="249" y2="248" stroke="#5a3f26" stroke-width="1.2"/>
+      <circle cx="249" cy="219" r="1.3" fill="#3f2519"/>
+      <ellipse cx="249" cy="256" rx="12" ry="12" fill="url(#ct-halo)" filter="url(#ct-halofx)"/>
+      <path d="M245,250 Q249,247 253,250 L252,259 Q249,262 246,259 Z" fill="url(#ct-lantern)"/>
+    </g>
+  </g>
+
+  <!-- foreground foliage tuft (in front of walkway) for depth -->
+  <g>
+    <ellipse cx="384" cy="130" rx="30" ry="24" fill="url(#ct-folB)"/>
+    <ellipse cx="372" cy="120" rx="16" ry="12" fill="#8ad493" opacity="0.5"/>
+    <circle cx="392" cy="124" r="2" fill="#bdeec2" opacity="0.7"/>
+  </g>
+  <g>
+    <ellipse cx="150" cy="126" rx="26" ry="21" fill="url(#ct-folA)"/>
+    <ellipse cx="142" cy="118" rx="13" ry="9" fill="#8ad493" opacity="0.5"/>
+    <circle cx="158" cy="120" r="1.8" fill="#bdeec2" opacity="0.7"/>
+  </g>
+
+  <!-- ===================== WISPS / FIREFLIES ===================== -->
+  <g>
+    <circle cx="120" cy="150" r="6" fill="url(#ct-wisp)"/>
+    <circle cx="120" cy="150" r="1.6" fill="#fff6d8"/>
+    <circle cx="352" cy="176" r="5" fill="url(#ct-wisp)"/>
+    <circle cx="352" cy="176" r="1.4" fill="#fff6d8"/>
+    <circle cx="200" cy="330" r="7" fill="url(#ct-wisp)"/>
+    <circle cx="200" cy="330" r="1.7" fill="#fff6d8"/>
+    <circle cx="300" cy="240" r="4.5" fill="url(#ct-wisp)"/>
+    <circle cx="300" cy="240" r="1.3" fill="#fff6d8"/>
+    <circle cx="96" cy="250" r="5" fill="url(#ct-wisp)"/>
+    <circle cx="96" cy="250" r="1.4" fill="#fff6d8"/>
+    <circle cx="410" cy="220" r="5.5" fill="url(#ct-wisp)"/>
+    <circle cx="410" cy="220" r="1.5" fill="#fff6d8"/>
+    <circle cx="262" cy="150" r="4" fill="url(#ct-wisp)"/>
+    <circle cx="170" cy="300" r="4" fill="url(#ct-wisp)"/>
+    <circle cx="330" cy="330" r="5" fill="url(#ct-wisp)"/>
+    <circle cx="330" cy="330" r="1.4" fill="#fff6d8"/>
+    <circle cx="140" cy="360" r="3.6" fill="url(#ct-wisp)"/>
+    <circle cx="386" cy="150" r="3.4" fill="url(#ct-wisp)"/>
+    <circle cx="230" cy="110" r="3.4" fill="url(#ct-wisp)"/>
+  </g>
+</svg>

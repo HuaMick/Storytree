@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded
 decided: 2026-07-03
 amends: [123, 134]
 ---
@@ -7,9 +7,13 @@ amends: [123, 134]
 
 ## Status
 
-accepted (2026-07-03) — decided/directed by the owner at the `act2-guided-walkthrough` attestation
+superseded (2026-07-18) by
+[ADR-0213](0213-act-2-experience-one-continuous-orchestrator-led-walk.md) — Act 2 experience
+authority consolidates there. Historical decision text below is unchanged.
+
+~~accepted (2026-07-03) — decided/directed by the owner at the `act2-guided-walkthrough` attestation
 gate on 2026-07-03. Design-time alignment IS the ratification
-([ADR-0110](0110-collapse-the-redundant-end-of-flow-adr-ratification.md)); no second end-of-flow ask.
+([ADR-0110](0110-collapse-the-redundant-end-of-flow-adr-ratification.md)); no second end-of-flow ask.~~
 
 *(Amended by [ADR-0148](0148-act-2-is-a-website-first-walk-that-grows-into-an-orchestrato.md),
 2026-07-03: the R3F retreat now includes the landing island too — the storm transforms straight into

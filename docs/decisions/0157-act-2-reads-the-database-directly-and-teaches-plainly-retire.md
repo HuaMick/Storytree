@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded
 decided: 2026-07-05
 amends: [134, 150, 153]
 ---
@@ -7,14 +7,18 @@ amends: [134, 150, 153]
 
 ## Status
 
-accepted (2026-07-05) — decided/directed by the owner at the `act2-guided-forest` (increment H)
+superseded (2026-07-18) by
+[ADR-0213](0213-act-2-experience-one-continuous-orchestrator-led-walk.md) — Act 2 experience
+authority consolidates there. Historical decision text below is unchanged.
+
+~~accepted (2026-07-05) — decided/directed by the owner at the `act2-guided-forest` (increment H)
 BUILD #2 attestation gate on 2026-07-05, where H's re-build against
 [ADR-0153](0153-act-2-uses-the-real-app-ui-hides-the-unwalked-and-grows-a-co.md) was attested **as a
 step forward** and directed to LAND LIVE (storytree-web PR #25 → web main `8f4e166c`, live at
 https://crisp-globe-bf6v.here.now/), AND the owner gave forward feedback for the NEXT increment.
 Design-time alignment IS the ratification
 ([ADR-0110](0110-collapse-the-redundant-end-of-flow-adr-ratification.md)); the owner directed these six
-redirections at the gate, so they are born accepted — no second end-of-flow ask.
+redirections at the gate, so they are born accepted — no second end-of-flow ask.~~
 
 This is a NEW ADR, not an in-place edit of the ADRs it amends (copy-on-write, ADR-0086/0139): the
 bodies of 134/150/153 stay as history, with a dated forward pointer added at each amended point by the

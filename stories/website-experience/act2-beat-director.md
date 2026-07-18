@@ -7,7 +7,7 @@ outcome: "A pure, deterministic, visitor-paced director in @storytree/forest-wor
 status: proposed
 proof_mode: integration-test
 depends_on: [r3f-world-spike]
-decisions: [134, 150, 153, 157]
+decisions: [134, 213]
 # Node-borne proof config (ADR-0057 keystone). NET-NEW in the spike-born package (original build) —
 # RE-SPECCED by ADR-0150 (owner-directed at the G attestation gate 2026-07-04): the
 # director GROWS to a multi-story-with-dependsOn vocabulary, adds an add-upstream-story delta and a

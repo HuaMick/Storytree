@@ -1,0 +1,411 @@
+<svg viewBox="0 0 480 460" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- ambient + rim -->
+    <radialGradient id="rsh-amb" cx="50%" cy="46%" r="60%">
+      <stop offset="0%" stop-color="#ffd75e" stop-opacity="0.18"/>
+      <stop offset="42%" stop-color="#7f8fd1" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#101418" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="rsh-spill" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffe9a8" stop-opacity="0.62"/>
+      <stop offset="45%" stop-color="#ffb347" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#ffb347" stop-opacity="0"/>
+    </radialGradient>
+    <!-- ground -->
+    <radialGradient id="rsh-tiletop" cx="46%" cy="38%" r="72%">
+      <stop offset="0%" stop-color="#4a5b52"/>
+      <stop offset="48%" stop-color="#38473f"/>
+      <stop offset="100%" stop-color="#212b26"/>
+    </radialGradient>
+    <linearGradient id="rsh-tileR" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#33261c"/>
+      <stop offset="100%" stop-color="#180f09"/>
+    </linearGradient>
+    <linearGradient id="rsh-tileL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#241a12"/>
+      <stop offset="100%" stop-color="#100a06"/>
+    </linearGradient>
+    <!-- walls -->
+    <linearGradient id="rsh-wallR" x1="0.1" y1="0" x2="0.75" y2="1">
+      <stop offset="0%" stop-color="#616d7b"/>
+      <stop offset="48%" stop-color="#48525e"/>
+      <stop offset="100%" stop-color="#2b333c"/>
+    </linearGradient>
+    <linearGradient id="rsh-wallL" x1="0.2" y1="0" x2="0.9" y2="1">
+      <stop offset="0%" stop-color="#3b434f"/>
+      <stop offset="55%" stop-color="#2a313b"/>
+      <stop offset="100%" stop-color="#171c23"/>
+    </linearGradient>
+    <linearGradient id="rsh-plinthR" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#39424c"/>
+      <stop offset="100%" stop-color="#1d232a"/>
+    </linearGradient>
+    <linearGradient id="rsh-plinthL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#252b33"/>
+      <stop offset="100%" stop-color="#12161c"/>
+    </linearGradient>
+    <!-- roof -->
+    <linearGradient id="rsh-slope" x1="0.15" y1="0" x2="0.7" y2="1">
+      <stop offset="0%" stop-color="#3a434e"/>
+      <stop offset="55%" stop-color="#262d36"/>
+      <stop offset="100%" stop-color="#161b22"/>
+    </linearGradient>
+    <linearGradient id="rsh-gable" x1="0.1" y1="0.1" x2="0.85" y2="1">
+      <stop offset="0%" stop-color="#586475"/>
+      <stop offset="52%" stop-color="#414b57"/>
+      <stop offset="100%" stop-color="#262d37"/>
+    </linearGradient>
+    <linearGradient id="rsh-fascia" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2c333c"/>
+      <stop offset="100%" stop-color="#151a20"/>
+    </linearGradient>
+    <!-- door + windows + stone accents -->
+    <radialGradient id="rsh-doorrec" cx="50%" cy="80%" r="72%">
+      <stop offset="0%" stop-color="#5a3410"/>
+      <stop offset="40%" stop-color="#2a1a0c"/>
+      <stop offset="100%" stop-color="#0a0805"/>
+    </radialGradient>
+    <linearGradient id="rsh-doorglow" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#fff2c4"/>
+      <stop offset="42%" stop-color="#ffcf6a"/>
+      <stop offset="100%" stop-color="#c77b23"/>
+    </linearGradient>
+    <radialGradient id="rsh-winglow" cx="50%" cy="58%" r="60%">
+      <stop offset="0%" stop-color="#fff2c4"/>
+      <stop offset="55%" stop-color="#ffcf6a"/>
+      <stop offset="100%" stop-color="#b5701f"/>
+    </radialGradient>
+    <linearGradient id="rsh-key" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7a8593"/>
+      <stop offset="100%" stop-color="#454f5b"/>
+    </linearGradient>
+    <linearGradient id="rsh-voussoir" x1="0.1" y1="0" x2="0.6" y2="1">
+      <stop offset="0%" stop-color="#6b7686"/>
+      <stop offset="100%" stop-color="#3a434e"/>
+    </linearGradient>
+    <linearGradient id="rsh-menhir" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#4b5560"/>
+      <stop offset="55%" stop-color="#333b45"/>
+      <stop offset="100%" stop-color="#1c222a"/>
+    </linearGradient>
+    <!-- filters -->
+    <filter id="rsh-shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+    <filter id="rsh-soft" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="4.5"/>
+    </filter>
+    <filter id="rsh-glowbig" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+    <filter id="rsh-rune" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="1.9"/>
+    </filter>
+  </defs>
+
+  <!-- ambient magical glow -->
+  <ellipse cx="240" cy="238" rx="220" ry="200" fill="url(#rsh-amb)"/>
+
+  <!-- ground drop shadow -->
+  <ellipse cx="244" cy="398" rx="156" ry="44" fill="#05070a" opacity="0.72" filter="url(#rsh-shadow)"/>
+
+  <!-- ============ GROUND TILE ============ -->
+  <!-- side faces -->
+  <polygon points="398,350 240,429 240,451 398,372" fill="url(#rsh-tileR)"/>
+  <polygon points="82,350 240,429 240,451 82,372" fill="url(#rsh-tileL)"/>
+  <polygon points="398,350 398,372 240,451 240,429" fill="#000" opacity="0.18"/>
+  <!-- top -->
+  <polygon points="240,271 398,350 240,429 82,350" fill="url(#rsh-tiletop)"/>
+  <!-- crisp grass lip along the front edges -->
+  <polyline points="82,350 240,429 398,350" fill="none" stroke="#0c1210" stroke-width="1.5" opacity="0.6"/>
+  <!-- tile top rim light -->
+  <polyline points="82,350 240,271 398,350" fill="none" stroke="#6b8f7e" stroke-width="1.4" opacity="0.35"/>
+  <!-- moss patches -->
+  <ellipse cx="150" cy="360" rx="34" ry="15" fill="#3f7a4d" opacity="0.4"/>
+  <ellipse cx="318" cy="368" rx="30" ry="13" fill="#43804f" opacity="0.34"/>
+  <ellipse cx="235" cy="408" rx="38" ry="13" fill="#3a6f47" opacity="0.3"/>
+  <ellipse cx="118" cy="338" rx="18" ry="8" fill="#4f9d5d" opacity="0.28"/>
+  <g fill="#5fae6b" opacity="0.5">
+    <circle cx="134" cy="356" r="2"/><circle cx="163" cy="366" r="1.7"/>
+    <circle cx="312" cy="372" r="2"/><circle cx="336" cy="364" r="1.6"/>
+    <circle cx="220" cy="412" r="2.1"/><circle cx="256" cy="404" r="1.6"/>
+    <circle cx="108" cy="344" r="1.6"/><circle cx="360" cy="356" r="1.7"/>
+  </g>
+  <!-- embedded flat stones: a path from the door landing to the tile corner, all seated on the top face -->
+  <g opacity="0.85">
+    <ellipse cx="276" cy="403" rx="13" ry="5.2" fill="#454f4a"/>
+    <ellipse cx="276" cy="401.2" rx="11" ry="4" fill="#57635c"/>
+    <ellipse cx="256" cy="412" rx="12" ry="4.8" fill="#3d4641"/>
+    <ellipse cx="256" cy="410.4" rx="10" ry="3.7" fill="#505b53"/>
+    <ellipse cx="238" cy="420" rx="10" ry="4.2" fill="#3c453f"/>
+    <ellipse cx="238" cy="418.5" rx="8.5" ry="3.2" fill="#4d574f"/>
+    <ellipse cx="138" cy="368" rx="12" ry="5" fill="#3a423d"/>
+    <ellipse cx="138" cy="366" rx="10" ry="3.7" fill="#4a534c"/>
+  </g>
+
+  <!-- contact shadow under building -->
+  <polygon points="240,300 348,354 240,408 132,354" fill="#05070a" opacity="0.5" filter="url(#rsh-soft)"/>
+
+  <!-- warm light spill from doorway onto ground -->
+  <ellipse cx="298" cy="386" rx="46" ry="19" fill="url(#rsh-spill)" filter="url(#rsh-soft)"/>
+
+  <!-- ============ LEFT WALL (shadow) ============ -->
+  <polygon points="132,354 240,408 240,304 132,250" fill="url(#rsh-wallL)"/>
+  <!-- plinth band left -->
+  <polygon points="132,354 240,408 240,386 132,332" fill="url(#rsh-plinthL)"/>
+  <!-- course lines left -->
+  <g stroke="#10151b" stroke-width="1.1" opacity="0.55">
+    <line x1="132" y1="339" x2="240" y2="393"/>
+    <line x1="132" y1="322" x2="240" y2="376"/>
+    <line x1="132" y1="305" x2="240" y2="359"/>
+    <line x1="132" y1="288" x2="240" y2="342"/>
+    <line x1="132" y1="271" x2="240" y2="325"/>
+    <line x1="132" y1="258" x2="240" y2="312"/>
+  </g>
+  <!-- course highlights left (thin) -->
+  <g stroke="#4a545f" stroke-width="0.8" opacity="0.4">
+    <line x1="132" y1="337.6" x2="240" y2="391.6"/>
+    <line x1="132" y1="303.6" x2="240" y2="357.6"/>
+    <line x1="132" y1="269.6" x2="240" y2="323.6"/>
+  </g>
+  <!-- vertical joints left -->
+  <g stroke="#10151b" stroke-width="1" opacity="0.42">
+    <line x1="168" y1="299" x2="168" y2="335"/>
+    <line x1="200" y1="332" x2="200" y2="368"/>
+    <line x1="152" y1="333" x2="152" y2="351"/>
+    <line x1="216" y1="298" x2="216" y2="333"/>
+  </g>
+  <!-- ambient occlusion at base -->
+  <polygon points="132,354 240,408 240,396 132,342" fill="#000" opacity="0.28"/>
+  <!-- left arched window, carved in the wall plane (sheared to the wall's iso skew) -->
+  <g transform="matrix(1,0.5,0,1,172,314)">
+    <path d="M0,24 L0,0 C0,-13 8,-20 15,-20 C22,-20 30,-13 30,0 L30,24 Z" fill="#0c0906"/>
+    <ellipse cx="15" cy="3" rx="14" ry="17" fill="url(#rsh-winglow)" filter="url(#rsh-soft)" opacity="0.9"/>
+    <path d="M3,20.5 L3,0 C3,-11 9,-17 15,-17 C21,-17 27,-11 27,0 L27,20.5 Z" fill="url(#rsh-winglow)"/>
+    <path d="M3,20.5 L3,0 C3,-11 9,-17 15,-17 C21,-17 27,-11 27,0 L27,20.5 Z" fill="none" stroke="#2a323b" stroke-width="1.4"/>
+    <line x1="15" y1="-15" x2="15" y2="21.5" stroke="#7a5320" stroke-width="1.1" opacity="0.7"/>
+  </g>
+
+  <!-- left-wall runes -->
+  <g transform="matrix(0.9,0.45,0,1,158,318)">
+    <path d="M3,1 L3,15 M3,4 L9,1 M3,8 L9,5" fill="none" stroke="#0d1319" stroke-width="2.6"/>
+    <path d="M3,1 L3,15 M3,4 L9,1 M3,8 L9,5" fill="none" stroke="#5d8fa8" stroke-width="1.5" stroke-linecap="round" filter="url(#rsh-rune)"/>
+  </g>
+  <g transform="matrix(0.9,0.45,0,1,214,306)">
+    <path d="M2,1 L2,15 M8,1 L8,15 M2,8 L8,4" fill="none" stroke="#0d1319" stroke-width="2.6"/>
+    <path d="M2,1 L2,15 M8,1 L8,15 M2,8 L8,4" fill="none" stroke="#7f8fd1" stroke-width="1.5" stroke-linecap="round" filter="url(#rsh-rune)"/>
+  </g>
+  <g transform="matrix(0.9,0.45,0,1,168,352)">
+    <path d="M2,1 L2,15 M2,1 L9,8 L2,15" fill="none" stroke="#0d1319" stroke-width="2.6"/>
+    <path d="M2,1 L2,15 M2,1 L9,8 L2,15" fill="none" stroke="#5d8fa8" stroke-width="1.5" stroke-linecap="round" filter="url(#rsh-rune)"/>
+  </g>
+
+  <!-- ============ RIGHT WALL (lit) ============ -->
+  <polygon points="240,408 348,354 348,250 240,304" fill="url(#rsh-wallR)"/>
+  <!-- plinth band right -->
+  <polygon points="240,408 348,354 348,332 240,386" fill="url(#rsh-plinthR)"/>
+  <!-- course lines right -->
+  <g stroke="#10151b" stroke-width="1.1" opacity="0.5">
+    <line x1="240" y1="393" x2="348" y2="339"/>
+    <line x1="240" y1="376" x2="348" y2="322"/>
+    <line x1="240" y1="359" x2="348" y2="305"/>
+    <line x1="240" y1="342" x2="348" y2="288"/>
+    <line x1="240" y1="325" x2="348" y2="271"/>
+    <line x1="240" y1="312" x2="348" y2="258"/>
+  </g>
+  <!-- course highlights right -->
+  <g stroke="#6a7684" stroke-width="0.9" opacity="0.5">
+    <line x1="240" y1="391.4" x2="348" y2="337.4"/>
+    <line x1="240" y1="357.4" x2="348" y2="303.4"/>
+    <line x1="240" y1="323.4" x2="348" y2="269.4"/>
+  </g>
+  <!-- vertical joints right -->
+  <g stroke="#10151b" stroke-width="1" opacity="0.4">
+    <line x1="264" y1="342" x2="264" y2="378"/>
+    <line x1="300" y1="288" x2="300" y2="324"/>
+    <line x1="332" y1="271" x2="332" y2="307"/>
+    <line x1="280" y1="325" x2="280" y2="343"/>
+  </g>
+  <!-- AO at right base -->
+  <polygon points="240,408 348,354 348,342 240,396" fill="#000" opacity="0.22"/>
+
+  <!-- right upper arched window, carved in the wall plane (sheared to the wall's iso skew) -->
+  <g transform="matrix(1,-0.5,0,1,308,303)">
+    <path d="M0,0 L0,-19 C0,-27 5,-32 10,-32 C15,-32 20,-27 20,-19 L20,0 Z" fill="#0c0906"/>
+    <ellipse cx="10" cy="-16" rx="11" ry="15" fill="url(#rsh-winglow)" filter="url(#rsh-soft)" opacity="0.85"/>
+    <path d="M2,-1.5 L2,-19 C2,-26 6,-30 10,-30 C14,-30 18,-26 18,-19 L18,-1.5 Z" fill="url(#rsh-winglow)"/>
+    <path d="M2,-1.5 L2,-19 C2,-26 6,-30 10,-30 C14,-30 18,-26 18,-19 L18,-1.5 Z" fill="none" stroke="#39424c" stroke-width="1.3"/>
+  </g>
+
+  <!-- ===== ARCHED DOORWAY ===== -->
+  <!-- voussoir stone ring -->
+  <path d="M263,332 C266,300 280,281 294,281 C308,281 322,300 325,309 L317,312 C315,300 304,293 294,293 C284,293 273,306 271,334 Z" fill="url(#rsh-voussoir)"/>
+  <path d="M263,332 C266,300 280,281 294,281 C308,281 322,300 325,309" fill="none" stroke="#7d8898" stroke-width="1" opacity="0.6"/>
+  <!-- voussoir joints -->
+  <g stroke="#242b33" stroke-width="1.1" opacity="0.75">
+    <line x1="269" y1="316" x2="277" y2="318"/>
+    <line x1="276" y1="298" x2="283" y2="302"/>
+    <line x1="311" y1="298" x2="318" y2="303"/>
+    <line x1="319" y1="311" x2="325" y2="309"/>
+  </g>
+  <!-- impost blocks the arch springs from (follow the wall skew) -->
+  <polygon points="259,330 274,322.5 274,329.5 259,337" fill="url(#rsh-key)"/>
+  <line x1="259" y1="330" x2="274" y2="322.5" stroke="#8f9aa8" stroke-width="0.8" opacity="0.7"/>
+  <polygon points="316,309 330,302 330,309 316,316" fill="url(#rsh-key)"/>
+  <line x1="316" y1="309" x2="330" y2="302" stroke="#8f9aa8" stroke-width="0.8" opacity="0.7"/>
+  <!-- keystone -->
+  <polygon points="287,282 301,282 303,294 285,294" fill="url(#rsh-key)"/>
+  <polygon points="287,282 301,282 301,283.5 287,283.5" fill="#8f9aa8" opacity="0.7"/>
+  <!-- door dark reveal -->
+  <path d="M271,392 L271,334 C273,306 284,293 294,293 C304,293 315,300 317,312 L317,370 Z" fill="url(#rsh-doorrec)"/>
+  <!-- inner warm glow -->
+  <ellipse cx="294" cy="372" rx="26" ry="30" fill="url(#rsh-doorglow)" filter="url(#rsh-soft)" opacity="0.75"/>
+  <path d="M279,386 L279,336 C281,313 288,301 294,301 C300,301 308,308 310,318 L310,368 Z" fill="url(#rsh-doorglow)" opacity="0.92"/>
+  <!-- inner threshold darkening + light bars -->
+  <path d="M279,386 L310,368 L310,376 L279,392 Z" fill="#3a2409" opacity="0.55"/>
+  <g stroke="#fff4cf" stroke-width="1.1" opacity="0.55">
+    <line x1="283" y1="352" x2="306" y2="340"/>
+    <line x1="283" y1="366" x2="306" y2="354"/>
+  </g>
+  <!-- door jamb highlights -->
+  <line x1="270.4" y1="334" x2="270.4" y2="391" stroke="#7a8593" stroke-width="1.3" opacity="0.55"/>
+  <line x1="317.4" y1="312" x2="317.4" y2="369" stroke="#2a323b" stroke-width="1.3" opacity="0.7"/>
+
+  <!-- flagstone landing: flat slabs seated on the tile top (the door sill is at ground level) -->
+  <polygon points="274,393 318,371 328,376 284,398" fill="#4b5560"/>
+  <polygon points="284,398 328,376 328,379 284,401" fill="#242b33"/>
+  <polygon points="274,393 284,398 284,401 274,396" fill="#1e242b"/>
+  <line x1="284" y1="398" x2="328" y2="376" stroke="#5c6773" stroke-width="0.9" opacity="0.7"/>
+  <polygon points="274,393 318,371 328,376 284,398" fill="url(#rsh-doorglow)" opacity="0.3"/>
+  <polygon points="280,394.5 306,381.5 315,386 289,399" fill="#414b56"/>
+  <polygon points="289,399 315,386 315,389 289,402" fill="#1e242b"/>
+  <polygon points="280,394.5 289,399 289,402 280,397.5" fill="#1a2026"/>
+  <line x1="289" y1="399" x2="315" y2="386" stroke="#555f6b" stroke-width="0.8" opacity="0.6"/>
+  <polygon points="280,394.5 306,381.5 315,386 289,399" fill="url(#rsh-doorglow)" opacity="0.22"/>
+  <ellipse cx="302" cy="387" rx="27" ry="11" fill="url(#rsh-spill)" opacity="0.55"/>
+
+  <!-- right-wall runes -->
+  <g transform="matrix(0.9,-0.45,0,1,332,300)">
+    <path d="M5,0 L5,15 M1,5 L5,1 L9,5" fill="none" stroke="#0d1319" stroke-width="2.6"/>
+    <path d="M5,0 L5,15 M1,5 L5,1 L9,5" fill="none" stroke="#ffd75e" stroke-width="1.5" stroke-linecap="round" filter="url(#rsh-rune)"/>
+  </g>
+  <g transform="matrix(0.9,-0.45,0,1,262,352)">
+    <path d="M2,1 L2,15 M2,1 L9,8 L2,15" fill="none" stroke="#0d1319" stroke-width="2.6"/>
+    <path d="M2,1 L2,15 M2,1 L9,8 L2,15" fill="none" stroke="#5d8fa8" stroke-width="1.5" stroke-linecap="round" filter="url(#rsh-rune)"/>
+  </g>
+  <g transform="matrix(0.9,-0.45,0,1,330,324)">
+    <path d="M1,8 L9,8 M5,1 L5,15 M2,3 L8,13 M8,3 L2,13" fill="none" stroke="#0d1319" stroke-width="2.4"/>
+    <path d="M1,8 L9,8 M5,1 L5,15 M2,3 L8,13 M8,3 L2,13" fill="none" stroke="#7f8fd1" stroke-width="1.3" stroke-linecap="round" filter="url(#rsh-rune)"/>
+  </g>
+
+  <!-- ============ ROOF ============ -->
+  <!-- fascia / eave beam under front-left edge -->
+  <polygon points="132,250 240,304 240,312 132,258" fill="url(#rsh-fascia)"/>
+  <!-- left roof slope -->
+  <polygon points="132,250 240,304 294,219 186,165" fill="url(#rsh-slope)"/>
+  <!-- slope stone-slab courses (parallel to eave, spanning from the left rake) -->
+  <g stroke="#0f141a" stroke-width="1.1" opacity="0.5">
+    <line x1="144" y1="232" x2="252" y2="286"/>
+    <line x1="155" y1="214" x2="263" y2="268"/>
+    <line x1="167" y1="195" x2="275" y2="249"/>
+    <line x1="178" y1="177" x2="286" y2="231"/>
+  </g>
+  <g stroke="#454f5b" stroke-width="0.8" opacity="0.4">
+    <line x1="144" y1="230.5" x2="252" y2="284.5"/>
+    <line x1="167" y1="193.5" x2="275" y2="247.5"/>
+    <line x1="178" y1="175.5" x2="286" y2="229.5"/>
+  </g>
+  <!-- slope slab joints (staggered, parallel to the rakes) -->
+  <g stroke="#0f141a" stroke-width="1" opacity="0.4">
+    <line x1="168" y1="268" x2="179.6" y2="249.8"/>
+    <line x1="204" y1="262" x2="215.6" y2="243.8"/>
+    <line x1="180" y1="226" x2="191.6" y2="207.8"/>
+    <line x1="226" y1="225" x2="237.6" y2="206.8"/>
+  </g>
+  <!-- right gable (facing viewer) -->
+  <polygon points="240,304 348,250 294,219" fill="url(#rsh-gable)"/>
+  <!-- gable stone courses -->
+  <g stroke="#141a21" stroke-width="1.1" opacity="0.45">
+    <line x1="252" y1="298" x2="316" y2="266"/>
+    <line x1="262" y1="288" x2="308" y2="265"/>
+    <line x1="272" y1="278" x2="308" y2="260"/>
+  </g>
+  <!-- near-rake fascia: roof slab thickness along the gable's left rake (drawn over the gable) -->
+  <polygon points="240,304 294,219 294,225 240,310" fill="url(#rsh-fascia)"/>
+  <!-- top-right eave board: gives the far rake visible thickness sitting on the gable wall -->
+  <polygon points="294,220 348,251 348,256 294,225" fill="url(#rsh-fascia)"/>
+  <!-- gable edge rim -->
+  <polyline points="240,304 294,219 348,250" fill="none" stroke="#7a8593" stroke-width="1.3" opacity="0.5"/>
+
+  <!-- vertical carved rune spine linking door to wheel -->
+  <g transform="matrix(0.9,-0.45,0,1,288,230)">
+    <path d="M4,0 L4,10 M1,3 L4,0 L7,3 M1,7 L4,10 L7,7" fill="none" stroke="#0d1319" stroke-width="2.2"/>
+    <path d="M4,0 L4,10 M1,3 L4,0 L7,3 M1,7 L4,10 L7,7" fill="none" stroke="#ffd75e" stroke-width="1.2" stroke-linecap="round" filter="url(#rsh-rune)"/>
+  </g>
+
+  <!-- gable rune wheel, carved into the gable plane (sheared to the wall's iso skew) -->
+  <g transform="matrix(0.9,-0.45,0,1,302,252)">
+    <circle cx="0" cy="0" r="16.5" fill="#161c24" opacity="0.35"/>
+    <circle cx="0" cy="0" r="15" fill="none" stroke="#5d8fa8" stroke-width="3" opacity="0.7" filter="url(#rsh-soft)"/>
+    <circle cx="0" cy="0" r="13" fill="none" stroke="#0d1319" stroke-width="2.4"/>
+    <circle cx="0" cy="0" r="13" fill="none" stroke="#6fb0cc" stroke-width="1.5" filter="url(#rsh-rune)"/>
+    <circle cx="0" cy="0" r="7.5" fill="none" stroke="#7f8fd1" stroke-width="1.3" filter="url(#rsh-rune)"/>
+    <g stroke="#a5e0f5" stroke-width="1.5" stroke-linecap="round" filter="url(#rsh-rune)">
+      <line x1="0" y1="-13" x2="0" y2="13"/>
+      <line x1="-12" y1="-6.5" x2="12" y2="6.5"/>
+      <line x1="12" y1="-6.5" x2="-12" y2="6.5"/>
+    </g>
+    <circle cx="0" cy="0" r="2.7" fill="#ffe9a8" filter="url(#rsh-rune)"/>
+  </g>
+  <!-- flanking gable runes -->
+  <g transform="matrix(0.9,-0.45,0,1,267,274)">
+    <path d="M3,1 L3,13 M3,4 L8,1 M3,7 L8,4" fill="none" stroke="#0d1319" stroke-width="2.2"/>
+    <path d="M3,1 L3,13 M3,4 L8,1 M3,7 L8,4" fill="none" stroke="#5d8fa8" stroke-width="1.2" stroke-linecap="round" filter="url(#rsh-rune)"/>
+  </g>
+
+  <!-- roof ridge rim + slope top highlight -->
+  <line x1="186" y1="165" x2="294" y2="219" stroke="#6fa0b8" stroke-width="1.6" opacity="0.65"/>
+  <line x1="186" y1="166.6" x2="132" y2="251.6" stroke="#5d8fa8" stroke-width="1.2" opacity="0.4"/>
+
+  <!-- ============ STANDING RUNE MENHIR (secondary) ============ -->
+  <!-- base seated on the tile top; shadow hugs the foot -->
+  <ellipse cx="126" cy="368" rx="19" ry="6.5" fill="#05070a" opacity="0.55" filter="url(#rsh-soft)"/>
+  <polygon points="118,364 126,367 126,296 120,294" fill="#232a32"/>
+  <polygon points="126,367 135,363 133,290 126,296" fill="url(#rsh-menhir)"/>
+  <polygon points="120,294 126,296 133,290 128,287 121,289" fill="#5a636e"/>
+  <path d="M129,306 L129,352 M129,312 L133,308 M129,322 L133,318 M129,332 L133,328" fill="none" stroke="#0d1319" stroke-width="1.8"/>
+  <path d="M129,306 L129,352 M129,312 L133,308 M129,322 L133,318 M129,332 L133,328" fill="none" stroke="#ffd75e" stroke-width="1" stroke-linecap="round" filter="url(#rsh-rune)"/>
+  <circle cx="126" cy="298" r="3.4" fill="#ffe9a8" filter="url(#rsh-rune)" opacity="0.9"/>
+
+  <!-- ============ WISPS / FIREFLIES ============ -->
+  <g>
+    <circle cx="312" cy="196" r="11" fill="#ffd75e" opacity="0.3" filter="url(#rsh-glowbig)"/>
+    <circle cx="312" cy="196" r="3.2" fill="#ffe9a8"/>
+    <circle cx="312" cy="196" r="1.4" fill="#fffbe8"/>
+  </g>
+  <g>
+    <circle cx="206" cy="232" r="9" fill="#ffd75e" opacity="0.28" filter="url(#rsh-glowbig)"/>
+    <circle cx="206" cy="232" r="2.6" fill="#ffe9a8"/>
+    <circle cx="206" cy="232" r="1.1" fill="#fffbe8"/>
+  </g>
+  <g>
+    <circle cx="368" cy="288" r="10" fill="#ffd75e" opacity="0.26" filter="url(#rsh-glowbig)"/>
+    <circle cx="368" cy="288" r="2.8" fill="#ffe9a8"/>
+    <circle cx="368" cy="288" r="1.2" fill="#fffbe8"/>
+  </g>
+  <g>
+    <circle cx="150" cy="288" r="8" fill="#ffd75e" opacity="0.24" filter="url(#rsh-glowbig)"/>
+    <circle cx="150" cy="288" r="2.3" fill="#ffe9a8"/>
+  </g>
+  <g>
+    <circle cx="264" cy="164" r="7" fill="#ffe9a8" opacity="0.22" filter="url(#rsh-glowbig)"/>
+    <circle cx="264" cy="164" r="2" fill="#fff3c8"/>
+  </g>
+  <g fill="#ffe9a8">
+    <circle cx="336" cy="230" r="1.1" opacity="0.85"/>
+    <circle cx="180" cy="200" r="1" opacity="0.7"/>
+    <circle cx="290" cy="150" r="1.1" opacity="0.75"/>
+    <circle cx="120" cy="322" r="1" opacity="0.6"/>
+    <circle cx="392" cy="320" r="1.1" opacity="0.7"/>
+  </g>
+</svg>

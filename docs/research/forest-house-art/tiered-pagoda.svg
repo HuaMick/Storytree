@@ -1,0 +1,323 @@
+<svg viewBox="0 0 480 460" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- ambient sky lift -->
+    <radialGradient id="tp-sky" cx="50%" cy="42%" r="60%">
+      <stop offset="0%" stop-color="#2a4b5a" stop-opacity="0.55"/>
+      <stop offset="55%" stop-color="#1a2f3a" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#101418" stop-opacity="0"/>
+    </radialGradient>
+    <!-- grass -->
+    <radialGradient id="tp-grass-top" cx="46%" cy="38%" r="72%">
+      <stop offset="0%" stop-color="#5eb26e"/>
+      <stop offset="60%" stop-color="#4f9d5d"/>
+      <stop offset="100%" stop-color="#377a48"/>
+    </radialGradient>
+    <linearGradient id="tp-grass-rf" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#356b41"/>
+      <stop offset="100%" stop-color="#234d2d"/>
+    </linearGradient>
+    <linearGradient id="tp-grass-lf" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2b5c37"/>
+      <stop offset="100%" stop-color="#1c4325"/>
+    </linearGradient>
+    <!-- stone platform -->
+    <linearGradient id="tp-stone-top" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#84a0ad"/>
+      <stop offset="100%" stop-color="#5c7581"/>
+    </linearGradient>
+    <linearGradient id="tp-stone-rf" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#54707c"/>
+      <stop offset="100%" stop-color="#3b525c"/>
+    </linearGradient>
+    <linearGradient id="tp-stone-lf" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#405661"/>
+      <stop offset="100%" stop-color="#2c3e47"/>
+    </linearGradient>
+    <!-- walls -->
+    <linearGradient id="tp-wall-top" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#d3ac7b"/>
+      <stop offset="100%" stop-color="#a37f4f"/>
+    </linearGradient>
+    <linearGradient id="tp-wall-rf" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#c39264"/>
+      <stop offset="100%" stop-color="#8a5a3f"/>
+    </linearGradient>
+    <linearGradient id="tp-wall-lf" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#714936"/>
+      <stop offset="100%" stop-color="#4f2f24"/>
+    </linearGradient>
+    <!-- roofs -->
+    <linearGradient id="tp-roof-rf" x1="0.15" y1="0" x2="0.7" y2="1">
+      <stop offset="0%" stop-color="#8cc0d3"/>
+      <stop offset="55%" stop-color="#5d8fa8"/>
+      <stop offset="100%" stop-color="#436f85"/>
+    </linearGradient>
+    <linearGradient id="tp-roof-lf" x1="0.85" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#477089"/>
+      <stop offset="100%" stop-color="#2d4d5e"/>
+    </linearGradient>
+    <linearGradient id="tp-roof-under" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#28434f"/>
+      <stop offset="100%" stop-color="#182e38"/>
+    </linearGradient>
+    <!-- warm light -->
+    <radialGradient id="tp-window" cx="50%" cy="42%" r="62%">
+      <stop offset="0%" stop-color="#fff6d2"/>
+      <stop offset="55%" stop-color="#ffd75e"/>
+      <stop offset="100%" stop-color="#d1913a"/>
+    </radialGradient>
+    <radialGradient id="tp-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffe9a8" stop-opacity="0.95"/>
+      <stop offset="45%" stop-color="#ffd75e" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="tp-orb" cx="50%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="#fffdf0"/>
+      <stop offset="40%" stop-color="#ffe9a8"/>
+      <stop offset="75%" stop-color="#ffd75e" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="tp-bell" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffe6a0"/>
+      <stop offset="100%" stop-color="#c8962f"/>
+    </linearGradient>
+    <filter id="tp-blur-s" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="3"/></filter>
+    <filter id="tp-blur-m" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="7"/></filter>
+    <filter id="tp-blur-l" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="15"/></filter>
+  </defs>
+
+  <!-- ambient glow behind pagoda -->
+  <ellipse cx="240" cy="248" rx="185" ry="205" fill="url(#tp-sky)"/>
+
+  <!-- ground contact shadow -->
+  <ellipse cx="240" cy="432" rx="152" ry="34" fill="#05080a" opacity="0.55" filter="url(#tp-blur-l)"/>
+
+  <!-- back wisps (behind house) -->
+  <g opacity="0.85">
+    <circle cx="126" cy="252" r="20" fill="url(#tp-glow)" filter="url(#tp-blur-m)"/>
+    <circle cx="126" cy="252" r="2.4" fill="#fff4c8"/>
+    <circle cx="356" cy="236" r="17" fill="url(#tp-glow)" filter="url(#tp-blur-m)"/>
+    <circle cx="356" cy="236" r="2.1" fill="#fff4c8"/>
+    <circle cx="206" cy="118" r="15" fill="url(#tp-glow)" filter="url(#tp-blur-m)"/>
+    <circle cx="206" cy="118" r="1.9" fill="#fff4c8"/>
+  </g>
+
+  <!-- ============ GROUND TILE ============ -->
+  <!-- slab side faces (thickness) -->
+  <polygon points="386,372 240,442 240,458 386,388" fill="url(#tp-grass-rf)"/>
+  <polygon points="94,372 240,442 240,458 94,388" fill="url(#tp-grass-lf)"/>
+  <!-- grass top -->
+  <polygon points="240,302 386,372 240,442 94,372" fill="url(#tp-grass-top)"/>
+  <!-- top edge highlight -->
+  <polyline points="94,372 240,302 386,372" fill="none" stroke="#7cc389" stroke-width="1.6" opacity="0.55"/>
+  <!-- subtle inner terrace ring -->
+  <polygon points="240,326 352,372 240,418 128,372" fill="none" stroke="#3c7d4c" stroke-width="1" opacity="0.5"/>
+  <!-- little stones and flowers on the lawn (all seated on the diamond plane) -->
+  <ellipse cx="150" cy="392" rx="7" ry="3.4" fill="#5c7581" opacity="0.8"/>
+  <ellipse cx="150" cy="391" rx="5" ry="2.2" fill="#7f98a4" opacity="0.8"/>
+  <ellipse cx="330" cy="396" rx="8" ry="3.8" fill="#5c7581" opacity="0.8"/>
+  <ellipse cx="330" cy="395" rx="5.5" ry="2.4" fill="#7f98a4" opacity="0.8"/>
+  <circle cx="186" cy="410" r="2.2" fill="#ffe9a8"/>
+  <circle cx="300" cy="412" r="2" fill="#ffd75e"/>
+  <circle cx="214" cy="424" r="1.8" fill="#fff4c8"/>
+  <path d="M156,396 q3,-8 6,0" fill="none" stroke="#377a48" stroke-width="1.4"/>
+  <path d="M312,402 q3,-9 6,0" fill="none" stroke="#377a48" stroke-width="1.4"/>
+
+  <!-- ============ HOUSE (seated: translated to plant the plinth footprint on the tile plane) ============ -->
+  <g transform="translate(0,6)">
+  <!-- ============ STONE PLATFORM ============ -->
+  <polygon points="336,344 240,392 240,414 336,366" fill="url(#tp-stone-rf)"/>
+  <polygon points="144,344 240,392 240,414 144,366" fill="url(#tp-stone-lf)"/>
+  <polygon points="240,296 336,344 240,392 144,344" fill="url(#tp-stone-top)"/>
+  <polyline points="144,344 240,296 336,344" fill="none" stroke="#9ab3bf" stroke-width="1.2" opacity="0.6"/>
+  <!-- stone seams -->
+  <line x1="288" y1="320" x2="192" y2="368" stroke="#455d67" stroke-width="0.8" opacity="0.5"/>
+  <line x1="240" y1="392" x2="240" y2="414" stroke="#26343b" stroke-width="1"/>
+  <!-- entrance steps: two nested corner slabs descending to the lawn (treads + both riser faces) -->
+  <ellipse cx="240" cy="428" rx="27" ry="8" fill="#05080a" opacity="0.4" filter="url(#tp-blur-s)"/>
+  <!-- lower slab -->
+  <polygon points="240,400 262,411 240,422 218,411" fill="#7f9aa7"/>
+  <polygon points="262,411 240,422 240,428 262,417" fill="#64808c"/>
+  <polygon points="218,411 240,422 240,428 218,417" fill="#3c515a"/>
+  <!-- upper slab -->
+  <polygon points="240,393 254,400 240,407 226,400" fill="#8aa5b2"/>
+  <polygon points="254,400 240,407 240,414 254,407" fill="#6e8792"/>
+  <polygon points="226,400 240,407 240,414 226,407" fill="#435963"/>
+
+  <!-- ============ TIER 1 WALLS ============ -->
+  <polygon points="312,300 240,336 240,382 312,346" fill="url(#tp-wall-rf)"/>
+  <polygon points="168,300 240,336 240,382 168,346" fill="url(#tp-wall-lf)"/>
+  <polygon points="240,264 312,300 240,336 168,300" fill="url(#tp-wall-top)"/>
+  <!-- corner post + rim light -->
+  <line x1="240" y1="336" x2="240" y2="382" stroke="#3c2519" stroke-width="2"/>
+  <line x1="168" y1="300" x2="168" y2="346" stroke="#8f6b4f" stroke-width="1.4" opacity="0.5"/>
+  <line x1="312" y1="300" x2="312" y2="346" stroke="#e0b784" stroke-width="1.2" opacity="0.6"/>
+  <!-- tier1 doorway (right face, near front) -->
+  <path d="M247.2,376.4 L247.2,344 Q253.7,336 260.2,340 L260.2,369.9 Z" fill="#241a12"/>
+  <path d="M249,374 L249,346 Q253.8,340 258.4,343 L258.4,368.5 Z" fill="url(#tp-window)" opacity="0.85"/>
+  <ellipse cx="253.8" cy="356" rx="9" ry="14" fill="url(#tp-glow)" filter="url(#tp-blur-s)"/>
+  <!-- tier1 right window (lit) -->
+  <ellipse cx="278" cy="341" rx="20" ry="16" fill="url(#tp-glow)" filter="url(#tp-blur-m)"/>
+  <polygon points="265.2,333.4 291.8,320.1 291.8,348.1 265.2,361.4" fill="url(#tp-window)"/>
+  <polygon points="265.2,333.4 291.8,320.1 291.8,348.1 265.2,361.4" fill="none" stroke="#3c2519" stroke-width="1.4"/>
+  <line x1="278.5" y1="326.75" x2="278.5" y2="354.75" stroke="#3c2519" stroke-width="1"/>
+  <line x1="265.2" y1="347.4" x2="291.8" y2="334.1" stroke="#3c2519" stroke-width="1"/>
+  <!-- tier1 left window (dim) -->
+  <polygon points="214.8,333.4 188.2,320.1 188.2,348.1 214.8,361.4" fill="url(#tp-window)" opacity="0.42"/>
+  <polygon points="214.8,333.4 188.2,320.1 188.2,348.1 214.8,361.4" fill="none" stroke="#2f1d13" stroke-width="1.2" opacity="0.7"/>
+  <line x1="201.5" y1="326.75" x2="201.5" y2="354.75" stroke="#2f1d13" stroke-width="0.9" opacity="0.7"/>
+  <!-- dougong bracket band under roof -->
+  <polygon points="240,262 320,302 320,308 240,268 160,308 160,302" fill="#5a3a29" opacity="0.9"/>
+  <rect x="235" y="264" width="10" height="6" fill="#6e4632"/>
+  <rect x="205" y="279" width="9" height="6" fill="#6e4632"/>
+  <rect x="266" y="279" width="9" height="6" fill="#6e4632"/>
+
+  <!-- ============ TIER 1 ROOF ============ -->
+  <!-- underside / eave thickness -->
+  <path d="M356,299 Q304,343 240,357 Q176,343 124,299 L124,293 Q176,337 240,351 Q304,337 356,293 Z" fill="url(#tp-roof-under)"/>
+  <!-- left face -->
+  <path d="M240,256 L124,293 Q176,337 240,351 Z" fill="url(#tp-roof-lf)"/>
+  <!-- right face -->
+  <path d="M240,256 L356,293 Q304,337 240,351 Z" fill="url(#tp-roof-rf)"/>
+  <!-- hip ridges -->
+  <line x1="240" y1="256" x2="356" y2="293" stroke="#a7cfdd" stroke-width="1.6" opacity="0.7"/>
+  <line x1="240" y1="256" x2="124" y2="293" stroke="#6ba0b6" stroke-width="1.4" opacity="0.55"/>
+  <line x1="240" y1="256" x2="240" y2="351" stroke="#31596b" stroke-width="1.2" opacity="0.6"/>
+  <!-- tile courses right -->
+  <path d="M298,275 Q272,297 240,304" fill="none" stroke="#3f6f85" stroke-width="1" opacity="0.5"/>
+  <path d="M330,285 Q290,319 240,330" fill="none" stroke="#3f6f85" stroke-width="1" opacity="0.5"/>
+  <!-- tile courses left -->
+  <path d="M182,275 Q208,297 240,304" fill="none" stroke="#274b5b" stroke-width="1" opacity="0.5"/>
+  <path d="M150,285 Q190,319 240,330" fill="none" stroke="#274b5b" stroke-width="1" opacity="0.5"/>
+  <!-- corner flicks -->
+  <path d="M356,293 q9,-3 12,-10 q-1,8 -7,13 z" fill="url(#tp-roof-rf)"/>
+  <path d="M124,293 q-9,-3 -12,-10 q1,8 7,13 z" fill="url(#tp-roof-lf)"/>
+  <path d="M240,351 q0,7 0,11 q4,-6 4,-11 z" fill="url(#tp-roof-under)"/>
+  <!-- wind bells tier1 -->
+  <g>
+    <line x1="356" y1="293" x2="356" y2="300" stroke="#8a5a44" stroke-width="1.3"/>
+    <path d="M352,306 q0,-6 4,-6 q4,0 4,6 z" fill="url(#tp-bell)"/>
+    <circle cx="356" cy="308" r="1.5" fill="#8a5a44"/>
+    <circle cx="356" cy="306" r="6" fill="url(#tp-glow)" opacity="0.7"/>
+    <line x1="124" y1="293" x2="124" y2="300" stroke="#8a5a44" stroke-width="1.3"/>
+    <path d="M120,306 q0,-6 4,-6 q4,0 4,6 z" fill="url(#tp-bell)"/>
+    <circle cx="124" cy="308" r="1.5" fill="#8a5a44"/>
+    <circle cx="124" cy="306" r="6" fill="url(#tp-glow)" opacity="0.55"/>
+    <line x1="240" y1="351" x2="240" y2="358" stroke="#8a5a44" stroke-width="1.3"/>
+    <path d="M236,364 q0,-6 4,-6 q4,0 4,6 z" fill="url(#tp-bell)"/>
+    <circle cx="240" cy="366" r="1.5" fill="#8a5a44"/>
+    <circle cx="240" cy="364" r="6" fill="url(#tp-glow)" opacity="0.6"/>
+  </g>
+
+  <!-- ============ TIER 2 WALLS (drum sunk into tier-1 roof: corners tucked below the hip ridges) ============ -->
+  <polygon points="290,224 240,249 240,283 290,274" fill="url(#tp-wall-rf)"/>
+  <polygon points="190,224 240,249 240,283 190,274" fill="url(#tp-wall-lf)"/>
+  <polygon points="240,199 290,224 240,249 190,224" fill="url(#tp-wall-top)"/>
+  <line x1="240" y1="249" x2="240" y2="283" stroke="#3c2519" stroke-width="1.8"/>
+  <line x1="290" y1="224" x2="290" y2="274" stroke="#e0b784" stroke-width="1" opacity="0.55"/>
+  <!-- tier2 right window (lit) -->
+  <ellipse cx="265" cy="249" rx="15" ry="12" fill="url(#tp-glow)" filter="url(#tp-blur-m)"/>
+  <polygon points="256,249 275,239.5 275,259.5 256,269" fill="url(#tp-window)"/>
+  <polygon points="256,249 275,239.5 275,259.5 256,269" fill="none" stroke="#3c2519" stroke-width="1.2"/>
+  <line x1="265.5" y1="244.25" x2="265.5" y2="264.25" stroke="#3c2519" stroke-width="0.9"/>
+  <!-- tier2 left window (dim) -->
+  <polygon points="224,249 205,239.5 205,259.5 224,269" fill="url(#tp-window)" opacity="0.4"/>
+  <polygon points="224,249 205,239.5 205,259.5 224,269" fill="none" stroke="#2f1d13" stroke-width="1" opacity="0.7"/>
+  <!-- bracket band -->
+  <polygon points="240,197 296,225 296,230 240,202 184,230 184,225" fill="#5a3a29" opacity="0.9"/>
+
+  <!-- ============ TIER 2 ROOF ============ -->
+  <path d="M330,224 Q289,258 240,269 Q191,258 150,224 L150,218 Q190,254 240,263 Q290,254 330,218 Z" fill="url(#tp-roof-under)"/>
+  <path d="M240,186 L150,218 Q190,254 240,263 Z" fill="url(#tp-roof-lf)"/>
+  <path d="M240,186 L330,218 Q290,254 240,263 Z" fill="url(#tp-roof-rf)"/>
+  <line x1="240" y1="186" x2="330" y2="218" stroke="#a7cfdd" stroke-width="1.5" opacity="0.7"/>
+  <line x1="240" y1="186" x2="150" y2="218" stroke="#6ba0b6" stroke-width="1.3" opacity="0.55"/>
+  <line x1="240" y1="186" x2="240" y2="263" stroke="#31596b" stroke-width="1.1" opacity="0.6"/>
+  <path d="M289,205 Q262,229 240,235" fill="none" stroke="#3f6f85" stroke-width="1" opacity="0.5"/>
+  <path d="M191,205 Q218,229 240,235" fill="none" stroke="#274b5b" stroke-width="1" opacity="0.5"/>
+  <path d="M330,218 q8,-3 11,-9 q-1,7 -6,12 z" fill="url(#tp-roof-rf)"/>
+  <path d="M150,218 q-8,-3 -11,-9 q1,7 6,12 z" fill="url(#tp-roof-lf)"/>
+  <g>
+    <line x1="330" y1="218" x2="330" y2="225" stroke="#8a5a44" stroke-width="1.3"/>
+    <path d="M326.5,231 q0,-5.5 3.5,-5.5 q3.5,0 3.5,5.5 z" fill="url(#tp-bell)"/>
+    <circle cx="330" cy="233" r="1.3" fill="#8a5a44"/>
+    <circle cx="330" cy="231" r="5" fill="url(#tp-glow)" opacity="0.7"/>
+    <line x1="150" y1="218" x2="150" y2="225" stroke="#8a5a44" stroke-width="1.3"/>
+    <path d="M146.5,231 q0,-5.5 3.5,-5.5 q3.5,0 3.5,5.5 z" fill="url(#tp-bell)"/>
+    <circle cx="150" cy="233" r="1.3" fill="#8a5a44"/>
+    <circle cx="150" cy="231" r="5" fill="url(#tp-glow)" opacity="0.55"/>
+    <line x1="240" y1="263" x2="240" y2="270" stroke="#8a5a44" stroke-width="1.3"/>
+    <path d="M236.5,276 q0,-5.5 3.5,-5.5 q3.5,0 3.5,5.5 z" fill="url(#tp-bell)"/>
+    <circle cx="240" cy="278" r="1.3" fill="#8a5a44"/>
+    <circle cx="240" cy="276" r="5" fill="url(#tp-glow)" opacity="0.6"/>
+  </g>
+
+  <!-- ============ TIER 3 WALLS (lantern room; drum corners tucked below tier-2 hip ridges) ============ -->
+  <ellipse cx="240" cy="180" rx="34" ry="25" fill="url(#tp-glow)" filter="url(#tp-blur-m)" opacity="0.8"/>
+  <polygon points="276,158 240,176 240,206 276,201" fill="url(#tp-wall-rf)"/>
+  <polygon points="204,158 240,176 240,206 204,201" fill="url(#tp-wall-lf)"/>
+  <polygon points="240,140 276,158 240,176 204,158" fill="url(#tp-wall-top)"/>
+  <line x1="240" y1="176" x2="240" y2="206" stroke="#3c2519" stroke-width="1.6"/>
+  <!-- tier3 right window (brightest) -->
+  <polygon points="250.1,176.96 265.9,169 265.9,183 250.1,190.96" fill="url(#tp-window)"/>
+  <polygon points="250.1,176.96 265.9,169 265.9,183 250.1,190.96" fill="none" stroke="#3c2519" stroke-width="1"/>
+  <!-- tier3 left window -->
+  <polygon points="229.9,176.96 214.1,169 214.1,183 229.9,190.96" fill="url(#tp-window)" opacity="0.5"/>
+  <polygon points="229.9,176.96 214.1,169 214.1,183 229.9,190.96" fill="none" stroke="#2f1d13" stroke-width="0.9" opacity="0.7"/>
+  <polygon points="240,138 280,158 280,162 240,142 200,162 200,158" fill="#5a3a29" opacity="0.9"/>
+
+  <!-- ============ TIER 3 ROOF ============ -->
+  <path d="M304,158 Q275,182 240,191 Q205,182 176,158 L176,153 Q205,181 240,185 Q275,181 304,153 Z" fill="url(#tp-roof-under)"/>
+  <path d="M240,126 L176,153 Q205,181 240,185 Z" fill="url(#tp-roof-lf)"/>
+  <path d="M240,126 L304,153 Q275,181 240,185 Z" fill="url(#tp-roof-rf)"/>
+  <line x1="240" y1="126" x2="304" y2="153" stroke="#a7cfdd" stroke-width="1.4" opacity="0.75"/>
+  <line x1="240" y1="126" x2="176" y2="153" stroke="#6ba0b6" stroke-width="1.2" opacity="0.55"/>
+  <line x1="240" y1="126" x2="240" y2="185" stroke="#31596b" stroke-width="1" opacity="0.6"/>
+  <path d="M274,142 Q258,163 240,168" fill="none" stroke="#3f6f85" stroke-width="0.9" opacity="0.5"/>
+  <path d="M206,142 Q222,163 240,168" fill="none" stroke="#274b5b" stroke-width="0.9" opacity="0.5"/>
+  <path d="M304,153 q7,-2 9,-8 q-1,6 -5,11 z" fill="url(#tp-roof-rf)"/>
+  <path d="M176,153 q-7,-2 -9,-8 q1,6 5,11 z" fill="url(#tp-roof-lf)"/>
+  <g>
+    <line x1="304" y1="153" x2="304" y2="160" stroke="#8a5a44" stroke-width="1.3"/>
+    <path d="M301,165.5 q0,-5 3,-5 q3,0 3,5 z" fill="url(#tp-bell)"/>
+    <circle cx="304" cy="167.5" r="1.2" fill="#8a5a44"/>
+    <circle cx="304" cy="165.5" r="4.5" fill="url(#tp-glow)" opacity="0.7"/>
+    <line x1="176" y1="153" x2="176" y2="160" stroke="#8a5a44" stroke-width="1.3"/>
+    <path d="M173,165.5 q0,-5 3,-5 q3,0 3,5 z" fill="url(#tp-bell)"/>
+    <circle cx="176" cy="167.5" r="1.2" fill="#8a5a44"/>
+    <circle cx="176" cy="165.5" r="4.5" fill="url(#tp-glow)" opacity="0.55"/>
+    <line x1="240" y1="185" x2="240" y2="192" stroke="#8a5a44" stroke-width="1.3"/>
+    <path d="M237,197.5 q0,-5 3,-5 q3,0 3,5 z" fill="url(#tp-bell)"/>
+    <circle cx="240" cy="199.5" r="1.2" fill="#8a5a44"/>
+    <circle cx="240" cy="197.5" r="4.5" fill="url(#tp-glow)" opacity="0.6"/>
+  </g>
+
+  <!-- ============ FINIAL / SORIN ============ -->
+  <line x1="240" y1="126" x2="240" y2="98" stroke="#8a5a44" stroke-width="2.4"/>
+  <line x1="240" y1="126" x2="240" y2="98" stroke="#e0b784" stroke-width="0.8" opacity="0.6"/>
+  <!-- stacked sorin rings: 2:1 iso disks, matching the roof projection -->
+  <ellipse cx="240" cy="122" rx="7" ry="3.5" fill="url(#tp-bell)"/>
+  <ellipse cx="240" cy="116" rx="6" ry="3" fill="url(#tp-bell)"/>
+  <ellipse cx="240" cy="110" rx="5" ry="2.5" fill="url(#tp-bell)"/>
+  <ellipse cx="240" cy="104" rx="4" ry="2" fill="url(#tp-bell)"/>
+  <!-- glowing jewel orb -->
+  <circle cx="240" cy="90" r="24" fill="url(#tp-orb)" filter="url(#tp-blur-m)"/>
+  <circle cx="240" cy="90" r="6.5" fill="#fffbe8"/>
+  <circle cx="240" cy="90" r="6.5" fill="url(#tp-orb)"/>
+  <circle cx="238" cy="88" r="2" fill="#ffffff" opacity="0.9"/>
+  </g>
+
+  <!-- front wisps (over house) -->
+  <g>
+    <circle cx="316" cy="300" r="15" fill="url(#tp-glow)" filter="url(#tp-blur-m)"/>
+    <circle cx="316" cy="300" r="2.1" fill="#fff4c8"/>
+    <circle cx="168" cy="330" r="13" fill="url(#tp-glow)" filter="url(#tp-blur-m)"/>
+    <circle cx="168" cy="330" r="1.9" fill="#fff4c8"/>
+    <circle cx="300" cy="120" r="11" fill="url(#tp-glow)" filter="url(#tp-blur-m)"/>
+    <circle cx="300" cy="120" r="1.7" fill="#fff4c8"/>
+    <circle cx="352" cy="188" r="9" fill="url(#tp-glow)" filter="url(#tp-blur-m)"/>
+    <circle cx="352" cy="188" r="1.5" fill="#fff4c8"/>
+    <circle cx="132" cy="196" r="10" fill="url(#tp-glow)" filter="url(#tp-blur-m)"/>
+    <circle cx="132" cy="196" r="1.6" fill="#fff4c8"/>
+  </g>
+</svg>

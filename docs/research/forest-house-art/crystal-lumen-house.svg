@@ -1,0 +1,347 @@
+<svg viewBox="0 0 480 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Crystal Lumen House — a translucent glowing gem dwelling on an isometric map tile">
+  <defs>
+    <!-- ambient / ground -->
+    <radialGradient id="cl-groundShadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.55"/>
+      <stop offset="55%" stop-color="#000000" stop-opacity="0.32"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="cl-auraOuter" cx="50%" cy="46%" r="55%">
+      <stop offset="0%" stop-color="#ffe9a8" stop-opacity="0.55"/>
+      <stop offset="40%" stop-color="#ffd75e" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- inner warmth (glows from within) -->
+    <radialGradient id="cl-innerWarm" cx="50%" cy="60%" r="60%">
+      <stop offset="0%" stop-color="#fff6d6" stop-opacity="0.95"/>
+      <stop offset="38%" stop-color="#ffd75e" stop-opacity="0.85"/>
+      <stop offset="70%" stop-color="#f0a340" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#f0a340" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="cl-roofWarm" cx="50%" cy="72%" r="60%">
+      <stop offset="0%" stop-color="#fff2c8" stop-opacity="0.9"/>
+      <stop offset="45%" stop-color="#ffd75e" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- tile -->
+    <linearGradient id="cl-tileTop" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0%" stop-color="#3f6f82"/>
+      <stop offset="55%" stop-color="#2c5566"/>
+      <stop offset="100%" stop-color="#20404e"/>
+    </linearGradient>
+    <linearGradient id="cl-tileLeft" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#24404c"/>
+      <stop offset="100%" stop-color="#152730"/>
+    </linearGradient>
+    <linearGradient id="cl-tileRight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1c333d"/>
+      <stop offset="100%" stop-color="#0f1e25"/>
+    </linearGradient>
+
+    <!-- crystal wall facets (translucent, cool edge) -->
+    <linearGradient id="cl-facetA" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#9fc4e0"/>
+      <stop offset="55%" stop-color="#5d8fa8"/>
+      <stop offset="100%" stop-color="#375f74"/>
+    </linearGradient>
+    <linearGradient id="cl-facetB" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#8ba6d8"/>
+      <stop offset="55%" stop-color="#6f7fc0"/>
+      <stop offset="100%" stop-color="#465288"/>
+    </linearGradient>
+    <linearGradient id="cl-facetC" x1="0" y1="0" x2="0.2" y2="1">
+      <stop offset="0%" stop-color="#bfe0ef"/>
+      <stop offset="60%" stop-color="#6f9db4"/>
+      <stop offset="100%" stop-color="#3d6376"/>
+    </linearGradient>
+    <linearGradient id="cl-facetD" x1="0" y1="1" x2="0.4" y2="0">
+      <stop offset="0%" stop-color="#7f8fd1"/>
+      <stop offset="60%" stop-color="#587197"/>
+      <stop offset="100%" stop-color="#324260"/>
+    </linearGradient>
+
+    <!-- roof crystal facets -->
+    <linearGradient id="cl-roofA" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0%" stop-color="#e8f6fb"/>
+      <stop offset="45%" stop-color="#9fd0e0"/>
+      <stop offset="100%" stop-color="#5d8fa8"/>
+    </linearGradient>
+    <linearGradient id="cl-roofB" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#c9e9f2"/>
+      <stop offset="50%" stop-color="#7fb2c8"/>
+      <stop offset="100%" stop-color="#436f86"/>
+    </linearGradient>
+    <linearGradient id="cl-roofC" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0%" stop-color="#a9d3e6"/>
+      <stop offset="55%" stop-color="#6f9fc0"/>
+      <stop offset="100%" stop-color="#3a5f7c"/>
+    </linearGradient>
+    <linearGradient id="cl-roofBack" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3f6178"/>
+      <stop offset="100%" stop-color="#22394a"/>
+    </linearGradient>
+
+    <!-- window / door glow -->
+    <radialGradient id="cl-window" cx="50%" cy="55%" r="60%">
+      <stop offset="0%" stop-color="#fffdf2"/>
+      <stop offset="45%" stop-color="#ffe9a8"/>
+      <stop offset="80%" stop-color="#ffd75e"/>
+      <stop offset="100%" stop-color="#f2ab44"/>
+    </radialGradient>
+    <linearGradient id="cl-door" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff3cf"/>
+      <stop offset="55%" stop-color="#ffd75e"/>
+      <stop offset="100%" stop-color="#f0a63c"/>
+    </linearGradient>
+
+    <!-- spire crystals -->
+    <linearGradient id="cl-spire" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#eaf7fc"/>
+      <stop offset="50%" stop-color="#9ac6da"/>
+      <stop offset="100%" stop-color="#4f7f98"/>
+    </linearGradient>
+    <linearGradient id="cl-shardWarm" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffe9a8"/>
+      <stop offset="55%" stop-color="#d79b8a" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#7f8fd1"/>
+    </linearGradient>
+    <linearGradient id="cl-shardCool" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0%" stop-color="#bfe0ef"/>
+      <stop offset="60%" stop-color="#6f8fc0"/>
+      <stop offset="100%" stop-color="#3a4f78"/>
+    </linearGradient>
+
+    <radialGradient id="cl-mote" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fffdf0"/>
+      <stop offset="40%" stop-color="#ffe9a8"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+
+    <filter id="cl-soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+    <filter id="cl-blurA" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+    <filter id="cl-ray" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="4"/>
+    </filter>
+    <filter id="cl-bloom" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+  </defs>
+
+  <!-- ================= GROUND ================= -->
+  <ellipse cx="240" cy="418" rx="176" ry="52" fill="url(#cl-groundShadow)" filter="url(#cl-soft)"/>
+  <ellipse cx="240" cy="330" rx="210" ry="150" fill="url(#cl-auraOuter)" filter="url(#cl-blurA)"/>
+
+  <!-- tile platform sides -->
+  <polygon points="80,340 240,420 240,442 80,362" fill="url(#cl-tileLeft)"/>
+  <polygon points="240,420 400,340 400,362 240,442" fill="url(#cl-tileRight)"/>
+  <!-- glowing seam of light between tile layers -->
+  <polyline points="80,362 240,442 400,362" fill="none" stroke="#2c5566" stroke-width="1.5" stroke-opacity="0.6"/>
+  <!-- tile top -->
+  <polygon points="240,260 400,340 240,420 80,340" fill="url(#cl-tileTop)"/>
+  <!-- tile top rim light -->
+  <polyline points="80,340 240,260 400,340" fill="none" stroke="#7fb6cc" stroke-width="1.6" stroke-opacity="0.7"/>
+  <!-- veins of light across the tile -->
+  <polyline points="150,300 210,331 178,352" fill="none" stroke="#6fd0c8" stroke-width="1.2" stroke-opacity="0.35"/>
+  <polyline points="300,300 250,326 288,350" fill="none" stroke="#6fd0c8" stroke-width="1.2" stroke-opacity="0.3"/>
+  <polygon points="240,300 262,311 240,322 218,311" fill="#ffe9a8" fill-opacity="0.14"/>
+
+  <!-- grass tufts on the rim (healthy green) -->
+  <g stroke="#4f9d5d" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.85">
+    <path d="M110,352 l-3,-11 M114,353 l1,-13 M118,353 l4,-10"/>
+    <path d="M366,352 l3,-11 M362,353 l-1,-13 M358,353 l-4,-10"/>
+    <path d="M232,414 l-3,-10 M238,416 l0,-12 M244,414 l4,-9"/>
+  </g>
+
+  <!-- back crystal shards behind house (re-seated inward onto the tile top) -->
+  <g>
+    <!-- contact shadows so the props read as planted on the tile surface -->
+    <ellipse cx="139" cy="330" rx="11" ry="4" fill="#0a161c" opacity="0.35" filter="url(#cl-ray)"/>
+    <ellipse cx="348" cy="326" rx="11" ry="4" fill="#0a161c" opacity="0.35" filter="url(#cl-ray)"/>
+    <polygon points="128,326 138,286 148,328" fill="url(#cl-shardCool)" opacity="0.9"/>
+    <polygon points="138,286 148,328 143,307" fill="#bfe0ef" opacity="0.45"/>
+    <polygon points="338,322 348,278 356,324" fill="url(#cl-shardCool)" opacity="0.9"/>
+    <polygon points="348,278 356,324 352,304" fill="#cfeaf5" opacity="0.4"/>
+  </g>
+
+  <!-- ================= INNER GLOW (behind house) ================= -->
+  <ellipse cx="240" cy="300" rx="118" ry="150" fill="url(#cl-innerWarm)" filter="url(#cl-blurA)"/>
+  <ellipse cx="240" cy="185" rx="70" ry="95" fill="url(#cl-roofWarm)" filter="url(#cl-blurA)"/>
+
+  <!-- ================= HOUSE WALLS ================= -->
+  <!-- LEFT WALL facets -->
+  <polygon points="150,340 195,362.5 195,304.75 150,282.25" fill="url(#cl-facetA)" fill-opacity="0.86"/>
+  <polygon points="195,362.5 240,385 240,327.25 195,304.75" fill="url(#cl-facetB)" fill-opacity="0.82"/>
+  <polygon points="150,282.25 195,304.75 195,257.5 150,235" fill="url(#cl-facetC)" fill-opacity="0.82"/>
+  <polygon points="195,304.75 240,327.25 240,280 195,257.5" fill="url(#cl-facetD)" fill-opacity="0.8"/>
+  <!-- left wall faceting creases -->
+  <g stroke="#dff3ff" stroke-opacity="0.28" stroke-width="1" fill="none">
+    <line x1="150" y1="282.25" x2="240" y2="327.25"/>
+    <line x1="195" y1="362.5" x2="195" y2="257.5"/>
+    <polyline points="150,282.25 195,257.5"/>
+  </g>
+
+  <!-- RIGHT WALL facets -->
+  <polygon points="240,385 285,362.5 285,304.75 240,327.25" fill="url(#cl-facetB)" fill-opacity="0.84"/>
+  <polygon points="285,362.5 330,340 330,282.25 285,304.75" fill="url(#cl-facetA)" fill-opacity="0.8"/>
+  <polygon points="240,327.25 285,304.75 285,257.5 240,280" fill="url(#cl-facetD)" fill-opacity="0.82"/>
+  <polygon points="285,304.75 330,282.25 330,235 285,257.5" fill="url(#cl-facetC)" fill-opacity="0.8"/>
+  <g stroke="#dff3ff" stroke-opacity="0.26" stroke-width="1" fill="none">
+    <line x1="240" y1="327.25" x2="330" y2="282.25"/>
+    <line x1="285" y1="362.5" x2="285" y2="257.5"/>
+    <polyline points="330,282.25 285,257.5"/>
+  </g>
+
+  <!-- AO where walls meet tile / front corner shading (softened so the seam reads) -->
+  <polygon points="150,340 240,385 240,391 150,346" fill="#0c1a20" opacity="0.3"/>
+  <polygon points="240,385 330,340 330,346 240,391" fill="#0a161c" opacity="0.34"/>
+  <!-- clean contact seam: crystal walls terminate flush on the tile top face -->
+  <polyline points="150,340 240,385 330,340" fill="none" stroke="#7fb6cc" stroke-width="1.4" stroke-opacity="0.75"/>
+  <polyline points="150,340 240,385 330,340" fill="none" stroke="#eafaff" stroke-width="0.7" stroke-opacity="0.45"/>
+  <!-- bright vertical front edge (rim light on the seam) -->
+  <line x1="240" y1="385" x2="240" y2="280" stroke="#eafaff" stroke-width="2" stroke-opacity="0.7"/>
+  <line x1="240" y1="385" x2="240" y2="280" stroke="#ffe9a8" stroke-width="1" stroke-opacity="0.5"/>
+
+  <!-- ================= WINDOWS & DOOR (glow from within) ================= -->
+  <!-- left wall window bloom -->
+  <polygon points="195,272 218,323 195,347 172,296" fill="#ffe9a8" opacity="0.5" filter="url(#cl-bloom)"/>
+  <polygon points="195,280.6 211.2,318.1 195,339.4 178.8,301.9" fill="url(#cl-window)"/>
+  <g stroke="#b9711f" stroke-width="1.1" stroke-opacity="0.55">
+    <line x1="195" y1="280.6" x2="195" y2="339.4"/>
+    <line x1="178.8" y1="301.9" x2="211.2" y2="318.1"/>
+  </g>
+  <polygon points="195,280.6 211.2,318.1 195,339.4 178.8,301.9" fill="none" stroke="#9fd0e0" stroke-width="1.4" stroke-opacity="0.8"/>
+
+  <!-- right wall upper window (diamond axis follows the RIGHT wall's vanishing direction) -->
+  <polygon points="285,260 298,276.5 285,306 272,289.5" fill="#ffe9a8" opacity="0.45" filter="url(#cl-bloom)"/>
+  <polygon points="285,265 295,278 285,301 275,288" fill="url(#cl-window)"/>
+  <line x1="285" y1="265" x2="285" y2="301" stroke="#b9711f" stroke-width="1" stroke-opacity="0.5"/>
+  <line x1="275" y1="288" x2="295" y2="278" stroke="#b9711f" stroke-width="0.9" stroke-opacity="0.45"/>
+  <polygon points="285,265 295,278 285,301 275,288" fill="none" stroke="#9fd0e0" stroke-width="1.2" stroke-opacity="0.75"/>
+
+  <!-- door on right wall (door-scaled, kept clear of the window above) -->
+  <polygon points="270,372 300,357 300,318 285,311 270,331" fill="#ffe9a8" opacity="0.4" filter="url(#cl-bloom)"/>
+  <polygon points="272.4,368.8 297.6,356.2 297.6,322.2 285,316.5 272.4,334.8" fill="url(#cl-door)"/>
+  <polygon points="272.4,368.8 297.6,356.2 297.6,322.2 285,316.5 272.4,334.8" fill="none" stroke="#9fd0e0" stroke-width="1.4" stroke-opacity="0.75"/>
+  <line x1="285" y1="362.3" x2="285" y2="320" stroke="#c07f2a" stroke-width="1" stroke-opacity="0.5"/>
+  <!-- warm spill of light onto tile beneath the door -->
+  <polygon points="272,369 298,356 320,378 288,398" fill="#ffd75e" opacity="0.18" filter="url(#cl-ray)"/>
+
+  <!-- ================= ROOF ================= -->
+  <!-- back silhouette faces (depth) -->
+  <polygon points="150,235 240,190 240,100" fill="url(#cl-roofBack)"/>
+  <polygon points="330,235 240,190 240,100" fill="url(#cl-roofBack)" opacity="0.9"/>
+
+  <!-- front-left roof face (2 facets) -->
+  <polygon points="150,235 195,257.5 240,100" fill="url(#cl-roofA)" fill-opacity="0.92"/>
+  <polygon points="195,257.5 240,280 240,100" fill="url(#cl-roofB)" fill-opacity="0.9"/>
+  <!-- front-right roof face (2 facets) -->
+  <polygon points="240,280 285,257.5 240,100" fill="url(#cl-roofC)" fill-opacity="0.9"/>
+  <polygon points="285,257.5 330,235 240,100" fill="url(#cl-roofA)" fill-opacity="0.92"/>
+
+  <!-- roof warm bleed near eaves (interior light escaping) -->
+  <polygon points="150,235 240,280 330,235 240,235" fill="#ffd75e" opacity="0.16" filter="url(#cl-ray)"/>
+
+  <!-- roof faceting highlights / ridges -->
+  <g fill="none" stroke="#eafaff" stroke-opacity="0.55" stroke-width="1.4">
+    <line x1="240" y1="100" x2="150" y2="235"/>
+    <line x1="240" y1="100" x2="240" y2="280"/>
+    <line x1="240" y1="100" x2="330" y2="235"/>
+  </g>
+  <g fill="none" stroke="#dff3ff" stroke-opacity="0.3" stroke-width="1">
+    <line x1="240" y1="100" x2="195" y2="257.5"/>
+    <line x1="240" y1="100" x2="285" y2="257.5"/>
+  </g>
+  <!-- eave rim light -->
+  <polyline points="150,235 240,280 330,235" fill="none" stroke="#eafaff" stroke-width="1.6" stroke-opacity="0.65"/>
+
+  <!-- little glinting facet highlights on roof (each kept within a single facet) -->
+  <polygon points="208,150 223,158 213,178 200,168" fill="#ffffff" opacity="0.22"/>
+  <polygon points="274,168 286,176 277,196 266,184" fill="#ffffff" opacity="0.18"/>
+
+  <!-- ================= SIDE SPIRES ================= -->
+  <!-- left spire socket (seats the spire into the roof/wall shoulder) -->
+  <ellipse cx="150" cy="242" rx="11" ry="4.5" fill="#0c1a20" opacity="0.4" filter="url(#cl-ray)"/>
+  <polygon points="140,241 150,234 160,241 150,248" fill="url(#cl-spire)" opacity="0.92"/>
+  <polygon points="150,234 160,241 150,248" fill="#3a5f7c" opacity="0.5"/>
+  <polygon points="140,241 150,234 150,248" fill="#cfeaf5" opacity="0.4"/>
+  <polyline points="140,241 150,234 160,241" fill="none" stroke="#eafaff" stroke-width="0.9" stroke-opacity="0.6"/>
+  <!-- left spire -->
+  <polygon points="150,238 158,232 154,150 150,238" fill="url(#cl-spire)"/>
+  <polygon points="150,238 142,231 146,150 154,150 150,238" fill="url(#cl-spire)" opacity="0.7"/>
+  <polygon points="150,238 142,231 146,150 150,196" fill="#3a5f7c" opacity="0.5"/>
+  <polygon points="146,150 150,140 154,150" fill="#eaf7fc" opacity="0.95"/>
+  <line x1="150" y1="238" x2="150" y2="143" stroke="#eafaff" stroke-width="1" stroke-opacity="0.6"/>
+  <!-- right spire socket -->
+  <ellipse cx="330" cy="242" rx="11" ry="4.5" fill="#0c1a20" opacity="0.4" filter="url(#cl-ray)"/>
+  <polygon points="320,241 330,234 340,241 330,248" fill="url(#cl-spire)" opacity="0.92"/>
+  <polygon points="330,234 340,241 330,248" fill="#3a5f7c" opacity="0.5"/>
+  <polygon points="320,241 330,234 330,248" fill="#cfeaf5" opacity="0.4"/>
+  <polyline points="320,241 330,234 340,241" fill="none" stroke="#eafaff" stroke-width="0.9" stroke-opacity="0.55"/>
+  <!-- right spire -->
+  <polygon points="330,238 338,231 334,150 330,238" fill="url(#cl-spire)" opacity="0.7"/>
+  <polygon points="330,238 322,232 326,150 334,150 330,238" fill="url(#cl-spire)"/>
+  <polygon points="330,238 338,231 334,150 330,196" fill="#3a5f7c" opacity="0.5"/>
+  <polygon points="326,150 330,140 334,150" fill="#eaf7fc" opacity="0.9"/>
+  <line x1="330" y1="238" x2="330" y2="143" stroke="#eafaff" stroke-width="1" stroke-opacity="0.55"/>
+
+  <!-- ================= REFRACTED LIGHT RAYS ================= -->
+  <g filter="url(#cl-ray)" opacity="0.5">
+    <polygon points="195,305 150,300 158,320" fill="#ffe9a8" opacity="0.22"/>
+    <polygon points="287,286 330,282 322,304" fill="#ffe9a8" opacity="0.2"/>
+  </g>
+
+  <!-- ================= FOREGROUND CRYSTAL SHARDS ================= -->
+  <g>
+    <!-- contact shadows: plant the clusters at the platform's foot -->
+    <ellipse cx="161" cy="404" rx="13" ry="4.5" fill="#0a161c" opacity="0.4" filter="url(#cl-ray)"/>
+    <ellipse cx="176" cy="412" rx="8" ry="3" fill="#0a161c" opacity="0.35" filter="url(#cl-ray)"/>
+    <ellipse cx="328" cy="402" rx="13" ry="4.5" fill="#0a161c" opacity="0.4" filter="url(#cl-ray)"/>
+    <ellipse cx="310" cy="410" rx="8" ry="3" fill="#0a161c" opacity="0.35" filter="url(#cl-ray)"/>
+    <!-- front-left cluster (bases follow the ground line at the platform foot) -->
+    <polygon points="150,400 160,355 171,407" fill="url(#cl-shardCool)"/>
+    <polygon points="160,355 171,407 165,382" fill="#cfeaf5" opacity="0.5"/>
+    <polygon points="150,400 160,355 158,384" fill="#2f4f6a" opacity="0.55"/>
+    <polygon points="170,409 176,377 182,414" fill="url(#cl-shardWarm)" opacity="0.9"/>
+    <!-- front-right cluster -->
+    <polygon points="318,404 328,357 338,402" fill="url(#cl-shardCool)"/>
+    <polygon points="328,357 338,402 332,380" fill="#cfeaf5" opacity="0.5"/>
+    <polygon points="318,404 328,357 326,382" fill="#2f4f6a" opacity="0.55"/>
+    <polygon points="304,411 310,378 316,405" fill="url(#cl-shardWarm)" opacity="0.85"/>
+  </g>
+
+  <!-- front grass tufts (on the tile top, inside the front rim) -->
+  <g stroke="#4f9d5d" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.9">
+    <path d="M190,393 l-3,-10 M195,395 l0,-12 M200,393 l4,-9"/>
+    <path d="M292,387 l-3,-10 M297,388 l0,-11 M302,386 l4,-9"/>
+  </g>
+
+  <!-- ================= WISPS / FIREFLIES ================= -->
+  <!-- beacon: soft rising shaft + crisp 4-point star flare -->
+  <polygon points="234,106 246,106 243,54 237,54" fill="#ffe9a8" opacity="0.14" filter="url(#cl-ray)"/>
+  <polygon points="240,72 242.4,95.6 240,121 237.6,95.6" fill="#ffe9a8" opacity="0.5"/>
+  <polygon points="219,98 240,95.6 261,98 240,100.4" fill="#ffe9a8" opacity="0.4"/>
+  <circle cx="240" cy="98" r="13" fill="url(#cl-mote)" filter="url(#cl-bloom)"/>
+  <circle cx="240" cy="98" r="4.5" fill="#fffdf0"/>
+  <g>
+    <circle cx="120" cy="196" r="7" fill="url(#cl-mote)"/>
+    <circle cx="120" cy="196" r="2" fill="#fffdf0"/>
+    <circle cx="372" cy="220" r="6" fill="url(#cl-mote)"/>
+    <circle cx="372" cy="220" r="1.8" fill="#fffdf0"/>
+    <circle cx="300" cy="150" r="5" fill="url(#cl-mote)"/>
+    <circle cx="300" cy="150" r="1.6" fill="#fffdf0"/>
+    <circle cx="168" cy="150" r="5.5" fill="url(#cl-mote)"/>
+    <circle cx="168" cy="150" r="1.6" fill="#fffdf0"/>
+    <circle cx="400" cy="320" r="6" fill="url(#cl-mote)"/>
+    <circle cx="400" cy="320" r="1.7" fill="#fffdf0"/>
+    <circle cx="92" cy="308" r="5" fill="url(#cl-mote)"/>
+    <circle cx="92" cy="308" r="1.5" fill="#fffdf0"/>
+    <circle cx="336" cy="112" r="4.5" fill="url(#cl-mote)"/>
+    <circle cx="150" cy="112" r="4" fill="url(#cl-mote)"/>
+  </g>
+</svg>

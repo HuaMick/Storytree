@@ -1,0 +1,401 @@
+<svg viewBox="0 0 480 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Isometric half-timbered Tudor house on a grass tile">
+  <defs>
+    <radialGradient id="tud-grass" cx="45%" cy="38%" r="75%">
+      <stop offset="0%" stop-color="#6bb277"/>
+      <stop offset="55%" stop-color="#4f9d5d"/>
+      <stop offset="100%" stop-color="#3a7647"/>
+    </radialGradient>
+    <linearGradient id="tud-earthL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5c3f2c"/>
+      <stop offset="100%" stop-color="#3b281b"/>
+    </linearGradient>
+    <linearGradient id="tud-earthR" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6d4b35"/>
+      <stop offset="100%" stop-color="#472f20"/>
+    </linearGradient>
+    <linearGradient id="tud-plasterR" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#f7f0da"/>
+      <stop offset="100%" stop-color="#e4d6b6"/>
+    </linearGradient>
+    <linearGradient id="tud-plasterL" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#e9dcbd"/>
+      <stop offset="100%" stop-color="#c9b892"/>
+    </linearGradient>
+    <linearGradient id="tud-plasterUR" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#fbf4e0"/>
+      <stop offset="100%" stop-color="#ecdfc1"/>
+    </linearGradient>
+    <linearGradient id="tud-plasterUL" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#eee2c5"/>
+      <stop offset="100%" stop-color="#cfbe98"/>
+    </linearGradient>
+    <linearGradient id="tud-gable" x1="0" y1="0" x2="0.2" y2="1">
+      <stop offset="0%" stop-color="#fbf4df"/>
+      <stop offset="100%" stop-color="#e6d8b6"/>
+    </linearGradient>
+    <linearGradient id="tud-roof" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#a06d54"/>
+      <stop offset="55%" stop-color="#82533f"/>
+      <stop offset="100%" stop-color="#623c2c"/>
+    </linearGradient>
+    <linearGradient id="tud-stone" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8f8577"/>
+      <stop offset="100%" stop-color="#5f564b"/>
+    </linearGradient>
+    <linearGradient id="tud-stoneL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7d7365"/>
+      <stop offset="100%" stop-color="#4e463c"/>
+    </linearGradient>
+    <linearGradient id="tud-brick" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#93513c"/>
+      <stop offset="100%" stop-color="#6d3b2b"/>
+    </linearGradient>
+    <linearGradient id="tud-door" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6b4326"/>
+      <stop offset="100%" stop-color="#432816"/>
+    </linearGradient>
+    <radialGradient id="tud-win" cx="50%" cy="42%" r="62%">
+      <stop offset="0%" stop-color="#fff6cf"/>
+      <stop offset="55%" stop-color="#ffd964"/>
+      <stop offset="100%" stop-color="#e5a536"/>
+    </radialGradient>
+    <radialGradient id="tud-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffe9a8" stop-opacity="0.9"/>
+      <stop offset="60%" stop-color="#ffd75e" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="tud-amb" cx="50%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#ffdf8a" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#ffdf8a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="tud-shadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.55"/>
+      <stop offset="70%" stop-color="#000000" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="tud-soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDev="6"/>
+    </filter>
+    <filter id="tud-glowb" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDev="4.5"/>
+    </filter>
+    <filter id="tud-wisp" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDev="1.8"/>
+    </filter>
+  </defs>
+
+  <!-- ambient warm halo behind the house -->
+  <ellipse cx="240" cy="300" rx="150" ry="130" fill="url(#tud-amb)"/>
+
+  <!-- ground shadow -->
+  <ellipse cx="242" cy="432" rx="146" ry="36" fill="url(#tud-shadow)" filter="url(#tud-soft)"/>
+
+  <!-- ===================== GROUND TILE ===================== -->
+  <g>
+    <!-- earth sides -->
+    <polygon points="70,372 240,444 240,458 70,386" fill="url(#tud-earthL)"/>
+    <polygon points="240,444 410,372 410,386 240,458" fill="url(#tud-earthR)"/>
+    <!-- grass top -->
+    <polygon points="240,300 410,372 240,444 70,372" fill="url(#tud-grass)"/>
+    <!-- grass texture flecks -->
+    <g opacity="0.5" fill="#3f7f4c">
+      <ellipse cx="150" cy="382" rx="14" ry="6"/>
+      <ellipse cx="320" cy="392" rx="16" ry="7"/>
+      <ellipse cx="250" cy="418" rx="18" ry="7"/>
+      <ellipse cx="196" cy="352" rx="10" ry="4"/>
+      <ellipse cx="300" cy="356" rx="10" ry="4"/>
+    </g>
+    <g opacity="0.5" fill="#6ec079">
+      <ellipse cx="120" cy="378" rx="10" ry="4"/>
+      <ellipse cx="352" cy="384" rx="11" ry="4"/>
+      <ellipse cx="270" cy="430" rx="12" ry="4"/>
+      <ellipse cx="210" cy="410" rx="9" ry="3"/>
+    </g>
+    <!-- tile top rim light -->
+    <polyline points="70,372 240,300 410,372" fill="none" stroke="#8fce97" stroke-width="1.4" opacity="0.5"/>
+
+    <!-- stone path to the door (front-left), now reaching the doorstep -->
+    <g>
+      <polygon points="196,406 220,417 212,425 188,414" fill="url(#tud-stone)" opacity="0.95"/>
+      <polygon points="150,398 176,410 168,418 142,406" fill="url(#tud-stone)" opacity="0.92"/>
+      <polygon points="126,388 152,400 144,408 118,396" fill="url(#tud-stoneL)" opacity="0.92"/>
+      <polygon points="104,378 128,390 121,397 98,385" fill="url(#tud-stone)" opacity="0.85"/>
+    </g>
+
+    <!-- little shrubs -->
+    <g>
+      <ellipse cx="330" cy="404" rx="17" ry="12" fill="#2f6b3c"/>
+      <ellipse cx="325" cy="399" rx="12" ry="9" fill="#3f8a4f"/>
+      <circle cx="330" cy="396" r="2" fill="#ffd75e" opacity="0.9"/>
+      <circle cx="336" cy="402" r="1.6" fill="#ffe9a8" opacity="0.9"/>
+      <ellipse cx="118" cy="416" rx="14" ry="10" fill="#2f6b3c"/>
+      <ellipse cx="114" cy="412" rx="10" ry="7" fill="#3f8a4f"/>
+      <circle cx="120" cy="410" r="1.8" fill="#ffd75e" opacity="0.9"/>
+    </g>
+  </g>
+
+  <!-- ===================== STONE PLINTH ===================== -->
+  <polygon points="240,420 176,388 176,376 240,408" fill="url(#tud-stoneL)"/>
+  <polygon points="240,420 304,388 304,376 240,408" fill="url(#tud-stone)"/>
+  <!-- plinth stone joints -->
+  <g stroke="#463f36" stroke-width="0.8" opacity="0.6">
+    <line x1="208" y1="404" x2="208" y2="392"/>
+    <line x1="272" y1="404" x2="272" y2="392"/>
+    <line x1="176" y1="382" x2="240" y2="414"/>
+    <line x1="304" y1="382" x2="240" y2="414"/>
+  </g>
+
+  <!-- ===================== GROUND FLOOR WALLS ===================== -->
+  <!-- LEFT wall plaster -->
+  <polygon points="240,408 176,376 176,318 240,350" fill="url(#tud-plasterL)"/>
+  <!-- RIGHT wall plaster -->
+  <polygon points="240,408 304,376 304,318 240,350" fill="url(#tud-plasterR)"/>
+
+  <!-- ground LEFT timber framing -->
+  <g fill="#402c1b">
+    <polygon points="176,376 181,378.5 181,320.5 176,318"/>            <!-- far post -->
+    <polygon points="240,350 176,318 176,323 240,355"/>               <!-- top plate -->
+    <polygon points="240,408 176,376 176,371 240,403"/>               <!-- sill -->
+    <polygon points="240,379 176,347 176,352 240,384"/>               <!-- mid rail -->
+    <polygon points="200,388 204,390 204,336 200,334"/>              <!-- stud -->
+  </g>
+  <g stroke="#4e3823" stroke-width="4.5" opacity="0.9" stroke-linecap="round">
+    <line x1="184" y1="375" x2="200" y2="357"/>                       <!-- brace (sill to window corner) -->
+  </g>
+
+  <!-- ground LEFT window (small, glowing; edges follow the left wall plane) -->
+  <ellipse cx="190" cy="342" rx="18" ry="16" fill="url(#tud-glow)" filter="url(#tud-glowb)"/>
+  <polygon points="180,346 200,356 200,338 180,328" fill="url(#tud-win)"/>
+  <g stroke="#2a2118" stroke-width="1.1">
+    <line x1="190" y1="351" x2="190" y2="333"/>
+    <line x1="180" y1="337" x2="200" y2="347"/>
+  </g>
+  <polygon points="180,346 200,356 200,338 180,328" fill="none" stroke="#3a2a1a" stroke-width="2.4"/>
+
+  <!-- ground LEFT door (Tudor arch; base sits on the ground line in-plane) -->
+  <g>
+    <path d="M204,402 L204,372 Q211,364 218,363 L218,409 Z" fill="url(#tud-door)"/>
+    <path d="M204,372 Q211,364 218,363" fill="none" stroke="#2c1a0e" stroke-width="2"/>
+    <line x1="204" y1="402" x2="204" y2="372" stroke="#2c1a0e" stroke-width="2"/>
+    <line x1="211" y1="404" x2="211" y2="367" stroke="#31200f" stroke-width="1"/>
+    <circle cx="207.5" cy="388" r="1.5" fill="#ffd75e"/>
+    <!-- door frame timber -->
+    <path d="M202,401 L202,371 Q211,361 220,360 L220,410" fill="none" stroke="#3a2716" stroke-width="3.5"/>
+  </g>
+  <!-- door lantern (bracket + body + glow) -->
+  <line x1="221" y1="365" x2="225" y2="368" stroke="#3a2716" stroke-width="1.5"/>
+  <polygon points="224,368 228,368 228,375 224,375" fill="#2c1a0e"/>
+  <ellipse cx="226" cy="372" rx="9" ry="9" fill="url(#tud-glow)" filter="url(#tud-glowb)"/>
+  <circle cx="226" cy="372" r="2.2" fill="#ffe9a8"/>
+
+  <!-- ground RIGHT timber framing -->
+  <g fill="#43301f">
+    <polygon points="299,378.5 304,376 304,318 299,320.5"/>          <!-- far post -->
+    <polygon points="240,350 304,318 304,323 240,355"/>              <!-- top plate -->
+    <polygon points="240,408 304,376 304,371 240,403"/>              <!-- sill -->
+    <polygon points="240,379 304,347 304,352 240,384"/>             <!-- mid rail -->
+    <polygon points="278,389 282,387 282,331 278,333"/>            <!-- stud -->
+  </g>
+
+  <!-- shared near corner post (front edge) -->
+  <polygon points="237,409 243,409 243,351 237,351" fill="#4a3524"/>
+
+  <!-- ground RIGHT window (leaded, glowing) -->
+  <ellipse cx="272" cy="356" rx="24" ry="20" fill="url(#tud-glow)" filter="url(#tud-glowb)"/>
+  <polygon points="252,386 296,364 296,338 252,360" fill="url(#tud-win)"/>
+  <g stroke="#2a2118" stroke-width="1.1">
+    <line x1="266" y1="379" x2="266" y2="353"/>
+    <line x1="281" y1="371" x2="281" y2="345"/>
+    <line x1="252" y1="373" x2="296" y2="351"/>
+  </g>
+  <polygon points="252,386 296,364 296,338 252,360" fill="none" stroke="#3a2a1a" stroke-width="2.6"/>
+
+  <!-- ===================== JETTY UNDERSIDE + BRESSUMMER ===================== -->
+  <polygon points="240,350 176,318 158,327 240,368" fill="#2c1f13"/>  <!-- left soffit -->
+  <polygon points="240,350 304,318 322,327 240,368" fill="#241a10"/>  <!-- right soffit -->
+  <!-- bressummer beams (the projecting horizontal timbers) -->
+  <polygon points="240,368 158,327 158,321 240,362" fill="#4a3423"/>
+  <polygon points="240,368 322,327 322,321 240,362" fill="#54402c"/>
+  <polygon points="240,362 158,321 158,318 240,359" fill="#6a5238" opacity="0.7"/>
+  <polygon points="240,362 322,321 322,318 240,359" fill="#75593d" opacity="0.7"/>
+  <!-- carved corbel brackets seated against the bressummer underside -->
+  <g fill="#3a2716">
+    <polygon points="188,342 198,347 198,355"/>
+    <polygon points="294,341 284,346 284,354"/>
+    <polygon points="234,364 240,367 246,364 240,377"/>
+  </g>
+
+  <!-- ===================== UPPER FLOOR WALLS (jettied) ===================== -->
+  <!-- LEFT upper plaster -->
+  <polygon points="240,368 158,327 158,273 240,314" fill="url(#tud-plasterUL)"/>
+  <!-- RIGHT upper plaster -->
+  <polygon points="240,368 322,327 322,273 240,314" fill="url(#tud-plasterUR)"/>
+
+  <!-- upper LEFT timber framing (close studding + chevron) -->
+  <g fill="#43301f">
+    <polygon points="158,327 163,329.5 163,275.5 158,273"/>          <!-- far post -->
+    <polygon points="240,314 158,273 158,278 240,319"/>             <!-- top plate -->
+    <polygon points="240,368 158,327 158,332 240,373"/>             <!-- bottom rail -->
+    <polygon points="212,354 216,356 216,300 212,298"/>           <!-- stud -->
+    <polygon points="186,341 190,343 190,287 186,285"/>          <!-- stud -->
+  </g>
+  <g stroke="#4c3722" stroke-width="4" stroke-linecap="round" opacity="0.92">
+    <line x1="170" y1="333" x2="188" y2="298"/>                     <!-- chevron, feet on the rail -->
+    <line x1="206" y1="351" x2="188" y2="298"/>
+  </g>
+
+  <!-- upper LEFT window (leaded, glowing; edges follow the left wall plane) -->
+  <ellipse cx="195" cy="324" rx="24" ry="22" fill="url(#tud-glow)" filter="url(#tud-glowb)"/>
+  <polygon points="176,332 214,351 214,316 176,297" fill="url(#tud-win)"/>
+  <g stroke="#2a2118" stroke-width="1.1">
+    <line x1="188" y1="338" x2="188" y2="303"/>
+    <line x1="201" y1="344" x2="201" y2="309"/>
+    <line x1="176" y1="309" x2="214" y2="328"/>
+    <line x1="176" y1="320" x2="214" y2="339"/>
+  </g>
+  <polygon points="176,332 214,351 214,316 176,297" fill="none" stroke="#3a2a1a" stroke-width="2.6"/>
+
+  <!-- upper RIGHT timber framing -->
+  <g fill="#4a3524">
+    <polygon points="317,329.5 322,327 322,273 317,275.5"/>         <!-- far post -->
+    <polygon points="240,314 322,273 322,278 240,319"/>            <!-- top plate -->
+    <polygon points="240,368 322,327 322,332 240,373"/>            <!-- bottom rail -->
+    <polygon points="268,354 272,352 272,296 268,298"/>          <!-- stud -->
+    <polygon points="294,341 298,339 298,283 294,285"/>         <!-- stud -->
+  </g>
+  <g stroke="#573f28" stroke-width="4" stroke-linecap="round" opacity="0.92">
+    <line x1="310" y1="333" x2="292" y2="298"/>                     <!-- chevron, feet on the rail -->
+    <line x1="274" y1="351" x2="292" y2="298"/>
+  </g>
+
+  <!-- upper RIGHT window (the STAR — wide leaded oriel, bright glow) -->
+  <ellipse cx="283" cy="308" rx="34" ry="28" fill="url(#tud-glow)" filter="url(#tud-glowb)"/>
+  <polygon points="256,346 310,319 310,285 256,312" fill="url(#tud-win)"/>
+  <g stroke="#241c14" stroke-width="1.2">
+    <line x1="270" y1="339" x2="270" y2="305"/>
+    <line x1="284" y1="332" x2="284" y2="298"/>
+    <line x1="297" y1="326" x2="297" y2="292"/>
+    <line x1="256" y1="335" x2="310" y2="308"/>
+    <line x1="256" y1="323" x2="310" y2="296"/>
+  </g>
+  <!-- inner warm bloom -->
+  <polygon points="264,332 300,314 300,300 264,318" fill="#fff4c6" opacity="0.35"/>
+  <polygon points="256,346 310,319 310,285 256,312" fill="none" stroke="#3a2a1a" stroke-width="3"/>
+  <!-- oriel sill bracket -->
+  <polygon points="256,346 310,319 312,325 258,352" fill="#3a2716"/>
+
+  <!-- ===================== ROOF ===================== -->
+  <!-- back slope hint (up-right, mostly hidden; a sliver shows over the gable rake) -->
+  <polygon points="322,266 240,225 199,187 281,228" fill="#5a3728" opacity="0.9"/>
+
+  <!-- main roof slope (down-left): eave parallel to ridge, rakes parallel -->
+  <polygon points="240,317 152,273 193,184 281,228" fill="url(#tud-roof)"/>
+  <!-- tile courses (parallel to the eave) -->
+  <g stroke="#4d2f22" stroke-width="1.5" opacity="0.85">
+    <line x1="243" y1="303" x2="161" y2="262"/>
+    <line x1="249" y1="291" x2="167" y2="250"/>
+    <line x1="254" y1="278" x2="172" y2="237"/>
+    <line x1="260" y1="266" x2="178" y2="225"/>
+    <line x1="266" y1="253" x2="184" y2="212"/>
+    <line x1="271" y1="241" x2="190" y2="200"/>
+  </g>
+  <!-- staggered tile ends (short strokes along the slope direction) -->
+  <g stroke="#3f2619" stroke-width="1" opacity="0.55">
+    <line x1="200" y1="293" x2="203" y2="286"/>
+    <line x1="185" y1="269" x2="188" y2="262"/>
+    <line x1="225" y1="289" x2="228" y2="282"/>
+    <line x1="205" y1="264" x2="208" y2="257"/>
+    <line x1="195" y1="244" x2="198" y2="237"/>
+    <line x1="235" y1="264" x2="238" y2="257"/>
+    <line x1="245" y1="254" x2="248" y2="247"/>
+    <line x1="250" y1="224" x2="253" y2="217"/>
+  </g>
+  <!-- roof sheen -->
+  <polygon points="240,317 152,273 170,233 258,277" fill="#b07a5f" opacity="0.18"/>
+
+  <!-- GABLE end (down-right, timber-framed vertical triangle; base at true iso slope) -->
+  <polygon points="240,318 322,277 281,228" fill="url(#tud-gable)"/>
+  <!-- gable timber: vertical king post + straight tie-beam + braces -->
+  <g stroke="#43301f" stroke-width="4.5" stroke-linecap="round">
+    <line x1="281" y1="231" x2="281" y2="289"/>                      <!-- king post (vertical) -->
+    <line x1="245" y1="307" x2="317" y2="271"/>                      <!-- tie beam (straight, in-plane) -->
+    <line x1="262" y1="271" x2="279" y2="288"/>                      <!-- brace -->
+    <line x1="303" y1="257" x2="283" y2="288"/>                      <!-- brace -->
+  </g>
+  <!-- gable peak window (glowing diamond, centred on the king post) -->
+  <ellipse cx="281" cy="252" rx="14" ry="14" fill="url(#tud-glow)" filter="url(#tud-glowb)"/>
+  <polygon points="281,240 291,254 281,268 271,254" fill="url(#tud-win)"/>
+  <g stroke="#2a2118" stroke-width="1">
+    <line x1="281" y1="240" x2="281" y2="268"/>
+    <line x1="271" y1="254" x2="291" y2="254"/>
+  </g>
+  <polygon points="281,240 291,254 281,268 271,254" fill="none" stroke="#3a2a1a" stroke-width="1.8"/>
+
+  <!-- bargeboards (rake timbers on gable) + finial -->
+  <g stroke="#33220f" stroke-width="5" stroke-linecap="round">
+    <line x1="240" y1="320" x2="281" y2="226"/>
+    <line x1="322" y1="279" x2="281" y2="226"/>
+  </g>
+  <g stroke="#5a4029" stroke-width="1.6" stroke-linecap="round" opacity="0.8">
+    <line x1="241" y1="322" x2="282" y2="228"/>
+    <line x1="322" y1="281" x2="282" y2="228"/>
+  </g>
+  <circle cx="281" cy="224" r="3.4" fill="#3a2716"/>
+  <circle cx="281" cy="219" r="2.2" fill="#ffd75e"/>
+
+  <!-- ridge beam -->
+  <polygon points="281,228 193,184 193,180 281,224" fill="#3d2618"/>
+  <polygon points="281,224 193,180 193,178 281,222" fill="#6a4a34" opacity="0.7"/>
+
+  <!-- ===================== CHIMNEY ===================== -->
+  <g transform="translate(6,-6)">
+    <!-- contact shadow hugging the chimney base -->
+    <polygon points="187,253 205,262 227,251 221,255 199,266 181,257" fill="#2c1a12" opacity="0.35"/>
+    <!-- left face -->
+    <polygon points="205,262 187,253 187,201 205,210" fill="url(#tud-brick)"/>
+    <!-- right face -->
+    <polygon points="205,262 227,251 227,199 205,210" fill="#a05c44"/>
+    <!-- top -->
+    <polygon points="205,210 227,199 209,190 187,201" fill="#7a4030"/>
+    <!-- brick joints -->
+    <g stroke="#5c3324" stroke-width="0.7" opacity="0.6">
+      <line x1="205" y1="245" x2="187" y2="236"/>
+      <line x1="205" y1="228" x2="187" y2="219"/>
+      <line x1="205" y1="245" x2="227" y2="234"/>
+      <line x1="205" y1="228" x2="227" y2="217"/>
+      <line x1="196" y1="257" x2="196" y2="205"/>
+      <line x1="216" y1="256" x2="216" y2="205"/>
+    </g>
+    <!-- chimney pots -->
+    <ellipse cx="200" cy="197" rx="5" ry="2.4" fill="#8a5a44"/>
+    <polygon points="195,197 205,197 204,185 196,185" fill="#9a6650"/>
+    <ellipse cx="200" cy="185" rx="4" ry="2" fill="#5f3a2b"/>
+    <ellipse cx="215" cy="194" rx="5" ry="2.4" fill="#7a4a38"/>
+    <polygon points="210,194 220,194 219,182 211,182" fill="#8a5a44"/>
+    <ellipse cx="215" cy="182" rx="4" ry="2" fill="#502f22"/>
+  </g>
+
+  <!-- ===================== RIM LIGHT ACCENTS ===================== -->
+  <g opacity="0.6" stroke-linecap="round" fill="none">
+    <line x1="240" y1="408" x2="240" y2="351" stroke="#fff3d2" stroke-width="1" opacity="0.35"/>
+    <line x1="240" y1="368" x2="240" y2="314" stroke="#fff3d2" stroke-width="1.1" opacity="0.4"/>
+    <polyline points="152,273 193,184" stroke="#c79274" stroke-width="1.2"/>
+  </g>
+
+  <!-- ===================== WISPS / FIREFLIES ===================== -->
+  <g>
+    <circle cx="360" cy="250" r="8" fill="url(#tud-glow)" filter="url(#tud-wisp)"/>
+    <circle cx="360" cy="250" r="2.2" fill="#fff2c4"/>
+    <circle cx="128" cy="300" r="7" fill="url(#tud-glow)" filter="url(#tud-wisp)"/>
+    <circle cx="128" cy="300" r="1.8" fill="#ffe9a8"/>
+    <circle cx="330" cy="180" r="6" fill="url(#tud-glow)" filter="url(#tud-wisp)"/>
+    <circle cx="330" cy="180" r="1.6" fill="#fff2c4"/>
+    <circle cx="96" cy="352" r="5" fill="url(#tud-glow)" filter="url(#tud-wisp)"/>
+    <circle cx="96" cy="352" r="1.4" fill="#ffe9a8"/>
+    <circle cx="392" cy="330" r="5" fill="url(#tud-glow)" filter="url(#tud-wisp)"/>
+    <circle cx="392" cy="330" r="1.4" fill="#ffe9a8"/>
+    <circle cx="258" cy="150" r="1.3" fill="#fff2c4" opacity="0.9"/>
+    <circle cx="150" cy="230" r="1.2" fill="#ffe9a8" opacity="0.85"/>
+    <circle cx="356" cy="300" r="1.2" fill="#ffe9a8" opacity="0.85"/>
+  </g>
+</svg>
