@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded
 decided: 2026-07-05
 amends: [153, 157]
 ---
@@ -7,7 +7,11 @@ amends: [153, 157]
 
 ## Status
 
-accepted (2026-07-05) — decided/directed by the owner in conversation on 2026-07-05, where the owner
+superseded (2026-07-18) by
+[ADR-0213](0213-act-2-experience-one-continuous-orchestrator-led-walk.md) — Act 2 experience
+authority consolidates there. Historical decision text below is unchanged.
+
+~~accepted (2026-07-05) — decided/directed by the owner in conversation on 2026-07-05, where the owner
 walked an interactive design proposal for the Act-2 opening redesign (the follow-on redesign
 [ADR-0157](0157-act-2-reads-the-database-directly-and-teaches-plainly-retire.md)'s As-built recorded
 as directed-but-not-yet-decided) and approved it **AS PRESENTED**. Recorded verbatim (a design verdict
@@ -18,7 +22,7 @@ only the owner can sign, agent-relayed — ADR-0044 §4):
 No per-question overrides were given, so the proposal's nine recommendations stand as the ACCEPTED
 defaults (§8). Design-time alignment IS the ratification
 ([ADR-0110](0110-collapse-the-redundant-end-of-flow-adr-ratification.md)); this ADR is born accepted —
-no second end-of-flow ask.
+no second end-of-flow ask.~~
 
 This is a NEW ADR, not an in-place edit of the ADRs it amends (copy-on-write, ADR-0086/0139): the
 bodies of 153/157 stay as history, with a dated forward pointer added at each amended point by the

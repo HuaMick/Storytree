@@ -7,7 +7,7 @@ outcome: "Act 2 replays Act 1's request — the SAME prompt (rewritten to 'build
 status: proposed
 proof_mode: operator-attested
 depends_on: [storm-to-forest-inflection, act2-beat-director, web-experience-sync]
-decisions: [134, 145, 148, 150, 153, 157, 165]
+decisions: [134, 213]
 # OPERATOR-ATTESTED (ADR-0070) — web-repo work. The choreography ENGINE is already machine-proven
 # upstream (act2-beat-director: visitor-paced advance, proof-gated green, the flagged wrong-way
 # road, the approved default script — all parent-side contracts), and the artifact freshness is the

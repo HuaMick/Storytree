@@ -44,27 +44,11 @@ consumed_by: []
 # decisions of 2026-07-02 that unpacked it (134); the renderer — R3F + drei as the THIRD
 # forest-world mapper, client-only island, mandatory fallback, package home delegated to this
 # story (123); the shared render core + the sync-into-submodule artifact flow the mapper joins (93);
-# the 2026-07-03 re-decision at the walkthrough's attestation gate — Act 2 walks the real 2.5D map,
-# the R3F island scoped to the inflection's landing moment, replay-only final (145); the SECOND
-# 2026-07-03 re-decision at that same gate — Act 2 is the vibe coder's request handled the storytree
-# way: a website-first walk (increment G) that grows into an orchestrator-guided upstream forest
-# (increment H), ship-G-now/extend-H-next (148); the 2026-07-04 re-decision at the G gate — Act 2 is
-# ONE continuous walk that grows UPSTREAM, the dependency layer is the advantage (150); the 2026-07-04
-# re-decision at the H gate, where H was REFUSED — Act 2 uses the REAL app's UI with progressive
-# disclosure, no escape hatches, step 1 an outcome brief with an example via the orchestrator chat at
-# the bottom, step 2 routing to the drive machinery (temporary overlays), and the dependency DIRECTION
-# corrected to the library rule (website→backend→database, dependent→prerequisite) (153); the 2026-07-05
-# re-decision at the H BUILD #2 gate, where H#2 was attested "as a step forward" + landed live — BaaS
-# (the frontend reads the database DIRECTLY: website.dependsOn=[backend, database], a diamond; confirms
-# 153's open 3-tier-vs-BaaS call), the "storm" metaphor retired from all surfaces, plain newcomer-dev
-# language, the agent-loop teach as an HONEST TDD LOOP DIAGRAM (system-as-referee), the pre-walk reads as
-# OUR orchestrator + the first story node lands proposed, and the wisp MOVES (157); the 2026-07-05
-# owner-approved Act-2 opening redesign, approved AS PRESENTED — one growing system diagram (Phase D)
-# advanced through the orchestrator chat (the separate Next button retires), a persistent docked
-# mini-map replacing the corner drive-machinery overlays, an orbiting wisp, TWO upstream beats, and a
-# Phase-Z zoom-out to the real studio; web-repo-only, the director untouched (165); the signed
-# info-page disposition set + the Keystatic retirement — the triage's own sign-off record (167).
-decisions: [93, 123, 134, 145, 148, 150, 153, 157, 165, 167]
+# Act 2 experience authority consolidates as ADR-0213 (supersedes 145/148/150/153/157/165 —
+# website-first continuous walk, growing diagram, BaaS diamond, real UI, studio zoom-out); the
+# signed info-page disposition set + Keystatic retirement remains 167. Website-story (134) and
+# Act 1 framing stay on their own ADRs until those consolidations land.
+decisions: [93, 123, 134, 167, 213]
 ---
 
 # The two-act vibe-coding experience — the public site's front door enacts chaos → calm
