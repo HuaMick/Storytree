@@ -134,21 +134,21 @@ const BASE: Partial<Record<SceneKind, string>> = {
   'plate-id': 'world-plate-id',
   'plate-sub': 'world-plate-sub',
   hit: 'world-story-hit',
-  // the UAT marker walk (forest-parcels inc 2, ADR-0208): the walk group maps to a same-named
-  // class (no trail-bed drawable — the placement cubic is invisible, owner call 2026-07-18); the
-  // wrapper kinds (`brazier-proven`/`-pending`/`-failing`) compose the shared `.brazier` base + their
-  // state class in composeClass below. The body child kinds are frozen (the splice seam) and map
-  // verbatim; `shadow` reuses the flora-shadow map.
-  'uat-walk': 'uat-walk',
-  'brazier-plinth-band': 'brazier-plinth-band',
-  'brazier-collar': 'brazier-collar',
-  'brazier-bowl-rim': 'brazier-bowl-rim',
-  'brazier-bowl-interior': 'brazier-bowl-interior',
-  'brazier-ember': 'brazier-ember',
-  'brazier-glow': 'brazier-glow',
-  'brazier-spark': 'brazier-spark',
-  'brazier-smoke': 'brazier-smoke',
-  // (`brazier-plinth`/`-bowl`/`-coal`/`-flame` carry a `v-<n>` facet suffix — composeClass below.)
+  // the UAT markers (forest-parcels inc 2, ADR-0208): standing-stone markers scattered around the
+  // island (owner call 2026-07-18 — no walk group, no bed; each stone is its own drawable). The
+  // wrapper kinds (`standing-stone-proven`/`-pending`/`-failing`) compose the shared
+  // `.standing-stone-marker` base + their state class in composeClass below. The body child kinds
+  // are frozen (the splice seam) and map verbatim; `shadow` reuses the flora-shadow map.
+  'standing-stone-body': 'standing-stone-body',
+  'standing-stone-face': 'standing-stone-face',
+  'standing-stone-cap': 'standing-stone-cap',
+  'standing-stone-crack': 'standing-stone-crack',
+  'standing-stone-crack-glow': 'standing-stone-crack-glow',
+  'standing-stone-rune': 'standing-stone-rune',
+  'standing-stone-glow': 'standing-stone-glow',
+  'standing-stone-spark': 'standing-stone-spark',
+  'standing-stone-moss': 'standing-stone-moss',
+  'standing-stone-moss-fleck': 'standing-stone-moss-fleck',
 };
 
 const fmt = (n: number): string => n.toFixed(1);
@@ -259,20 +259,15 @@ function composeClass(node: SceneNode, ctx: SceneCtx): string {
     case 'parcel-shrub':
     case 'parcel-stem':
     case 'parcel-flower':
-    case 'brazier-plinth':
-    case 'brazier-bowl':
-    case 'brazier-coal':
-    case 'brazier-flame':
-      // the generic flora marks + the brazier's two-facet/nested-tongue marks — same-named class +
-      // the `v-<n>` facet suffix (exactly like cells).
+      // the generic flora marks — same-named class + the `v-<n>` facet suffix (exactly like cells).
       return `${k} v-${node.variant ?? 0}`;
-    case 'brazier-proven':
-    case 'brazier-pending':
-    case 'brazier-failing':
-      // forest-parcels inc 2: the marker wrapper — the shared `.brazier` base (pointer-events:
-      // none, the walk is display-only) + its state class, the composite the CSS keys the
-      // flame/glow/ember colour off (`.brazier-proven .brazier-flame.v-1`, etc.).
-      return `brazier ${k}`;
+    case 'standing-stone-proven':
+    case 'standing-stone-pending':
+    case 'standing-stone-failing':
+      // forest-parcels inc 2: the marker wrapper — the shared `.standing-stone-marker` base
+      // (pointer-events: none, the markers are display-only) + its state class, the composite the
+      // CSS keys the rune/glow colour off (`.standing-stone-proven .standing-stone-glow`, etc.).
+      return `standing-stone-marker ${k}`;
     default: {
       const base = BASE[k] ?? '';
       return node.accent && base ? `${base} flora-dead-accent` : base;

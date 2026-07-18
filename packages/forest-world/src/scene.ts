@@ -115,29 +115,26 @@ export type SceneKind =
   | 'sign-fail'
   | 'sign-post'
   | 'sign-head'
-  // the UAT marker walk (forest-parcels inc 2) — the story's UAT criteria as trailside BRAZIER
-  // markers along a deterministic trail-to-tree walk arriving at the signpost trailhead. The WRAPPER
-  // kind encodes each criterion's state (the `sign-blank/pass/fail` precedent) and carries the
-  // criterion id; the body marks inside come from the `brazierMarks` splice seam (ADR-0208) on the
-  // frozen child kinds below (+ the shared `shadow`). Colour stays CSS-side (ADR-0093 §4). The walk's
-  // placement CURVE is invisible — no trail-bed drawable (owner call 2026-07-18: the bed clashed with
-  // the inter-island trail network; alignment is a later increment).
-  | 'uat-walk' // the island's whole walk group: the marker wrappers along the invisible curve
-  | 'brazier-proven'
-  | 'brazier-pending'
-  | 'brazier-failing'
-  | 'brazier-plinth'
-  | 'brazier-plinth-band'
-  | 'brazier-collar'
-  | 'brazier-bowl'
-  | 'brazier-bowl-rim'
-  | 'brazier-bowl-interior'
-  | 'brazier-coal'
-  | 'brazier-ember'
-  | 'brazier-flame'
-  | 'brazier-glow'
-  | 'brazier-spark'
-  | 'brazier-smoke'
+  // the UAT markers (forest-parcels inc 2) — the story's UAT criteria as STANDING-STONE markers
+  // SCATTERED deterministically around the island (owner call 2026-07-18: stones, not braziers, and
+  // scattered rather than lining a path). The WRAPPER kind encodes each criterion's state (the
+  // `sign-blank/pass/fail` precedent) and carries the criterion id; the body marks inside come from
+  // the `standingStoneMarks` splice seam (ADR-0208) on the frozen child kinds below (+ the shared
+  // `shadow`). Colour stays CSS-side (ADR-0093 §4). No group kind: each stone is its own y-sorted
+  // drawable inside the territory, so painter depth interleaves with the tree + flora.
+  | 'standing-stone-proven'
+  | 'standing-stone-pending'
+  | 'standing-stone-failing'
+  | 'standing-stone-body'
+  | 'standing-stone-face'
+  | 'standing-stone-cap'
+  | 'standing-stone-crack'
+  | 'standing-stone-crack-glow'
+  | 'standing-stone-rune'
+  | 'standing-stone-glow'
+  | 'standing-stone-spark'
+  | 'standing-stone-moss'
+  | 'standing-stone-moss-fleck'
   // a capability as garden flora
   | 'flora'
   | 'flora-hit'
@@ -306,12 +303,12 @@ export type ClaimGrade = 'exploring' | 'waiting' | 'work';
  *  it. The surface fold folds each capability's real theme into this. */
 export type SurfaceTheme = 'meadow' | 'woodland' | 'heath';
 
-/** A UAT criterion's proof state on the marker walk (forest-parcels inc 2) — how the criterion's
- *  brazier reads: `proven` burns warm gold, `pending` waits cold and unlit, `failing` gutters red.
- *  DUPLICATED as the core's OWN input vocabulary (the scene-graph is a foundational root that
- *  depends on nothing — ADR-0093 §Open call 2), mirroring the surface's folded per-criterion proof
- *  state rather than importing the proof machinery. Encoded in the marker WRAPPER's kind
- *  (`brazier-proven`/`-pending`/`-failing`), never as live data on the node. */
+/** A UAT criterion's proof state on the island's markers (forest-parcels inc 2) — how the
+ *  criterion's standing-stone reads: `proven` glows warm gold, `pending` waits as dead stone,
+ *  `failing` glows an alarm red. DUPLICATED as the core's OWN input vocabulary (the scene-graph is
+ *  a foundational root that depends on nothing — ADR-0093 §Open call 2), mirroring the surface's
+ *  folded per-criterion proof state rather than importing the proof machinery. Encoded in the
+ *  marker WRAPPER's kind (`standing-stone-proven`/`-pending`/`-failing`), never as live data. */
 export type MarkerState = 'proven' | 'pending' | 'failing';
 
 /** The prove-it-gate's phases (ADR-0020 §1), DUPLICATED as the core's OWN input vocabulary — the
@@ -470,16 +467,15 @@ export interface SceneTerritoryInput {
   treeTitle: string;
   /** Present only for a human-witness story; `outcome` null = a blank (unsigned) seal. */
   signpost?: { outcome: 'pass' | 'fail' | null };
-  /** The UAT marker walk (forest-parcels inc 2). When PRESENT and non-empty, the island grows a
-   *  deterministic trail-to-tree walk (an INVISIBLE placement cubic from the south coast up to the
-   *  trailhead beside the tree, where the signpost seal stands — no trail-bed drawable, owner call
-   *  2026-07-18) with ONE brazier marker per criterion, in input order along the walk, each
-   *  criterion's `state` encoded in its wrapper KIND
-   *  (`brazier-proven`/`-pending`/`-failing`) and its `id` carried as the node id (the
-   *  hover/delegation hook). The human-witness `signpost` seal is RETAINED unconditionally — it is
-   *  the walk's trailhead seal, not replaced by the markers. OPTIONAL and back-compat: ABSENT ⇒
-   *  today's island renders BYTE-FOR-BYTE (the public website fold never sends it and must be
-   *  unchanged). */
+  /** The UAT markers (forest-parcels inc 2). When PRESENT and non-empty, the island grows ONE
+   *  standing-stone marker per criterion, SCATTERED deterministically around the island (owner call
+   *  2026-07-18 — stones stand among the parcels rather than lining a path; each spot is id-seeded
+   *  with keep-outs for the tree well, the signpost, the nameplate band, and other stones). Each
+   *  criterion's `state` is encoded in its wrapper KIND (`standing-stone-proven`/`-pending`/
+   *  `-failing`) and its `id` carried as the node id (the hover/delegation hook). The human-witness
+   *  `signpost` seal is RETAINED unconditionally — the markers never replace it. OPTIONAL and
+   *  back-compat: ABSENT ⇒ today's island renders BYTE-FOR-BYTE (the public website fold never
+   *  sends it and must be unchanged). */
   uatCriteria?: { id: string; state: MarkerState }[];
   /** The crown bloom, folded by the surface; omitted when withered or none. */
   bloom?: { ageRatio: number; outcome: 'pass' | 'fail' };
@@ -696,286 +692,199 @@ function buildSignpost(s: { outcome: 'pass' | 'fail' | null }, R: number): Scene
 }
 
 // ---------------------------------------------------------------------------
-// the UAT marker walk (forest-parcels inc 2)
+// the UAT markers (forest-parcels inc 2)
 // ---------------------------------------------------------------------------
 //
-// A uatCriteria-present island grows a trail-to-tree WALK: a deterministic cubic from the island's
-// south coast (the approach, toward the viewer) up to the TRAILHEAD beside the tree — where the
-// human-witness signpost seal already stands (`translate(R·0.7 + 9, 0)` off `treeSpot`); the seal is
-// RETAINED as the trailhead's seal. One brazier marker per criterion stands along the walk in
-// input order, on alternating sides via the curve's unit tangent (the spike's placement,
-// docs/research/forest-parcels-spike.html). The curve itself is INVISIBLE — no trail-bed drawable
-// (owner call 2026-07-18: the bed clashed with the inter-island trail network; alignment is a later
-// increment). Everything is seeded from the story id via the existing `hash`/`rand01` helpers —
+// A uatCriteria-present island grows ONE standing-stone marker per criterion, SCATTERED
+// deterministically around the island (owner call 2026-07-18: stones, not braziers, and scattered
+// rather than lining a path — the earlier trail-walk placement + its visible bed are retired).
+// Each spot is id-seeded with keep-outs for the tree well (which also covers the signpost beside
+// it), the nameplate band, and the other stones; every stone is its OWN y-sorted drawable so it
+// interleaves honestly with the tree + flora in painter order. The human-witness signpost seal is
+// RETAINED. Everything is seeded from the story id via the existing `hash`/`rand01` helpers —
 // same input ⇒ byte-identical output.
 
-/** One flame tongue's flat-facet silhouette — a bowed teardrop from `(cx±w, baseY)` up to a single
- *  jittered tip. `notch` (FAILING only) pulls the left edge into a torn, concave bite partway up —
- *  an asymmetric silhouette cue ("this flame is wrong") that reads even colourblind, independent of
- *  the red hue. PROVEN never carries a notch: its silhouette stays one calm, controlled curve. */
-function flamePath(cx: number, baseY: number, h: number, w: number, tipX: number, notch = false): string {
-  const tipY = baseY - h;
-  const left = notch
-    ? `C ${f(cx - w * 0.9)} ${f(baseY - h * 0.22)}, ${f(cx - w * 0.32)} ${f(baseY - h * 0.4)}, ${f(cx - w * 0.62)} ${f(baseY - h * 0.5)} ` +
-      `C ${f(cx - w * 0.86)} ${f(baseY - h * 0.58)}, ${f(cx - w * 0.3)} ${f(baseY - h * 0.68)}, ${f(cx + tipX)} ${f(tipY)} `
-    : `C ${f(cx - w * 0.85)} ${f(baseY - h * 0.4)}, ${f(cx - w * 0.4 + tipX * 0.3)} ${f(baseY - h * 0.72)}, ${f(cx + tipX)} ${f(tipY)} `;
-  return (
-    `M ${f(cx - w)} ${f(baseY)} ` +
-    left +
-    `C ${f(cx + w * 0.4 + tipX * 0.3)} ${f(baseY - h * 0.72)}, ${f(cx + w * 0.85)} ${f(baseY - h * 0.4)}, ${f(cx + w)} ${f(baseY)} Z`
-  );
-}
-
-// The brazier fixture's shared body geometry (identical across all three states — only the
-// flame/glow/ember treatment differs; the "only the light carries the verdict" rule the owner
-// approved on the lantern round).
-const BRAZIER_PLINTH_BOTTOM_W = 15;
-const BRAZIER_PLINTH_TOP_W = 10;
-const BRAZIER_PLINTH_H = 16.5;
-const BRAZIER_COLLAR_H = 1.8;
-const BRAZIER_BOWL_FOOT_W = 10.5;
-const BRAZIER_BOWL_H = 8.2;
-const BRAZIER_BOWL_RIM_W = 21;
-
-/** THE MARKER-BODY SPLICE SEAM (ADR-0208): the designer-authored pure body painter — the BRAZIER
- *  concept, picked from the ten-option design swarm by the orchestrator's design review (owner
- *  delegated the pick 2026-07-18 after rejecting the lantern look; the composite LOOK stays
- *  owner-attested). Frozen contract `(state, k) => SceneNode[]` — marks positioned with the fixture
- *  BASE at (0,0), `k` a hash seed for deterministic jitter (draw via `rand01(k + n)`, never
- *  Math.random). The wrapper's KIND carries the state; the body child kinds map to CSS classes,
- *  colour stays CSS-side (ADR-0093 §4). A stone plinth + iron dish fire bowl: at the designer's
- *  native scale the bare PENDING fixture is ~29u tall (clearing the ~24.5u signpost), PROVEN burns
- *  to ~52u at the flame tip — the walk applies a 0.9 wrapper scale (the review's density trim), so
- *  on-island the states land ~26u / ~47u: above the signpost, well under the ~90–120u tree. The
- *  glow is faked with layered circles of DECREASING radius and INCREASING opacity (largest-dimmest
- *  first). PENDING emits no flame/glow/ember at all — dormant reads as the ABSENCE of fire, never a
- *  dimmed one (cold coal stays in the bowl: a fixture, not a prop). FAILING leans hard, burns short
- *  with a torn notch, and gutters smoke — wrongness reads in silhouette before hue. */
-function brazierMarks(state: MarkerState, k: number): SceneNode[] {
+/** THE MARKER-BODY SPLICE SEAM (ADR-0208): the designer-authored pure body painter — the
+ *  STANDING-STONE concept, owner-chosen 2026-07-18 from the ten-option design swarm (replacing the
+ *  brazier; the composite LOOK stays owner-attested, ADR-0070 stage 2). Frozen contract
+ *  `(state, k) => SceneNode[]` — marks positioned with the stone's BASE at (0,0), `k` a hash seed
+ *  for deterministic jitter (draw via `rand01(k + i)`, never Math.random). The wrapper's KIND
+ *  carries the state; the body child kinds map to CSS classes, colour stays CSS-side (ADR-0093
+ *  §4). A carved runestone ~43.5 units tall — weightier than the ~24-unit signpost, well under the
+ *  ~90–120u tree. THREE cel-shaded facets (dark body / lit face / fresh-cut cap sliver) give the
+ *  "catches the light" read with no gradient; the glow is faked with layered circles of DECREASING
+ *  radius and INCREASING opacity (largest-dimmest first). PENDING emits no glow at all — dormant
+ *  reads as the ABSENCE of light. Only the lean, the hand-hewn vertex jitter, and the moss
+ *  placement are seeded; the stone is the same object family in every state — only its carved
+ *  sigil's light carries the verdict. */
+function standingStoneMarks(state: MarkerState, k: number): SceneNode[] {
   const r1 = (n: number): number => Number(n.toFixed(2));
   const pt = (x: number, y: number): string => `${f(x)},${f(y)}`;
-  const leanX = (rand01(k) - 0.5) * 1.4;
+  // hand-hewn irregularity: every vertex nudges a little, deterministically per (k, state).
+  const jx = (n: number): number => rand01(k + n) - 0.5;
+  const leanTop = jx(0) * 3.4; // the whole monolith leans a touch off true vertical
+  const leanAt = (y: number): number => leanTop * (-y / 43.5); // more lean higher up (base planted)
 
-  const marks: SceneNode[] = [ellipse(0.6, 1, 10.5, 2.6, { kind: 'shadow' })];
-
-  // stone plinth — a tapered trapezoid split into a light-left / dark-right facet pair (the same
-  // two-facet cel-shading idiom the parcel flora / crown use).
-  marks.push(
-    polygon(
-      [pt(-BRAZIER_PLINTH_BOTTOM_W / 2, 0), pt(0, 0), pt(0, -BRAZIER_PLINTH_H), pt(-BRAZIER_PLINTH_TOP_W / 2, -BRAZIER_PLINTH_H)].join(' '),
-      { kind: 'brazier-plinth', variant: 0 },
-    ),
-    polygon(
-      [pt(0, 0), pt(BRAZIER_PLINTH_BOTTOM_W / 2, 0), pt(BRAZIER_PLINTH_TOP_W / 2, -BRAZIER_PLINTH_H), pt(0, -BRAZIER_PLINTH_H)].join(' '),
-      { kind: 'brazier-plinth', variant: 1 },
-    ),
-  );
-  // two mortar-band accents (pure geometry — width tapers to track the plinth).
-  for (const t of [0.35, 0.7]) {
-    const y = -BRAZIER_PLINTH_H * t;
-    const w = BRAZIER_PLINTH_BOTTOM_W + (BRAZIER_PLINTH_TOP_W - BRAZIER_PLINTH_BOTTOM_W) * t;
-    marks.push(rect(-w / 2, y - 0.4, w, 0.8, 0.3, { kind: 'brazier-plinth-band', opacity: 0.5 }));
-  }
-
-  // iron collar — the join between stone stand and metal dish.
-  const collarY = -BRAZIER_PLINTH_H;
-  marks.push(
-    rect(-BRAZIER_BOWL_FOOT_W / 2, collarY - BRAZIER_COLLAR_H, BRAZIER_BOWL_FOOT_W, BRAZIER_COLLAR_H, 0.5, {
-      kind: 'brazier-collar',
-    }),
-  );
-
-  // the dish — a wide flared trapezoid (light-left / dark-right facets again), capped with a rim
-  // ellipse and a darker interior ellipse (the coal bed's basin).
-  const footY = collarY - BRAZIER_COLLAR_H;
-  const rimY = footY - BRAZIER_BOWL_H;
-  marks.push(
-    polygon(
-      [pt(-BRAZIER_BOWL_FOOT_W / 2, footY), pt(0, footY), pt(0, rimY), pt(-BRAZIER_BOWL_RIM_W / 2, rimY)].join(' '),
-      { kind: 'brazier-bowl', variant: 0 },
-    ),
-    polygon(
-      [pt(0, footY), pt(BRAZIER_BOWL_FOOT_W / 2, footY), pt(BRAZIER_BOWL_RIM_W / 2, rimY), pt(0, rimY)].join(' '),
-      { kind: 'brazier-bowl', variant: 1 },
-    ),
-    ellipse(leanX * 0.15, rimY, BRAZIER_BOWL_RIM_W / 2 + 0.4, 2.6, { kind: 'brazier-bowl-rim' }),
-    ellipse(leanX * 0.15, rimY + 0.35, BRAZIER_BOWL_RIM_W / 2 - 1.8, 1.7, { kind: 'brazier-bowl-interior' }),
-  );
-
-  // the coal bed — always present (a brazier without fuel would read as a prop, not a fixture);
-  // PROVEN/FAILING mix glowing embers among the cold lumps, PENDING is coal alone.
-  const bedY = rimY + 0.3;
-  for (let i = 0; i < 8; i++) {
-    const rx = (rand01(k + 10 + i) - 0.5) * (BRAZIER_BOWL_RIM_W - 3.5);
-    const ry = (rand01(k + 30 + i) - 0.5) * 1.9;
-    const r = 0.9 + rand01(k + 50 + i) * 0.75;
-    marks.push(circle(r1(rx), r1(bedY + ry), r1(r), { kind: 'brazier-coal', variant: i % 2 }));
-  }
-  if (state !== 'pending') {
-    for (let i = 0; i < 4; i++) {
-      const rx = (rand01(k + 70 + i) - 0.5) * (BRAZIER_BOWL_RIM_W - 8);
-      const ry = (rand01(k + 90 + i) - 0.5) * 1.2;
-      const r = 0.55 + rand01(k + 110 + i) * 0.45;
-      marks.push(circle(r1(rx), r1(bedY + ry - 0.3), r1(r), { kind: 'brazier-ember' }));
-    }
-  }
-
-  if (state === 'pending') return marks;
-
-  const failing = state === 'failing';
-  // FAILING leans hard to one side and stands shorter — a guttering flame caught mid-flicker, not a
-  // controlled upright one. PROVEN stands tall and true.
-  const tilt = failing ? 4.6 + (rand01(k + 2) - 0.5) * 1.4 : (rand01(k + 2) - 0.5) * 1.0;
-  const scale = failing ? 0.66 : 1;
-  const baseY = bedY - 0.2;
-
-  // the fake-radial glow — sized to the flame's own envelope, never a giant sun-halo: a brazier's
-  // glow pools close around the fire. Largest-dimmest-first layered circles (the lantern recipe) so
-  // the bowl/coal silhouette stays visible through the light; FAILING's alarm glow reads tighter and
-  // dimmer than PROVEN's generous warm halo.
-  const glowCy = baseY - 16.5 * scale * 0.4;
-  marks.push(
-    ellipse(r1(leanX + tilt * 0.3), r1(bedY + 0.4), r1(7 * scale + 2), r1(2.6 * scale), {
-      kind: 'brazier-glow',
-      opacity: failing ? 0.2 : 0.26,
-    }),
-  );
-  const glowLayers: Array<[radius: number, opacity: number]> = [
-    [10 * scale + 2, 0.09],
-    [7.5 * scale + 1.5, 0.15],
-    [5 * scale + 1, 0.24],
-    [3 * scale + 0.5, 0.36],
+  // the silhouette: a gently-tapered blocky slab (base ~14u, chipped top ~6u) — weighty, not a needle.
+  const raw: Array<[number, number]> = [
+    [-7.2, 0],
+    [-8.0 + jx(1) * 0.6, -5],
+    [-6.6 + jx(2) * 0.6, -16],
+    [-6.0 + jx(3) * 0.6, -27],
+    [-5.0 + jx(4) * 0.6, -35],
+    [-3.6 + jx(5) * 0.5, -40],
+    [-1.6 + jx(6) * 0.7, -43.5], // left corner of the chipped top
+    [4.6 + jx(7) * 0.7, -39.5], // right corner of the chipped top (a wide, near-flat break)
+    [6.2 + jx(8) * 0.6, -35],
+    [7.0 + jx(9) * 0.6, -27],
+    [7.4 + jx(10) * 0.6, -16],
+    [7.0 + jx(11) * 0.6, -5],
+    [6.8, 0],
   ];
-  for (const [radius, opacity] of glowLayers) {
-    marks.push(circle(r1(leanX + tilt * 0.4), r1(glowCy), r1(radius), { kind: 'brazier-glow', opacity }));
-  }
+  const sil = raw.map(([x, y]) => [x + leanAt(y), y] as const);
+  const bodyPts = sil.map(([x, y]) => pt(x, y)).join(' ');
 
-  // side tongues drawn FIRST (they sit behind the main flame), then the main outer → mid → core
-  // tongues on top — the classic layered bicolour flame. PROVEN's tongues are smooth calm curves;
-  // FAILING's carry the torn `notch` silhouette cue so "wrong" reads even without colour.
-  if (!failing) {
-    marks.push(
-      path(flamePath(leanX - 3.4, baseY, 9.4, 3.8, tilt - 1.3), { kind: 'brazier-flame', variant: 0, opacity: 0.92 }),
-      path(flamePath(leanX + 3.2, baseY, 8.7, 3.6, tilt + 1.1), { kind: 'brazier-flame', variant: 0, opacity: 0.92 }),
-    );
-  } else {
-    // a single detached flicker spike off to the guttering side.
-    marks.push(
-      path(flamePath(leanX + tilt * 1.5, baseY, 5.6, 2.2, tilt * 1.9 + (rand01(k + 4) - 0.5) * 1.4, true), {
-        kind: 'brazier-flame',
-        variant: 0,
-        opacity: 0.85,
+  // the lit face (right/front ~55%): shares the body's right edge + both top corners so it seams —
+  // the two-tone cel-shaded read (crown-lo/crown-hi precedent).
+  const centreRaw: Array<[number, number]> = [
+    [-0.6 + jx(12) * 0.5, 0],
+    [-0.7 + jx(13) * 0.5, -16],
+    [-0.3 + jx(14) * 0.5, -27],
+    [0.3 + jx(15) * 0.4, -35],
+  ];
+  const centre = centreRaw.map(([x, y]) => [x + leanAt(y), y] as const);
+  const apexL = sil[6]!;
+  const apexR = sil[7]!;
+  const facePts = [
+    ...centre.map(([x, y]) => pt(x, y)),
+    pt(apexL[0], apexL[1]),
+    pt(apexR[0], apexR[1]),
+    ...sil.slice(8).map(([x, y]) => pt(x, y)),
+  ].join(' ');
+
+  // the bright top-cut sliver: a fresh-hewn face catching the most light, just inside the break.
+  const capPts = [
+    pt(apexL[0], apexL[1]),
+    pt(apexR[0], apexR[1]),
+    pt(apexR[0] - 1.0, apexR[1] + 1.4),
+    pt(apexL[0] + 0.6, apexL[1] + 1.6),
+  ].join(' ');
+
+  // the carved sigil — a Gebo-cross rune (an X plus a vertical stem through the crossing): symmetric,
+  // so it reads as a CARVED MARK at map scale and never a directional arrow (the review's up-arrow
+  // fix). The SAME glyph in every state; only the light it casts changes.
+  const runeCx = 0.7 + leanAt(-27);
+  const runeCy = -27;
+  const runeD =
+    `M ${f(runeCx - 3)} ${f(runeCy - 4)} L ${f(runeCx + 3)} ${f(runeCy + 4)} ` +
+    `M ${f(runeCx + 3)} ${f(runeCy - 4)} L ${f(runeCx - 3)} ${f(runeCy + 4)} ` +
+    `M ${f(runeCx)} ${f(runeCy - 5)} L ${f(runeCx)} ${f(runeCy + 5)}`;
+
+  // the weathering crack: a hairline fissure from the sigil down to the moss — always present; lit as
+  // a vein of light only when proven/failing (how the glow reaches the ground).
+  const crackD =
+    `M ${f(runeCx - 0.4)} ${f(runeCy + 3)} ` +
+    `C ${f(runeCx - 1.6)} ${f(runeCy + 9)}, ${f(runeCx + 0.8)} ${f(runeCy + 13)}, ${f(runeCx - 0.6 + leanAt(-8))} -8 ` +
+    `C ${f(runeCx - 1.2 + leanAt(-3))} -5, ${f(runeCx + 0.4)} -2, ${f(0.4)} 0`;
+
+  const marks: SceneNode[] = [
+    ellipse(0.6, 0.7, 8.2, 2.5, { kind: 'shadow' }),
+    // moss clumps hug the foot — always present, unlit (the stone's age, not its verdict).
+    ellipse(-5.6 + jx(16) * 1.2, -0.4, 4.6, 2.2, { kind: 'standing-stone-moss', opacity: 0.92 }),
+    ellipse(4.3 + jx(17) * 1.2, -0.2, 3.7, 1.8, { kind: 'standing-stone-moss', opacity: 0.85 }),
+    ...[0, 1, 2].map((i) =>
+      circle(-2 + jx(18 + i) * 9, -0.6 - rand01(k + 27 + i) * 1.4, 0.8 + rand01(k + 24 + i) * 0.6, {
+        kind: 'standing-stone-moss-fleck',
       }),
+    ),
+    polygon(bodyPts, { kind: 'standing-stone-body' }),
+    polygon(facePts, { kind: 'standing-stone-face' }),
+    polygon(capPts, { kind: 'standing-stone-cap' }),
+    path(crackD, { kind: 'standing-stone-crack', strokeWidth: 0.8 }),
+  ];
+
+  if (state !== 'pending') {
+    const scale = state === 'proven' ? 1 : 0.84; // failing reads tighter/hotter than proven's bloom
+    const layers: Array<[radius: number, opacity: number]> = [
+      [15.5 * scale, 0.08],
+      [11.5 * scale, 0.14],
+      [7.8 * scale, 0.22],
+      [4.8 * scale, 0.34],
+      [2.4 * scale, 0.52],
+    ];
+    for (const [radius, opacity] of layers) {
+      marks.push(
+        circle(runeCx, runeCy, r1(radius), { kind: 'standing-stone-glow', opacity: r1(opacity) }),
+      );
+    }
+    // the vein of light down the crack to the moss — STATIC (not in the breathe set: the review
+    // caught that scaling this long path drifts its endpoints; only the circular glow layers breathe).
+    marks.push(path(crackD, { kind: 'standing-stone-crack-glow', strokeWidth: 1.1, opacity: 0.75 }));
+    // a small ground-pool wash where the lit crack meets the moss.
+    marks.push(
+      ellipse(0.4, 0.4, r1(4.4 * scale), r1(1.5 * scale), { kind: 'standing-stone-glow', opacity: 0.16 }),
     );
   }
-  const mainH = failing ? 11 : 16.5;
-  const mainW = failing ? 5.2 : 6.8;
-  marks.push(path(flamePath(leanX, baseY, mainH, mainW, tilt, failing), { kind: 'brazier-flame', variant: 0 }));
-  marks.push(
-    path(flamePath(leanX, baseY, mainH * 0.72, mainW * 0.68, tilt * 1.15 + (rand01(k + 3) - 0.5) * 0.8, failing), {
-      kind: 'brazier-flame',
-      variant: 1,
-    }),
-  );
-  marks.push(
-    path(flamePath(leanX, baseY, mainH * 0.42, mainW * 0.4, tilt * 1.3 + (rand01(k + 5) - 0.5) * 0.6), {
-      kind: 'brazier-flame',
-      variant: 2,
-    }),
-  );
 
-  if (!failing) {
-    // rising sparks — small warm motes above the flame tip (PROVEN only: an alive fire throws
-    // embers, a guttering one doesn't).
-    const tipY = baseY - mainH;
-    for (let i = 0; i < 3; i++) {
-      const sx = leanX + tilt + (rand01(k + 120 + i) - 0.5) * 8;
-      const sy = tipY - 2 - rand01(k + 140 + i) * 6.5;
-      marks.push(circle(r1(sx), r1(sy), r1(0.55 + rand01(k + 160 + i) * 0.4), { kind: 'brazier-spark' }));
-    }
-  } else {
-    // guttering smoke — irregular dark wisps rising off the stunted flame, decreasing
-    // radius/opacity with height (the alarm's visual "wrongness").
-    const tipY = baseY - mainH;
-    for (let i = 0; i < 3; i++) {
-      const sx = leanX + tilt * 1.4 + (rand01(k + 180 + i) - 0.5) * 5 + i * 1.4;
-      const sy = tipY - 1 - i * 4.2 - rand01(k + 200 + i) * 2;
-      const r = 2.4 - i * 0.5;
-      marks.push(ellipse(r1(sx), r1(sy), r1(r), r1(r * 0.75), { kind: 'brazier-smoke', opacity: r1(0.32 - i * 0.07) }));
-    }
+  if (state === 'proven') {
+    // owner-approved gold language: a couple of stray sparks drifting off the sigil.
+    marks.push(
+      circle(runeCx - 4.2, runeCy - 3.4, 0.9, { kind: 'standing-stone-spark' }),
+      circle(runeCx + 3.6, runeCy + 2.6, 0.7, { kind: 'standing-stone-spark' }),
+      circle(runeCx + 1.4, runeCy - 6.2, 0.6, { kind: 'standing-stone-spark' }),
+    );
   }
 
+  // the sigil drawn last so it sits crisp on top of its own glow.
+  marks.push(path(runeD, { kind: 'standing-stone-rune', strokeWidth: 1.3 }));
   return marks;
 }
 
-/** The island's UAT marker walk as one painter-anchored drawable (`y` = the shore end, so the walk
- *  paints in front of the tree it approaches). Null when `uatCriteria` is absent or empty — the
- *  byte-for-byte absence path (the public website never sends it). */
-function buildUatWalk(t: SceneTerritoryInput): { y: number; node: SceneG } | null {
+/** The island's UAT markers as INDIVIDUAL y-sorted drawables — one standing-stone per criterion,
+ *  scattered deterministically (owner call 2026-07-18: no path). Each stone is its own painter
+ *  entry so it interleaves honestly with the tree + flora by depth. Placement: per-criterion
+ *  id-seeded polar samples inside the island (radius 0.30–0.80·R, the wisp-orbit 0.7 y-squash),
+ *  re-drawn up to 12 times to clear the tree well (which also covers the signpost beside it), the
+ *  nameplate band, and previously-placed stones — deterministic rejection sampling: same input ⇒
+ *  the same spots, and a failed clearance after 12 draws keeps the last sample rather than dropping
+ *  the stone (every criterion ALWAYS renders). Empty/absent `uatCriteria` ⇒ nothing (the
+ *  byte-for-byte absence path — the public website never sends it). */
+function buildUatMarkers(t: SceneTerritoryInput): Array<{ y: number; node: SceneG }> {
   const criteria = t.uatCriteria ?? [];
-  if (!criteria.length) return null;
-  // the same crown radius the tree wears (young form folded in) — the trailhead tracks the signpost.
-  const withered = t.status === 'unhealthy';
-  const young = !withered && (t.status === 'proposed' || t.caps === 0);
-  const R = crownRadius(t.caps) * (young ? 0.62 : 1);
-  const k = hash(`${t.id}:uat-walk`);
-  // the trailhead: just south of the signpost seal (`translate(R·0.7 + 9, 0)` off treeSpot).
-  const p1: Pt = { x: t.treeSpot.x + R * 0.7 + 9, y: t.treeSpot.y + 8 };
-  // the approach: the south coast, biased toward the signpost's (east) side, id-seeded jitter.
-  const p0: Pt = {
-    x: t.centroid.x + t.radius * 0.3 + (rand01(k) - 0.5) * t.radius * 0.3,
-    y: t.centroid.y + t.radius * 0.82,
-  };
-  // the spike's shore→tree cubic ratios: c1 bows outward off the shore, c2 sweeps into the trailhead.
-  const dx = p0.x - p1.x;
-  const dy = p0.y - p1.y;
-  const c1: Pt = { x: p0.x + dx * 0.21 + (rand01(k + 1) - 0.5) * 8, y: p0.y - dy * 0.32 };
-  const c2: Pt = { x: p1.x + dx * 0.55 + (rand01(k + 2) - 0.5) * 8, y: p1.y + dy * 0.26 };
-  const at = (tt: number): Pt => {
-    const u = 1 - tt;
-    return {
-      x: u * u * u * p0.x + 3 * u * u * tt * c1.x + 3 * u * tt * tt * c2.x + tt * tt * tt * p1.x,
-      y: u * u * u * p0.y + 3 * u * u * tt * c1.y + 3 * u * tt * tt * c2.y + tt * tt * tt * p1.y,
-    };
-  };
-  const tanAt = (tt: number): Pt => {
-    const u = 1 - tt;
-    const tx = 3 * u * u * (c1.x - p0.x) + 6 * u * tt * (c2.x - c1.x) + 3 * tt * tt * (p1.x - c2.x);
-    const ty = 3 * u * u * (c1.y - p0.y) + 6 * u * tt * (c2.y - c1.y) + 3 * tt * tt * (p1.y - c2.y);
-    const len = Math.hypot(tx, ty) || 1;
-    return { x: tx / len, y: ty / len };
-  };
-  // NO visible trail-bed drawable — the cubic is a placement curve only (owner call 2026-07-18:
-  // the bed clashed with the inter-island trail network; alignment is a later increment).
-  const children: SceneNode[] = [];
-  // spacing: the spike's t = 0.14 + i·0.18, compressed over the available range when many criteria
-  // would overrun the trailhead — every marker stays inside t ∈ [0.14, 0.86].
-  const step = criteria.length <= 1 ? 0 : Math.min(0.18, 0.72 / (criteria.length - 1));
-  criteria.forEach((c, i) => {
-    const tt = 0.14 + i * step;
-    const pt = at(tt);
-    const tan = tanAt(tt);
-    const side = i % 2 ? 1 : -1; // alternating perpendicular sides (the spike's placement)
-    const x = pt.x - tan.y * 12 * side;
-    const y = pt.y + tan.x * 12 * side * 0.7; // top-down squash on y, same as the wisp orbit
+  if (!criteria.length) return [];
+  const placed: Pt[] = [];
+  const out: Array<{ y: number; node: SceneG }> = [];
+  criteria.forEach((c) => {
+    const k = hash(`${t.id}:marker:${c.id}`);
+    let x = t.centroid.x;
+    let y = t.centroid.y;
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const ang = rand01(k + attempt * 2) * Math.PI * 2;
+      const rr = (0.3 + rand01(k + attempt * 2 + 1) * 0.5) * t.radius;
+      x = t.centroid.x + Math.cos(ang) * rr;
+      y = t.centroid.y + Math.sin(ang) * rr * 0.7; // top-down squash, same as the wisp orbit
+      const clearsTree = Math.hypot(x - t.treeSpot.x, y - t.treeSpot.y) > 42;
+      const clearsPlate = y < t.labelY - 14;
+      const clearsOthers = placed.every((p) => Math.hypot(x - p.x, y - p.y) > 22);
+      if (clearsTree && clearsPlate && clearsOthers) break;
+    }
+    placed.push({ x, y });
     const kind: SceneKind =
       c.state === 'proven'
-        ? 'brazier-proven'
+        ? 'standing-stone-proven'
         : c.state === 'failing'
-          ? 'brazier-failing'
-          : 'brazier-pending';
-    children.push(
-      // the 0.9 scale is the design review's walk-density trim: it narrows the ~21u dish below the
-      // 12u lateral offset's collision envelope and keeps a many-criterion walk from collectively
-      // out-shouting the tree, while bare PENDING (~26u) still clears the ~24.5u signpost.
-      g(brazierMarks(c.state, hash(`${t.id}:marker:${c.id}`)), {
+          ? 'standing-stone-failing'
+          : 'standing-stone-pending';
+    out.push({
+      y,
+      node: g(standingStoneMarks(c.state, k), {
         kind,
         id: c.id,
-        transform: `translate(${f(x)} ${f(y)}) scale(0.9)`,
+        transform: `translate(${f(x)} ${f(y)})`,
       }),
-    );
+    });
   });
-  return { y: p0.y, node: g(children, { kind: 'uat-walk' }) };
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -2130,10 +2039,9 @@ export function buildTerritoryFlora(
     for (const plant of t.plants) drawables.push({ y: plant.y, node: buildPlant(plant) });
   }
   drawables.push({ y: t.treeSpot.y, node: buildTree(t) });
-  // the UAT marker walk (forest-parcels inc 2) — anchored at its shore end, so the walk + markers
-  // paint in front of the tree they approach. Absent/empty uatCriteria ⇒ nothing (the absence lock).
-  const uatWalk = buildUatWalk(t);
-  if (uatWalk) drawables.push(uatWalk);
+  // the UAT markers (forest-parcels inc 2) — each scattered stone is its OWN y-sorted drawable so
+  // it interleaves with the tree + flora by depth. Absent/empty uatCriteria ⇒ nothing (the lock).
+  drawables.push(...buildUatMarkers(t));
   drawables.sort((a, b) => a.y - b.y);
 
   const children: SceneNode[] = drawables.map((d) => d.node);
