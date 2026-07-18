@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded
 decided: 2026-07-02
 ---
 # ADR-0134: Public website as a two-act vibe-coding experience: terminal storm to a calm guided forest
@@ -8,14 +8,20 @@ decided: 2026-07-02
 
 ## Status
 
-accepted (2026-07-02) — the owner declared the two-act design settled at the act1-terminal-storm
+superseded (2026-07-19) by
+[ADR-0215](0215-public-website-story-frame-two-act-experience-is-the-entire.md) — website-story
+frame authority consolidates there (with 0167/0172). Historical decision text below is unchanged.
+Act 1 choreography awaits a sibling Act 1 consolidating ADR; Act 2 stays on
+[ADR-0213](0213-act-2-experience-one-continuous-orchestrator-led-walk.md).
+
+~~accepted (2026-07-02) — the owner declared the two-act design settled at the act1-terminal-storm
 attestation gate: witnessed the built Act 1 storm end-to-end (boot → send/audio unlock → 12-window
 peak → dim → calm home, skip/Escape, reduced-motion calm-only), attested the cap's UAT legs 1–4, and
 directed the home flip (storytree-web PR #18, merged 2026-07-02 — the storm is now the live front
 door). Design-time alignment IS the ratification ([ADR-0110](0110-collapse-the-redundant-end-of-flow-adr-ratification.md));
 no second end-of-flow ask. Of §5's deferred items, the returning-visitor half of the replay /
 deep-link UX was decided at the same gate — **replay every visit** (skip is not remembered); whether
-Act 2 deep-links standalone and the asset/perf/mobile budget ride with the remaining Act 2 build.
+Act 2 deep-links standalone and the asset/perf/mobile budget ride with the remaining Act 2 build.~~
 *(Since decided: [ADR-0145](0145-act-2-walks-the-real-2-5d-map-the-r3f-forest-retreats-to-far.md),
 2026-07-03 — Act 2's walkthrough re-decided onto the real 2.5D map at its attestation gate, and the
 deep-link half closed: replay-only is final; and

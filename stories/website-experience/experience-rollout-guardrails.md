@@ -7,7 +7,7 @@ outcome: "A parent-side gate, check:web-experience (the check:web-grounding patt
 status: proposed
 proof_mode: integration-test
 depends_on: []
-decisions: [134, 123]
+decisions: [123, 215]
 # Node-borne proof config (ADR-0057 keystone). NET-NEW: the leaf authors a node:test file importing a
 # NOT-YET-EXISTING pure judge module (packages/cli/src/web-experience-check.ts) — red =
 # module-not-found at HEAD — then writes the judge (green). The judge is PURE (file-path → content

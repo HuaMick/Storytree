@@ -40,15 +40,13 @@ depends_on: [forest-world, website, cli]
 # becomes a real package import.
 artifact_edges: [website, cli]
 consumed_by: []
-# Deciding ADRs (ADR-0037 §2): the experience concept + the per-act tech split and the owner
-# decisions of 2026-07-02 that unpacked it (134); the renderer — R3F + drei as the THIRD
-# forest-world mapper, client-only island, mandatory fallback, package home delegated to this
-# story (123); the shared render core + the sync-into-submodule artifact flow the mapper joins (93);
-# Act 2 experience authority consolidates as ADR-0213 (supersedes 145/148/150/153/157/165 —
-# website-first continuous walk, growing diagram, BaaS diamond, real UI, studio zoom-out); the
-# signed info-page disposition set + Keystatic retirement remains 167. Website-story (134) and
-# Act 1 framing stay on their own ADRs until those consolidations land.
-decisions: [93, 123, 134, 167, 213]
+# Deciding ADRs (ADR-0037 §2): the shared render core + sync-into-submodule artifact flow (93);
+# the renderer — R3F + drei as the THIRD forest-world mapper, client-only island, mandatory
+# fallback, package home delegated to this story (123); website-story frame consolidates as
+# ADR-0215 (supersedes 134/167/172 — two-act pitch, experience-is-the-site, diorama/boundary,
+# a11y-only escapes, replay-only); Act 2 experience authority consolidates as ADR-0213
+# (supersedes 145/148/150/153/157/165). Act 1 choreography awaits its consolidating ADR.
+decisions: [93, 123, 213, 215]
 ---
 
 # The two-act vibe-coding experience — the public site's front door enacts chaos → calm
@@ -58,17 +56,15 @@ retro terminal breeds an illegible agent storm, one calm tap collapses the noise
 same single gesture then grows a legible, proof-bearing forest beat by beat to the CTA — with the
 skip and reduced-motion/no-WebGL exits first-class from the first live increment.
 
-This is [ADR-0134](../../docs/decisions/0134-public-website-as-a-two-act-vibe-coding-experience-terminal.md)'s
-experience concept made buildable, on the guiding idea the ADR fixes: **one calm gesture per act —
+This is [ADR-0215](../../docs/decisions/0215-public-website-story-frame-two-act-experience-is-the-entire.md)'s
+website-story frame made buildable, on the guiding idea the frame fixes: **one calm gesture per act —
 same input, opposite outcome.** In Act 1 the visitor's single tap (send a prompt) breeds chaos; in
-Act 2 the visitor's single tap (advance) grows order. The evidence base for what the storm screams
-and what the forest answers is
+Act 2 the visitor's single tap (advance) grows order. Act 2 detail lives on
+[ADR-0213](../../docs/decisions/0213-act-2-experience-one-continuous-orchestrator-led-walk.md). The
+evidence base for what Act 1 dramatizes and what the forest answers is
 [docs/research/vibe-coding-gripes-2026.md](../../docs/research/vibe-coding-gripes-2026.md) — its
 five-row beat table is the ORIGIN of the Act 2 spine, carried into `act2-beat-director` and
-`act2-guided-walkthrough` (increment G, live). ADR-0150 (2026-07-04) then reframes beat 4 — the
-wrong-way road retired as the teach, replaced by the dependency-layer-as-advantage — and extends the
-spine UPSTREAM (the backend + database beats of increment H), so the shipped arc grows past the
-original five rows rather than reproducing them verbatim.
+`act2-guided-walkthrough` (increment G, live).
 
 - **Act 1 — the storm.** One retro CRT terminal, already logged into a coding agent. The visitor
   sends ONE prompt (suggested chip or typed — the gesture also unlocks audio). The agent "thinks,"

@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded
 decided: 2026-07-07
 amends: [134, 165, 167]
 ---
@@ -7,7 +7,11 @@ amends: [134, 165, 167]
 
 ## Status
 
-accepted (2026-07-07) — decided/directed by the owner in conversation on 2026-07-07. Design-time
+superseded (2026-07-19) by
+[ADR-0215](0215-public-website-story-frame-two-act-experience-is-the-entire.md) — website-story
+frame authority consolidates there (with 0134/0167). Historical decision text below is unchanged.
+
+~~accepted (2026-07-07) — decided/directed by the owner in conversation on 2026-07-07. Design-time
 alignment IS the ratification ([ADR-0110](0110-collapse-the-redundant-end-of-flow-adr-ratification.md));
 no second end-of-flow ask. Recorded verbatim (the direction, then the confirmed scope):
 
@@ -26,7 +30,7 @@ This is a NEW ADR, not an in-place edit of the ADRs it amends (copy-on-write, AD
 of 134/165/167 stay as history, with a dated forward pointer added at each amended point by the librarian
 pass (checklist below). It carries **no `supersedes` edge** — ADR-0101 (the hosted editor) was already
 superseded by ADR-0167; this ADR re-decides the KEEP rows of ADR-0167's disposition set and overtakes one
-accepted default of ADR-0165, while the rest of both stand.
+accepted default of ADR-0165, while the rest of both stand.~~
 
 ## Context
 

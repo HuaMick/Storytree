@@ -7,7 +7,7 @@ outcome: "Every legacy informational page (how-it-works, roadmap, landscape, con
 status: proposed
 proof_mode: operator-attested
 depends_on: [act2-guided-walkthrough, act2-guided-forest]
-decisions: [134, 167, 172]
+decisions: [215]
 # OPERATOR-ATTESTED, human witness — owner decision 5 (2026-07-02) names the triage itself as
 # owner-attested CONTENT work: which page folds, which dies, and which stays is editorial judgement
 # about the site's voice, not a machine call. The machine floor it must leave green already exists:
