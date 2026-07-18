@@ -1,0 +1,371 @@
+<svg viewBox="0 0 480 460" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="minka-ground" cx="44%" cy="38%" r="78%">
+      <stop offset="0" stop-color="#d2ccb6"/>
+      <stop offset="55%" stop-color="#a9a591"/>
+      <stop offset="100%" stop-color="#787868"/>
+    </radialGradient>
+    <linearGradient id="minka-moss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#57a668"/>
+      <stop offset="100%" stop-color="#347544"/>
+    </linearGradient>
+    <linearGradient id="minka-earth" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6d4e38"/>
+      <stop offset="100%" stop-color="#38281c"/>
+    </linearGradient>
+    <linearGradient id="minka-roof" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#517091"/>
+      <stop offset="42%" stop-color="#334a63"/>
+      <stop offset="100%" stop-color="#1c2938"/>
+    </linearGradient>
+    <linearGradient id="minka-roofhip" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a3c52"/>
+      <stop offset="100%" stop-color="#141e2b"/>
+    </linearGradient>
+    <linearGradient id="minka-wallL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#cdb994"/>
+      <stop offset="100%" stop-color="#a68e67"/>
+    </linearGradient>
+    <linearGradient id="minka-wallR" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9c855f"/>
+      <stop offset="100%" stop-color="#7a6547"/>
+    </linearGradient>
+    <linearGradient id="minka-timber" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4d3826"/>
+      <stop offset="100%" stop-color="#2a1c11"/>
+    </linearGradient>
+    <linearGradient id="minka-deck" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8a6a49"/>
+      <stop offset="100%" stop-color="#5f4530"/>
+    </linearGradient>
+    <radialGradient id="minka-shoji" cx="50%" cy="45%" r="65%">
+      <stop offset="0" stop-color="#fff5d2"/>
+      <stop offset="62%" stop-color="#ffdd85"/>
+      <stop offset="100%" stop-color="#eec05b"/>
+    </radialGradient>
+    <radialGradient id="minka-shojiDim" cx="50%" cy="45%" r="65%">
+      <stop offset="0" stop-color="#f2d79a"/>
+      <stop offset="100%" stop-color="#b98f52"/>
+    </radialGradient>
+    <radialGradient id="minka-lanternGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#fff7db" stop-opacity="0.95"/>
+      <stop offset="45%" stop-color="#ffd873" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#ffb43c" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="minka-lanternBody" cx="42%" cy="38%" r="70%">
+      <stop offset="0" stop-color="#fff3c4"/>
+      <stop offset="68%" stop-color="#ffcc5c"/>
+      <stop offset="100%" stop-color="#f0a23c"/>
+    </radialGradient>
+    <radialGradient id="minka-halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#ffe1a0" stop-opacity="0.42"/>
+      <stop offset="100%" stop-color="#ffe1a0" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="minka-wisp" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#fff6d4"/>
+      <stop offset="40%" stop-color="#ffe08a" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#ffd76e" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="minka-soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+    <filter id="minka-glow" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="3.4"/>
+    </filter>
+    <filter id="minka-glow2" x="-90%" y="-90%" width="280%" height="280%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+    <clipPath id="minka-gravelclip">
+      <polygon points="240,286 428,352 240,418 52,352"/>
+    </clipPath>
+  </defs>
+
+  <!-- soft magical ground haze -->
+  <ellipse cx="240" cy="238" rx="150" ry="120" fill="url(#minka-halo)"/>
+
+  <!-- ground shadow -->
+  <ellipse cx="242" cy="432" rx="176" ry="44" fill="#05080a" opacity="0.6" filter="url(#minka-soft)"/>
+
+  <!-- ===== ISOMETRIC GROUND TILE ===== -->
+  <!-- earth sides -->
+  <polygon points="28,352 240,442 240,458 28,368" fill="url(#minka-earth)"/>
+  <polygon points="240,442 452,352 452,368 240,458" fill="#2c1f15"/>
+  <line x1="28" y1="360" x2="240" y2="450" stroke="#4a3524" stroke-width="1" opacity="0.5"/>
+  <line x1="452" y1="360" x2="240" y2="450" stroke="#1d140d" stroke-width="1" opacity="0.6"/>
+  <!-- moss top -->
+  <polygon points="240,262 452,352 240,442 28,352" fill="url(#minka-moss)"/>
+  <polygon points="240,262 452,352 240,442 28,352" fill="none" stroke="#6cc47e" stroke-width="1.2" opacity="0.5"/>
+  <!-- gravel bed -->
+  <polygon points="240,286 428,352 240,418 52,352" fill="url(#minka-ground)"/>
+
+  <!-- raked gravel + garden (clipped) — ellipse ratios flattened to the tile's iso foreshortening -->
+  <g clip-path="url(#minka-gravelclip)" opacity="0.85">
+    <g fill="none" stroke="#e2ddc8" stroke-width="1.6" opacity="0.55">
+      <ellipse cx="196" cy="374" rx="28" ry="9.8"/>
+      <ellipse cx="196" cy="374" rx="46" ry="16.1"/>
+      <ellipse cx="196" cy="374" rx="64" ry="22.5"/>
+      <ellipse cx="196" cy="374" rx="82" ry="28.8"/>
+      <ellipse cx="196" cy="374" rx="100" ry="35.1"/>
+    </g>
+    <g fill="none" stroke="#c9c3ad" stroke-width="1.2" opacity="0.45">
+      <ellipse cx="196" cy="374" rx="37" ry="13"/>
+      <ellipse cx="196" cy="374" rx="55" ry="19.3"/>
+      <ellipse cx="196" cy="374" rx="73" ry="25.6"/>
+      <ellipse cx="196" cy="374" rx="91" ry="31.9"/>
+    </g>
+    <g fill="none" stroke="#e2ddc8" stroke-width="1.5" opacity="0.5">
+      <ellipse cx="390" cy="352" rx="17" ry="6"/>
+      <ellipse cx="390" cy="352" rx="30" ry="10.5"/>
+    </g>
+  </g>
+
+  <!-- karesansui stones — foreshortened ovals matching the iso ground plane -->
+  <g>
+    <ellipse cx="196" cy="376" rx="17" ry="7.4" fill="#54514a"/>
+    <ellipse cx="193" cy="372" rx="12" ry="5.2" fill="#6f6c60"/>
+    <ellipse cx="191" cy="370" rx="6" ry="2.6" fill="#87836f" opacity="0.8"/>
+    <ellipse cx="390" cy="354" rx="13" ry="5.7" fill="#4b4841"/>
+    <ellipse cx="387" cy="351.5" rx="8" ry="3.6" fill="#646156"/>
+    <ellipse cx="126" cy="356" rx="10" ry="4.3" fill="#4f4c45"/>
+    <ellipse cx="124" cy="354" rx="6" ry="2.6" fill="#6a675c"/>
+  </g>
+
+  <!-- stepping stones to the engawa -->
+  <g>
+    <ellipse cx="230" cy="422" rx="10" ry="4.3" fill="#66624f"/>
+    <ellipse cx="229" cy="420" rx="6.5" ry="2.7" fill="#7e795f" opacity="0.6"/>
+    <ellipse cx="240" cy="430" rx="15" ry="6.5" fill="#6b6759"/>
+    <ellipse cx="240" cy="427" rx="10" ry="4" fill="#827d6c" opacity="0.7"/>
+  </g>
+
+  <!-- ===== HOUSE PLATFORM ===== -->
+  <polygon points="240,286 348,340 240,394 132,340" fill="#3a2c20"/>
+
+  <!-- ===== ENGAWA DECK (front veranda) ===== -->
+  <!-- fascia (front thickness) -->
+  <polygon points="116,351 240,414 240,424 116,361" fill="#4a3322"/>
+  <polygon points="240,414 364,351 364,361 240,424" fill="#3a2718"/>
+  <!-- deck tops -->
+  <polygon points="132,340 240,394 240,414 116,351" fill="url(#minka-deck)"/>
+  <polygon points="240,394 348,340 364,351 240,414" fill="#6f5236"/>
+  <!-- plank lines -->
+  <g stroke="#4b3521" stroke-width="1" opacity="0.55">
+    <line x1="150" y1="342" x2="234" y2="404"/>
+    <line x1="170" y1="343" x2="232" y2="396"/>
+    <line x1="190" y1="345" x2="230" y2="388"/>
+    <line x1="330" y1="342" x2="248" y2="404"/>
+    <line x1="308" y1="343" x2="250" y2="396"/>
+    <line x1="286" y1="345" x2="252" y2="388"/>
+  </g>
+  <!-- deck posts -->
+  <g stroke="#2a1c11" stroke-width="4" stroke-linecap="round">
+    <line x1="118" y1="360" x2="118" y2="378"/>
+    <line x1="240" y1="423" x2="240" y2="443"/>
+    <line x1="362" y1="360" x2="362" y2="378"/>
+  </g>
+
+  <!-- ===== WALLS ===== -->
+  <!-- left (south) wall plaster -->
+  <polygon points="132,340 240,394 240,326 132,272" fill="url(#minka-wallL)"/>
+  <!-- right (east) wall plaster (shadow) -->
+  <polygon points="240,394 348,340 348,272 240,326" fill="url(#minka-wallR)"/>
+
+  <!-- deep-eave shadow band across wall tops -->
+  <polygon points="132,272 240,326 240,337 132,283" fill="#3d3021" opacity="0.55"/>
+  <polygon points="240,326 348,272 348,283 240,337" fill="#2f2417" opacity="0.6"/>
+
+  <!-- shoji panels (left wall, glowing) -->
+  <polygon points="145,291 180,308 180,352 145,334" fill="url(#minka-shoji)"/>
+  <polygon points="186,311 221,329 221,372 186,355" fill="url(#minka-shoji)"/>
+  <!-- shoji panel warm bleed -->
+  <ellipse cx="185" cy="330" rx="60" ry="40" fill="#ffd873" opacity="0.16" filter="url(#minka-glow2)"/>
+  <!-- shoji lattice -->
+  <g stroke="#7a5a34" stroke-width="1.1" opacity="0.85">
+    <line x1="145" y1="305" x2="180" y2="323"/>
+    <line x1="145" y1="319" x2="180" y2="337"/>
+    <line x1="162" y1="299" x2="162" y2="343"/>
+    <line x1="186" y1="325" x2="221" y2="343"/>
+    <line x1="186" y1="340" x2="221" y2="358"/>
+    <line x1="203" y1="320" x2="203" y2="363"/>
+  </g>
+  <!-- shoji frames -->
+  <polygon points="145,291 180,308 180,352 145,334" fill="none" stroke="#3f2c1a" stroke-width="2"/>
+  <polygon points="186,311 221,329 221,372 186,355" fill="none" stroke="#3f2c1a" stroke-width="2"/>
+
+  <!-- right wall small window (dim glow) -->
+  <polygon points="289,312 321,296 321,326 289,342" fill="url(#minka-shojiDim)"/>
+  <g stroke="#5c4327" stroke-width="1" opacity="0.8">
+    <line x1="305" y1="304" x2="305" y2="334"/>
+    <line x1="289" y1="327" x2="321" y2="311"/>
+  </g>
+  <polygon points="289,312 321,296 321,326 289,342" fill="none" stroke="#332414" stroke-opacity="0.5" stroke-width="1.6"/>
+
+  <!-- timber frame -->
+  <g stroke="url(#minka-timber)" stroke-width="6" stroke-linecap="square" fill="none">
+    <line x1="132" y1="272" x2="132" y2="340"/>
+    <line x1="348" y1="272" x2="348" y2="340"/>
+  </g>
+  <g stroke="url(#minka-timber)" stroke-width="7" stroke-linecap="square" fill="none">
+    <line x1="240" y1="326" x2="240" y2="394"/>
+  </g>
+  <g stroke="#3a2818" stroke-width="5" fill="none">
+    <line x1="132" y1="272" x2="240" y2="326"/>
+    <line x1="240" y1="326" x2="348" y2="272"/>
+    <line x1="132" y1="340" x2="240" y2="394"/>
+    <line x1="240" y1="394" x2="348" y2="340"/>
+    <line x1="132" y1="306" x2="240" y2="360"/>
+    <line x1="240" y1="360" x2="348" y2="306"/>
+  </g>
+  <!-- head beam (purlin) seated along the wall top under the eave -->
+  <polygon points="132,270 240,324 240,330 132,276" fill="#463322"/>
+  <polygon points="240,324 348,270 348,276 240,330" fill="#33251a"/>
+  <line x1="132" y1="272" x2="240" y2="326" stroke="#5b432c" stroke-width="1.1" opacity="0.6"/>
+  <!-- warm rim on front post from lantern -->
+  <line x1="242" y1="328" x2="242" y2="392" stroke="#e6bc78" stroke-width="1.6" opacity="0.5"/>
+
+  <!-- ===== EAVE SUPPORT POSTS (deep-overhang corners) ===== -->
+  <g>
+    <!-- footing stones -->
+    <ellipse cx="88" cy="331" rx="8" ry="3.4" fill="#4a473f"/>
+    <ellipse cx="392" cy="331" rx="8" ry="3.4" fill="#403d36"/>
+    <!-- left post + capital -->
+    <polygon points="85,266 91,266 90,330 86,330" fill="url(#minka-timber)"/>
+    <polygon points="91,266 93,267 92,330 90,330" fill="#241811"/>
+    <polygon points="83,262 97,262 96,269 84,269" fill="#3a2818"/>
+    <!-- right post + capital -->
+    <polygon points="389,266 395,266 394,330 390,330" fill="url(#minka-timber)"/>
+    <polygon points="387,267 389,266 390,330 388,330" fill="#241811"/>
+    <polygon points="384,262 396,262 395,269 385,269" fill="#2f2114"/>
+  </g>
+
+  <!-- ===== ROOF ===== -->
+  <!-- back hip triangles -->
+  <polygon points="212,150 88,266 240,188" fill="url(#minka-roofhip)"/>
+  <polygon points="268,150 392,266 240,188" fill="#131d29"/>
+
+  <!-- main sweeping front slope -->
+  <path d="M212,150 L88,266 C120,330 200,352 240,346 C280,352 360,330 392,266 L268,150 Z"
+        fill="url(#minka-roof)"/>
+  <!-- hip creases -->
+  <path d="M212,150 L88,266" fill="none" stroke="#5d8fa8" stroke-width="1.4" opacity="0.4"/>
+  <path d="M268,150 L392,266" fill="none" stroke="#22303f" stroke-width="1.6" opacity="0.7"/>
+
+  <!-- warm underside glow on roof — one pool per lantern so the sources stay separate -->
+  <ellipse cx="206" cy="320" rx="58" ry="24" fill="#ffce6a" opacity="0.14" filter="url(#minka-glow2)"/>
+  <ellipse cx="352" cy="302" rx="40" ry="17" fill="#ffce6a" opacity="0.13" filter="url(#minka-glow2)"/>
+
+  <!-- tile courses following the sweep -->
+  <g fill="none" opacity="0.7">
+    <path d="M119,237 C150,290 200,303 240,297 C280,303 330,290 361,237" stroke="#5d8fa8" stroke-width="2"/>
+    <path d="M150,208 C180,244 210,254 240,248 C270,254 300,244 330,208" stroke="#4a6a86" stroke-width="1.8"/>
+    <path d="M181,179 C200,196 220,203 240,199 C260,203 280,196 299,179" stroke="#41607b" stroke-width="1.6"/>
+  </g>
+  <!-- lower tile course near eave (lit) -->
+  <path d="M104,252 C135,315 205,336 240,330 C275,336 345,315 376,252" fill="none" stroke="#6a9cb4" stroke-width="1.6" opacity="0.55"/>
+
+  <!-- vertical tile ribs near front eave -->
+  <g stroke="#1a2735" stroke-width="1" opacity="0.5">
+    <line x1="176" y1="322" x2="180" y2="298"/>
+    <line x1="196" y1="333" x2="198" y2="308"/>
+    <line x1="216" y1="340" x2="217" y2="314"/>
+    <line x1="240" y1="343" x2="240" y2="317"/>
+    <line x1="264" y1="340" x2="263" y2="314"/>
+    <line x1="284" y1="333" x2="282" y2="308"/>
+    <line x1="304" y1="322" x2="300" y2="298"/>
+  </g>
+
+  <!-- eave edge (thick tile lip) -->
+  <path d="M88,266 C120,330 200,352 240,346 C280,352 360,330 392,266" fill="none" stroke="#12202c" stroke-width="6"/>
+  <!-- warm-lit rafter hint under eave -->
+  <path d="M104,276 C132,328 202,347 240,341 C278,347 348,328 376,276" fill="none" stroke="#6a4b30" stroke-width="2.4" opacity="0.75"/>
+
+  <!-- upturned eave corners -->
+  <path d="M88,266 L74,255 L96,261 Z" fill="#1c2b3a"/>
+  <path d="M74,255 L96,261" fill="none" stroke="#6a9cb4" stroke-width="1.4" opacity="0.6"/>
+  <path d="M392,266 L406,255 L384,261 Z" fill="#16222f"/>
+  <path d="M406,255 L384,261" fill="none" stroke="#3d5670" stroke-width="1.4" opacity="0.6"/>
+
+  <!-- ridge cap (seated onto the ridge line, no floating overshoot) -->
+  <polygon points="212,150 268,150 267,158 213,158" fill="#18293b"/>
+  <line x1="212" y1="152" x2="268" y2="152" stroke="#111922" stroke-width="8" stroke-linecap="butt"/>
+  <line x1="214" y1="149" x2="266" y2="149" stroke="#6da0bd" stroke-width="1.8" stroke-linecap="butt" opacity="0.7"/>
+  <!-- onigawara end ornaments -->
+  <path d="M212,150 C206,142 206,134 212,130 C218,134 218,144 216,150 Z" fill="#1a2532"/>
+  <path d="M212,131 L212,150" stroke="#6da0bd" stroke-width="1" opacity="0.5"/>
+  <path d="M268,150 C274,142 274,134 268,130 C262,134 262,144 264,150 Z" fill="#141d28"/>
+
+  <!-- rim light along ridge & upper-left slope -->
+  <path d="M212,150 L88,266" fill="none" stroke="#a9d4e4" stroke-width="1" opacity="0.35"/>
+  <line x1="213" y1="149" x2="267" y2="149" stroke="#bfe1ee" stroke-width="1" opacity="0.4"/>
+
+  <!-- ===== EAVE BRACKET (front corner post capital, tucked under the eave dip) ===== -->
+  <g>
+    <polygon points="232,344 248,344 245,354 235,354" fill="#3a2818"/>
+    <polygon points="235,354 245,354 243,361 237,361" fill="#2a1c11"/>
+    <line x1="233" y1="345" x2="247" y2="345" stroke="#5b432c" stroke-width="1" opacity="0.55"/>
+  </g>
+
+  <!-- ===== HANGING PAPER LANTERNS (in front) ===== -->
+  <!-- cord mounts (hooks seated on the roof face) -->
+  <rect x="201.5" y="249" width="9" height="4" rx="1.2" fill="#131f2c"/>
+  <line x1="202.6" y1="249.7" x2="209.4" y2="249.7" stroke="#6da0bd" stroke-width="0.9" opacity="0.55"/>
+  <rect x="348.5" y="250" width="7" height="3.6" rx="1" fill="#111a25"/>
+  <line x1="349.4" y1="250.7" x2="354.6" y2="250.7" stroke="#3d5670" stroke-width="0.9" opacity="0.6"/>
+  <!-- cords -->
+  <line x1="206" y1="252" x2="206" y2="284" stroke="#241a10" stroke-width="1.4"/>
+  <line x1="352" y1="252" x2="352" y2="285" stroke="#241a10" stroke-width="1.4"/>
+  <!-- glows -->
+  <circle cx="206" cy="306" r="40" fill="url(#minka-lanternGlow)" filter="url(#minka-glow)"/>
+  <circle cx="352" cy="301" r="28" fill="url(#minka-lanternGlow)" filter="url(#minka-glow)"/>
+  <!-- lantern A -->
+  <rect x="197" y="282" width="18" height="5" rx="1.4" fill="#241a10"/>
+  <ellipse cx="206" cy="306" rx="17" ry="24" fill="url(#minka-lanternBody)"/>
+  <g stroke="#d1963a" stroke-width="1" opacity="0.7">
+    <ellipse cx="206" cy="292" rx="12" ry="2.4" fill="none"/>
+    <ellipse cx="206" cy="300" rx="16" ry="2.8" fill="none"/>
+    <ellipse cx="206" cy="308" rx="17" ry="2.9" fill="none"/>
+    <ellipse cx="206" cy="316" rx="14" ry="2.6" fill="none"/>
+  </g>
+  <rect x="199" y="326" width="14" height="4.5" rx="1.2" fill="#2a1e12"/>
+  <line x1="206" y1="330" x2="206" y2="336" stroke="#2a1e12" stroke-width="1.2"/>
+  <!-- lantern B -->
+  <rect x="345" y="283" width="14" height="4" rx="1.2" fill="#241a10"/>
+  <ellipse cx="352" cy="301" rx="12" ry="17" fill="url(#minka-lanternBody)"/>
+  <g stroke="#d1963a" stroke-width="0.9" opacity="0.7">
+    <ellipse cx="352" cy="295" rx="9" ry="1.8" fill="none"/>
+    <ellipse cx="352" cy="301" rx="12" ry="2.1" fill="none"/>
+    <ellipse cx="352" cy="307" rx="10" ry="1.9" fill="none"/>
+  </g>
+  <rect x="346" y="316" width="12" height="3.6" rx="1" fill="#2a1e12"/>
+
+  <!-- foreground grass tufts (seated on the moss top, flanking the stepping-stone path) -->
+  <g stroke="#4f9d5d" stroke-width="1.6" stroke-linecap="round" fill="none">
+    <path d="M148,401 C146,394 147,390 149,386"/>
+    <path d="M152,402 C153,395 155,391 157,388"/>
+    <path d="M156,403 C157,396 159,393 161,390"/>
+    <path d="M326,402 C324,394 325,390 327,386"/>
+    <path d="M330,403 C331,396 333,392 335,389"/>
+    <path d="M222,428 C220,421 221,417 223,413"/>
+    <path d="M226,429 C227,422 229,418 231,415"/>
+    <path d="M256,430 C254,423 255,419 257,415"/>
+    <path d="M260,431 C261,424 263,420 265,417"/>
+  </g>
+
+  <!-- ===== WISPS / FIREFLIES ===== -->
+  <g>
+    <circle cx="404" cy="182" r="7" fill="url(#minka-wisp)" filter="url(#minka-glow)"/>
+    <circle cx="404" cy="182" r="2" fill="#fff4cf"/>
+    <circle cx="70" cy="214" r="6" fill="url(#minka-wisp)" filter="url(#minka-glow)"/>
+    <circle cx="70" cy="214" r="1.8" fill="#fff4cf"/>
+    <circle cx="300" cy="126" r="5" fill="url(#minka-wisp)" filter="url(#minka-glow)"/>
+    <circle cx="300" cy="126" r="1.6" fill="#fff4cf"/>
+    <circle cx="150" cy="150" r="6" fill="url(#minka-wisp)" filter="url(#minka-glow)"/>
+    <circle cx="150" cy="150" r="1.8" fill="#fff4cf"/>
+    <circle cx="426" cy="308" r="5.5" fill="url(#minka-wisp)" filter="url(#minka-glow)"/>
+    <circle cx="426" cy="308" r="1.7" fill="#fff4cf"/>
+    <circle cx="58" cy="332" r="6.5" fill="url(#minka-wisp)" filter="url(#minka-glow)"/>
+    <circle cx="58" cy="332" r="1.9" fill="#fff4cf"/>
+    <circle cx="336" cy="230" r="4" fill="url(#minka-wisp)" filter="url(#minka-glow)"/>
+    <circle cx="118" cy="284" r="4" fill="url(#minka-wisp)" filter="url(#minka-glow)"/>
+  </g>
+</svg>

@@ -1,0 +1,369 @@
+<svg viewBox="0 0 480 460" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="sbc-grass" cx="48%" cy="30%" r="80%">
+      <stop offset="0%" stop-color="#69b874"/>
+      <stop offset="55%" stop-color="#4f9d5d"/>
+      <stop offset="100%" stop-color="#2f7040"/>
+    </radialGradient>
+    <linearGradient id="sbc-earthL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8a5a44"/>
+      <stop offset="100%" stop-color="#4f3122"/>
+    </linearGradient>
+    <linearGradient id="sbc-earthR" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6f4632"/>
+      <stop offset="100%" stop-color="#3c2418"/>
+    </linearGradient>
+    <linearGradient id="sbc-wallL" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0%" stop-color="#f3ead0"/>
+      <stop offset="60%" stop-color="#e4d5b2"/>
+      <stop offset="100%" stop-color="#cdb98d"/>
+    </linearGradient>
+    <linearGradient id="sbc-wallR" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#c2ad82"/>
+      <stop offset="100%" stop-color="#8a7550"/>
+    </linearGradient>
+    <linearGradient id="sbc-thatchL" x1="0.15" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#e7c37c"/>
+      <stop offset="45%" stop-color="#c69a54"/>
+      <stop offset="100%" stop-color="#8a6234"/>
+    </linearGradient>
+    <linearGradient id="sbc-thatchR" x1="0.7" y1="0" x2="0.4" y2="1">
+      <stop offset="0%" stop-color="#c19a5f"/>
+      <stop offset="50%" stop-color="#8f6537"/>
+      <stop offset="100%" stop-color="#5d3f22"/>
+    </linearGradient>
+    <linearGradient id="sbc-eave" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6a4a2e"/>
+      <stop offset="100%" stop-color="#3e2a19"/>
+    </linearGradient>
+    <linearGradient id="sbc-ridge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#eccd8a"/>
+      <stop offset="100%" stop-color="#a97f45"/>
+    </linearGradient>
+    <radialGradient id="sbc-door" cx="42%" cy="38%" r="75%">
+      <stop offset="0%" stop-color="#9a6236"/>
+      <stop offset="60%" stop-color="#6e4223"/>
+      <stop offset="100%" stop-color="#472913"/>
+    </radialGradient>
+    <radialGradient id="sbc-win" cx="42%" cy="38%" r="70%">
+      <stop offset="0%" stop-color="#fff7db"/>
+      <stop offset="45%" stop-color="#ffe089"/>
+      <stop offset="100%" stop-color="#d3922f"/>
+    </radialGradient>
+    <radialGradient id="sbc-winglow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffe9a8" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sbc-chim" x1="0" y1="0" x2="1" y2="0.4">
+      <stop offset="0%" stop-color="#a68d78"/>
+      <stop offset="55%" stop-color="#7d6551"/>
+      <stop offset="100%" stop-color="#574236"/>
+    </linearGradient>
+    <radialGradient id="sbc-smoke" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#d6d2e0" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#d6d2e0" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="sbc-wisp" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff6d8"/>
+      <stop offset="40%" stop-color="#ffd75e"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="sbc-shadow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="8"/></filter>
+    <filter id="sbc-soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2"/></filter>
+    <filter id="sbc-glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="3.5"/></filter>
+    <filter id="sbc-smokeblur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="4.5"/></filter>
+  </defs>
+
+  <!-- ground shadow -->
+  <ellipse cx="240" cy="428" rx="156" ry="42" fill="#05070a" opacity="0.6" filter="url(#sbc-shadow)"/>
+
+  <!-- ===== isometric ground tile ===== -->
+  <!-- earth sides -->
+  <polygon points="88,384 240,456 240,492 88,420" fill="url(#sbc-earthL)"/>
+  <polygon points="240,456 392,384 392,420 240,492" fill="url(#sbc-earthR)"/>
+  <!-- earth strata lines -->
+  <path d="M88,401 L240,473 L392,401" fill="none" stroke="#3a2317" stroke-width="1.4" opacity="0.5"/>
+  <path d="M120,447 q6,4 10,0" fill="none" stroke="#2e1c12" stroke-width="1.2" opacity="0.5"/>
+  <path d="M300,455 q6,-3 10,-6" fill="none" stroke="#241610" stroke-width="1.2" opacity="0.5"/>
+  <!-- little embedded stones on earth face -->
+  <ellipse cx="150" cy="448" rx="7" ry="4" fill="#6e5340" opacity="0.7"/>
+  <ellipse cx="200" cy="470" rx="6" ry="3.5" fill="#7a5c46" opacity="0.7"/>
+  <ellipse cx="330" cy="446" rx="6" ry="3.5" fill="#4a3324" opacity="0.7"/>
+  <!-- grass top face -->
+  <polygon points="240,312 392,384 240,456 88,384" fill="url(#sbc-grass)"/>
+  <polygon points="240,312 392,384 240,456 88,384" fill="none" stroke="#8fd699" stroke-width="1.5" opacity="0.55" stroke-linejoin="miter"/>
+  <!-- crisp iso-diamond front lip: grass edge meets the earth cliff -->
+  <path d="M88,384 L240,456 L392,384" fill="none" stroke="#9fe0aa" stroke-width="2.2" opacity="0.85" stroke-linejoin="miter"/>
+  <path d="M88,387 L240,459 L392,387" fill="none" stroke="#20402a" stroke-width="1.6" opacity="0.5" stroke-linejoin="miter"/>
+
+  <!-- cobblestone path to the door -->
+  <g opacity="0.92">
+    <ellipse cx="248" cy="442" rx="13" ry="6.5" fill="#9d9a8f"/>
+    <ellipse cx="248" cy="440" rx="13" ry="6.5" fill="#b9b6aa"/>
+    <ellipse cx="230" cy="428" rx="12" ry="6" fill="#a9a69a"/>
+    <ellipse cx="230" cy="426" rx="12" ry="6" fill="#c4c1b4"/>
+    <ellipse cx="216" cy="414" rx="11" ry="5.5" fill="#a4a195"/>
+    <ellipse cx="216" cy="412" rx="11" ry="5.5" fill="#bebbae"/>
+    <ellipse cx="266" cy="430" rx="10" ry="5" fill="#98958a"/>
+    <ellipse cx="266" cy="428" rx="10" ry="5" fill="#b3b0a4"/>
+    <ellipse cx="207" cy="400" rx="10" ry="5" fill="#a19e92"/>
+    <ellipse cx="207" cy="398" rx="10" ry="5" fill="#bcb9ac"/>
+  </g>
+
+  <!-- grass tufts around the tile -->
+  <g stroke-linecap="round" fill="none">
+    <path d="M110,392 l-2,-9 M114,392 l1,-10 M118,392 l4,-8" stroke="#3f8a4f" stroke-width="2"/>
+    <path d="M150,410 l-2,-9 M154,410 l1,-11 M158,410 l4,-8" stroke="#438f52" stroke-width="2"/>
+    <path d="M330,404 l2,-9 M326,404 l-1,-11 M322,404 l-4,-8" stroke="#3f8a4f" stroke-width="2"/>
+    <path d="M300,428 l2,-8 M296,428 l-1,-10" stroke="#367a45" stroke-width="2"/>
+    <path d="M188,436 l-2,-8 M192,436 l1,-9 M196,436 l4,-7" stroke="#4aa05a" stroke-width="2"/>
+  </g>
+  <!-- small hobbit mushrooms -->
+  <g>
+    <ellipse cx="140" cy="418" rx="4" ry="8" fill="#efe6d2"/>
+    <path d="M131,412 q9,-13 18,0 q-9,4 -18,0Z" fill="#d9584a"/>
+    <circle cx="137" cy="409" r="1.4" fill="#fbeede"/>
+    <circle cx="143" cy="411" r="1.2" fill="#fbeede"/>
+    <ellipse cx="152" cy="424" rx="3" ry="6" fill="#efe6d2"/>
+    <path d="M145,420 q7,-10 14,0 q-7,3 -14,0Z" fill="#c94a3e"/>
+    <circle cx="150" cy="418" r="1.1" fill="#fbeede"/>
+  </g>
+  <!-- scattered wildflowers on the grass -->
+  <g>
+    <circle cx="315" cy="418" r="2.6" fill="#c2b280"/><circle cx="315" cy="418" r="1" fill="#ffe9a8"/>
+    <circle cx="300" cy="408" r="2.4" fill="#d9584a"/><circle cx="300" cy="408" r="0.9" fill="#ffe9a8"/>
+    <circle cx="128" cy="378" r="2.4" fill="#5d8fa8"/><circle cx="128" cy="378" r="0.9" fill="#ffe9a8"/>
+    <circle cx="170" cy="392" r="2.4" fill="#c2b280"/><circle cx="170" cy="392" r="0.9" fill="#ffe9a8"/>
+  </g>
+
+  <!-- ===== cottage walls ===== -->
+  <!-- right (shaded) wall -->
+  <polygon points="240,398 240,322 318,285 318,363" fill="url(#sbc-wallR)"/>
+  <!-- left (lit) wall -->
+  <polygon points="240,398 240,322 158,281 158,359" fill="url(#sbc-wallL)"/>
+  <!-- gentle ambient occlusion at wall bases -->
+  <polygon points="240,398 158,359 158,353 240,392" fill="#8a6f48" opacity="0.35"/>
+  <polygon points="240,398 318,363 318,357 240,392" fill="#5e4a30" opacity="0.4"/>
+  <!-- front vertical corner highlight -->
+  <line x1="240" y1="322" x2="240" y2="398" stroke="#fff4d6" stroke-width="1.6" opacity="0.55"/>
+  <!-- left wall outer rim light -->
+  <line x1="158" y1="281" x2="158" y2="359" stroke="#fff4d6" stroke-width="1.4" opacity="0.4"/>
+
+  <!-- timber framing (subtle tudor beams) -->
+  <g stroke="#6e4a30" stroke-width="3" opacity="0.55" fill="none">
+    <line x1="158" y1="335" x2="240" y2="374"/>
+    <line x1="318" y1="330" x2="240" y2="368"/>
+    <line x1="279" y1="305" x2="279" y2="382"/>
+  </g>
+
+  <!-- climbing vine on right wall -->
+  <g>
+    <path d="M300,362 C296,340 306,320 300,296" fill="none" stroke="#3f7a44" stroke-width="2.2"/>
+    <path d="M300,348 q-8,-3 -12,-9 M302,332 q7,-2 11,-8 M300,316 q-8,-2 -12,-8" fill="none" stroke="#4a8f52" stroke-width="1.8"/>
+    <circle cx="287" cy="338" r="3" fill="#4f9d5d"/>
+    <circle cx="313" cy="322" r="3" fill="#57a862"/>
+    <circle cx="287" cy="306" r="2.6" fill="#4f9d5d"/>
+    <circle cx="305" cy="352" r="2.4" fill="#57a862"/>
+  </g>
+
+  <!-- ===== round hobbit door, seated ON the wall plane: bottom kisses the wall base line ===== -->
+  <!-- contact shadow on the grass in front of the door -->
+  <ellipse cx="212" cy="388" rx="28" ry="7.5" fill="#0a0d10" opacity="0.32" filter="url(#sbc-soft)"/>
+  <!-- stone door surround -->
+  <circle cx="208" cy="354" r="30" fill="#b9ad93"/>
+  <circle cx="208" cy="354" r="30" fill="none" stroke="#8f8368" stroke-width="2"/>
+  <!-- warm light leaking around the door frame -->
+  <circle cx="208" cy="354" r="28" fill="url(#sbc-winglow)" opacity="0.5"/>
+  <!-- the round wooden door -->
+  <circle cx="208" cy="354" r="25.5" fill="url(#sbc-door)"/>
+  <!-- door planks -->
+  <g stroke="#3c2211" stroke-width="1.3" opacity="0.6" fill="none">
+    <path d="M196,333 q-2.5,21 0,42"/>
+    <path d="M204,330.5 q-1.5,23 0,47"/>
+    <path d="M212,330.5 q1.5,23 0,47"/>
+    <path d="M220,333 q2.5,21 0,42"/>
+  </g>
+  <!-- iron door bands -->
+  <path d="M186,342 q22,-7.5 44,2.5" fill="none" stroke="#2a1a0e" stroke-width="2.4" opacity="0.75"/>
+  <path d="M186,366 q22,7.5 44,-2.5" fill="none" stroke="#2a1a0e" stroke-width="2.4" opacity="0.75"/>
+  <!-- little round glowing pane in the door -->
+  <circle cx="208" cy="344" r="7" fill="url(#sbc-win)"/>
+  <circle cx="208" cy="344" r="7" fill="none" stroke="#3c2211" stroke-width="1.5"/>
+  <line x1="201" y1="344" x2="215" y2="344" stroke="#3c2211" stroke-width="1.1"/>
+  <line x1="208" y1="337" x2="208" y2="351" stroke="#3c2211" stroke-width="1.1"/>
+  <!-- brass door knob (centered, hobbit style) -->
+  <circle cx="208" cy="361" r="3.2" fill="#f0d27a"/>
+  <circle cx="207" cy="360" r="1.1" fill="#fff4d0"/>
+  <!-- door highlight rim -->
+  <path d="M186,341 a25.5,25.5 0 0 1 19,-14" fill="none" stroke="#c98d55" stroke-width="2" opacity="0.6"/>
+  <!-- stone threshold step bridging door to the cobble path -->
+  <ellipse cx="209" cy="385.5" rx="15" ry="5.5" fill="#8f8c80"/>
+  <ellipse cx="209" cy="384" rx="15" ry="5.5" fill="#b5b2a6"/>
+
+  <!-- ===== windows ===== -->
+  <!-- left wall round window -->
+  <circle cx="169" cy="325" r="18" fill="url(#sbc-winglow)"/>
+  <circle cx="169" cy="325" r="12.5" fill="#6e5236"/>
+  <circle cx="169" cy="325" r="10.5" fill="url(#sbc-win)"/>
+  <g stroke="#4a341f" stroke-width="1.3">
+    <line x1="169" y1="314.5" x2="169" y2="335.5"/>
+    <line x1="158.5" y1="325" x2="179.5" y2="325"/>
+  </g>
+  <circle cx="169" cy="325" r="12.5" fill="none" stroke="#523a22" stroke-width="2"/>
+  <!-- flower box under left window (trimmed clear of the door surround) -->
+  <polygon points="152,340 178,340 175,349 156,349" fill="#6e4a30"/>
+  <polygon points="152,340 178,340 177,343 153,343" fill="#8a5f3c"/>
+  <g>
+    <circle cx="158" cy="338" r="3" fill="#d9584a"/><circle cx="158" cy="338" r="1.1" fill="#ffe9a8"/>
+    <circle cx="166" cy="337" r="3" fill="#c2b280"/><circle cx="166" cy="337" r="1.1" fill="#ffe9a8"/>
+    <circle cx="174" cy="338" r="3" fill="#5d8fa8"/><circle cx="174" cy="338" r="1.1" fill="#ffe9a8"/>
+    <path d="M162,340 l-1,-4 M170,340 l1,-4" stroke="#4a8f52" stroke-width="1.4"/>
+  </g>
+
+  <!-- right wall round window (glows warm against shade) -->
+  <circle cx="286" cy="330" r="17" fill="url(#sbc-winglow)"/>
+  <circle cx="286" cy="330" r="12" fill="#4f3a24"/>
+  <circle cx="286" cy="330" r="10" fill="url(#sbc-win)"/>
+  <g stroke="#3c2a18" stroke-width="1.3">
+    <line x1="286" y1="320" x2="286" y2="340"/>
+    <line x1="276" y1="330" x2="296" y2="330"/>
+  </g>
+  <circle cx="286" cy="330" r="12" fill="none" stroke="#3c2a18" stroke-width="2"/>
+  <!-- flower box under right window -->
+  <polygon points="272,345 300,345 297,353 275,353" fill="#5c3d26"/>
+  <polygon points="272,345 300,345 299,348 273,348" fill="#744c30"/>
+  <g>
+    <circle cx="278" cy="343" r="2.8" fill="#c2b280"/><circle cx="278" cy="343" r="1" fill="#ffe9a8"/>
+    <circle cx="286" cy="342" r="2.8" fill="#d9584a"/><circle cx="286" cy="342" r="1" fill="#ffe9a8"/>
+    <circle cx="294" cy="343" r="2.8" fill="#7f8fd1"/><circle cx="294" cy="343" r="1" fill="#ffe9a8"/>
+  </g>
+
+  <!-- ===== thatched roof ===== -->
+  <!-- eave undersides (thatch thickness in shadow) -->
+  <path d="M240,322 C200,318 164,308 132,296 L132,309 C164,321 200,331 240,335 Z" fill="url(#sbc-eave)"/>
+  <path d="M240,322 C284,320 318,314 348,298 L348,311 C318,327 284,333 240,335 Z" fill="url(#sbc-eave)"/>
+  <!-- scalloped cut-straw ends (corner scallop added so the row reads continuous) -->
+  <g fill="#5a3e26">
+    <circle cx="148" cy="309" r="4"/><circle cx="168" cy="317" r="4.4"/><circle cx="188" cy="324" r="4.6"/>
+    <circle cx="208" cy="329" r="4.6"/><circle cx="228" cy="333" r="4.4"/><circle cx="242" cy="334.5" r="4.5"/>
+    <circle cx="256" cy="332" r="4.4"/><circle cx="278" cy="329" r="4.6"/><circle cx="300" cy="324" r="4.4"/>
+    <circle cx="322" cy="316" r="4"/><circle cx="340" cy="307" r="3.6"/>
+  </g>
+
+  <!-- right roof face (shade) -->
+  <path d="M240,200 C254,250 246,295 240,322 C284,320 318,314 348,298 C338,248 292,214 240,200 Z" fill="url(#sbc-thatchR)"/>
+  <!-- left roof face (lit) -->
+  <path d="M240,200 C226,250 234,295 240,322 C200,318 164,308 132,296 C140,248 188,214 240,200 Z" fill="url(#sbc-thatchL)"/>
+
+  <!-- thatch strands, left face -->
+  <g stroke-linecap="round" fill="none" opacity="0.5">
+    <path d="M236,214 C200,236 168,268 140,296" stroke="#7d5730" stroke-width="1.6"/>
+    <path d="M232,222 C198,244 168,272 146,298" stroke="#6f4d2a" stroke-width="1.4"/>
+    <path d="M240,228 C206,250 176,278 156,302" stroke="#7d5730" stroke-width="1.6"/>
+    <path d="M238,240 C210,260 182,284 168,306" stroke="#6f4d2a" stroke-width="1.4"/>
+    <path d="M240,252 C216,270 192,290 182,310" stroke="#7d5730" stroke-width="1.6"/>
+    <path d="M240,266 C222,282 204,298 198,314" stroke="#6f4d2a" stroke-width="1.4"/>
+    <path d="M240,282 C230,296 220,308 216,318" stroke="#7d5730" stroke-width="1.5"/>
+  </g>
+  <g stroke-linecap="round" fill="none" opacity="0.55">
+    <path d="M238,218 C204,240 174,270 150,296" stroke="#f0d192" stroke-width="1.2"/>
+    <path d="M240,234 C210,254 184,280 166,302" stroke="#eec988" stroke-width="1.1"/>
+    <path d="M240,258 C216,276 196,292 186,310" stroke="#f0d192" stroke-width="1.1"/>
+  </g>
+  <!-- thatch strands, right face -->
+  <g stroke-linecap="round" fill="none" opacity="0.5">
+    <path d="M244,214 C280,236 312,266 342,296" stroke="#4f3722" stroke-width="1.6"/>
+    <path d="M242,224 C278,246 308,274 332,298" stroke="#5c4128" stroke-width="1.4"/>
+    <path d="M242,236 C274,256 302,282 320,302" stroke="#4f3722" stroke-width="1.6"/>
+    <path d="M240,250 C268,268 294,290 306,308" stroke="#5c4128" stroke-width="1.4"/>
+    <path d="M240,264 C262,280 284,298 292,312" stroke="#4f3722" stroke-width="1.5"/>
+    <path d="M240,280 C254,294 268,308 274,318" stroke="#5c4128" stroke-width="1.4"/>
+  </g>
+  <g stroke-linecap="round" fill="none" opacity="0.4">
+    <path d="M244,220 C278,242 308,270 336,296" stroke="#c79f66" stroke-width="1.1"/>
+    <path d="M242,240 C272,260 298,284 316,302" stroke="#bd945c" stroke-width="1"/>
+  </g>
+
+  <!-- front hip ridge roll: exactly fills the lens between the two roof faces (no background gap) -->
+  <path d="M240,200 C226,250 234,295 240,322 C246,295 254,250 240,200 Z" fill="url(#sbc-ridge)"/>
+  <!-- rounded shading on the ridge roll -->
+  <path d="M240,204 C228,250 236,293 240,318" fill="none" stroke="#f0d192" stroke-width="1.4" opacity="0.5"/>
+  <path d="M240,204 C252,250 244,293 240,318" fill="none" stroke="#8a6234" stroke-width="2" opacity="0.5"/>
+  <!-- straw ties across the ridge roll -->
+  <g stroke="#7d5730" stroke-width="1.2" opacity="0.6">
+    <line x1="233" y1="250" x2="247" y2="250"/>
+    <line x1="233.5" y1="278" x2="246.5" y2="278"/>
+    <line x1="236" y1="304" x2="244" y2="304"/>
+  </g>
+
+  <!-- ridge cap knot at apex -->
+  <ellipse cx="240" cy="204" rx="18" ry="9" fill="url(#sbc-ridge)"/>
+  <ellipse cx="240" cy="202" rx="18" ry="9" fill="none" stroke="#8a6234" stroke-width="1.4" opacity="0.6"/>
+  <path d="M226,203 q14,-6 28,0" fill="none" stroke="#7d5730" stroke-width="1.4" opacity="0.6"/>
+
+  <!-- eyebrow dormer window nestled in the left thatch -->
+  <path d="M162,268 q22,-20 44,-2 q-22,-9 -44,2 Z" fill="url(#sbc-thatchL)"/>
+  <path d="M162,268 q22,-20 44,-2" fill="none" stroke="#8a6234" stroke-width="1.6" opacity="0.7"/>
+  <circle cx="184" cy="272" r="12" fill="url(#sbc-winglow)"/>
+  <circle cx="184" cy="272" r="8.5" fill="#5a4026"/>
+  <circle cx="184" cy="272" r="6.8" fill="url(#sbc-win)"/>
+  <g stroke="#4a341f" stroke-width="1.1">
+    <line x1="184" y1="265" x2="184" y2="279"/>
+    <line x1="177" y1="272" x2="191" y2="272"/>
+  </g>
+  <circle cx="184" cy="272" r="8.5" fill="none" stroke="#4a341f" stroke-width="1.6"/>
+  <!-- thatch shadow tucking the dormer into the roof -->
+  <path d="M170,279 q14,9 28,2" fill="none" stroke="#6f4d2a" stroke-width="2.5" opacity="0.5"/>
+
+  <!-- ===== crooked stone chimney with smoke (seated fully ON the thatch dome) ===== -->
+  <!-- contact shadow seating the chimney base flush into the thatch -->
+  <path d="M292,264 L314,257 L326,255 L328,259 Q317,266 305,267 Q296,267 292,264 Z" fill="#33220f" opacity="0.42" filter="url(#sbc-soft)"/>
+  <g>
+    <!-- chimney body, leaning slightly -->
+    <polygon points="296,262 314,256 319,196 304,199" fill="url(#sbc-chim)"/>
+    <polygon points="314,256 324,254 328,199 319,196" fill="#4f3d31"/>
+    <!-- stone courses -->
+    <g stroke="#4a382c" stroke-width="1.2" opacity="0.65">
+      <path d="M297,248 l17,-5"/><path d="M298,232 l17,-5"/><path d="M299,216 l18,-5"/><path d="M300,204 l18,-5"/>
+    </g>
+    <g stroke="#8f7862" stroke-width="0.9" opacity="0.5">
+      <path d="M297,240 l17,-5"/><path d="M299,224 l17,-5"/>
+    </g>
+    <!-- chimney cap -->
+    <polygon points="293,200 321,192 332,197 304,205" fill="#6a5544"/>
+    <polygon points="293,200 304,205 304,209 293,204" fill="#4a382c"/>
+    <!-- warm ember glow at the flue -->
+    <ellipse cx="310" cy="199" rx="9" ry="4" fill="#ffb347" opacity="0.55" filter="url(#sbc-soft)"/>
+    <ellipse cx="310" cy="199" rx="4" ry="2" fill="#ffe9a8"/>
+  </g>
+  <!-- curling smoke -->
+  <g fill="none" filter="url(#sbc-smokeblur)" opacity="0.85">
+    <path d="M311,192 C304,178 322,170 316,156 C310,142 328,134 324,120 C321,108 336,100 336,88" stroke="url(#sbc-smoke)" stroke-width="11" stroke-linecap="round"/>
+  </g>
+  <g fill="#d6d2e0" opacity="0.5" filter="url(#sbc-glow)">
+    <circle cx="311" cy="188" r="4.5"/>
+    <circle cx="314" cy="176" r="6"/>
+    <circle cx="319" cy="158" r="7"/>
+    <circle cx="323" cy="138" r="8"/>
+    <circle cx="330" cy="116" r="9"/>
+    <circle cx="335" cy="94" r="10"/>
+  </g>
+
+  <!-- ===== magical wisp motes ===== -->
+  <g filter="url(#sbc-glow)">
+    <circle cx="118" cy="196" r="8" fill="url(#sbc-wisp)"/>
+    <circle cx="372" cy="236" r="7" fill="url(#sbc-wisp)"/>
+    <circle cx="146" cy="352" r="6" fill="url(#sbc-wisp)"/>
+    <circle cx="402" cy="316" r="6" fill="url(#sbc-wisp)"/>
+    <circle cx="238" cy="150" r="5" fill="url(#sbc-wisp)"/>
+    <circle cx="96" cy="290" r="5" fill="url(#sbc-wisp)"/>
+  </g>
+  <g fill="#fff6d8">
+    <circle cx="118" cy="196" r="1.8"/>
+    <circle cx="372" cy="236" r="1.6"/>
+    <circle cx="146" cy="352" r="1.4"/>
+    <circle cx="402" cy="316" r="1.4"/>
+    <circle cx="238" cy="150" r="1.2"/>
+    <circle cx="96" cy="290" r="1.2"/>
+  </g>
+</svg>

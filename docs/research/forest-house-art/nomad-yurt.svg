@@ -1,0 +1,370 @@
+<svg viewBox="0 0 480 460" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="ny-grass" cx="46%" cy="30%" r="82%">
+      <stop offset="0%" stop-color="#63b06f"/>
+      <stop offset="55%" stop-color="#4f9d5d"/>
+      <stop offset="100%" stop-color="#2c6a3b"/>
+    </radialGradient>
+    <radialGradient id="ny-dirt" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#9a7452"/>
+      <stop offset="70%" stop-color="#7c5a3d"/>
+      <stop offset="100%" stop-color="#5f4530" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ny-earthL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8a5a44"/>
+      <stop offset="100%" stop-color="#4f3122"/>
+    </linearGradient>
+    <linearGradient id="ny-earthR" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6f4632"/>
+      <stop offset="100%" stop-color="#3c2418"/>
+    </linearGradient>
+    <linearGradient id="ny-drum" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#6c5f45"/>
+      <stop offset="16%" stop-color="#c9be9d"/>
+      <stop offset="37%" stop-color="#e6dbc2"/>
+      <stop offset="56%" stop-color="#d0c4a4"/>
+      <stop offset="78%" stop-color="#a2946e"/>
+      <stop offset="100%" stop-color="#665a41"/>
+    </linearGradient>
+    <radialGradient id="ny-dome" cx="40%" cy="20%" r="88%">
+      <stop offset="0%" stop-color="#efe4cb"/>
+      <stop offset="46%" stop-color="#cdc09f"/>
+      <stop offset="100%" stop-color="#877a5a"/>
+    </radialGradient>
+    <linearGradient id="ny-domeshine" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff4d6" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#fff4d6" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="ny-crown" cx="50%" cy="55%" r="65%">
+      <stop offset="0%" stop-color="#fff8de"/>
+      <stop offset="42%" stop-color="#ffde8a"/>
+      <stop offset="100%" stop-color="#cf8c2c"/>
+    </radialGradient>
+    <radialGradient id="ny-crownglow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffe9a8" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ny-door" cx="46%" cy="34%" r="82%">
+      <stop offset="0%" stop-color="#fff3cd"/>
+      <stop offset="34%" stop-color="#ffd274"/>
+      <stop offset="68%" stop-color="#d98b31"/>
+      <stop offset="100%" stop-color="#7a3f14"/>
+    </radialGradient>
+    <radialGradient id="ny-doorglow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffe9a8" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ny-flameOuter" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#ff7a1e"/>
+      <stop offset="45%" stop-color="#ffb23a"/>
+      <stop offset="100%" stop-color="#ffe27a"/>
+    </linearGradient>
+    <linearGradient id="ny-flameInner" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#ffcf4a"/>
+      <stop offset="60%" stop-color="#fff0b0"/>
+      <stop offset="100%" stop-color="#fffbe6"/>
+    </linearGradient>
+    <radialGradient id="ny-fireglow" cx="50%" cy="52%" r="50%">
+      <stop offset="0%" stop-color="#ffd75e" stop-opacity="0.9"/>
+      <stop offset="55%" stop-color="#ff9a3a" stop-opacity="0.32"/>
+      <stop offset="100%" stop-color="#ff8a2b" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ny-warmpool" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffc75a" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#ffc75a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ny-pot" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5a5560"/>
+      <stop offset="55%" stop-color="#33303a"/>
+      <stop offset="100%" stop-color="#18161d"/>
+    </linearGradient>
+    <linearGradient id="ny-log" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#9a6a44"/>
+      <stop offset="100%" stop-color="#5c3c26"/>
+    </linearGradient>
+    <radialGradient id="ny-wisp" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff6d8"/>
+      <stop offset="40%" stop-color="#ffd75e"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ny-smoke" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#d6d2e0" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#d6d2e0" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="nomadyurt-top"><polygon points="240,312 392,384 240,456 88,384"/></clipPath>
+    <filter id="ny-shadow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="8"/></filter>
+    <filter id="ny-soft" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2"/></filter>
+    <filter id="ny-glow" x="-90%" y="-90%" width="280%" height="280%"><feGaussianBlur stdDeviation="3.5"/></filter>
+    <filter id="ny-fireblur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="5"/></filter>
+    <filter id="ny-smokeblur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="4"/></filter>
+  </defs>
+
+  <!-- ground shadow (warmer on the fire side) -->
+  <ellipse cx="238" cy="426" rx="168" ry="44" fill="#05070a" opacity="0.6" filter="url(#ny-shadow)"/>
+
+  <!-- ===== isometric ground tile ===== -->
+  <polygon points="88,384 240,456 240,492 88,420" fill="url(#ny-earthL)"/>
+  <polygon points="240,456 392,384 392,420 240,492" fill="url(#ny-earthR)"/>
+  <path d="M88,401 L240,473 L392,401" fill="none" stroke="#3a2317" stroke-width="1.4" opacity="0.5"/>
+  <ellipse cx="150" cy="448" rx="7" ry="4" fill="#6e5340" opacity="0.7"/>
+  <ellipse cx="205" cy="472" rx="6" ry="3.5" fill="#7a5c46" opacity="0.7"/>
+  <ellipse cx="330" cy="446" rx="6" ry="3.5" fill="#4a3324" opacity="0.7"/>
+  <!-- grass top face -->
+  <polygon points="240,312 392,384 240,456 88,384" fill="url(#ny-grass)"/>
+  <polygon points="240,312 392,384 240,456 88,384" fill="none" stroke="#8fd699" stroke-width="1.4" opacity="0.4"/>
+  <!-- trodden camp dirt patch + ground light pools, clipped to the top face so the iso diamond stays crisp -->
+  <g clip-path="url(#nomadyurt-top)">
+    <ellipse cx="252" cy="400" rx="150" ry="52" fill="url(#ny-dirt)" opacity="0.9"/>
+    <g stroke="#5a4230" stroke-width="1.1" opacity="0.4" fill="none">
+      <path d="M150,398 q40,10 96,4"/>
+      <path d="M170,414 q50,9 120,-2"/>
+    </g>
+    <!-- warm light pools: doorway spill + campfire glow on the ground -->
+    <ellipse cx="208" cy="424" rx="60" ry="24" fill="url(#ny-warmpool)"/>
+    <ellipse cx="324" cy="410" rx="86" ry="34" fill="url(#ny-fireglow)" opacity="0.85"/>
+  </g>
+
+  <!-- grass tufts + wildflowers around the tile -->
+  <g stroke-linecap="round" fill="none">
+    <path d="M108,388 l-2,-9 M112,388 l1,-10 M116,388 l4,-8" stroke="#3f8a4f" stroke-width="2"/>
+    <path d="M124,398 l-2,-9 M128,398 l1,-10 M132,398 l3,-8" stroke="#438f52" stroke-width="2"/>
+    <path d="M372,392 l2,-9 M368,392 l-1,-11 M364,392 l-4,-8" stroke="#3f8a4f" stroke-width="2"/>
+    <path d="M128,370 l-2,-8 M132,370 l1,-9" stroke="#4aa05a" stroke-width="2"/>
+  </g>
+  <g>
+    <circle cx="120" cy="372" r="2.6" fill="#5d8fa8"/><circle cx="120" cy="372" r="1" fill="#ffe9a8"/>
+    <circle cx="358" cy="393" r="2.6" fill="#c2b280"/><circle cx="358" cy="393" r="1" fill="#ffe9a8"/>
+    <circle cx="118" cy="380" r="2.4" fill="#d9584a"/><circle cx="118" cy="380" r="0.9" fill="#ffe9a8"/>
+  </g>
+
+  <!-- ================= YURT ================= -->
+
+  <!-- felt drum (cylindrical wall) -->
+  <path d="M138,322 L138,388 C150,405 190,411 222,411 C254,411 294,405 306,388 L306,322 C294,339 254,345 222,345 C190,345 150,339 138,322 Z" fill="url(#ny-drum)"/>
+  <!-- base ambient occlusion -->
+  <path d="M139,384 C152,401 190,407 222,407 C254,407 292,401 305,384 C293,392 254,398 222,398 C190,398 151,392 139,384 Z" fill="#4a3d28" opacity="0.4"/>
+  <!-- faint horizontal felt quilting -->
+  <g fill="none" stroke="#7d6f50" stroke-width="1.1" opacity="0.35">
+    <path d="M140,360 Q222,376 305,360"/>
+    <path d="M140,374 Q222,390 305,374"/>
+  </g>
+  <!-- faint vertical seams -->
+  <g fill="none" stroke="#7d6f50" stroke-width="1" opacity="0.28">
+    <path d="M162,332 Q160,368 164,404"/>
+    <path d="M258,334 Q262,370 260,404"/>
+    <path d="M284,330 Q289,366 286,400"/>
+  </g>
+  <!-- left-edge rim light -->
+  <path d="M138,322 L138,388" stroke="#fff2cf" stroke-width="1.6" opacity="0.5"/>
+
+  <!-- decorative woven band around the top of the wall -->
+  <path d="M138,322 C150,339 190,345 222,345 C254,345 294,339 306,322 L306,339 C294,356 254,362 222,362 C190,362 150,356 138,339 Z" fill="#33324f"/>
+  <path d="M138,322 C150,339 190,345 222,345 C254,345 294,339 306,322" fill="none" stroke="#b5643f" stroke-width="1.4" opacity="0.8"/>
+  <path d="M138,339 C150,356 190,362 222,362 C254,362 294,356 306,339" fill="none" stroke="#b5643f" stroke-width="1.4" opacity="0.8"/>
+  <!-- band motifs (diamonds) -->
+  <g>
+    <polygon points="150,347 156,342 162,347 156,352" fill="#c2b280"/><circle cx="156" cy="347" r="1.3" fill="#b5643f"/>
+    <polygon points="168,351 174,346 180,351 174,356" fill="#5d8fa8"/><circle cx="174" cy="351" r="1.3" fill="#ffe9a8"/>
+    <polygon points="188,353 194,348 200,353 194,358" fill="#c2b280"/><circle cx="194" cy="353" r="1.3" fill="#b5643f"/>
+    <polygon points="238,353 244,348 250,353 244,358" fill="#5d8fa8"/><circle cx="244" cy="353" r="1.3" fill="#ffe9a8"/>
+    <polygon points="258,351 264,346 270,351 264,356" fill="#c2b280"/><circle cx="264" cy="351" r="1.3" fill="#b5643f"/>
+    <polygon points="278,347 284,342 290,347 284,352" fill="#5d8fa8"/><circle cx="284" cy="347" r="1.3" fill="#ffe9a8"/>
+    <polygon points="294,343 300,338 306,343 300,348" fill="#c2b280"/><circle cx="300" cy="343" r="1.1" fill="#b5643f"/>
+  </g>
+
+  <!-- ===== glowing doorway ===== -->
+  <ellipse cx="208" cy="410" rx="46" ry="15" fill="url(#ny-doorglow)" opacity="0.7"/>
+  <!-- wooden frame posts + arched lintel -->
+  <path d="M178,410 L178,352 Q178,332 208,330 Q238,332 238,352 L238,410 L231,410 L231,352 Q231,338 208,336 Q185,338 185,352 L185,410 Z" fill="#6a4a2e"/>
+  <path d="M178,410 L178,352 Q178,332 208,330 Q238,332 238,352" fill="none" stroke="#8a6238" stroke-width="1.4" opacity="0.7"/>
+  <!-- warm interior glow -->
+  <path d="M185,410 L185,352 Q185,336 208,334 Q231,336 231,352 L231,410 Q208,414 185,410 Z" fill="url(#ny-door)"/>
+  <!-- hint of interior back wall + a low stool -->
+  <path d="M191,404 L191,356 Q208,350 225,356 L225,404 Z" fill="#c47a2c" opacity="0.35"/>
+  <ellipse cx="208" cy="404" rx="9" ry="3.4" fill="#5a3416" opacity="0.55"/>
+  <!-- threshold step -->
+  <rect x="185" y="408" width="46" height="6" rx="3" fill="#7a5433"/>
+  <rect x="185" y="408" width="46" height="2.4" rx="1.2" fill="#9a6f44"/>
+
+  <!-- patterned door flap draped &amp; tied to the right -->
+  <path d="M231,338 C250,342 258,366 254,404 C247,406 240,406 233,404 C236,368 231,352 231,338 Z" fill="#7a3f5a" opacity="0.96"/>
+  <path d="M231,338 C250,342 258,366 254,404" fill="none" stroke="#b5643f" stroke-width="1.3" opacity="0.8"/>
+  <!-- flap geometric motifs -->
+  <g>
+    <polygon points="242,352 246,348 250,352 246,356" fill="#c2b280"/>
+    <polygon points="243,366 247,362 251,366 247,370" fill="#5d8fa8"/>
+    <polygon points="244,380 248,376 252,380 248,384" fill="#e6c96f"/>
+    <polygon points="244,394 248,390 252,394 248,398" fill="#c2b280"/>
+    <path d="M237,360 l14,0 M238,374 l14,0 M239,388 l14,0" stroke="#b5643f" stroke-width="1" opacity="0.6"/>
+  </g>
+  <!-- tie-back rope gathering the flap -->
+  <path d="M235,372 q10,-3 20,1" stroke="#e6d9b5" stroke-width="2.2" fill="none"/>
+  <circle cx="235" cy="372" r="2" fill="#8a6238"/>
+
+  <!-- ===== domed crown (felt roof) ===== -->
+  <path d="M128,318 C126,276 164,238 222,232 C280,238 318,276 316,318 C304,336 264,344 222,344 C180,344 140,336 128,318 Z" fill="url(#ny-dome)"/>
+  <!-- form-giving top-left shine -->
+  <path d="M136,314 C136,278 168,246 214,240 C186,250 158,282 150,318 C144,318 140,316 136,314 Z" fill="url(#ny-domeshine)"/>
+  <!-- eave overhang shadow onto the wall -->
+  <path d="M132,320 C146,336 184,343 222,343 C260,343 298,336 312,320 C300,332 262,338 222,338 C182,338 144,332 132,320 Z" fill="#5f5238" opacity="0.4"/>
+  <!-- roof ribs (uni) fanning from the crown -->
+  <g fill="none" stroke="#7a6c4c" stroke-width="1.9" opacity="0.7" stroke-linecap="round">
+    <path d="M196,238 C176,256 146,290 130,318"/>
+    <path d="M199,242 C186,270 162,306 150,332"/>
+    <path d="M207,245 C199,278 186,314 178,340"/>
+    <path d="M214,247 C211,282 207,318 205,343"/>
+    <path d="M222,248 C222,285 222,318 222,344"/>
+    <path d="M230,247 C233,282 237,318 240,343"/>
+    <path d="M238,245 C245,278 259,314 267,340"/>
+    <path d="M246,242 C258,270 282,306 294,332"/>
+    <path d="M249,238 C268,256 298,290 314,318"/>
+  </g>
+  <!-- rib highlights on the lit side -->
+  <g fill="none" stroke="#f4ead0" stroke-width="1" opacity="0.55" stroke-linecap="round">
+    <path d="M197,239 C177,257 147,291 131,319"/>
+    <path d="M200,243 C187,271 163,307 151,333"/>
+    <path d="M208,246 C200,279 187,315 179,341"/>
+  </g>
+  <!-- two binding hoops wrapping the dome -->
+  <path d="M150,300 C182,318 262,318 294,300" fill="none" stroke="#9a8a63" stroke-width="1.6" opacity="0.55"/>
+  <path d="M168,268 C192,282 252,282 276,268" fill="none" stroke="#9a8a63" stroke-width="1.5" opacity="0.5"/>
+  <!-- dome left silhouette rim light -->
+  <path d="M128,318 C126,276 164,238 222,232" fill="none" stroke="#fff2cf" stroke-width="1.6" opacity="0.5"/>
+
+  <!-- ===== crown ring (toono) — glowing skylight ===== -->
+  <ellipse cx="222" cy="236" rx="46" ry="24" fill="url(#ny-crownglow)"/>
+  <!-- contact shadow seating the ring on the dome -->
+  <ellipse cx="222" cy="239.5" rx="29.5" ry="11.3" fill="#3a2e19" opacity="0.4" filter="url(#ny-soft)"/>
+  <ellipse cx="222" cy="236" rx="28" ry="11" fill="#5a4a2e"/>
+  <ellipse cx="222" cy="236" rx="24.5" ry="9" fill="url(#ny-crown)"/>
+  <!-- toono spokes across the opening -->
+  <g stroke="#7a5c34" stroke-width="1.3" opacity="0.85">
+    <line x1="222" y1="227" x2="222" y2="245"/>
+    <line x1="200" y1="236" x2="244" y2="236"/>
+    <line x1="206" y1="229.5" x2="238" y2="242.5"/>
+    <line x1="206" y1="242.5" x2="238" y2="229.5"/>
+  </g>
+  <ellipse cx="222" cy="236" rx="28" ry="11" fill="none" stroke="#43331d" stroke-width="1.8"/>
+  <ellipse cx="222" cy="235" rx="28" ry="11" fill="none" stroke="#c79b5a" stroke-width="1" opacity="0.7"/>
+  <!-- crown tassel / little pennant (stem seated onto the crown ring surface) -->
+  <path d="M222,231 q3,-12 -2,-22" fill="none" stroke="#8a6238" stroke-width="1.6"/>
+  <path d="M220,209 l12,-4 -10,7 Z" fill="#b5643f"/>
+  <circle cx="220" cy="209" r="2.2" fill="#e6d9b5"/>
+  <!-- thin curl of smoke from the crown -->
+  <g fill="none" filter="url(#ny-smokeblur)" opacity="0.5">
+    <path d="M226,226 C220,214 234,206 229,194 C225,184 236,178 234,168" stroke="url(#ny-smoke)" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <!-- eave fringe tassels -->
+  <g stroke="#7d6f50" stroke-width="1.4" stroke-linecap="round">
+    <path d="M150,335 l-1,8"/><path d="M175,340 l0,9"/><path d="M200,343 l0,9"/>
+    <path d="M222,344 l0,9"/><path d="M244,343 l0,9"/><path d="M268,341 l1,9"/><path d="M292,335 l1,8"/>
+  </g>
+  <g fill="#b5643f">
+    <circle cx="149" cy="344" r="2.2"/><circle cx="175" cy="350" r="2.3"/><circle cx="200" cy="352" r="2.3"/>
+    <circle cx="222" cy="353" r="2.4"/><circle cx="244" cy="352" r="2.3"/><circle cx="269" cy="351" r="2.3"/><circle cx="293" cy="344" r="2.2"/>
+  </g>
+
+  <!-- firelight cast warm onto the yurt's right side -->
+  <path d="M300,322 C312,340 306,392 296,406 C312,398 320,344 316,320 C312,320 305,320 300,322 Z" fill="#ffb24a" opacity="0.18" filter="url(#ny-soft)"/>
+
+  <!-- ================= CAMPFIRE ================= -->
+  <!-- soft glow halo -->
+  <ellipse cx="324" cy="392" rx="52" ry="42" fill="url(#ny-fireglow)"/>
+  <!-- stone ring (back-to-front painter's order; all stones inside the tile edge) -->
+  <g>
+    <ellipse cx="302" cy="392" rx="8" ry="5" fill="#4f4b43"/><ellipse cx="302" cy="390" rx="8" ry="5" fill="#78726a"/>
+    <ellipse cx="348" cy="392" rx="8" ry="5" fill="#4f4b43"/><ellipse cx="348" cy="390" rx="8" ry="5" fill="#736d64"/>
+    <ellipse cx="343" cy="399" rx="9" ry="5.5" fill="#5e5a54"/><ellipse cx="343" cy="397" rx="9" ry="5.5" fill="#8b857b"/>
+    <ellipse cx="300" cy="406" rx="9" ry="5.5" fill="#5e5a54"/><ellipse cx="300" cy="404" rx="9" ry="5.5" fill="#837e76"/>
+    <ellipse cx="330" cy="406" rx="9" ry="5.5" fill="#565249"/><ellipse cx="330" cy="404" rx="9" ry="5.5" fill="#847e73"/>
+    <ellipse cx="316" cy="412" rx="9" ry="5.5" fill="#565249"/><ellipse cx="316" cy="410" rx="9" ry="5.5" fill="#7a746b"/>
+  </g>
+  <!-- charred logs -->
+  <g>
+    <ellipse cx="324" cy="400" rx="20" ry="6" fill="#3a2a1e" transform="rotate(18 324 400)"/>
+    <ellipse cx="324" cy="400" rx="20" ry="6" fill="#2e2116" transform="rotate(-20 324 400)"/>
+    <ellipse cx="312" cy="393" rx="3" ry="3" fill="#ff7a1e" opacity="0.8"/>
+    <ellipse cx="336" cy="396" rx="3" ry="3" fill="#ffb23a" opacity="0.8"/>
+  </g>
+  <!-- flames -->
+  <path d="M324,402 C308,392 312,372 320,360 C322,372 328,372 328,362 C336,372 340,388 332,400 C330,392 326,392 324,402 Z" fill="url(#ny-flameOuter)"/>
+  <path d="M310,400 C302,392 306,382 312,376 C312,386 316,386 315,380 C320,388 318,396 312,401 Z" fill="url(#ny-flameOuter)" opacity="0.9"/>
+  <path d="M338,401 C332,394 334,384 339,379 C339,388 343,387 342,382 C347,390 345,397 340,401 Z" fill="url(#ny-flameOuter)" opacity="0.9"/>
+  <path d="M324,401 C315,394 318,380 323,371 C325,381 329,381 328,373 C334,382 333,394 326,400 Z" fill="url(#ny-flameInner)"/>
+  <ellipse cx="324" cy="394" rx="5" ry="8" fill="#fffbe6" opacity="0.85"/>
+
+  <!-- cooking tripod + hanging cauldron over the fire (leg tips seated on the tile with contact shadows) -->
+  <ellipse cx="300" cy="415" rx="3.6" ry="1.7" fill="#241812" opacity="0.5"/>
+  <ellipse cx="324" cy="414" rx="3.6" ry="1.7" fill="#241812" opacity="0.5"/>
+  <ellipse cx="343" cy="404" rx="3.6" ry="1.7" fill="#241812" opacity="0.5"/>
+  <g stroke="#4b3826" stroke-width="2.6" stroke-linecap="round">
+    <line x1="322" y1="350" x2="300" y2="414"/>
+    <line x1="322" y1="350" x2="324" y2="413"/>
+    <line x1="322" y1="350" x2="343" y2="403"/>
+  </g>
+  <circle cx="322" cy="350" r="3" fill="#3a2a1a"/>
+  <line x1="322" y1="352" x2="322" y2="362" stroke="#2a2620" stroke-width="1.4"/>
+  <path d="M310,368 C310,362 334,362 334,368 L332,382 C330,392 314,392 312,382 Z" fill="url(#ny-pot)"/>
+  <ellipse cx="322" cy="368" rx="12" ry="4" fill="#4a4650"/>
+  <ellipse cx="322" cy="368" rx="12" ry="4" fill="none" stroke="#2a2730" stroke-width="1"/>
+  <path d="M310,367 a12,7 0 0 1 24,0" fill="none" stroke="#2a2620" stroke-width="1.5"/>
+  <!-- steam from the pot -->
+  <g fill="none" filter="url(#ny-smokeblur)" opacity="0.5">
+    <path d="M320,362 C316,354 326,350 322,342 C319,336 327,332 325,326" stroke="url(#ny-smoke)" stroke-width="6" stroke-linecap="round"/>
+  </g>
+
+  <!-- firewood stack (seated on the grass behind the fire, fully inside the tile) -->
+  <g>
+    <ellipse cx="359" cy="384" rx="17" ry="4" fill="#2a1a10" opacity="0.35"/>
+    <ellipse cx="358" cy="382" rx="16" ry="4.5" fill="url(#ny-log)" transform="rotate(-8 358 382)"/>
+    <ellipse cx="360" cy="377" rx="16" ry="4.5" fill="url(#ny-log)" transform="rotate(6 360 377)"/>
+    <ellipse cx="358" cy="372" rx="14" ry="4.2" fill="url(#ny-log)" transform="rotate(-10 358 372)"/>
+    <!-- seams separating the log rows + top highlight -->
+    <path d="M346,380 q13,3.5 27,1" stroke="#4a2f1c" stroke-width="1.1" opacity="0.55" fill="none"/>
+    <path d="M347,375 q12,3 25,0.6" stroke="#4a2f1c" stroke-width="1" opacity="0.5" fill="none"/>
+    <path d="M347,369.6 q12,-1.8 23,0.6" stroke="#c79a6a" stroke-width="1" opacity="0.5" fill="none"/>
+    <circle cx="348" cy="382.5" r="3.4" fill="#c79a6a"/><circle cx="348" cy="382.5" r="1.5" fill="#7a5233"/>
+    <circle cx="371" cy="377.5" r="3.2" fill="#b98a5c"/><circle cx="371" cy="377.5" r="1.4" fill="#6e4a2c"/>
+  </g>
+
+  <!-- a bedroll bundle resting by the door -->
+  <g>
+    <ellipse cx="160" cy="404" rx="23" ry="6" fill="#05070a" opacity="0.35" filter="url(#ny-soft)"/>
+    <ellipse cx="160" cy="398" rx="22" ry="9" fill="#7f8fd1"/>
+    <ellipse cx="160" cy="395" rx="22" ry="9" fill="#96a2dc"/>
+    <ellipse cx="139" cy="395" rx="4.5" ry="9" fill="#6a78bd"/>
+    <ellipse cx="181" cy="395" rx="4.5" ry="9" fill="#6a78bd"/>
+    <circle cx="181" cy="395" r="2" fill="#c2b280"/>
+    <path d="M160,387 l0,16 M168,388 l0,15 M152,388 l0,15" stroke="#7484c6" stroke-width="1.2" opacity="0.7"/>
+  </g>
+
+  <!-- rising embers / sparks from the fire -->
+  <g fill="#ffd75e">
+    <circle cx="330" cy="356" r="1.6" opacity="0.9"/>
+    <circle cx="318" cy="344" r="1.3" opacity="0.8"/>
+    <circle cx="338" cy="334" r="1.4" opacity="0.75"/>
+    <circle cx="326" cy="322" r="1.1" opacity="0.6"/>
+    <circle cx="344" cy="312" r="1.2" opacity="0.5"/>
+  </g>
+
+  <!-- ===== magical wisp motes ===== -->
+  <g filter="url(#ny-glow)">
+    <circle cx="108" cy="200" r="8" fill="url(#ny-wisp)"/>
+    <circle cx="382" cy="234" r="7" fill="url(#ny-wisp)"/>
+    <circle cx="128" cy="300" r="6" fill="url(#ny-wisp)"/>
+    <circle cx="404" cy="322" r="6" fill="url(#ny-wisp)"/>
+    <circle cx="244" cy="150" r="5" fill="url(#ny-wisp)"/>
+    <circle cx="96" cy="262" r="5" fill="url(#ny-wisp)"/>
+    <circle cx="356" cy="284" r="5" fill="url(#ny-wisp)"/>
+  </g>
+  <g fill="#fff6d8">
+    <circle cx="108" cy="200" r="1.8"/>
+    <circle cx="382" cy="234" r="1.6"/>
+    <circle cx="128" cy="300" r="1.4"/>
+    <circle cx="404" cy="322" r="1.3"/>
+    <circle cx="244" cy="150" r="1.2"/>
+    <circle cx="96" cy="262" r="1.2"/>
+    <circle cx="356" cy="284" r="1.2"/>
+  </g>
+</svg>

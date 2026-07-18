@@ -1,0 +1,447 @@
+<svg viewBox="0 0 480 460" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- form-giving gradients -->
+    <radialGradient id="turf-longhouse-ambient" cx="50%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#ffcf6a" stop-opacity="0.16"/>
+      <stop offset="45%" stop-color="#7f8fd1" stop-opacity="0.07"/>
+      <stop offset="100%" stop-color="#101418" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="turf-longhouse-rim" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#5d8fa8" stop-opacity="0.30"/>
+      <stop offset="100%" stop-color="#5d8fa8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="turf-longhouse-groundTop" cx="46%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#67b96f"/>
+      <stop offset="55%" stop-color="#4f9d5d"/>
+      <stop offset="100%" stop-color="#2f6b40"/>
+    </radialGradient>
+    <linearGradient id="turf-longhouse-earth" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6e4a33"/>
+      <stop offset="100%" stop-color="#3c2818"/>
+    </linearGradient>
+    <linearGradient id="turf-longhouse-roof" x1="0.15" y1="0" x2="0.7" y2="1">
+      <stop offset="0%" stop-color="#79c977"/>
+      <stop offset="45%" stop-color="#57a75f"/>
+      <stop offset="100%" stop-color="#37804a"/>
+    </linearGradient>
+    <linearGradient id="turf-longhouse-roofGable" x1="0.1" y1="0.1" x2="0.9" y2="1">
+      <stop offset="0%" stop-color="#4f9d5d"/>
+      <stop offset="60%" stop-color="#3a8150"/>
+      <stop offset="100%" stop-color="#28603c"/>
+    </linearGradient>
+    <linearGradient id="turf-longhouse-roofBack" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3a7d4c"/>
+      <stop offset="100%" stop-color="#255238"/>
+    </linearGradient>
+    <linearGradient id="turf-longhouse-soil" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7a5238"/>
+      <stop offset="50%" stop-color="#5c3d28"/>
+      <stop offset="100%" stop-color="#3e2818"/>
+    </linearGradient>
+    <linearGradient id="turf-longhouse-wallSunA" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#b07a56"/>
+      <stop offset="100%" stop-color="#8a5a42"/>
+    </linearGradient>
+    <linearGradient id="turf-longhouse-wallSunB" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#9a6849"/>
+      <stop offset="100%" stop-color="#754a35"/>
+    </linearGradient>
+    <linearGradient id="turf-longhouse-wallShadeA" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6a4732"/>
+      <stop offset="100%" stop-color="#472e20"/>
+    </linearGradient>
+    <linearGradient id="turf-longhouse-wallShadeB" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5b3c2a"/>
+      <stop offset="100%" stop-color="#3a251a"/>
+    </linearGradient>
+    <linearGradient id="turf-longhouse-endFace" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4c3122"/>
+      <stop offset="100%" stop-color="#2c1c12"/>
+    </linearGradient>
+    <linearGradient id="turf-longhouse-beam" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#c79a5e"/>
+      <stop offset="100%" stop-color="#7a5030"/>
+    </linearGradient>
+    <radialGradient id="turf-longhouse-winGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffe9a8" stop-opacity="0.95"/>
+      <stop offset="35%" stop-color="#ffd75e" stop-opacity="0.65"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="turf-longhouse-pane" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff3cf"/>
+      <stop offset="100%" stop-color="#ffcf5f"/>
+    </linearGradient>
+    <radialGradient id="turf-longhouse-doorGlow" cx="50%" cy="90%" r="70%">
+      <stop offset="0%" stop-color="#ffdf7a" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#ffdf7a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="turf-longhouse-door" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5a3a26"/>
+      <stop offset="100%" stop-color="#341f13"/>
+    </linearGradient>
+    <radialGradient id="turf-longhouse-mote" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffe9a8"/>
+      <stop offset="45%" stop-color="#ffd75e" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="turf-longhouse-soft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+    <filter id="turf-longhouse-soft2" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+    <filter id="turf-longhouse-shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+  </defs>
+
+  <!-- ambient magical wash + cool back rim -->
+  <rect x="0" y="0" width="480" height="460" fill="url(#turf-longhouse-ambient)"/>
+  <ellipse cx="246" cy="196" rx="205" ry="78" fill="url(#turf-longhouse-rim)" filter="url(#turf-longhouse-soft)"/>
+
+  <!-- ground contact shadow -->
+  <ellipse cx="244" cy="372" rx="158" ry="44" fill="#050708" opacity="0.55" filter="url(#turf-longhouse-shadow)"/>
+
+  <!-- ===================== GROUND TILE ===================== -->
+  <g id="turf-longhouse-ground">
+    <!-- earth sides -->
+    <polygon points="415,345 240,433 240,459 415,371" fill="url(#turf-longhouse-earth)"/>
+    <polygon points="65,345 240,433 240,459 65,371" fill="url(#turf-longhouse-earth)"/>
+    <polygon points="65,345 240,433 240,459 65,371" fill="#000000" opacity="0.18"/>
+    <!-- earth strata lines -->
+    <path d="M240,441 L410,354 M240,449 L410,363 M240,441 L70,354 M240,449 L70,363" stroke="#2a1a10" stroke-width="1.4" opacity="0.5" fill="none"/>
+    <!-- little embedded pebbles in the earth face -->
+    <ellipse cx="330" cy="382" rx="6" ry="3.5" fill="#7c5a42" opacity="0.7"/>
+    <ellipse cx="300" cy="399" rx="4" ry="2.6" fill="#6a4a34" opacity="0.7"/>
+    <ellipse cx="150" cy="385" rx="5" ry="3" fill="#6a4a34" opacity="0.65"/>
+    <ellipse cx="185" cy="404" rx="4" ry="2.4" fill="#7c5a42" opacity="0.6"/>
+
+    <!-- grass top surface -->
+    <polygon points="240,257 415,345 240,433 65,345" fill="url(#turf-longhouse-groundTop)"/>
+    <path d="M240,257 L415,345 L240,433 L65,345 Z" fill="none" stroke="#2c6b41" stroke-width="2" opacity="0.5"/>
+    <!-- grass tone patches -->
+    <ellipse cx="210" cy="330" rx="46" ry="22" fill="#5cae66" opacity="0.35"/>
+    <ellipse cx="300" cy="360" rx="40" ry="18" fill="#3f8a4f" opacity="0.35"/>
+    <ellipse cx="150" cy="360" rx="30" ry="14" fill="#3f8a4f" opacity="0.3"/>
+
+    <!-- stepping-stone path from near corner toward door (threshold stone seats it at the door) -->
+    <ellipse cx="212" cy="392" rx="13" ry="7" fill="#8a8f94"/>
+    <ellipse cx="212" cy="390" rx="12" ry="6" fill="#a7adb2"/>
+    <ellipse cx="188" cy="378" rx="11" ry="6" fill="#8a8f94"/>
+    <ellipse cx="188" cy="376.5" rx="10" ry="5" fill="#a2a8ad"/>
+    <ellipse cx="168" cy="366" rx="9.5" ry="5.2" fill="#868b90"/>
+    <ellipse cx="168" cy="364.7" rx="8.5" ry="4.4" fill="#9ba1a6"/>
+    <ellipse cx="161" cy="350.5" rx="10" ry="5.2" fill="#767c81"/>
+    <ellipse cx="161" cy="349.1" rx="8.6" ry="4.3" fill="#939aa0"/>
+
+    <!-- foreground stones + mushrooms -->
+    <ellipse cx="330" cy="392" rx="14" ry="7.5" fill="#767c81"/>
+    <ellipse cx="330" cy="389.5" rx="12.5" ry="6.2" fill="#949aa0"/>
+    <ellipse cx="98" cy="356" rx="10" ry="5.5" fill="#767c81"/>
+    <ellipse cx="98" cy="354" rx="8.6" ry="4.4" fill="#8f9599"/>
+    <g>
+      <ellipse cx="122" cy="372" rx="4.6" ry="2.4" fill="#c94f4a"/>
+      <path d="M117.6,372 a4.6,4.6 0 0 1 8.8,0 Z" fill="#d65c56"/>
+      <circle cx="120" cy="370.6" r="0.9" fill="#ffe4d8"/>
+      <circle cx="123.5" cy="371.4" r="0.7" fill="#ffe4d8"/>
+      <rect x="120.6" y="372" width="2.4" height="4" rx="1.1" fill="#f0e3cf"/>
+    </g>
+
+    <!-- blades of grass along the near rims -->
+    <g stroke="#68c072" stroke-width="1.6" stroke-linecap="round" fill="none" opacity="0.9">
+      <path d="M96,352 q-2,-6 -1,-10"/><path d="M100,354 q1,-6 3,-11"/>
+      <path d="M140,368 q-2,-7 -1,-11"/><path d="M145,370 q2,-6 4,-10"/>
+      <path d="M255,378 q-2,-7 -1,-12"/><path d="M262,376 q2,-7 4,-11"/>
+      <path d="M310,362 q-2,-7 -1,-11"/><path d="M317,360 q2,-6 4,-10"/>
+      <path d="M355,352 q-2,-7 -1,-11"/><path d="M120,340 q-2,-6 -1,-10"/>
+    </g>
+  </g>
+
+  <!-- ===================== LONGHOUSE BODY ===================== -->
+  <g id="turf-longhouse-body">
+
+    <!-- far (right) end face, mostly turned away -> dark -->
+    <polygon points="382,300 275,254 275,198 382,244" fill="url(#turf-longhouse-endFace)"/>
+
+    <!-- GABLE-END WALL (down-left, shaded) : stacked log courses -->
+    <g id="turf-longhouse-gableWall">
+      <polygon points="215,362 108,316 108,308 215,354" fill="url(#turf-longhouse-wallShadeA)"/>
+      <polygon points="215,354 108,308 108,300 215,346" fill="url(#turf-longhouse-wallShadeB)"/>
+      <polygon points="215,346 108,300 108,292 215,338" fill="url(#turf-longhouse-wallShadeA)"/>
+      <polygon points="215,338 108,292 108,284 215,330" fill="url(#turf-longhouse-wallShadeB)"/>
+      <polygon points="215,330 108,284 108,276 215,322" fill="url(#turf-longhouse-wallShadeA)"/>
+      <polygon points="215,322 108,276 108,268 215,314" fill="url(#turf-longhouse-wallShadeB)"/>
+      <polygon points="215,314 108,268 108,260 215,306" fill="url(#turf-longhouse-wallShadeA)"/>
+      <!-- log seam highlights -->
+      <g stroke="#7a5238" stroke-width="0.8" opacity="0.55">
+        <line x1="215" y1="354" x2="108" y2="308"/>
+        <line x1="215" y1="346" x2="108" y2="300"/>
+        <line x1="215" y1="338" x2="108" y2="292"/>
+        <line x1="215" y1="330" x2="108" y2="284"/>
+        <line x1="215" y1="322" x2="108" y2="276"/>
+        <line x1="215" y1="314" x2="108" y2="268"/>
+      </g>
+      <!-- overall shading to seat it in shadow + rim -->
+      <polygon points="215,362 108,316 108,260 215,306" fill="#1c120b" opacity="0.20"/>
+      <polygon points="108,316 108,260 110,260 110,316" fill="#8fb7c9" opacity="0.18"/>
+    </g>
+
+    <!-- LONG WALL (down-right, sunlit) : stacked log courses -->
+    <g id="turf-longhouse-longWall">
+      <polygon points="215,362 382,300 382,292 215,354" fill="url(#turf-longhouse-wallSunA)"/>
+      <polygon points="215,354 382,292 382,284 215,346" fill="url(#turf-longhouse-wallSunB)"/>
+      <polygon points="215,346 382,284 382,276 215,338" fill="url(#turf-longhouse-wallSunA)"/>
+      <polygon points="215,338 382,276 382,268 215,330" fill="url(#turf-longhouse-wallSunB)"/>
+      <polygon points="215,330 382,268 382,260 215,322" fill="url(#turf-longhouse-wallSunA)"/>
+      <polygon points="215,322 382,260 382,252 215,314" fill="url(#turf-longhouse-wallSunB)"/>
+      <polygon points="215,314 382,252 382,244 215,306" fill="url(#turf-longhouse-wallSunA)"/>
+      <!-- log seam shadows + highlights -->
+      <g stroke="#5f3c29" stroke-width="0.9" opacity="0.6">
+        <line x1="215" y1="354" x2="382" y2="292"/>
+        <line x1="215" y1="346" x2="382" y2="284"/>
+        <line x1="215" y1="338" x2="382" y2="276"/>
+        <line x1="215" y1="330" x2="382" y2="268"/>
+        <line x1="215" y1="322" x2="382" y2="260"/>
+        <line x1="215" y1="314" x2="382" y2="252"/>
+      </g>
+      <g stroke="#c88f63" stroke-width="0.7" opacity="0.5">
+        <line x1="215" y1="352.6" x2="382" y2="290.6"/>
+        <line x1="215" y1="344.6" x2="382" y2="282.6"/>
+        <line x1="215" y1="336.6" x2="382" y2="274.6"/>
+        <line x1="215" y1="328.6" x2="382" y2="266.6"/>
+        <line x1="215" y1="320.6" x2="382" y2="258.6"/>
+        <line x1="215" y1="312.6" x2="382" y2="250.6"/>
+      </g>
+      <!-- warm graze of light near ridge/eave -->
+      <polygon points="215,314 382,252 382,244 215,306" fill="#e0a875" opacity="0.22"/>
+    </g>
+
+    <!-- corner end-grain logs (Scandinavian notch) at near vertical edge -->
+    <g id="turf-longhouse-corner">
+      <line x1="215" y1="306" x2="215" y2="362" stroke="#d3a074" stroke-width="1.4" opacity="0.55"/>
+      <g>
+        <ellipse cx="215" cy="358" rx="4.6" ry="5.4" fill="#9a6a48"/><ellipse cx="215" cy="358" rx="2.6" ry="3.1" fill="#bd8a5f"/>
+        <ellipse cx="215" cy="350" rx="4.6" ry="5.4" fill="#8f6142"/><ellipse cx="215" cy="350" rx="2.6" ry="3.1" fill="#b6835a"/>
+        <ellipse cx="215" cy="342" rx="4.6" ry="5.4" fill="#9a6a48"/><ellipse cx="215" cy="342" rx="2.6" ry="3.1" fill="#bd8a5f"/>
+        <ellipse cx="215" cy="334" rx="4.6" ry="5.4" fill="#8f6142"/><ellipse cx="215" cy="334" rx="2.6" ry="3.1" fill="#b6835a"/>
+        <ellipse cx="215" cy="326" rx="4.6" ry="5.4" fill="#9a6a48"/><ellipse cx="215" cy="326" rx="2.6" ry="3.1" fill="#bd8a5f"/>
+        <ellipse cx="215" cy="318" rx="4.6" ry="5.4" fill="#8f6142"/><ellipse cx="215" cy="318" rx="2.6" ry="3.1" fill="#b6835a"/>
+        <ellipse cx="215" cy="310" rx="4.6" ry="5.4" fill="#9a6a48"/><ellipse cx="215" cy="310" rx="2.6" ry="3.1" fill="#bd8a5f"/>
+      </g>
+    </g>
+
+    <!-- foundation stones along base -->
+    <g opacity="0.92">
+      <ellipse cx="250" cy="349" rx="10" ry="5" fill="#6e747a"/><ellipse cx="250" cy="347.6" rx="8.4" ry="3.7" fill="#8b9196"/>
+      <ellipse cx="300" cy="330" rx="10" ry="5" fill="#666c72"/><ellipse cx="300" cy="328.6" rx="8.4" ry="3.7" fill="#848a90"/>
+      <ellipse cx="350" cy="311" rx="9" ry="4.6" fill="#666c72"/><ellipse cx="350" cy="309.7" rx="7.6" ry="3.4" fill="#848a90"/>
+      <ellipse cx="170" cy="340" rx="9" ry="4.6" fill="#5e646a"/><ellipse cx="170" cy="338.8" rx="7.4" ry="3.3" fill="#7a8086"/>
+      <ellipse cx="132" cy="322" rx="8" ry="4.2" fill="#5e646a"/><ellipse cx="132" cy="320.9" rx="6.6" ry="3" fill="#7a8086"/>
+    </g>
+
+    <!-- DOOR on the gable end : quad follows the wall plane, seated on the base line -->
+    <g id="turf-longhouse-door">
+      <ellipse cx="165" cy="340" rx="27" ry="18" fill="url(#turf-longhouse-doorGlow)" filter="url(#turf-longhouse-soft2)"/>
+      <path d="M151,334.5 L151,301.5 Q160,295 179,313.5 L179,346.5 Z" fill="url(#turf-longhouse-door)"/>
+      <path d="M151,334.5 L151,301.5 Q160,295 179,313.5 L179,346.5 Z" fill="none" stroke="#241409" stroke-width="1" opacity="0.6"/>
+      <!-- plank seams -->
+      <g stroke="#241409" stroke-width="0.8" opacity="0.7">
+        <line x1="157" y1="300.8" x2="157" y2="337.1"/>
+        <line x1="163" y1="301.8" x2="163" y2="339.6"/>
+        <line x1="169" y1="304.9" x2="169" y2="342.2"/>
+        <line x1="174" y1="308.6" x2="174" y2="344.3"/>
+      </g>
+      <!-- iron hinges (follow the wall-plane slope) -->
+      <path d="M151,317 L179,329" stroke="#20262b" stroke-width="2.2"/>
+      <path d="M151,308 L179,320" stroke="#20262b" stroke-width="2.2"/>
+      <circle cx="175" cy="325.5" r="1.5" fill="#c9a45a"/>
+      <!-- warm light leaking under & around door -->
+      <path d="M179,346.5 L151,334.5 L151,332.7 L179,344.7 Z" fill="#ffd75e" opacity="0.75"/>
+      <path d="M179,314 L179,346.5 L177.2,345.7 L177.2,314.2 Z" fill="#ffcf5f" opacity="0.35"/>
+    </g>
+
+    <!-- GLOWING WINDOWS on the long wall -->
+    <g id="turf-longhouse-windows">
+      <ellipse cx="296" cy="298" rx="23" ry="18" fill="url(#turf-longhouse-winGlow)" filter="url(#turf-longhouse-soft)"/>
+      <polygon points="285,312 308,303 308,283 285,292" fill="url(#turf-longhouse-pane)"/>
+      <polygon points="285,312 308,303 308,283 285,292" fill="none" stroke="#6a4227" stroke-width="2"/>
+      <line x1="296.5" y1="307.5" x2="296.5" y2="287.5" stroke="#6a4227" stroke-width="1.6"/>
+      <line x1="285" y1="302" x2="308" y2="293" stroke="#6a4227" stroke-width="1.6"/>
+      <polygon points="286,311 296,307.2 296,293 286,296.6" fill="#fff6da" opacity="0.55"/>
+
+      <ellipse cx="345" cy="284" rx="18" ry="14" fill="url(#turf-longhouse-winGlow)" filter="url(#turf-longhouse-soft)"/>
+      <polygon points="335,292 354,284.5 354,268.5 335,276" fill="url(#turf-longhouse-pane)"/>
+      <polygon points="335,292 354,284.5 354,268.5 335,276" fill="none" stroke="#6a4227" stroke-width="1.8"/>
+      <line x1="344.5" y1="288.2" x2="344.5" y2="272.2" stroke="#6a4227" stroke-width="1.4"/>
+      <line x1="335" y1="284" x2="354" y2="276.5" stroke="#6a4227" stroke-width="1.4"/>
+    </g>
+
+    <!-- ===================== TURF ROOF ===================== -->
+    <g id="turf-longhouse-roofGroup">
+      <!-- back slope peeking above ridge (depth) : ridge offset along the receding gable axis -->
+      <polygon points="161.5,233 328.5,171 320.2,167.4 153.2,229.4" fill="url(#turf-longhouse-roofBack)"/>
+
+      <!-- soil eave thickness under front sod -->
+      <polygon points="215,306 382,244 390,256 210,318" fill="url(#turf-longhouse-soil)"/>
+      <!-- soil eave under gable sod -->
+      <polygon points="215,306 108,260 98,270 210,318" fill="url(#turf-longhouse-soil)"/>
+      <!-- soil strata + hanging roots -->
+      <g stroke="#3a2616" stroke-width="1" opacity="0.55">
+        <line x1="213" y1="313" x2="388" y2="251"/>
+        <line x1="213" y1="313" x2="102" y2="266"/>
+      </g>
+
+      <!-- FRONT sod slope (the star surface) -->
+      <polygon points="210,318 390,256 328.5,171 161.5,233" fill="url(#turf-longhouse-roof)"/>
+      <!-- form shading: darker toward eave, light toward ridge -->
+      <polygon points="210,318 390,256 350,232 178,285" fill="#2f6f43" opacity="0.30"/>
+      <polygon points="161.5,233 328.5,171 300,190 150,246" fill="#8ad884" opacity="0.30"/>
+      <!-- undulating turf bands -->
+      <g fill="none" stroke="#2c6b40" stroke-width="1.4" opacity="0.4">
+        <path d="M186,276 Q250,258 302,235 T388,258"/>
+        <path d="M172,255 Q240,236 300,213 T362,214"/>
+      </g>
+      <g fill="none" stroke="#7fca79" stroke-width="1" opacity="0.45">
+        <path d="M186,273 Q250,255 302,232 T388,255"/>
+        <path d="M172,252 Q240,233 300,210 T362,211"/>
+      </g>
+
+      <!-- GABLE sod end (triangular, faces down-left) -->
+      <polygon points="161.5,233 210,318 98,270" fill="url(#turf-longhouse-roofGable)"/>
+      <polygon points="161.5,233 205,308 120,275" fill="#1f5232" opacity="0.28"/>
+
+      <!-- hanging grass fringe along front eave -->
+      <g stroke="#4f9d5d" stroke-width="1.6" stroke-linecap="round" fill="none" opacity="0.85">
+        <path d="M224,314 q-1,6 -3,9"/><path d="M246,306 q0,6 -2,9"/>
+        <path d="M270,297 q1,6 -1,9"/><path d="M296,288 q0,6 -2,9"/>
+        <path d="M322,278 q1,6 -1,9"/><path d="M348,269 q0,6 -2,9"/>
+        <path d="M372,261 q1,6 -1,9"/>
+      </g>
+
+      <!-- scattered grass tufts on the sod -->
+      <g stroke="#7cd077" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.9">
+        <path d="M185,300 q-3,-8 -1,-14 M185,300 q1,-9 3,-14"/>
+        <path d="M216,289 q-3,-8 -1,-13 M216,289 q2,-8 4,-13"/>
+        <path d="M250,277 q-3,-8 -1,-13 M250,277 q2,-8 4,-13"/>
+        <path d="M286,264 q-3,-8 -1,-13 M286,264 q2,-8 4,-13"/>
+        <path d="M318,251 q-3,-8 -1,-13 M318,251 q2,-8 4,-13"/>
+        <path d="M348,239 q-3,-8 -1,-13 M348,239 q2,-8 4,-13"/>
+        <path d="M200,272 q-3,-8 -1,-13 M200,272 q2,-8 4,-12"/>
+        <path d="M236,259 q-3,-8 -1,-12 M236,259 q2,-8 4,-12"/>
+        <path d="M272,247 q-3,-7 -1,-12 M272,247 q2,-8 4,-12"/>
+        <path d="M304,235 q-3,-7 -1,-12 M304,235 q2,-7 4,-11"/>
+        <path d="M334,223 q-3,-7 -1,-12 M334,223 q2,-7 4,-11"/>
+        <path d="M228,235 q-2,-7 -1,-11 M228,235 q2,-7 3,-11"/>
+        <path d="M262,224 q-2,-7 -1,-11 M262,224 q2,-7 3,-11"/>
+        <path d="M296,212 q-2,-7 -1,-11 M296,212 q2,-7 3,-11"/>
+      </g>
+      <!-- gable-face tufts -->
+      <g stroke="#5fb567" stroke-width="1.4" stroke-linecap="round" fill="none" opacity="0.85">
+        <path d="M150,262 q-2,-7 -1,-11 M150,262 q2,-6 4,-10"/>
+        <path d="M170,282 q-2,-7 -1,-11 M170,282 q2,-6 4,-10"/>
+        <path d="M128,270 q-2,-6 -1,-10 M128,270 q2,-6 3,-9"/>
+      </g>
+
+      <!-- wildflowers on the sod -->
+      <g>
+        <circle cx="230" cy="256" r="1.8" fill="#ffe9a8"/><circle cx="230" cy="256" r="0.7" fill="#ffb347"/>
+        <circle cx="300" cy="230" r="1.8" fill="#f6d2e2"/><circle cx="300" cy="230" r="0.7" fill="#ffe9a8"/>
+        <circle cx="340" cy="216" r="1.7" fill="#ffe9a8"/><circle cx="340" cy="216" r="0.7" fill="#ffb347"/>
+        <circle cx="262" cy="242" r="1.7" fill="#cfe6ff"/><circle cx="262" cy="242" r="0.7" fill="#ffe9a8"/>
+        <circle cx="318" cy="214" r="1.6" fill="#ffe9a8"/><circle cx="318" cy="214" r="0.6" fill="#ffb347"/>
+        <circle cx="200" cy="266" r="1.7" fill="#f6d2e2"/><circle cx="200" cy="266" r="0.7" fill="#ffe9a8"/>
+        <circle cx="356" cy="205" r="1.6" fill="#ffe9a8"/><circle cx="356" cy="205" r="0.6" fill="#ffb347"/>
+        <circle cx="278" cy="234" r="1.6" fill="#cfe6ff"/><circle cx="278" cy="234" r="0.6" fill="#ffe9a8"/>
+        <circle cx="150" cy="252" r="1.6" fill="#ffe9a8"/><circle cx="150" cy="252" r="0.6" fill="#ffb347"/>
+      </g>
+
+      <!-- RIDGE cap with rim light -->
+      <path d="M161.5,233 L328.5,171" stroke="#255238" stroke-width="4.4" stroke-linecap="round"/>
+      <path d="M161.5,231.4 L328.5,169.4" stroke="#8fe089" stroke-width="1.8" stroke-linecap="round" opacity="0.85"/>
+      <!-- ridge tufts -->
+      <g stroke="#7cd077" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.95">
+        <path d="M178,227 q-2,-8 0,-13 M178,227 q2,-7 3,-12"/>
+        <path d="M195,221 q-2,-8 0,-13 M195,221 q2,-7 3,-12"/>
+        <path d="M211,215 q-2,-8 0,-13 M211,215 q2,-7 3,-12"/>
+        <path d="M228,209 q-2,-8 0,-13 M228,209 q2,-7 3,-12"/>
+        <path d="M245,202 q-2,-8 0,-13 M245,202 q2,-7 3,-12"/>
+        <path d="M261,196 q-2,-8 0,-13 M261,196 q2,-7 3,-12"/>
+        <path d="M278,190 q-2,-8 0,-13 M278,190 q2,-7 3,-12"/>
+        <path d="M295,184 q-2,-8 0,-13 M295,184 q2,-7 3,-12"/>
+        <path d="M312,178 q-2,-8 0,-13 M312,178 q2,-7 3,-12"/>
+      </g>
+
+      <!-- CARVED GABLE BEAMS (bargeboards crossing at the apex, mounted on the ridge-pole end) -->
+      <g id="turf-longhouse-beams" stroke-linecap="round">
+        <!-- protruding ridge-pole end the crossed boards clasp (behind the boards) -->
+        <ellipse cx="164.5" cy="232" rx="4.6" ry="5" fill="#7a5030"/>
+        <ellipse cx="164.5" cy="232" rx="2.6" ry="2.9" fill="#a8794f"/>
+        <!-- right barge (from near eave up to apex) -->
+        <line x1="210" y1="318" x2="161.5" y2="233" stroke="#3a2413" stroke-width="7"/>
+        <line x1="210" y1="318" x2="161.5" y2="233" stroke="url(#turf-longhouse-beam)" stroke-width="4.4"/>
+        <!-- left barge (from left eave up to apex) -->
+        <line x1="98" y1="270" x2="161.5" y2="233" stroke="#3a2413" stroke-width="7"/>
+        <line x1="98" y1="270" x2="161.5" y2="233" stroke="url(#turf-longhouse-beam)" stroke-width="4.4"/>
+        <!-- each board continues COLLINEAR past the apex, into a carved curled head -->
+        <path d="M161.5,233 L151.6,215.6 Q147.6,207.6 153.6,204.6 Q159.6,202.6 159.6,209.6" fill="none" stroke="#3a2413" stroke-width="6.5"/>
+        <path d="M161.5,233 L151.6,215.6 Q147.6,207.6 153.6,204.6 Q159.6,202.6 159.6,209.6" fill="none" stroke="url(#turf-longhouse-beam)" stroke-width="4"/>
+        <path d="M161.5,233 L179.6,222.4 Q185.6,215.4 179.6,211.4 Q173.6,209.4 174.6,216.4" fill="none" stroke="#3a2413" stroke-width="6.5"/>
+        <path d="M161.5,233 L179.6,222.4 Q185.6,215.4 179.6,211.4 Q173.6,209.4 174.6,216.4" fill="none" stroke="url(#turf-longhouse-beam)" stroke-width="4"/>
+        <!-- peg binding the crossing to the ridge pole -->
+        <circle cx="161.5" cy="233" r="1.6" fill="#2a1a0d"/>
+        <!-- carved head eyes -->
+        <circle cx="154.6" cy="205.8" r="1.1" fill="#2a1a0d"/>
+        <circle cx="178.6" cy="212.6" r="1.1" fill="#2a1a0d"/>
+        <!-- notch carvings along right barge -->
+        <g stroke="#3a2413" stroke-width="1" opacity="0.7">
+          <line x1="196" y1="298" x2="203" y2="296"/>
+          <line x1="186" y1="280" x2="193" y2="278"/>
+          <line x1="176" y1="262" x2="183" y2="260"/>
+        </g>
+      </g>
+
+      <!-- small stone smoke-hole / chimney near far third : proper iso box, top recedes up-left -->
+      <g>
+        <!-- sunlit face (along ridge axis) -->
+        <polygon points="288,189 300.2,184.5 300.2,174 288,178.5" fill="#6d747a"/>
+        <!-- shaded face (along gable axis) -->
+        <polygon points="288,189 281.6,186.2 281.6,175.7 288,178.5" fill="#454c51"/>
+        <!-- top face -->
+        <polygon points="288,178.5 300.2,174 293.8,171.2 281.6,175.7" fill="#7d848a"/>
+        <polygon points="281.6,186.2 288,189 300.2,184.5 300.2,174 293.8,171.2 281.6,175.7" fill="none" stroke="#343a3f" stroke-width="1"/>
+        <line x1="288" y1="189" x2="288" y2="178.5" stroke="#8b9298" stroke-width="0.8" opacity="0.6"/>
+        <!-- smoke hole on the top face -->
+        <ellipse cx="290.9" cy="174.9" rx="3.4" ry="1.7" fill="#1a1e22"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- smoke rising (from the smoke hole) -->
+  <g opacity="0.5" filter="url(#turf-longhouse-soft2)">
+    <path d="M291,173 q-8,-14 2,-24 q9,-9 1,-22 q-6,-10 4,-20" fill="none" stroke="#c9d3da" stroke-width="5" stroke-linecap="round" opacity="0.4"/>
+  </g>
+
+  <!-- ===================== MAGICAL WISP MOTES ===================== -->
+  <g id="turf-longhouse-wisps">
+    <circle cx="124" cy="180" r="9" fill="url(#turf-longhouse-mote)"/>
+    <circle cx="124" cy="180" r="2.1" fill="#fff4cf"/>
+    <circle cx="360" cy="150" r="11" fill="url(#turf-longhouse-mote)"/>
+    <circle cx="360" cy="150" r="2.4" fill="#fff4cf"/>
+    <circle cx="408" cy="236" r="8" fill="url(#turf-longhouse-mote)"/>
+    <circle cx="408" cy="236" r="1.9" fill="#fff4cf"/>
+    <circle cx="86" cy="300" r="7" fill="url(#turf-longhouse-mote)"/>
+    <circle cx="86" cy="300" r="1.7" fill="#fff4cf"/>
+    <circle cx="300" cy="120" r="6" fill="url(#turf-longhouse-mote)"/>
+    <circle cx="300" cy="120" r="1.6" fill="#fff4cf"/>
+    <circle cx="176" cy="140" r="6" fill="url(#turf-longhouse-mote)"/>
+    <circle cx="176" cy="140" r="1.5" fill="#fff4cf"/>
+    <circle cx="430" cy="308" r="6.5" fill="url(#turf-longhouse-mote)"/>
+    <circle cx="430" cy="308" r="1.6" fill="#fff4cf"/>
+    <circle cx="250" cy="118" r="4.5" fill="url(#turf-longhouse-mote)"/>
+    <circle cx="60" cy="240" r="5" fill="url(#turf-longhouse-mote)"/>
+    <!-- fireflies drifting in front of the house (kept off the wall faces) -->
+    <circle cx="325" cy="331" r="4" fill="url(#turf-longhouse-mote)"/>
+    <circle cx="325" cy="331" r="1.2" fill="#fff4cf"/>
+    <circle cx="204" cy="360" r="3.5" fill="url(#turf-longhouse-mote)"/>
+  </g>
+</svg>
