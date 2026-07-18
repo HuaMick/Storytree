@@ -1,0 +1,280 @@
+<svg viewBox="0 0 480 460" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- ambient warm seat glow -->
+    <radialGradient id="lowpoly-seatGlow" cx="50%" cy="52%" r="55%">
+      <stop offset="0%" stop-color="#ffd75e" stop-opacity="0.18"/>
+      <stop offset="45%" stop-color="#c2b280" stop-opacity="0.07"/>
+      <stop offset="100%" stop-color="#101418" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- ground shadow -->
+    <radialGradient id="lowpoly-groundShadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.55"/>
+      <stop offset="60%" stop-color="#04060a" stop-opacity="0.34"/>
+      <stop offset="100%" stop-color="#04060a" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- wall gradients (form + ambient occlusion) -->
+    <linearGradient id="lowpoly-wallLeft" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#b57a4e"/>
+      <stop offset="55%" stop-color="#9a6440"/>
+      <stop offset="100%" stop-color="#6f452c"/>
+    </linearGradient>
+    <linearGradient id="lowpoly-wallRight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d29a68"/>
+      <stop offset="55%" stop-color="#b8814f"/>
+      <stop offset="100%" stop-color="#8a5a37"/>
+    </linearGradient>
+
+    <!-- roof gradients -->
+    <linearGradient id="lowpoly-roofFront" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0%" stop-color="#8fbcd0"/>
+      <stop offset="45%" stop-color="#6398b0"/>
+      <stop offset="100%" stop-color="#456e88"/>
+    </linearGradient>
+
+    <!-- window glow -->
+    <radialGradient id="lowpoly-winGlow" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#fff6d8"/>
+      <stop offset="45%" stop-color="#ffd75e"/>
+      <stop offset="100%" stop-color="#e9a838"/>
+    </radialGradient>
+
+    <!-- soft glow filter for windows -->
+    <filter id="lowpoly-glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDev="4" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- shadow blur -->
+    <filter id="lowpoly-soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDev="5"/>
+    </filter>
+
+    <!-- wisp blur -->
+    <filter id="lowpoly-wisp" x="-150%" y="-150%" width="400%" height="400%">
+      <feGaussianBlur stdDev="2.4"/>
+    </filter>
+  </defs>
+
+  <!-- ambient seat glow behind cabin -->
+  <ellipse cx="240" cy="255" rx="205" ry="180" fill="url(#lowpoly-seatGlow)"/>
+
+  <!-- ground contact shadow -->
+  <ellipse cx="238" cy="372" rx="158" ry="40" fill="url(#lowpoly-groundShadow)" filter="url(#lowpoly-soft)"/>
+
+  <!-- ============ ISOMETRIC GROUND TILE ============ -->
+  <!-- tile thickness / earth rim -->
+  <polygon points="97,292 240,363 240,379 97,308" fill="#5c3b2c"/>
+  <polygon points="240,363 383,292 383,308 240,379" fill="#6d4835"/>
+  <!-- rim facet accents -->
+  <polygon points="97,292 168,327 168,343 97,308" fill="#4d3125"/>
+  <polygon points="311,327 383,292 383,308 311,343" fill="#5c3b2c"/>
+
+  <!-- tile top: faceted grass -->
+  <polygon points="240,292 240,221 311,256" fill="#4a9558"/>
+  <polygon points="240,292 311,256 383,292" fill="#59a967"/>
+  <polygon points="240,292 383,292 311,327" fill="#3f8a4d"/>
+  <polygon points="240,292 311,327 240,363" fill="#4f9d5d"/>
+  <polygon points="240,292 240,363 168,327" fill="#57a566"/>
+  <polygon points="240,292 168,327 97,292" fill="#43904f"/>
+  <polygon points="240,292 97,292 168,256" fill="#4f9d5d"/>
+  <polygon points="240,292 168,256 240,221" fill="#5aab6b"/>
+
+  <!-- scattered faceted grass clumps (darker + highlight) -->
+  <polygon points="130,300 152,290 148,306" fill="#3a7d47" opacity="0.85"/>
+  <polygon points="330,300 352,296 340,312" fill="#3a7d47" opacity="0.8"/>
+  <polygon points="200,330 220,325 210,342" fill="#61b26f" opacity="0.7"/>
+  <polygon points="270,244 288,250 274,258" fill="#63b571" opacity="0.65"/>
+  <polygon points="176,268 194,262 186,278" fill="#356e42" opacity="0.7"/>
+  <polygon points="292,320 312,316 300,332" fill="#5db06b" opacity="0.6"/>
+
+  <!-- grass lip: crisp the near tile edges -->
+  <path d="M97,292 L240,363 L383,292" fill="none" stroke="#71c281" stroke-width="1.5" opacity="0.45"/>
+
+  <!-- low-poly rocks -->
+  <polygon points="128,318 140,312 148,320 138,326" fill="#7c8a92"/>
+  <polygon points="128,318 138,326 134,330 126,324" fill="#5f6c73"/>
+  <polygon points="332,322 344,317 352,324 342,330" fill="#7c8a92"/>
+  <polygon points="332,322 342,330 338,334 330,328" fill="#5f6c73"/>
+
+  <!-- stone path slabs to the door -->
+  <polygon points="222,352 236,346 248,352 234,358" fill="#8794a0"/>
+  <polygon points="222,352 234,358 232,362 220,356" fill="#5f6c78"/>
+  <polygon points="220,336 234,330 246,336 232,342" fill="#93a0ab"/>
+  <polygon points="220,336 232,342 230,346 218,340" fill="#68757f"/>
+  <polygon points="217,321 231,315 243,321 229,327" fill="#8794a0"/>
+  <polygon points="217,321 229,327 227,331 215,325" fill="#5f6c78"/>
+
+  <!-- ============ BACKGROUND LOW-POLY TREES (flanking) ============ -->
+  <!-- left tree (seated on the tile, with contact shadow) -->
+  <ellipse cx="140" cy="281" rx="11" ry="3.6" fill="#04060a" opacity="0.4"/>
+  <polygon points="137,268 143,268 143,282 137,282" fill="#5a3a28"/>
+  <polygon points="140,240 126,272 154,272" fill="#3f8a50"/>
+  <polygon points="140,240 140,272 154,272" fill="#347544"/>
+  <polygon points="140,250 130,268 150,268" fill="#54a463" opacity="0.9"/>
+  <polygon points="140,250 140,268 150,268" fill="#438f54" opacity="0.9"/>
+  <!-- right tree (seated on the tile, with contact shadow) -->
+  <ellipse cx="344" cy="281" rx="11" ry="3.6" fill="#04060a" opacity="0.4"/>
+  <polygon points="341,268 347,268 347,282 341,282" fill="#5a3a28"/>
+  <polygon points="344,242 330,274 358,274" fill="#3f8a50"/>
+  <polygon points="344,242 344,274 358,274" fill="#347544"/>
+  <polygon points="344,252 334,270 354,270" fill="#54a463" opacity="0.9"/>
+  <polygon points="344,252 344,270 354,270" fill="#438f54" opacity="0.9"/>
+
+  <!-- ============ CABIN FOUNDATION (stone plinth) ============ -->
+  <!-- front-left face -->
+  <polygon points="240,334 156,292 156,278 240,320" fill="#6d7b84"/>
+  <polygon points="240,334 240,320 198,299 198,313" fill="#5b6971"/>
+  <!-- front-right face -->
+  <polygon points="324,292 240,334 240,320 324,278" fill="#7f8d96"/>
+  <polygon points="324,292 324,278 282,299 282,313" fill="#6c7a83"/>
+  <!-- stone facet blocks -->
+  <polygon points="170,285 190,295 190,305 170,295" fill="#5a686f" opacity="0.6"/>
+  <polygon points="210,306 226,314 226,324 210,316" fill="#828f98" opacity="0.5"/>
+  <polygon points="262,314 280,305 280,315 262,324" fill="#6a7880" opacity="0.55"/>
+  <polygon points="300,290 316,282 316,292 300,300" fill="#8b98a1" opacity="0.5"/>
+
+  <!-- ============ WALLS ============ -->
+  <!-- front-left wall (facing viewer) -->
+  <polygon points="240,320 156,278 156,223 240,265" fill="url(#lowpoly-wallLeft)"/>
+  <!-- facet split (subtle upper-light triangle) -->
+  <polygon points="156,223 240,265 156,278" fill="#a06843" opacity="0.35"/>
+  <!-- vertical plank seams -->
+  <polygon points="184,289 187,290 187,235 184,233" fill="#5f3a25" opacity="0.5"/>
+  <polygon points="212,303 215,305 215,250 212,248" fill="#5f3a25" opacity="0.5"/>
+  <polygon points="170,282 173,283 173,228 170,226" fill="#c88f5f" opacity="0.28"/>
+  <polygon points="198,296 201,298 201,243 198,241" fill="#c88f5f" opacity="0.25"/>
+
+  <!-- front-right wall (facing right, lit) -->
+  <polygon points="324,278 240,320 240,265 324,223" fill="url(#lowpoly-wallRight)"/>
+  <polygon points="324,223 324,278 282,299" fill="#c89066" opacity="0.3"/>
+  <!-- plank seams -->
+  <polygon points="296,237 299,235 299,290 296,292" fill="#8a5a37" opacity="0.5"/>
+  <polygon points="268,251 271,249 271,304 268,306" fill="#8a5a37" opacity="0.5"/>
+  <polygon points="310,230 313,228 313,283 310,285" fill="#e6b483" opacity="0.3"/>
+  <polygon points="282,244 285,242 285,297 282,299" fill="#e6b483" opacity="0.28"/>
+
+  <!-- corner post highlight (front vertical edge) -->
+  <polygon points="238,320 240,320 240,265 238,265" fill="#f0c48a" opacity="0.55"/>
+  <!-- warm rim on left wall top edge -->
+  <polygon points="156,223 240,265 240,268 156,226" fill="#ffe1a2" opacity="0.4"/>
+
+  <!-- ============ DOOR (front-left wall, seated on the plinth top) ============ -->
+  <!-- door frame (wheat) -->
+  <polygon points="203,302 224,312 224,272 203,262" fill="#c2b280"/>
+  <!-- door slab (warm wood) -->
+  <polygon points="206,303 221,311 221,274 206,266" fill="#6f421f"/>
+  <polygon points="206,303 213,307 213,270 206,266" fill="#5a3418"/>
+  <!-- door top glowing window -->
+  <polygon points="208,274 219,280 219,272 208,266" fill="url(#lowpoly-winGlow)" filter="url(#lowpoly-glow)"/>
+  <!-- door knob -->
+  <circle cx="209" cy="292" r="1.6" fill="#ffe9a8"/>
+  <!-- stone step down the plinth to the path -->
+  <polygon points="203,302 224,312 214,317 193,307" fill="#93a0ab"/>
+  <polygon points="193,307 214,317 214,322 193,312" fill="#68757f"/>
+  <polygon points="224,312 214,317 214,322 224,317" fill="#5f6c78"/>
+  <!-- warm light spill from door over the step onto the path -->
+  <polygon points="193,312 214,322 228,338 202,330" fill="#ffd75e" opacity="0.13"/>
+
+  <!-- ============ WINDOWS (glowing) ============ -->
+  <!-- front-left wall window -->
+  <polygon points="172,266 190,275 190,300 172,291" fill="#3a2416"/>
+  <polygon points="174,267 188,274 188,297 174,290" fill="url(#lowpoly-winGlow)" filter="url(#lowpoly-glow)"/>
+  <!-- muntins -->
+  <polygon points="181,271 182,271 182,294 181,293" fill="#3a2416" opacity="0.8"/>
+  <polygon points="174,278 188,285 188,286 174,279" fill="#3a2416" opacity="0.8"/>
+  <!-- sill + light spill -->
+  <polygon points="172,291 190,300 190,303 172,294" fill="#c2b280"/>
+  <polygon points="172,294 190,303 184,314 168,306" fill="#ffd75e" opacity="0.12"/>
+
+  <!-- front-right wall window -->
+  <polygon points="264,258 300,240 300,266 264,284" fill="#3a2416"/>
+  <polygon points="266,259 298,242 298,264 266,282" fill="url(#lowpoly-winGlow)" filter="url(#lowpoly-glow)"/>
+  <!-- muntins -->
+  <polygon points="281,251 282,250 282,273 281,274" fill="#3a2416" opacity="0.8"/>
+  <polygon points="266,270 298,253 298,254 266,271" fill="#3a2416" opacity="0.8"/>
+  <!-- sill + spill -->
+  <polygon points="264,284 300,266 300,269 264,287" fill="#c2b280"/>
+  <polygon points="264,287 300,269 306,278 270,296" fill="#ffd75e" opacity="0.1"/>
+
+  <!-- ============ ROOF ============ -->
+  <!-- fascia (roof thickness under front eave) -->
+  <polygon points="148,227 240,274 240,281 148,234" fill="#2f4a5b"/>
+  <!-- LEFT gable end (behind, shadowed timber) -->
+  <polygon points="240,181 156,223 198,161" fill="#7a4c2f"/>
+  <polygon points="240,181 198,161 219,171" fill="#8a5837" opacity="0.7"/>
+
+  <!-- back roof slope sliver / ridge cap backing -->
+  <polygon points="191,157 289,207 324,223 240,181" fill="#3a5c70"/>
+
+  <!-- RIGHT gable end (drawn BEFORE the front slope, which overhangs it) -->
+  <polygon points="324,223 240,265 282,203" fill="#b8814f"/>
+  <polygon points="282,203 240,265 261,234" fill="#9a6640"/>
+  <!-- vertical gable plank seams (match wall plank language) -->
+  <polygon points="300,218 303,216.5 303,233.5 300,235" fill="#7d4d2e" opacity="0.45"/>
+  <polygon points="311,222 314,220.5 314,227.5 311,229" fill="#7d4d2e" opacity="0.4"/>
+  <!-- back-rake fascia shadow along the gable's right edge -->
+  <polygon points="282,203 324,223 322,227 280,207" fill="#37596f"/>
+
+  <!-- FRONT roof slope (main, faceted) — reaches its true rake edge over the gable -->
+  <polygon points="191,157 289,207 240,274" fill="url(#lowpoly-roofFront)"/>
+  <polygon points="191,157 240,274 148,227" fill="#5a90a8"/>
+  <!-- highlight facet near ridge -->
+  <polygon points="191,157 289,207 258,214 210,175" fill="#9cc6d9" opacity="0.55"/>
+  <!-- shingle band shadows across slope (parallel to ridge/eave) -->
+  <polygon points="176,196 264,241 259,248 170,202" fill="#3f6a83" opacity="0.45"/>
+  <polygon points="162,213 246,256 242,261 158,218" fill="#3f6a83" opacity="0.4"/>
+  <!-- shingle facet accents -->
+  <polygon points="205,176 214,180 205,190 197,186" fill="#7db0c6" opacity="0.5"/>
+  <polygon points="232,190 241,194 232,204 224,200" fill="#7db0c6" opacity="0.45"/>
+  <polygon points="180,205 189,209 180,219 172,215" fill="#4b7c96" opacity="0.5"/>
+  <polygon points="255,203 264,207 255,217 247,213" fill="#7db0c6" opacity="0.4"/>
+
+  <!-- ridge cap + rim highlight -->
+  <polygon points="191,157 289,207 288,210 190,160" fill="#3f6a83"/>
+  <line x1="191" y1="157" x2="289" y2="207" stroke="#bfe4f0" stroke-width="1.6" opacity="0.75"/>
+  <!-- warm rim catching sun on ridge left -->
+  <line x1="191" y1="157" x2="230" y2="180" stroke="#ffe9a8" stroke-width="1.4" opacity="0.5"/>
+
+  <!-- front rake fascia (roof slab thickness along the true rake edge) -->
+  <polygon points="289,207 240,274 240,280 289,213" fill="#3d6076"/>
+
+  <!-- attic glowing window in right gable -->
+  <polygon points="289,221 299,230 289,239 279,230" fill="#3a2416"/>
+  <polygon points="289,223 297,230 289,237 281,230" fill="url(#lowpoly-winGlow)" filter="url(#lowpoly-glow)"/>
+
+  <!-- ============ CHIMNEY ============ -->
+  <!-- body (base sunk fully through the roofline) -->
+  <polygon points="272,160 272,205 286,212 286,167" fill="#8a5a44"/>
+  <polygon points="286,167 286,212 301,215 301,160" fill="#6f4636"/>
+  <!-- brick facet accents -->
+  <polygon points="275,172 283,176 283,184 275,180" fill="#a06a50" opacity="0.5"/>
+  <polygon points="289,175 297,171 297,179 289,183" fill="#5c3a2c" opacity="0.5"/>
+  <polygon points="275,188 283,192 283,200 275,196" fill="#5c3a2c" opacity="0.45"/>
+  <!-- cap -->
+  <polygon points="286,150 301,158 286,166 271,158" fill="#5a5f66"/>
+  <polygon points="286,152 298,158 286,164 274,158" fill="#3f444a"/>
+  <!-- faint smoke wisp -->
+  <ellipse cx="284" cy="140" rx="7" ry="4" fill="#e8dcae" opacity="0.14" filter="url(#lowpoly-wisp)"/>
+  <ellipse cx="278" cy="128" rx="9" ry="5" fill="#e8dcae" opacity="0.1" filter="url(#lowpoly-wisp)"/>
+
+  <!-- ============ MAGICAL WISP MOTES ============ -->
+  <circle cx="118" cy="230" r="6" fill="#ffe9a8" opacity="0.5" filter="url(#lowpoly-wisp)"/>
+  <circle cx="118" cy="230" r="2" fill="#fff6d8"/>
+  <circle cx="360" cy="210" r="5" fill="#ffd75e" opacity="0.5" filter="url(#lowpoly-wisp)"/>
+  <circle cx="360" cy="210" r="1.8" fill="#fff6d8"/>
+  <circle cx="330" cy="340" r="7" fill="#ffd75e" opacity="0.42" filter="url(#lowpoly-wisp)"/>
+  <circle cx="330" cy="340" r="2" fill="#fff6d8"/>
+  <circle cx="150" cy="352" r="5" fill="#ffe9a8" opacity="0.45" filter="url(#lowpoly-wisp)"/>
+  <circle cx="150" cy="352" r="1.6" fill="#fff6d8"/>
+  <!-- tiny fireflies -->
+  <circle cx="200" cy="200" r="1.3" fill="#fff6d8" opacity="0.9"/>
+  <circle cx="308" cy="270" r="1.1" fill="#ffe9a8" opacity="0.85"/>
+  <circle cx="132" cy="300" r="1.2" fill="#fff6d8" opacity="0.8"/>
+  <circle cx="256" cy="150" r="1" fill="#ffe9a8" opacity="0.8"/>
+  <circle cx="392" cy="270" r="1.2" fill="#fff6d8" opacity="0.75"/>
+</svg>

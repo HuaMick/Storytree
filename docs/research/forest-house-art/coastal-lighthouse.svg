@@ -1,0 +1,447 @@
+<svg viewBox="0 0 480 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A striped tapering coastal lighthouse with a bright glowing lantern room and a rotating beacon casting light rays out to sea, a whitewashed keeper's cottage with a warm window nestled at its foot, set on a rocky headland tile with a beacon-lit tide pool, foam and drifting wisp motes.">
+  <defs>
+    <!-- ===================== GRADIENTS ===================== -->
+    <radialGradient id="cl-glowmote" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff4cf" stop-opacity="1"/>
+      <stop offset="35%" stop-color="#ffd75e" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="cl-beacon" cx="50%" cy="44%" r="62%">
+      <stop offset="0%" stop-color="#fffdf3"/>
+      <stop offset="35%" stop-color="#fff1c2"/>
+      <stop offset="70%" stop-color="#ffd264"/>
+      <stop offset="100%" stop-color="#e79a2c"/>
+    </radialGradient>
+
+    <radialGradient id="cl-halo" cx="224" cy="99" r="92" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fff2c8" stop-opacity="0.7"/>
+      <stop offset="42%" stop-color="#ffd75e" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="cl-beamrays" cx="224" cy="101" r="300" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fff0bd" stop-opacity="0.55"/>
+      <stop offset="30%" stop-color="#ffd75e" stop-opacity="0.24"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="cl-cream" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#fdf8ec"/>
+      <stop offset="42%" stop-color="#f1e7d0"/>
+      <stop offset="100%" stop-color="#bcb09a"/>
+    </linearGradient>
+
+    <linearGradient id="cl-teal" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#82b0c6"/>
+      <stop offset="42%" stop-color="#5d8fa8"/>
+      <stop offset="100%" stop-color="#38617a"/>
+    </linearGradient>
+
+    <radialGradient id="cl-footing" cx="42%" cy="34%" r="72%">
+      <stop offset="0%" stop-color="#9a988f"/>
+      <stop offset="60%" stop-color="#6f6c62"/>
+      <stop offset="100%" stop-color="#484640"/>
+    </radialGradient>
+
+    <linearGradient id="cl-dome" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7fa2b2"/>
+      <stop offset="45%" stop-color="#4d7284"/>
+      <stop offset="100%" stop-color="#2c4451"/>
+    </linearGradient>
+
+    <linearGradient id="cl-gallery" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#59606a"/>
+      <stop offset="100%" stop-color="#242a30"/>
+    </linearGradient>
+
+    <linearGradient id="cl-rock-top" x1="0.15" y1="0" x2="0.7" y2="1">
+      <stop offset="0%" stop-color="#6f7d72"/>
+      <stop offset="52%" stop-color="#57655c"/>
+      <stop offset="100%" stop-color="#42504a"/>
+    </linearGradient>
+
+    <linearGradient id="cl-rock-left" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#463a30"/>
+      <stop offset="100%" stop-color="#241d17"/>
+    </linearGradient>
+
+    <linearGradient id="cl-rock-right" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#372e26"/>
+      <stop offset="100%" stop-color="#1b1611"/>
+    </linearGradient>
+
+    <radialGradient id="cl-pool" cx="44%" cy="34%" r="76%">
+      <stop offset="0%" stop-color="#8fc4d8"/>
+      <stop offset="38%" stop-color="#5d8fa8"/>
+      <stop offset="72%" stop-color="#3c6a83"/>
+      <stop offset="100%" stop-color="#274c60"/>
+    </radialGradient>
+
+    <linearGradient id="cl-cwallL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f5eddb"/>
+      <stop offset="100%" stop-color="#d6c6a8"/>
+    </linearGradient>
+
+    <linearGradient id="cl-cwallR" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d7c5a4"/>
+      <stop offset="100%" stop-color="#ad9773"/>
+    </linearGradient>
+
+    <linearGradient id="cl-croofL" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0%" stop-color="#b9784f"/>
+      <stop offset="55%" stop-color="#95603c"/>
+      <stop offset="100%" stop-color="#744929"/>
+    </linearGradient>
+
+    <linearGradient id="cl-croofR" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0%" stop-color="#7d4f31"/>
+      <stop offset="100%" stop-color="#54341f"/>
+    </linearGradient>
+
+    <linearGradient id="cl-cgable" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ece1c8"/>
+      <stop offset="100%" stop-color="#cab791"/>
+    </linearGradient>
+
+    <radialGradient id="cl-cwin" cx="50%" cy="42%" r="65%">
+      <stop offset="0%" stop-color="#fff6da"/>
+      <stop offset="48%" stop-color="#ffe097"/>
+      <stop offset="100%" stop-color="#eda63a"/>
+    </radialGradient>
+
+    <radialGradient id="cl-door" cx="50%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#ffdd8f"/>
+      <stop offset="55%" stop-color="#c98a34"/>
+      <stop offset="100%" stop-color="#5a3a22"/>
+    </radialGradient>
+
+    <radialGradient id="cl-groundshadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.55"/>
+      <stop offset="68%" stop-color="#000000" stop-opacity="0.26"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="cl-ambient" cx="50%" cy="34%" r="62%">
+      <stop offset="0%" stop-color="#ffd75e" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- ===================== FILTERS ===================== -->
+    <filter id="cl-soft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="4"/>
+    </filter>
+    <filter id="cl-softbig" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+    <filter id="cl-tiny" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="1.5"/>
+    </filter>
+  </defs>
+
+  <!-- ambient magical wash behind the tower -->
+  <ellipse cx="224" cy="176" rx="180" ry="200" fill="url(#cl-ambient)"/>
+
+  <!-- ground / rock contact shadow -->
+  <ellipse cx="228" cy="416" rx="184" ry="52" fill="url(#cl-groundshadow)"/>
+
+  <!-- ============================================================
+       BASE ISOMETRIC HEADLAND TILE
+       top: T(240,250) R(428,338) B(240,426) L(52,338)
+       ============================================================ -->
+  <!-- side faces (cliff depth) -->
+  <polygon points="52,338 240,426 240,454 52,352" fill="url(#cl-rock-left)"/>
+  <polygon points="240,426 428,338 428,352 240,454" fill="url(#cl-rock-right)"/>
+  <!-- strata & rubble on the cliff sides -->
+  <path d="M58,350 L238,435" stroke="#1c1610" stroke-width="1.4" opacity="0.55"/>
+  <path d="M242,435 L422,350" stroke="#130f0a" stroke-width="1.4" opacity="0.55"/>
+  <path d="M72,344 L128,368" stroke="#5a4a3a" stroke-width="2.2" opacity="0.4" stroke-linecap="round"/>
+  <path d="M150,392 L196,412" stroke="#5a4a3a" stroke-width="2" opacity="0.35" stroke-linecap="round"/>
+  <path d="M300,404 L356,376" stroke="#4a3c2e" stroke-width="2" opacity="0.4" stroke-linecap="round"/>
+  <path d="M366,352 L406,342" stroke="#4a3c2e" stroke-width="2" opacity="0.35" stroke-linecap="round"/>
+  <path d="M96,360 L104,380" stroke="#120d09" stroke-width="1.2" opacity="0.5"/>
+  <path d="M330,384 L338,404" stroke="#0f0b07" stroke-width="1.2" opacity="0.5"/>
+
+  <!-- top rock surface -->
+  <polygon points="240,250 428,338 240,426 52,338" fill="url(#cl-rock-top)"/>
+  <!-- surface mottling / lichen (clamped inside the tile top face) -->
+  <ellipse cx="172" cy="308" rx="40" ry="15" fill="#657367" opacity="0.4"/>
+  <ellipse cx="312" cy="308" rx="40" ry="15" fill="#4c5951" opacity="0.4"/>
+  <ellipse cx="254" cy="278" rx="36" ry="12.5" fill="#6d7c70" opacity="0.35"/>
+  <ellipse cx="228" cy="356" rx="60" ry="20" fill="#4a574f" opacity="0.35"/>
+  <!-- rock cracks -->
+  <path d="M188,278 L214,300 L206,332" fill="none" stroke="#333c37" stroke-width="1.3" opacity="0.55"/>
+  <path d="M300,286 L282,318 L306,344" fill="none" stroke="#2f3833" stroke-width="1.3" opacity="0.5"/>
+  <path d="M120,330 L164,346" fill="none" stroke="#333c37" stroke-width="1.1" opacity="0.5"/>
+  <path d="M356,330 L390,320" fill="none" stroke="#333c37" stroke-width="1.1" opacity="0.45"/>
+  <!-- rim light along the two lit top edges -->
+  <path d="M52,338 L240,250 L428,338" fill="none" stroke="#8a988c" stroke-width="1.4" opacity="0.55"/>
+
+  <!-- grassy healthy-green tufts on the headland crown -->
+  <path d="M199,271 q-3,-13 2,-16 q3,8 6,2 q1,10 -2,14 z" fill="#4f9d5d" opacity="0.9"/>
+  <path d="M204,273 q1,-10 6,-12 q0,9 3,4 q1,8 -3,10 z" fill="#61b06f" opacity="0.85"/>
+  <path d="M262,262 q4,-12 9,-13 q-1,8 3,4 q1,9 -4,12 z" fill="#4f9d5d" opacity="0.85"/>
+  <path d="M270,266 q3,-8 7,-9 q0,7 3,3 q0,7 -4,9 z" fill="#5ba667" opacity="0.8"/>
+  <path d="M312,286 q-3,-11 2,-13 q2,7 5,1 q1,8 -2,11 z" fill="#4f9d5d" opacity="0.8"/>
+  <path d="M92,332 q-2,-9 2,-11 q2,6 4,1 q1,8 -2,10 z" fill="#579e60" opacity="0.8"/>
+  <path d="M388,332 q4,-9 8,-10 q-1,7 3,3 q0,8 -4,9 z" fill="#4f9d5d" opacity="0.75"/>
+
+  <!-- ============================================================
+       TIDE POOL (beacon reflected in it) — seated fully on the tile
+       ============================================================ -->
+  <g transform="translate(-6,-5)">
+    <ellipse cx="316" cy="372" rx="46" ry="17" fill="url(#cl-pool)"/>
+    <ellipse cx="316" cy="372" rx="46" ry="17" fill="none" stroke="#1f3e4e" stroke-width="2.4" opacity="0.5"/>
+    <path d="M286,366 Q316,358 346,366" fill="none" stroke="#a9d5e4" stroke-width="1.3" opacity="0.55" stroke-linecap="round"/>
+    <path d="M296,378 Q318,373 340,378" fill="none" stroke="#c7e6f0" stroke-width="1" opacity="0.45" stroke-linecap="round"/>
+    <!-- warm reflection streak of the beacon in the pool -->
+    <ellipse cx="312" cy="374" rx="5" ry="10" fill="#ffe9a8" opacity="0.5" filter="url(#cl-tiny)"/>
+    <ellipse cx="312" cy="370" rx="3" ry="5" fill="#fff6da" opacity="0.75"/>
+    <!-- foam flecks at the pool edge -->
+    <circle cx="272" cy="372" r="2" fill="#eef7f8" opacity="0.7"/>
+    <circle cx="360" cy="372" r="2" fill="#eef7f8" opacity="0.6"/>
+  </g>
+
+  <!-- foreground boulders + sea-foam at the front tip -->
+  <ellipse cx="240" cy="410" rx="20" ry="8" fill="#1d1712"/>
+  <path d="M223,410 q6,-15 17,-15 q12,0 17,14 q-16,6 -34,1 z" fill="#3f342a"/>
+  <path d="M229,405 q5,-8 11,-8 q7,0 10,7 q-10,3 -21,1 z" fill="#5c4c3c"/>
+  <path d="M232,401 q4,-5 8,-5 q5,0 7,4 q-7,2 -15,1 z" fill="#7a6650"/>
+  <path d="M206,420 q14,-7 34,-6 q22,-1 36,7" fill="none" stroke="#e9f4f5" stroke-width="2" opacity="0.55" stroke-linecap="round"/>
+  <path d="M214,424 q12,-4 26,-4 q16,0 28,4" fill="none" stroke="#cfe6ea" stroke-width="1.4" opacity="0.45" stroke-linecap="round"/>
+
+  <!-- ============================================================
+       TOWER FOOTING (stone plinth the tower sits on)
+       ============================================================ -->
+  <!-- soft contact shadow seating the plinth on the rock -->
+  <ellipse cx="224" cy="332" rx="54" ry="17" fill="url(#cl-groundshadow)" opacity="0.55"/>
+  <ellipse cx="224" cy="330" rx="41" ry="13" fill="url(#cl-footing)"/>
+  <ellipse cx="224" cy="330" rx="41" ry="13" fill="none" stroke="#2c2a25" stroke-width="1.4" opacity="0.6"/>
+  <path d="M186,332 Q224,344 262,332" fill="none" stroke="#26241f" stroke-width="2" opacity="0.55"/>
+  <!-- masonry ticks on the plinth front -->
+  <line x1="200" y1="335" x2="199" y2="341" stroke="#2c2a25" stroke-width="1" opacity="0.5"/>
+  <line x1="224" y1="342" x2="224" y2="336" stroke="#2c2a25" stroke-width="1" opacity="0.5"/>
+  <line x1="248" y1="335" x2="249" y2="341" stroke="#2c2a25" stroke-width="1" opacity="0.5"/>
+
+  <!-- ============================================================
+       LIGHTHOUSE TOWER  (tapering striped cylinder)
+       cx=224, base y=322 (w33) -> top y=124 (w19)
+       ============================================================ -->
+  <!-- Band 1 (teal) -->
+  <path d="M193.3,289 Q224,296.97 254.7,289 L257,322 Q224,330.6 191,322 Z" fill="url(#cl-teal)"/>
+  <!-- Band 2 (cream) -->
+  <path d="M195.7,256 Q224,263.37 252.3,256 L254.7,289 Q224,296.97 193.3,289 Z" fill="url(#cl-cream)"/>
+  <!-- Band 3 (teal) -->
+  <path d="M198,223 Q224,229.76 250,223 L252.3,256 Q224,263.37 195.7,256 Z" fill="url(#cl-teal)"/>
+  <!-- Band 4 (cream) -->
+  <path d="M200.3,190 Q224,196.15 247.7,190 L250,223 Q224,229.76 198,223 Z" fill="url(#cl-cream)"/>
+  <!-- Band 5 (teal) -->
+  <path d="M202.7,157 Q224,162.55 245.3,157 L247.7,190 Q224,196.15 200.3,190 Z" fill="url(#cl-teal)"/>
+  <!-- Band 6 (cream) -->
+  <path d="M205,124 Q224,128.94 243,124 L245.3,157 Q224,162.55 202.7,157 Z" fill="url(#cl-cream)"/>
+
+  <!-- soft interior form shadow down the right side of the whole tower -->
+  <path d="M244,126 L256,321 Q234,328 224,327 L224,126 Z" fill="#1f2c33" opacity="0.14"/>
+  <!-- crisp highlight ridge on each band boundary (front dip) -->
+  <path d="M193.3,289 Q224,296.97 254.7,289" fill="none" stroke="#ffffff" stroke-width="0.7" opacity="0.3"/>
+  <path d="M195.7,256 Q224,263.37 252.3,256" fill="none" stroke="#ffffff" stroke-width="0.7" opacity="0.3"/>
+  <path d="M198,223 Q224,229.76 250,223" fill="none" stroke="#ffffff" stroke-width="0.7" opacity="0.28"/>
+  <path d="M200.3,190 Q224,196.15 247.7,190" fill="none" stroke="#ffffff" stroke-width="0.7" opacity="0.28"/>
+  <path d="M202.7,157 Q224,162.55 245.3,157" fill="none" stroke="#ffffff" stroke-width="0.7" opacity="0.26"/>
+  <!-- band-seam contact shadow just under each ridge -->
+  <path d="M195.7,258.4 Q224,265.8 252.3,258.4" fill="none" stroke="#243036" stroke-width="1.1" opacity="0.28"/>
+  <path d="M200.3,192.4 Q224,198.6 247.7,192.4" fill="none" stroke="#243036" stroke-width="1.1" opacity="0.26"/>
+
+  <!-- left-edge rim light (moonlit silhouette) -->
+  <path d="M191,322 L193.3,289 L195.7,256 L198,223 L200.3,190 L202.7,157 L205,124"
+        fill="none" stroke="#eaf3f7" stroke-width="1.4" opacity="0.55" stroke-linecap="round"/>
+  <!-- right-edge grounding shadow line -->
+  <path d="M257,322 L254.7,289 L252.3,256 L250,223 L247.7,190 L245.3,157 L243,124"
+        fill="none" stroke="#182228" stroke-width="1.3" opacity="0.5" stroke-linecap="round"/>
+
+  <!-- arched keeper's door at the tower base (warm glow spill) -->
+  <path d="M215,321 L215,304 Q215,296 224,296 Q233,296 233,304 L233,321 Z" fill="#241a12"/>
+  <path d="M217,320 L217,305 Q217,298 224,298 Q231,298 231,305 L231,320 Z" fill="url(#cl-door)"/>
+  <line x1="224" y1="300" x2="224" y2="320" stroke="#5a3a22" stroke-width="0.9" opacity="0.7"/>
+  <circle cx="228" cy="311" r="1" fill="#fff2cf"/>
+  <ellipse cx="224" cy="322" rx="16" ry="4" fill="#ffd75e" opacity="0.22" filter="url(#cl-soft)"/>
+
+  <!-- a small round window glowing on band 4 -->
+  <circle cx="224" cy="206" r="7.5" fill="#ffd75e" opacity="0.35" filter="url(#cl-soft)"/>
+  <circle cx="224" cy="206" r="5" fill="#2a1c11"/>
+  <circle cx="224" cy="206" r="3.8" fill="url(#cl-cwin)"/>
+  <circle cx="224" cy="206" r="5" fill="none" stroke="#7c5030" stroke-width="1.1"/>
+  <line x1="220.2" y1="206" x2="227.8" y2="206" stroke="#7c5030" stroke-width="0.8"/>
+
+  <!-- ============================================================
+       BEACON RAYS + HALO  (rotating light out to sea)
+       source ~ (224,101)
+       ============================================================ -->
+  <polygon points="224,101 6,44 34,150" fill="url(#cl-beamrays)" filter="url(#cl-softbig)"/>
+  <polygon points="224,101 470,40 452,146" fill="url(#cl-beamrays)" filter="url(#cl-softbig)"/>
+  <polygon points="224,101 150,-14 214,-10" fill="url(#cl-beamrays)" filter="url(#cl-softbig)" opacity="0.8"/>
+  <polygon points="224,101 300,-10 356,26" fill="url(#cl-beamrays)" filter="url(#cl-softbig)" opacity="0.85"/>
+  <circle cx="224" cy="99" r="60" fill="url(#cl-halo)"/>
+
+  <!-- ============================================================
+       GALLERY + LANTERN ROOM + DOME  (the glowing star)
+       ============================================================ -->
+  <!-- gallery walkway deck -->
+  <ellipse cx="224" cy="123" rx="30" ry="9" fill="url(#cl-gallery)"/>
+  <ellipse cx="224" cy="120" rx="30" ry="8.5" fill="#3a424a"/>
+  <ellipse cx="224" cy="119" rx="30" ry="8" fill="none" stroke="#7d8a93" stroke-width="1" opacity="0.7"/>
+  <!-- corbels under the gallery -->
+  <path d="M200,123 l-3,6 M212,126 l-2,6 M224,127 l0,6 M236,126 l2,6 M248,123 l3,6"
+        stroke="#20262b" stroke-width="2" opacity="0.7" stroke-linecap="round"/>
+  <!-- gallery railing, back run (behind the lantern) -->
+  <line x1="197" y1="120" x2="197" y2="110" stroke="#2b3238" stroke-width="1.8"/>
+  <line x1="208" y1="118" x2="208" y2="108" stroke="#2b3238" stroke-width="1.8"/>
+  <line x1="224" y1="117" x2="224" y2="107" stroke="#2b3238" stroke-width="1.8"/>
+  <line x1="240" y1="118" x2="240" y2="108" stroke="#2b3238" stroke-width="1.8"/>
+  <line x1="251" y1="120" x2="251" y2="110" stroke="#2b3238" stroke-width="1.8"/>
+  <path d="M197,110 Q224,102 251,110" fill="none" stroke="#4a535b" stroke-width="1.8"/>
+  <path d="M197,110 Q224,102 251,110" fill="none" stroke="#8b98a1" stroke-width="0.7" opacity="0.6"/>
+
+  <!-- lantern room glow bloom -->
+  <ellipse cx="224" cy="102" rx="30" ry="26" fill="#ffd75e" opacity="0.45" filter="url(#cl-softbig)"/>
+  <!-- lantern glass housing -->
+  <path d="M206,116 L207,90 Q224,86 241,90 L242,116 Q224,120 206,116 Z" fill="url(#cl-beacon)"/>
+  <!-- rotating lamp core -->
+  <ellipse cx="224" cy="103" rx="8.5" ry="11" fill="#fffdf3"/>
+  <ellipse cx="224" cy="103" rx="4.5" ry="7" fill="#ffffff"/>
+  <!-- lamp glints (rotating sparkle; horizontal follows the drum's curve) -->
+  <path d="M224,90 L224,116" stroke="#fffef6" stroke-width="1.2" opacity="0.8"/>
+  <path d="M209,102.2 Q224,106.2 239,102.2" fill="none" stroke="#fffef6" stroke-width="1.2" opacity="0.8"/>
+  <path d="M214,94 L234,112 M234,94 L214,112" stroke="#fff3cf" stroke-width="0.8" opacity="0.6"/>
+  <!-- astragal glazing bars (horizontal bar bows with the glass drum) -->
+  <line x1="213" y1="90" x2="212" y2="116" stroke="#3c2e1b" stroke-width="1.1" opacity="0.75"/>
+  <line x1="224" y1="87" x2="224" y2="118" stroke="#3c2e1b" stroke-width="1.1" opacity="0.6"/>
+  <line x1="235" y1="90" x2="236" y2="116" stroke="#3c2e1b" stroke-width="1.1" opacity="0.75"/>
+  <path d="M206.6,101.2 Q224,105.4 241.4,101.2" fill="none" stroke="#3c2e1b" stroke-width="1" opacity="0.6"/>
+  <!-- lantern frame top & bottom rings -->
+  <path d="M206,116 Q224,120 242,116" fill="none" stroke="#2b2114" stroke-width="2.2"/>
+  <path d="M207,90 Q224,86 241,90" fill="none" stroke="#2b2114" stroke-width="1.8"/>
+
+  <!-- front gallery railing, silhouetted against the lantern glow -->
+  <line x1="207" y1="126.6" x2="207" y2="116.3" stroke="#232a30" stroke-width="1.7"/>
+  <line x1="224" y1="128" x2="224" y2="118" stroke="#232a30" stroke-width="1.7"/>
+  <line x1="241" y1="126.6" x2="241" y2="116.3" stroke="#232a30" stroke-width="1.7"/>
+  <path d="M197,118.6 Q224,127.2 251,118.6" fill="none" stroke="#232a30" stroke-width="1.1" opacity="0.85"/>
+  <path d="M197,113.5 Q224,122.5 251,113.5" fill="none" stroke="#232a30" stroke-width="1.8"/>
+  <path d="M197,112.6 Q224,121.6 251,112.6" fill="none" stroke="#96a4ad" stroke-width="0.6" opacity="0.55"/>
+
+  <!-- domed cap -->
+  <path d="M205,90 Q205,70 224,62 Q243,70 243,90 Q224,95 205,90 Z" fill="url(#cl-dome)"/>
+  <!-- dome ribs -->
+  <path d="M224,62 L206,89 M224,62 L224,92 M224,62 L242,89" fill="none" stroke="#243b46" stroke-width="1" opacity="0.6"/>
+  <path d="M224,62 Q214,72 210,88" fill="none" stroke="#8fb0bf" stroke-width="0.8" opacity="0.5"/>
+  <path d="M205,88 Q224,93 243,88" fill="none" stroke="#20323c" stroke-width="1.6" opacity="0.7"/>
+  <ellipse cx="217" cy="72" rx="5" ry="8" fill="#9dbcc9" opacity="0.35"/>
+  <!-- ventilator ball + lightning rod finial -->
+  <line x1="224" y1="62" x2="224" y2="50" stroke="#1f2f38" stroke-width="1.8"/>
+  <circle cx="224" cy="58" r="3.4" fill="#5f7d8b"/>
+  <circle cx="222.6" cy="56.6" r="1.2" fill="#d7e6ec" opacity="0.85"/>
+  <circle cx="224" cy="49" r="2.4" fill="#ffe9a8"/>
+  <circle cx="224" cy="49" r="5" fill="#ffd75e" opacity="0.5" filter="url(#cl-tiny)"/>
+
+  <!-- ============================================================
+       KEEPER'S COTTAGE  (nestled at the foot, front-left)
+       front corner (150,356); base edges match the tile's iso slope
+       ============================================================ -->
+  <!-- soft contact shadow -->
+  <ellipse cx="150" cy="352" rx="52" ry="15" fill="#000000" opacity="0.28" filter="url(#cl-soft)"/>
+
+  <!-- LEFT wall (lit) -->
+  <polygon points="150,356 112.5,338.5 112.5,308 150,323" fill="url(#cl-cwallL)"/>
+  <!-- plaster wear lines -->
+  <line x1="123" y1="343" x2="123" y2="312" stroke="#c8b691" stroke-width="0.8" opacity="0.5"/>
+  <line x1="137" y1="349.5" x2="137" y2="318" stroke="#c8b691" stroke-width="0.8" opacity="0.45"/>
+  <!-- glowing window (left wall) -->
+  <polygon points="126,342 142,348.4 142,332.4 126,326" fill="#2a1c11"/>
+  <polygon points="127.6,340.6 140.4,345.8 140.4,333.6 127.6,328.2" fill="url(#cl-cwin)"/>
+  <line x1="134" y1="329.4" x2="134" y2="343.7" stroke="#7c5030" stroke-width="1.1"/>
+  <line x1="127.6" y1="334.7" x2="140.4" y2="339.7" stroke="#7c5030" stroke-width="1"/>
+  <polygon points="126,342 142,348.4 142,332.4 126,326" fill="url(#cl-cwin)" opacity="0.22" filter="url(#cl-soft)"/>
+
+  <!-- RIGHT wall (shade) -->
+  <polygon points="150,356 187.5,338.5 187.5,308 150,323" fill="url(#cl-cwallR)"/>
+  <line x1="168" y1="347" x2="168" y2="316" stroke="#8c765a" stroke-width="0.8" opacity="0.5"/>
+  <!-- planked door (right wall), bottom seated on the wall base line -->
+  <polygon points="162,350.4 176,343.9 176,319.6 162,325.2" fill="#2f2013"/>
+  <polygon points="163.4,349.7 174.6,344.5 174.6,321 163.4,325.7" fill="#5a3a27"/>
+  <line x1="168" y1="347.5" x2="168" y2="324" stroke="#2f2013" stroke-width="0.9" opacity="0.7"/>
+  <circle cx="172" cy="336" r="1.1" fill="#ffd75e"/>
+
+  <!-- front vertical corner rim light -->
+  <line x1="150" y1="356" x2="150" y2="323" stroke="#fbf3e0" stroke-width="1.3" opacity="0.7"/>
+
+  <!-- ROOF -->
+  <polygon points="150,269 117.5,287 105,331 150,306" fill="url(#cl-croofL)"/>
+  <polygon points="150,269 182.5,287 195,331 150,306" fill="url(#cl-croofR)"/>
+  <!-- shingle courses -->
+  <path d="M143,275 L112,292" stroke="#6e4326" stroke-width="1" opacity="0.5"/>
+  <path d="M146,289 L108,311" stroke="#6e4326" stroke-width="1" opacity="0.5"/>
+  <path d="M148,299 L106,324" stroke="#6e4326" stroke-width="1" opacity="0.5"/>
+  <path d="M143,275 L112,292" stroke="#d99a6b" stroke-width="0.6" opacity="0.4" transform="translate(0,-1.6)"/>
+  <path d="M157,275 L188,292" stroke="#3f2617" stroke-width="1" opacity="0.55"/>
+  <path d="M154,289 L192,311" stroke="#3f2617" stroke-width="1" opacity="0.55"/>
+  <!-- gable face -->
+  <polygon points="150,306 105,331 195,331" fill="url(#cl-cgable)"/>
+  <path d="M124,323 L176,323" stroke="#b9a67f" stroke-width="0.9" opacity="0.4"/>
+  <!-- gable round window -->
+  <circle cx="150" cy="319" r="5.4" fill="#ffd75e" opacity="0.4" filter="url(#cl-tiny)"/>
+  <circle cx="150" cy="319" r="4" fill="#2a1c11"/>
+  <circle cx="150" cy="319" r="3" fill="url(#cl-cwin)"/>
+  <circle cx="150" cy="319" r="4" fill="none" stroke="#8a5a44" stroke-width="1.1"/>
+  <!-- ridge highlight + bargeboard trim -->
+  <line x1="150" y1="269" x2="150" y2="306" stroke="#d79a6b" stroke-width="1" opacity="0.6"/>
+  <polygon points="150,306 105,331 109,335 150,312" fill="#6a4530"/>
+  <polygon points="150,306 195,331 191,335 150,312" fill="#4a2f1f"/>
+  <circle cx="150" cy="304" r="2" fill="#e7c48f"/>
+  <!-- chimney (with shaded side + cap faces for the iso read) + smoke -->
+  <rect x="160" y="278" width="7" height="15" rx="1.4" fill="#7a5236"/>
+  <polygon points="167,279.2 170,277.8 170,291.6 167,293" fill="#5c3c28"/>
+  <rect x="158.5" y="276" width="10" height="4.4" rx="1.4" fill="#8a5a44"/>
+  <polygon points="168.5,276.6 171.5,275.2 171.5,279.2 168.5,280.6" fill="#6b4433"/>
+  <polygon points="158.5,276.2 168.5,276.2 171.5,274.8 161.5,274.8" fill="#a06b50"/>
+  <path d="M164,276 q-5,-9 2,-14 q6,-4 1,-12" fill="none" stroke="#b9c6cc" stroke-width="2.6" opacity="0.32" stroke-linecap="round" filter="url(#cl-tiny)"/>
+
+  <!-- little stone path from cottage door out toward the front -->
+  <ellipse cx="182" cy="360" rx="9" ry="4" fill="#5c6a60" opacity="0.7"/>
+  <ellipse cx="198" cy="372" rx="9" ry="4" fill="#657367" opacity="0.7"/>
+  <ellipse cx="216" cy="384" rx="9" ry="4" fill="#5c6a60" opacity="0.7"/>
+  <ellipse cx="182" cy="359" rx="7" ry="2.6" fill="#78867a" opacity="0.6"/>
+  <ellipse cx="198" cy="371" rx="7" ry="2.6" fill="#78867a" opacity="0.55"/>
+
+  <!-- scattered boulders + a green shrub for life -->
+  <ellipse cx="374" cy="322" rx="15" ry="7" fill="#232b26"/>
+  <path d="M361,322 q6,-13 13,-13 q9,0 13,12 q-13,5 -26,1 z" fill="#4b574f"/>
+  <path d="M366,318 q4,-7 8,-7 q6,0 8,6 q-9,3 -16,1 z" fill="#697568"/>
+  <path d="M368,309 q3,-11 6,-13 q2,7 5,1 q1,9 -2,12 z" fill="#4f9d5d" opacity="0.85"/>
+  <g transform="translate(6,8)">
+    <ellipse cx="96" cy="316" rx="10" ry="5" fill="#232b26"/>
+    <path d="M88,316 q4,-9 9,-9 q6,0 8,8 q-9,3 -17,1 z" fill="#4b574f"/>
+  </g>
+
+  <!-- ============================================================
+       WISP MOTES & FIREFLIES (magical touch)
+       ============================================================ -->
+  <circle cx="70" cy="150" r="15" fill="url(#cl-glowmote)"/>
+  <circle cx="70" cy="150" r="2.1" fill="#fff6d6"/>
+  <circle cx="132" cy="92" r="11" fill="url(#cl-glowmote)"/>
+  <circle cx="132" cy="92" r="1.6" fill="#fff6d6"/>
+  <circle cx="308" cy="66" r="13" fill="url(#cl-glowmote)"/>
+  <circle cx="308" cy="66" r="1.8" fill="#fff6d6"/>
+  <circle cx="404" cy="150" r="12" fill="url(#cl-glowmote)"/>
+  <circle cx="404" cy="150" r="1.7" fill="#fff6d6"/>
+  <circle cx="418" cy="250" r="9" fill="url(#cl-glowmote)"/>
+  <circle cx="418" cy="250" r="1.4" fill="#fff6d6"/>
+  <circle cx="58" cy="286" r="10" fill="url(#cl-glowmote)"/>
+  <circle cx="58" cy="286" r="1.5" fill="#fff6d6"/>
+  <circle cx="360" cy="256" r="7" fill="url(#cl-glowmote)"/>
+  <circle cx="360" cy="256" r="1.2" fill="#fff6d6"/>
+  <circle cx="266" cy="212" r="6" fill="url(#cl-glowmote)"/>
+  <circle cx="266" cy="212" r="1" fill="#fff6d6"/>
+  <circle cx="180" cy="196" r="7" fill="url(#cl-glowmote)"/>
+  <circle cx="180" cy="196" r="1.1" fill="#fff6d6"/>
+</svg>

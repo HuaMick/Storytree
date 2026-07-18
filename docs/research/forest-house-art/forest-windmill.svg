@@ -1,0 +1,353 @@
+<svg viewBox="0 0 480 460" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="forest-windmill-grass" cx="42%" cy="38%" r="72%">
+      <stop offset="0%" stop-color="#6fb877"/>
+      <stop offset="55%" stop-color="#4f9d5d"/>
+      <stop offset="100%" stop-color="#357a48"/>
+    </radialGradient>
+    <linearGradient id="forest-windmill-earth" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7a5340"/>
+      <stop offset="100%" stop-color="#452e22"/>
+    </linearGradient>
+    <linearGradient id="forest-windmill-tower" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#8497a3"/>
+      <stop offset="26%" stop-color="#7c93a0"/>
+      <stop offset="52%" stop-color="#5d7885"/>
+      <stop offset="78%" stop-color="#425964"/>
+      <stop offset="100%" stop-color="#2f414b"/>
+    </linearGradient>
+    <linearGradient id="forest-windmill-towerwarm" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ffd75e" stop-opacity="0"/>
+      <stop offset="60%" stop-color="#ffcf6a" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#ffbf4d" stop-opacity="0.3"/>
+    </linearGradient>
+    <linearGradient id="forest-windmill-cap" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7fb2c9"/>
+      <stop offset="45%" stop-color="#5d8fa8"/>
+      <stop offset="100%" stop-color="#345d73"/>
+    </linearGradient>
+    <linearGradient id="forest-windmill-balc" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#9a6848"/>
+      <stop offset="100%" stop-color="#5c3a28"/>
+    </linearGradient>
+    <linearGradient id="forest-windmill-wood" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#a06844"/>
+      <stop offset="100%" stop-color="#6b4230"/>
+    </linearGradient>
+    <linearGradient id="forest-windmill-sail" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffe9a8"/>
+      <stop offset="100%" stop-color="#e8c885"/>
+    </linearGradient>
+    <radialGradient id="forest-windmill-window" cx="50%" cy="42%" r="62%">
+      <stop offset="0%" stop-color="#fff6cf"/>
+      <stop offset="45%" stop-color="#ffd75e"/>
+      <stop offset="100%" stop-color="#e79a2c"/>
+    </radialGradient>
+    <radialGradient id="forest-windmill-winglow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffe9a8" stop-opacity="0.85"/>
+      <stop offset="60%" stop-color="#ffd75e" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="forest-windmill-hub" cx="42%" cy="38%" r="65%">
+      <stop offset="0%" stop-color="#b98a5f"/>
+      <stop offset="100%" stop-color="#4f3222"/>
+    </radialGradient>
+    <radialGradient id="forest-windmill-mote" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff4c8" stop-opacity="1"/>
+      <stop offset="45%" stop-color="#ffd75e" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="forest-windmill-soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+    <filter id="forest-windmill-blur2" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="2.4"/>
+    </filter>
+  </defs>
+
+  <!-- ground contact shadow -->
+  <ellipse cx="240" cy="392" rx="182" ry="50" fill="#000000" opacity="0.55" filter="url(#forest-windmill-soft)"/>
+
+  <!-- ===================== GROUND TILE (2:1 iso diamond, 320x160) ===================== -->
+  <!-- earth side faces -->
+  <path d="M80,362 L240,442 L240,458 L80,378 Z" fill="url(#forest-windmill-earth)"/>
+  <path d="M240,442 L400,362 L400,378 L240,458 Z" fill="url(#forest-windmill-earth)"/>
+  <path d="M240,442 L400,362 L400,378 L240,458 Z" fill="#000000" opacity="0.22"/>
+  <!-- grass top face -->
+  <path d="M240,282 L400,362 L240,442 L80,362 Z" fill="url(#forest-windmill-grass)"/>
+  <!-- dark lip just under the grass edge -->
+  <path d="M80,362 L240,442 L400,362 L400,368 L240,448 L80,368 Z" fill="#000000" opacity="0.18"/>
+  <!-- lit front-left edge / shaded front-right edge of the top face -->
+  <path d="M80,362 L240,442" fill="none" stroke="#78c184" stroke-width="2.2" opacity="0.45"/>
+  <path d="M240,442 L400,362" fill="none" stroke="#2e6b3d" stroke-width="2.2" opacity="0.6"/>
+  <ellipse cx="216" cy="360" rx="96" ry="44" fill="#67b071" opacity="0.35"/>
+  <!-- earth patch under the tower base -->
+  <ellipse cx="225" cy="352" rx="104" ry="42" fill="#6a4a34" opacity="0.55"/>
+  <ellipse cx="225" cy="350" rx="98" ry="38" fill="#7a5942" opacity="0.5"/>
+
+  <!-- scattered stones / grass texture on the tile top face -->
+  <g opacity="0.9">
+    <ellipse cx="156" cy="394" rx="12" ry="6" fill="#546b78"/>
+    <ellipse cx="154" cy="391" rx="10" ry="4.4" fill="#6b8290"/>
+    <ellipse cx="330" cy="390" rx="14" ry="6.5" fill="#4c626e"/>
+    <ellipse cx="328" cy="387" rx="11" ry="4.6" fill="#68808d"/>
+    <ellipse cx="288" cy="408" rx="9" ry="4.4" fill="#586d5a"/>
+  </g>
+  <g stroke-linecap="round" fill="none">
+    <path d="M126,376 q-3,-11 1,-19" stroke="#3f8a4f" stroke-width="2.6"/>
+    <path d="M131,377 q1,-10 6,-16" stroke="#57a566" stroke-width="2.4"/>
+    <path d="M172,400 q-3,-12 0,-20" stroke="#3f8a4f" stroke-width="2.6"/>
+    <path d="M178,401 q2,-11 7,-17" stroke="#57a566" stroke-width="2.4"/>
+    <path d="M316,395 q-3,-12 1,-20" stroke="#3f8a4f" stroke-width="2.6"/>
+    <path d="M322,396 q2,-10 8,-16" stroke="#57a566" stroke-width="2.4"/>
+    <path d="M352,378 q-2,-10 2,-17" stroke="#48945a" stroke-width="2.4"/>
+    <path d="M256,412 q-2,-11 2,-18" stroke="#3f8a4f" stroke-width="2.4"/>
+    <path d="M114,368 q-2,-9 2,-15" stroke="#48945a" stroke-width="2.2"/>
+  </g>
+  <!-- little wheat/gold flowers echoing wisps -->
+  <g>
+    <circle cx="140" cy="380" r="3.1" fill="#c2b280"/>
+    <circle cx="140" cy="380" r="1.4" fill="#ffe9a8"/>
+    <circle cx="336" cy="376" r="3" fill="#c2b280"/>
+    <circle cx="336" cy="376" r="1.3" fill="#ffe9a8"/>
+    <circle cx="286" cy="404" r="2.7" fill="#c2b280"/>
+    <circle cx="286" cy="404" r="1.2" fill="#ffe9a8"/>
+  </g>
+
+  <!-- ===================== TOWER BODY ===================== -->
+  <!-- main silhouette -->
+  <path d="M130,345 L157,152 A68,27 0 0 1 293,152 L320,345 A95,38 0 0 1 130,345 Z" fill="url(#forest-windmill-tower)"/>
+  <!-- warm interior wash bleeding from windows -->
+  <path d="M130,345 L157,152 A68,27 0 0 1 293,152 L320,345 A95,38 0 0 1 130,345 Z" fill="url(#forest-windmill-towerwarm)"/>
+  <!-- left rim light -->
+  <path d="M130,345 L157,152 A68,27 0 0 1 168,150 L142,342 A95,38 0 0 0 130,345 Z" fill="#a9c0cc" opacity="0.5"/>
+  <!-- right core shadow -->
+  <path d="M320,345 L293,152 A68,27 0 0 1 279,153 L300,344 A95,38 0 0 1 320,345 Z" fill="#1c2932" opacity="0.55"/>
+  <path d="M300,344 L279,153 A68,27 0 0 1 262,155 L280,342 A95,38 0 0 1 300,344 Z" fill="#243139" opacity="0.4"/>
+
+  <!-- stone courses (mortar lines following the taper) -->
+  <g fill="none" stroke="#20313a" stroke-width="2" opacity="0.55">
+    <path d="M133.5,320 A91.5,36 0 0 0 316.5,320"/>
+    <path d="M137.7,290 A87.3,34 0 0 0 312.3,290"/>
+    <path d="M142.6,255 A82.4,32 0 0 0 307.4,255"/>
+    <path d="M146.8,225 A78.2,30.5 0 0 0 303.2,225"/>
+    <path d="M151,195 A74,29 0 0 0 299,195"/>
+    <path d="M154.8,168 A70.2,27.5 0 0 0 295.2,168"/>
+  </g>
+  <!-- course highlight (top edge catches light) -->
+  <g fill="none" stroke="#8ea4b0" stroke-width="1.1" opacity="0.4">
+    <path d="M137.7,288 A87.3,34 0 0 0 250,318"/>
+    <path d="M142.6,253 A82.4,32 0 0 0 250,282"/>
+    <path d="M146.8,223 A78.2,30.5 0 0 0 248,250"/>
+    <path d="M151,193 A74,29 0 0 0 246,220"/>
+  </g>
+
+  <!-- individual lit stones on the front-left face -->
+  <g opacity="0.85">
+    <path d="M150,300 l20,-2 3,15 -20,3 z" fill="#6e8592"/>
+    <path d="M178,298 l24,-1 2,15 -24,2 z" fill="#637986"/>
+    <path d="M155,272 l22,-2 3,14 -22,3 z" fill="#718895"/>
+    <path d="M185,270 l24,-1 2,14 -24,2 z" fill="#657c89"/>
+    <path d="M160,242 l22,-2 3,13 -22,2 z" fill="#6d8491"/>
+    <path d="M164,214 l22,-2 3,12 -22,2 z" fill="#728a97"/>
+    <path d="M168,188 l20,-1 2,11 -20,2 z" fill="#6a8290"/>
+    <path d="M214,300 l22,-1 2,15 -22,1 z" fill="#4f6672"/>
+    <path d="M212,272 l22,-1 2,14 -22,1 z" fill="#546b77"/>
+    <path d="M209,244 l20,-1 2,13 -20,1 z" fill="#59707c"/>
+  </g>
+  <!-- ambient occlusion where tower meets ground -->
+  <path d="M130,345 A95,38 0 0 0 320,345 A95,38 0 0 1 130,345 Z" fill="#0d1519" opacity="0.35"/>
+
+  <!-- ===================== DOOR ===================== -->
+  <g>
+    <path d="M191,344 L191,308 A17,20 0 0 1 225,308 L225,344 Z" fill="#241a12"/>
+    <path d="M194,344 L194,309 A14,17 0 0 1 222,309 L222,344 Z" fill="#3a2a1c"/>
+    <!-- warm light spilling under the door -->
+    <path d="M196,344 L196,318 A12,14 0 0 1 220,318 L220,344 Z" fill="url(#forest-windmill-window)" opacity="0.9"/>
+    <path d="M208,318 L208,344" stroke="#8a5a2a" stroke-width="1.2" opacity="0.6"/>
+    <ellipse cx="208" cy="348" rx="26" ry="7" fill="#ffd75e" opacity="0.22" filter="url(#forest-windmill-blur2)"/>
+    <path d="M190,306 A18,10 0 0 1 226,306" fill="none" stroke="#6b4326" stroke-width="2.4"/>
+  </g>
+
+  <!-- ===================== GLOWING WINDOWS ===================== -->
+  <!-- lower-right arched window -->
+  <ellipse cx="272" cy="262" rx="30" ry="30" fill="url(#forest-windmill-winglow)" filter="url(#forest-windmill-blur2)"/>
+  <g>
+    <path d="M261,278 L261,252 A11,13 0 0 1 283,252 L283,278 Z" fill="#3a2a1c"/>
+    <path d="M263,277 L263,253 A9,11 0 0 1 281,253 L281,277 Z" fill="url(#forest-windmill-window)"/>
+    <line x1="272" y1="243" x2="272" y2="277" stroke="#7a4e28" stroke-width="1.4"/>
+    <line x1="263" y1="262" x2="281" y2="262" stroke="#7a4e28" stroke-width="1.4"/>
+  </g>
+  <!-- upper window -->
+  <ellipse cx="266" cy="204" rx="22" ry="22" fill="url(#forest-windmill-winglow)" filter="url(#forest-windmill-blur2)"/>
+  <g>
+    <path d="M258,216 L258,198 A8,9 0 0 1 274,198 L274,216 Z" fill="#3a2a1c"/>
+    <path d="M260,215 L260,199 A6,7 0 0 1 272,199 L272,215 Z" fill="url(#forest-windmill-window)"/>
+    <line x1="266" y1="191" x2="266" y2="215" stroke="#7a4e28" stroke-width="1.2"/>
+  </g>
+  <!-- small left window (moved clear of the balcony band and the lower sail's sweep) -->
+  <ellipse cx="155.5" cy="302" rx="17" ry="17" fill="url(#forest-windmill-winglow)" filter="url(#forest-windmill-blur2)"/>
+  <g>
+    <rect x="148" y="292" width="15" height="19" rx="3" fill="#2f2116"/>
+    <rect x="150" y="294" width="11" height="15" rx="2" fill="url(#forest-windmill-window)" opacity="0.92"/>
+    <line x1="155.5" y1="294" x2="155.5" y2="309" stroke="#7a4e28" stroke-width="1"/>
+  </g>
+
+  <!-- ===================== BALCONY ===================== -->
+  <!-- ring flush to the tower cross-section at this level; posts seated ON the deck's front dip, -->
+  <!-- hand-rail = the deck arc raised 17 (was an up-bulging arc floating above the posts) -->
+  <g transform="translate(15.75,16.52) scale(0.93)">
+    <!-- balcony deck ring -->
+    <path d="M138,236 A87,34 0 0 0 312,236 L312,247 A87,34 0 0 1 138,247 Z" fill="url(#forest-windmill-balc)"/>
+    <path d="M138,236 A87,34 0 0 0 312,236 A79,30 0 0 1 138,236 Z" fill="#7d5238"/>
+    <path d="M138,236 A87,34 0 0 0 312,236 A79,30 0 0 1 138,236 Z" fill="#3a2416" opacity="0.35"/>
+    <!-- support brackets hung from the band's bottom edge -->
+    <path d="M150,262 l6,13 6,-10 z" fill="#4a2f1e"/>
+    <path d="M216,278 l6,14 6,-11 z" fill="#4a2f1e"/>
+    <path d="M290,266 l6,13 6,-10 z" fill="#4a2f1e"/>
+    <!-- railing -->
+    <path d="M140,236 A85,33 0 0 0 310,236" fill="none" stroke="#8a5a3c" stroke-width="3"/>
+    <g stroke="#6b4228" stroke-width="2.4">
+      <line x1="150" y1="255" x2="150" y2="237"/>
+      <line x1="173" y1="265" x2="173" y2="247"/>
+      <line x1="198" y1="270" x2="198" y2="252"/>
+      <line x1="225" y1="272" x2="225" y2="254"/>
+      <line x1="252" y1="270" x2="252" y2="252"/>
+      <line x1="277" y1="265" x2="277" y2="247"/>
+      <line x1="300" y1="255" x2="300" y2="237"/>
+    </g>
+    <path d="M138,219 A87,34 0 0 0 312,219" fill="none" stroke="#9a6748" stroke-width="2.6"/>
+  </g>
+
+  <!-- ===================== CAP / DOME ===================== -->
+  <g>
+    <ellipse cx="225" cy="152" rx="70" ry="27" fill="#2a3d47"/>
+    <path d="M155,150 C158,104 190,86 225,86 C260,86 292,104 295,150 A70,26 0 0 1 155,150 Z" fill="url(#forest-windmill-cap)"/>
+    <!-- dome shading -->
+    <path d="M225,86 C260,86 292,104 295,150 A70,26 0 0 1 246,168 C266,150 264,110 245,92 C238,88 231,86 225,86 Z" fill="#274c60" opacity="0.55"/>
+    <path d="M225,86 C205,88 182,102 170,128 C176,112 194,94 216,89 C219,88 222,87 225,86 Z" fill="#9fcada" opacity="0.6"/>
+    <!-- ribs -->
+    <path d="M225,86 L225,150" stroke="#2b4f63" stroke-width="1.3" opacity="0.5"/>
+    <path d="M192,90 C182,110 176,130 175,150" fill="none" stroke="#2b4f63" stroke-width="1.1" opacity="0.4"/>
+    <path d="M258,90 C268,110 274,130 275,150" fill="none" stroke="#2b4f63" stroke-width="1.1" opacity="0.4"/>
+    <!-- cap rim band -->
+    <path d="M155,150 A70,26 0 0 0 295,150 L295,156 A70,27 0 0 1 155,156 Z" fill="#3a2416"/>
+    <!-- rim highlight: front arc only (the full ellipse drew its back half across the dome) -->
+    <path d="M155,150 A70,26 0 0 0 295,150" fill="none" stroke="#8a5a3c" stroke-width="1.6" opacity="0.7"/>
+    <!-- finial -->
+    <line x1="225" y1="86" x2="225" y2="66" stroke="#5a3c26" stroke-width="2.6"/>
+    <circle cx="225" cy="63" r="5" fill="#c2b280"/>
+    <circle cx="223" cy="61" r="2" fill="#ffe9a8"/>
+    <!-- little pennant -->
+    <path d="M225,66 L246,71 L227,78 Z" fill="#5d8fa8"/>
+  </g>
+
+  <!-- ===================== SAILS ===================== -->
+  <!-- soft shadow the rotor casts on the tower/cap (depth cue: rotor sits in FRONT) -->
+  <ellipse cx="212" cy="184" rx="22" ry="26" fill="#0b1015" opacity="0.22" filter="url(#forest-windmill-soft)"/>
+  <!-- soft shadow the right sail casts onto the lit window below its edge (in-front depth cue) -->
+  <path d="M258,208 q11,7 22,4" fill="none" stroke="#0c1015" stroke-width="6" stroke-linecap="round" opacity="0.28" filter="url(#forest-windmill-blur2)"/>
+
+  <g transform="rotate(16 200 168)">
+    <!-- ARM 1 (up) -->
+    <g transform="rotate(0 200 168)">
+      <path d="M200,58 C214,62 223,77 223,93 L223,146 C223,157 210,164 200,165 Z" fill="url(#forest-windmill-sail)" opacity="0.5"/>
+      <rect x="184" y="62" width="4" height="96" rx="2" fill="#6b4230"/>
+      <rect x="197.3" y="56" width="5.4" height="112" rx="2.4" fill="url(#forest-windmill-wood)"/>
+      <circle cx="200" cy="56" r="3.4" fill="#5f3d2e"/>
+      <g stroke="#7a4c37" stroke-width="1.3">
+        <line x1="186" y1="76" x2="222" y2="76"/>
+        <line x1="186" y1="92" x2="222" y2="92"/>
+        <line x1="186" y1="108" x2="221" y2="108"/>
+        <line x1="186" y1="124" x2="221" y2="124"/>
+        <line x1="186" y1="140" x2="220" y2="140"/>
+        <line x1="186" y1="154" x2="219" y2="154"/>
+      </g>
+      <line x1="203" y1="66" x2="221" y2="146" stroke="#fff2c4" stroke-width="1.2" opacity="0.5"/>
+    </g>
+    <!-- ARM 2 (right) -->
+    <g transform="rotate(90 200 168)">
+      <path d="M200,58 C214,62 223,77 223,93 L223,146 C223,157 210,164 200,165 Z" fill="url(#forest-windmill-sail)" opacity="0.5"/>
+      <rect x="184" y="62" width="4" height="96" rx="2" fill="#6b4230"/>
+      <rect x="197.3" y="56" width="5.4" height="112" rx="2.4" fill="url(#forest-windmill-wood)"/>
+      <circle cx="200" cy="56" r="3.4" fill="#5f3d2e"/>
+      <g stroke="#7a4c37" stroke-width="1.3">
+        <line x1="186" y1="76" x2="222" y2="76"/>
+        <line x1="186" y1="92" x2="222" y2="92"/>
+        <line x1="186" y1="108" x2="221" y2="108"/>
+        <line x1="186" y1="124" x2="221" y2="124"/>
+        <line x1="186" y1="140" x2="220" y2="140"/>
+        <line x1="186" y1="154" x2="219" y2="154"/>
+      </g>
+      <line x1="203" y1="66" x2="221" y2="146" stroke="#fff2c4" stroke-width="1.2" opacity="0.5"/>
+    </g>
+    <!-- ARM 3 (down) -->
+    <g transform="rotate(180 200 168)">
+      <path d="M200,58 C214,62 223,77 223,93 L223,146 C223,157 210,164 200,165 Z" fill="url(#forest-windmill-sail)" opacity="0.45"/>
+      <rect x="184" y="62" width="4" height="96" rx="2" fill="#5c3928"/>
+      <rect x="197.3" y="56" width="5.4" height="112" rx="2.4" fill="url(#forest-windmill-wood)"/>
+      <circle cx="200" cy="56" r="3.4" fill="#5f3d2e"/>
+      <g stroke="#7a4c37" stroke-width="1.3">
+        <line x1="186" y1="76" x2="222" y2="76"/>
+        <line x1="186" y1="92" x2="222" y2="92"/>
+        <line x1="186" y1="108" x2="221" y2="108"/>
+        <line x1="186" y1="124" x2="221" y2="124"/>
+        <line x1="186" y1="140" x2="220" y2="140"/>
+        <line x1="186" y1="154" x2="219" y2="154"/>
+      </g>
+      <line x1="203" y1="66" x2="221" y2="146" stroke="#fff2c4" stroke-width="1.2" opacity="0.45"/>
+    </g>
+    <!-- ARM 4 (left) -->
+    <g transform="rotate(270 200 168)">
+      <path d="M200,58 C214,62 223,77 223,93 L223,146 C223,157 210,164 200,165 Z" fill="url(#forest-windmill-sail)" opacity="0.5"/>
+      <rect x="184" y="62" width="4" height="96" rx="2" fill="#6b4230"/>
+      <rect x="197.3" y="56" width="5.4" height="112" rx="2.4" fill="url(#forest-windmill-wood)"/>
+      <circle cx="200" cy="56" r="3.4" fill="#5f3d2e"/>
+      <g stroke="#7a4c37" stroke-width="1.3">
+        <line x1="186" y1="76" x2="222" y2="76"/>
+        <line x1="186" y1="92" x2="222" y2="92"/>
+        <line x1="186" y1="108" x2="221" y2="108"/>
+        <line x1="186" y1="124" x2="221" y2="124"/>
+        <line x1="186" y1="140" x2="220" y2="140"/>
+        <line x1="186" y1="154" x2="219" y2="154"/>
+      </g>
+      <line x1="203" y1="66" x2="221" y2="146" stroke="#fff2c4" stroke-width="1.2" opacity="0.5"/>
+    </g>
+  </g>
+
+  <!-- windshaft mount: bracket on the cap front + timber beam anchoring the rotor to the tower -->
+  <g>
+    <!-- mounting bracket plate seated on the cap rim -->
+    <path d="M223,150 L244,157 L240,168 L220,161 Z" fill="#3f2a1a"/>
+    <path d="M223,150 L244,157 L242,161 L221.5,154 Z" fill="#6b4230" opacity="0.85"/>
+    <circle cx="228" cy="156" r="1.6" fill="#241608"/>
+    <circle cx="237" cy="160" r="1.6" fill="#241608"/>
+    <!-- windshaft beam from cap bracket down to the hub -->
+    <path d="M230.8,154.7 L233.3,163.3 L202.3,172.3 L199.8,163.7 Z" fill="url(#forest-windmill-wood)"/>
+    <path d="M230,156 L201,165" stroke="#c99b6b" stroke-width="1.1" opacity="0.55"/>
+    <path d="M233,162 L203,171" stroke="#3a2414" stroke-width="1" opacity="0.5"/>
+  </g>
+  <!-- hub -->
+  <circle cx="200" cy="168" r="12" fill="url(#forest-windmill-hub)"/>
+  <circle cx="200" cy="168" r="12" fill="none" stroke="#2e1c10" stroke-width="1.5"/>
+  <circle cx="196" cy="164" r="3.4" fill="#e6c48f" opacity="0.8"/>
+  <circle cx="200" cy="168" r="3" fill="#3a2414"/>
+
+  <!-- ===================== MAGIC WISPS ===================== -->
+  <g>
+    <circle cx="360" cy="150" r="9" fill="url(#forest-windmill-mote)"/>
+    <circle cx="360" cy="150" r="2.4" fill="#fff6d8"/>
+    <circle cx="96" cy="196" r="7" fill="url(#forest-windmill-mote)"/>
+    <circle cx="96" cy="196" r="1.9" fill="#fff6d8"/>
+    <circle cx="330" cy="286" r="6" fill="url(#forest-windmill-mote)"/>
+    <circle cx="330" cy="286" r="1.7" fill="#fff6d8"/>
+    <circle cx="122" cy="300" r="5" fill="url(#forest-windmill-mote)"/>
+    <circle cx="122" cy="300" r="1.5" fill="#fff6d8"/>
+    <circle cx="392" cy="230" r="5.5" fill="url(#forest-windmill-mote)"/>
+    <circle cx="392" cy="230" r="1.6" fill="#fff6d8"/>
+    <circle cx="150" cy="110" r="4.5" fill="url(#forest-windmill-mote)"/>
+    <circle cx="150" cy="110" r="1.4" fill="#fff6d8"/>
+    <circle cx="300" cy="96" r="4" fill="url(#forest-windmill-mote)"/>
+    <circle cx="300" cy="96" r="1.3" fill="#fff6d8"/>
+  </g>
+</svg>

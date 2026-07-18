@@ -1,0 +1,439 @@
+<svg viewBox="0 0 480 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Wizard's Spire: a tall crooked stone tower with a conical slate roof, glowing arcane windows and a weathervane, placed on an isometric mossy tile.">
+  <defs>
+    <!-- ground / tile -->
+    <linearGradient id="ws-tile-top" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5fae6d"/>
+      <stop offset="0.55" stop-color="#488a56"/>
+      <stop offset="1" stop-color="#356b41"/>
+    </linearGradient>
+    <radialGradient id="ws-tile-moss" cx="0.5" cy="0.42" r="0.62">
+      <stop offset="0" stop-color="#6fbd7d" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#3d7a4a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ws-tile-sideL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2c5537"/>
+      <stop offset="1" stop-color="#183020"/>
+    </linearGradient>
+    <linearGradient id="ws-tile-sideR" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#22462d"/>
+      <stop offset="1" stop-color="#122619"/>
+    </linearGradient>
+
+    <!-- stone body: light from upper-left -->
+    <linearGradient id="ws-stone-body" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#9a9184"/>
+      <stop offset="0.30" stop-color="#7c7266"/>
+      <stop offset="0.62" stop-color="#5c554c"/>
+      <stop offset="1" stop-color="#3a3630"/>
+    </linearGradient>
+    <linearGradient id="ws-plinth" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7d7264"/>
+      <stop offset="0.55" stop-color="#584f45"/>
+      <stop offset="1" stop-color="#312d28"/>
+    </linearGradient>
+    <linearGradient id="ws-body-ao" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#14110d" stop-opacity="0.7"/>
+    </linearGradient>
+    <linearGradient id="ws-body-warmbleed" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffd75e" stop-opacity="0"/>
+      <stop offset="0.7" stop-color="#ffb347" stop-opacity="0"/>
+      <stop offset="1" stop-color="#ffca62" stop-opacity="0.22"/>
+    </linearGradient>
+
+    <!-- roof slate -->
+    <linearGradient id="ws-roof" x1="0" y1="0" x2="1" y2="0.35">
+      <stop offset="0" stop-color="#8aa2b2"/>
+      <stop offset="0.35" stop-color="#5d8fa8"/>
+      <stop offset="0.7" stop-color="#3e5364"/>
+      <stop offset="1" stop-color="#28323d"/>
+    </linearGradient>
+    <linearGradient id="ws-roof-inner" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b3945" stop-opacity="0"/>
+      <stop offset="1" stop-color="#0e151b" stop-opacity="0.55"/>
+    </linearGradient>
+
+    <!-- window glows -->
+    <radialGradient id="ws-win-warm" cx="0.5" cy="0.42" r="0.62">
+      <stop offset="0" stop-color="#fff6d2"/>
+      <stop offset="0.45" stop-color="#ffd75e"/>
+      <stop offset="1" stop-color="#a9741f"/>
+    </radialGradient>
+    <radialGradient id="ws-win-arcane" cx="0.5" cy="0.4" r="0.7">
+      <stop offset="0" stop-color="#eaf0ff"/>
+      <stop offset="0.35" stop-color="#9fb6e6"/>
+      <stop offset="0.7" stop-color="#7f8fd1"/>
+      <stop offset="1" stop-color="#33407a"/>
+    </radialGradient>
+    <radialGradient id="ws-arcane-halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#8fa6ff" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#7f8fd1" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ws-warm-halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffe08a" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ws-door-glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffe6a0" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#ffce62" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ws-wisp" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fff7d8" stop-opacity="1"/>
+      <stop offset="0.4" stop-color="#ffe9a8" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#ffd75e" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ws-ground-shadow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#000000" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ws-tower-aura" cx="0.5" cy="0.4" r="0.5">
+      <stop offset="0" stop-color="#7f8fd1" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#7f8fd1" stop-opacity="0"/>
+    </radialGradient>
+
+    <filter id="ws-blur-soft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+    <filter id="ws-blur-mid" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
+    <filter id="ws-blur-strong" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+
+    <clipPath id="ws-bodyclip">
+      <path d="M176,402 C176,320 177,235 180,150 Q216,143 252,150 C259,238 277,328 304,402 Q240,420 176,402 Z"/>
+    </clipPath>
+    <clipPath id="ws-roofclip">
+      <path d="M166,150 C176,110 214,66 246,44 C256,70 272,116 270,150 Q218,168 166,150 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- soft magical aura behind the whole spire -->
+  <ellipse cx="232" cy="215" rx="150" ry="200" fill="url(#ws-tower-aura)"/>
+
+  <!-- ground drop shadow -->
+  <ellipse cx="246" cy="410" rx="120" ry="40" fill="url(#ws-ground-shadow)" filter="url(#ws-blur-strong)"/>
+
+  <!-- ===================== ISO GROUND TILE ===================== -->
+  <!-- side depth faces -->
+  <polygon points="90,400 240,475 240,498 90,423" fill="url(#ws-tile-sideL)"/>
+  <polygon points="390,400 240,475 240,498 390,423" fill="url(#ws-tile-sideR)"/>
+  <line x1="240" y1="475" x2="240" y2="498" stroke="#0d1c12" stroke-width="1" opacity="0.5"/>
+  <!-- top face -->
+  <polygon points="240,325 390,400 240,475 90,400" fill="url(#ws-tile-top)"/>
+  <polygon points="240,325 390,400 240,475 90,400" fill="url(#ws-tile-moss)"/>
+  <!-- tile top rim highlight -->
+  <polyline points="90,400 240,325 390,400" fill="none" stroke="#7cc98a" stroke-width="1.5" opacity="0.5"/>
+  <polyline points="90,400 240,475 390,400" fill="none" stroke="#1c3a24" stroke-width="1.5" opacity="0.7"/>
+
+  <!-- scattered mossy stones / grass tufts on tile -->
+  <g opacity="0.9">
+    <ellipse cx="132" cy="404" rx="12" ry="6" fill="#4a4238"/>
+    <ellipse cx="132" cy="402" rx="12" ry="6" fill="#6a6154"/>
+    <ellipse cx="128" cy="400" rx="6" ry="3" fill="#7f9d5a" opacity="0.8"/>
+    <ellipse cx="330" cy="421" rx="14" ry="7" fill="#3f382f"/>
+    <ellipse cx="330" cy="418" rx="14" ry="7" fill="#5f574a"/>
+    <ellipse cx="326" cy="416" rx="7" ry="3.4" fill="#79965a" opacity="0.8"/>
+    <!-- grass blades -->
+    <g stroke="#4f9d5d" stroke-width="1.6" stroke-linecap="round" fill="none">
+      <path d="M170,438 C168,431 171,428 173,424"/>
+      <path d="M174,439 C175,432 176,429 179,426"/>
+      <path d="M178,440 C179,433 181,431 184,428"/>
+      <path d="M300,392 C298,386 300,383 302,379"/>
+      <path d="M305,393 C306,387 307,384 310,381"/>
+      <path d="M120,432 C118,426 120,423 122,419"/>
+      <path d="M125,433 C126,427 128,425 131,421"/>
+    </g>
+    <!-- tiny toadstools (seated on the tile top, with contact shadows) -->
+    <g transform="translate(-16,-21)">
+      <ellipse cx="305" cy="460" rx="7.5" ry="2.6" fill="#000000" opacity="0.3"/>
+      <ellipse cx="287" cy="462" rx="5.5" ry="2" fill="#000000" opacity="0.3"/>
+      <rect x="303" y="452" width="3" height="7" rx="1.4" fill="#e7dcc4"/>
+      <path d="M298,453 Q305,445 312,453 Z" fill="#b0503f"/>
+      <circle cx="302" cy="450" r="1" fill="#ffe9c0"/>
+      <circle cx="308" cy="451" r="0.9" fill="#ffe9c0"/>
+      <rect x="286" y="456" width="2.4" height="5.5" rx="1.2" fill="#e7dcc4"/>
+      <path d="M282,457 Q287,451 292,457 Z" fill="#c25c48"/>
+    </g>
+  </g>
+
+  <!-- cobble path stones toward the door -->
+  <g>
+    <polygon points="236,452 258,463 240,472 220,461" fill="#6b6357"/>
+    <polygon points="236,452 258,463 240,472 220,461" fill="#4a4339" opacity="0.35"/>
+    <polygon points="235,435 253,444 238,452 222,443" fill="#736a5d"/>
+    <polygon points="235,435 253,444 238,452 222,443" fill="#4a4339" opacity="0.3"/>
+    <polygon points="235,421 250,428 237,435 224,428" fill="#7a7164"/>
+  </g>
+
+  <!-- contact shadow where tower meets tile -->
+  <ellipse cx="240" cy="404" rx="72" ry="20" fill="#000000" opacity="0.35" filter="url(#ws-blur-mid)"/>
+
+  <!-- ===================== PLINTH / FOUNDATION ===================== -->
+  <path d="M162,398 C170,414 312,414 320,398 C316,384 306,378 292,377 L190,377 C176,378 166,384 162,398 Z" fill="url(#ws-plinth)"/>
+  <path d="M162,398 C170,414 312,414 320,398" fill="none" stroke="#221f1a" stroke-width="2" opacity="0.6"/>
+  <path d="M172,384 C210,392 274,392 308,384" fill="none" stroke="#2a251f" stroke-width="1.4" opacity="0.5"/>
+  <path d="M172,382 C210,390 274,390 308,382" fill="none" stroke="#a79c8a" stroke-width="1" opacity="0.4"/>
+
+  <!-- ===================== TOWER BODY ===================== -->
+  <!-- consistent lean: left edge eases in gently, right edge is one smooth accelerating sweep (no inflection) -->
+  <path d="M176,402 C176,320 177,235 180,150 Q216,143 252,150 C259,238 277,328 304,402 Q240,420 176,402 Z" fill="url(#ws-stone-body)"/>
+
+  <g clip-path="url(#ws-bodyclip)">
+    <!-- ambient occlusion right side & warm bleed -->
+    <rect x="90" y="130" width="230" height="290" fill="url(#ws-body-ao)"/>
+    <rect x="90" y="300" width="230" height="120" fill="url(#ws-body-warmbleed)"/>
+
+    <!-- cast shadow of the eave on the tower top: seats the roof -->
+    <path d="M179,154 Q218,172 252,154" fill="none" stroke="#14110d" stroke-width="6" opacity="0.22"/>
+
+    <!-- masonry course band arcs (front-bowing) + top highlight -->
+    <g fill="none" stroke="#2a251f" stroke-width="1.5" opacity="0.32">
+      <path d="M174,375 Q237,393 300,375"/>
+      <path d="M171,342 Q232,359 293,342"/>
+      <path d="M170,308 Q227,323 285,308"/>
+      <path d="M171,274 Q223,288 276,274"/>
+      <path d="M172,240 Q219,252 266,240"/>
+      <path d="M174,206 Q216,217 259,206"/>
+      <path d="M176,174 Q214,184 253,174"/>
+    </g>
+    <g fill="none" stroke="#b3a894" stroke-width="0.9" opacity="0.3">
+      <path d="M174,373 Q237,388 300,373"/>
+      <path d="M171,340 Q232,354 293,340"/>
+      <path d="M170,306 Q227,319 285,306"/>
+      <path d="M171,272 Q223,284 276,272"/>
+      <path d="M172,238 Q219,249 266,238"/>
+      <path d="M174,204 Q216,214 259,204"/>
+    </g>
+
+    <!-- vertical stone joints, staggered per course -->
+    <g stroke="#26221c" stroke-width="1.2" opacity="0.28" stroke-linecap="round">
+      <line x1="184" y1="174" x2="184" y2="206"/><line x1="200" y1="176" x2="200" y2="206"/><line x1="216" y1="176" x2="216" y2="206"/><line x1="232" y1="176" x2="232" y2="206"/><line x1="248" y1="176" x2="248" y2="205"/>
+      <line x1="181" y1="206" x2="181" y2="240"/><line x1="197" y1="208" x2="197" y2="240"/><line x1="213" y1="208" x2="213" y2="240"/><line x1="229" y1="208" x2="229" y2="240"/><line x1="245" y1="208" x2="245" y2="240"/><line x1="258" y1="210" x2="258" y2="238"/>
+      <line x1="190" y1="240" x2="190" y2="274"/><line x1="206" y1="241" x2="206" y2="274"/><line x1="222" y1="241" x2="222" y2="274"/><line x1="238" y1="241" x2="238" y2="274"/><line x1="254" y1="242" x2="254" y2="272"/><line x1="269" y1="244" x2="269" y2="270"/>
+      <line x1="178" y1="274" x2="178" y2="308"/><line x1="194" y1="275" x2="194" y2="308"/><line x1="210" y1="275" x2="210" y2="308"/><line x1="226" y1="275" x2="226" y2="308"/><line x1="242" y1="275" x2="242" y2="308"/><line x1="258" y1="276" x2="258" y2="307"/><line x1="273" y1="278" x2="273" y2="305"/>
+      <line x1="187" y1="308" x2="187" y2="342"/><line x1="203" y1="308" x2="203" y2="342"/><line x1="219" y1="308" x2="219" y2="342"/><line x1="235" y1="308" x2="235" y2="342"/><line x1="251" y1="309" x2="251" y2="342"/><line x1="267" y1="310" x2="267" y2="341"/><line x1="281" y1="312" x2="281" y2="339"/>
+      <line x1="180" y1="342" x2="180" y2="375"/><line x1="196" y1="342" x2="196" y2="375"/><line x1="212" y1="342" x2="212" y2="375"/><line x1="228" y1="342" x2="228" y2="375"/><line x1="244" y1="342" x2="244" y2="375"/><line x1="260" y1="343" x2="260" y2="374"/><line x1="276" y1="344" x2="276" y2="373"/><line x1="290" y1="346" x2="290" y2="372"/>
+      <line x1="190" y1="375" x2="190" y2="400"/><line x1="206" y1="375" x2="206" y2="400"/><line x1="222" y1="375" x2="222" y2="401"/><line x1="238" y1="375" x2="238" y2="401"/><line x1="254" y1="375" x2="254" y2="400"/><line x1="270" y1="376" x2="270" y2="399"/><line x1="286" y1="377" x2="286" y2="397"/>
+    </g>
+
+    <!-- left-edge rim light (moonlight) -->
+    <path d="M180,150 C177,235 176,320 176,402" fill="none" stroke="#c9d8e2" stroke-width="2.4" opacity="0.5"/>
+    <path d="M181,150 C178,235 177,320 177,402" fill="none" stroke="#eef4f8" stroke-width="0.9" opacity="0.4"/>
+
+    <!-- a couple of larger accent stones (weathered brown) -->
+    <path d="M186,318 l16,2 -1,16 -16,-1 z" fill="#8a5a44" opacity="0.35"/>
+    <path d="M244,214 l14,1 -1,14 -14,-1 z" fill="#8a5a44" opacity="0.3"/>
+    <path d="M258,352 l16,2 -1,15 -16,-1 z" fill="#8a5a44" opacity="0.28"/>
+  </g>
+
+  <!-- ===================== DOOR ===================== -->
+  <ellipse cx="236" cy="401" rx="30" ry="20" fill="url(#ws-door-glow)" filter="url(#ws-blur-soft)"/>
+  <path d="M221,402 L221,368 Q236,352 251,368 L251,402 Z" fill="#241a12"/>
+  <path d="M221,402 L221,368 Q236,352 251,368 L251,402 Z" fill="url(#ws-win-warm)" opacity="0.22"/>
+  <!-- door frame stone arch -->
+  <path d="M218,402 L218,367 Q236,348 254,367 L254,402" fill="none" stroke="#6d6252" stroke-width="3"/>
+  <path d="M218,367 Q236,348 254,367" fill="none" stroke="#8f8472" stroke-width="1.4" opacity="0.6"/>
+  <!-- planks + light seams -->
+  <g stroke="#ffdf8f" stroke-width="1" opacity="0.65">
+    <line x1="230" y1="360" x2="230" y2="402"/>
+    <line x1="240" y1="358" x2="240" y2="402"/>
+  </g>
+  <line x1="221" y1="384" x2="251" y2="384" stroke="#0f0a06" stroke-width="1.4" opacity="0.6"/>
+  <circle cx="246" cy="388" r="1.6" fill="#ffe9a8"/>
+  <!-- warm light spilling at the threshold -->
+  <path d="M221,402 L251,402 L258,410 L214,410 Z" fill="url(#ws-win-warm)" opacity="0.4" filter="url(#ws-blur-soft)"/>
+
+  <!-- little hanging lantern beside the door -->
+  <g>
+    <path d="M206,344 q6,-4 10,1" fill="none" stroke="#3b342b" stroke-width="1.4"/>
+    <line x1="209" y1="345" x2="209" y2="352" stroke="#2c261f" stroke-width="1.2"/>
+    <ellipse cx="209" cy="357" rx="8" ry="10" fill="#ffd75e" opacity="0.35" filter="url(#ws-blur-soft)"/>
+    <rect x="205" y="352" width="8" height="10" rx="1.6" fill="#2b241c" stroke="#4b4237" stroke-width="0.8"/>
+    <rect x="206.4" y="353.4" width="5.2" height="7.2" rx="0.8" fill="url(#ws-win-warm)"/>
+    <circle cx="209" cy="351" r="1.2" fill="#4b4237"/>
+  </g>
+
+  <!-- ===================== WINDOWS ===================== -->
+  <!-- lower-left small warm window -->
+  <ellipse cx="198" cy="322" rx="15" ry="19" fill="url(#ws-warm-halo)" filter="url(#ws-blur-soft)"/>
+  <path d="M191,335 L191,318 Q198,308 205,318 L205,335 Z" fill="url(#ws-win-warm)"/>
+  <path d="M188,336 L188,317 Q198,304 208,317 L208,336" fill="none" stroke="#5c5346" stroke-width="2.4"/>
+  <g stroke="#5a4a2a" stroke-width="1" opacity="0.8">
+    <line x1="198" y1="309" x2="198" y2="335"/>
+    <line x1="191" y1="324" x2="205" y2="324"/>
+  </g>
+
+  <!-- mid arcane arched window (the star window) -->
+  <ellipse cx="219" cy="252" rx="26" ry="34" fill="url(#ws-arcane-halo)" filter="url(#ws-blur-mid)"/>
+  <path d="M206,277 L206,238 Q219,222 232,238 L232,277 Z" fill="url(#ws-win-arcane)"/>
+  <!-- arcane inner warm core -->
+  <ellipse cx="219" cy="252" rx="6" ry="9" fill="#f3f6ff" opacity="0.7"/>
+  <!-- stone surround -->
+  <path d="M203,278 L203,237 Q219,218 235,237 L235,278" fill="none" stroke="#6a6051" stroke-width="3.2"/>
+  <path d="M203,237 Q219,218 235,237" fill="none" stroke="#8f8472" stroke-width="1.3" opacity="0.6"/>
+  <!-- leaded mullions -->
+  <g stroke="#2e3a63" stroke-width="1.1" opacity="0.85">
+    <line x1="219" y1="224" x2="219" y2="277"/>
+    <line x1="206" y1="248" x2="232" y2="248"/>
+    <line x1="206" y1="263" x2="232" y2="263"/>
+  </g>
+  <!-- tiny sparkle inside arcane glass -->
+  <circle cx="214" cy="243" r="1.1" fill="#ffffff" opacity="0.9"/>
+  <circle cx="225" cy="258" r="0.9" fill="#dfe6ff" opacity="0.9"/>
+
+  <!-- upper round oculus, warm -->
+  <circle cx="216" cy="196" r="18" fill="url(#ws-warm-halo)" filter="url(#ws-blur-soft)"/>
+  <circle cx="216" cy="196" r="12" fill="url(#ws-win-warm)"/>
+  <circle cx="216" cy="196" r="12" fill="none" stroke="#645848" stroke-width="3"/>
+  <g stroke="#6a531f" stroke-width="1" opacity="0.75">
+    <line x1="216" y1="184" x2="216" y2="208"/>
+    <line x1="204" y1="196" x2="228" y2="196"/>
+    <line x1="207.5" y1="187.5" x2="224.5" y2="204.5"/>
+    <line x1="224.5" y1="187.5" x2="207.5" y2="204.5"/>
+  </g>
+  <circle cx="212" cy="192" r="1.4" fill="#fff7d8" opacity="0.9"/>
+
+  <!-- ===================== ORIEL / BALCONY (right side, character) ===================== -->
+  <g>
+    <!-- AO seam where the oriel meets the wall: seats the whole assembly -->
+    <ellipse cx="272" cy="288" rx="9" ry="30" fill="#000000" opacity="0.28" filter="url(#ws-blur-soft)"/>
+    <!-- corbel supports (visible beyond the wall edge, stepping back into it) -->
+    <path d="M268,301 L292,297 L290,307 L270,311 Z" fill="#554a3c"/>
+    <path d="M273,312 L291,309 L289,318 L275,321 Z" fill="#443a2f"/>
+    <!-- oriel box, left face buried well inside the wall -->
+    <path d="M264,283 L296,276 L298,300 L266,307 Z" fill="#3a3128"/>
+    <path d="M264,283 L296,276 L296,272 L264,279 Z" fill="#4e4436"/>
+    <!-- warm oriel window -->
+    <ellipse cx="284" cy="290" rx="12" ry="12" fill="url(#ws-warm-halo)" filter="url(#ws-blur-soft)"/>
+    <path d="M276,298 L275,284 L293,280 L294,294 Z" fill="url(#ws-win-warm)"/>
+    <g stroke="#5a4a2a" stroke-width="0.9" opacity="0.8">
+      <line x1="284" y1="282" x2="285" y2="296"/>
+      <line x1="276" y1="291" x2="293" y2="287"/>
+    </g>
+    <!-- half-cone cap: apex tucked INTO the tower wall so it grows out of it -->
+    <path d="M265,279 L298,271 L264,252 Z" fill="url(#ws-roof)"/>
+    <path d="M265,279 L298,271 L264,252 Z" fill="url(#ws-roof-inner)" opacity="0.5"/>
+    <path d="M264,252 L298,271" fill="none" stroke="#8fa6b3" stroke-width="0.8" opacity="0.5"/>
+    <path d="M265,279 L298,271" fill="none" stroke="#1d2730" stroke-width="1"/>
+  </g>
+
+  <!-- pennant banner on a short pole, upper-right -->
+  <g>
+    <line x1="250" y1="198" x2="287" y2="175.5" stroke="#3a322a" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M286,176 L312,172 L300,182 L308,190 L284,192 Z" fill="#8a5a44"/>
+    <path d="M286,176 L312,172 L300,182 L308,190 L284,192 Z" fill="#c2b280" opacity="0.25"/>
+    <circle cx="300" cy="181" r="2.4" fill="#ffd75e"/>
+    <circle cx="286" cy="176" r="2.5" fill="#d8cdb6"/>
+  </g>
+
+  <!-- ===================== CONICAL SLATE ROOF ===================== -->
+  <path d="M166,150 C176,110 214,66 246,44 C256,70 272,116 270,150 Q218,168 166,150 Z" fill="url(#ws-roof)"/>
+  <g clip-path="url(#ws-roofclip)">
+    <!-- inner shading -->
+    <rect x="150" y="40" width="140" height="130" fill="url(#ws-roof-inner)"/>
+    <!-- right-side warm bleed from windows -->
+    <path d="M250,160 Q272,150 278,120 L290,170 L240,175 Z" fill="#ffca62" opacity="0.12"/>
+    <!-- fish-scale slate rows -->
+    <g>
+      <!-- row 1 (bottom widest) -->
+      <g>
+        <ellipse cx="176" cy="150" rx="10" ry="7" fill="#6f8797"/>
+        <ellipse cx="194" cy="153" rx="10" ry="7" fill="#4e6270"/>
+        <ellipse cx="212" cy="155" rx="10" ry="7" fill="#5d8fa8"/>
+        <ellipse cx="230" cy="155" rx="10" ry="7" fill="#455864"/>
+        <ellipse cx="248" cy="153" rx="10" ry="7" fill="#54707f"/>
+        <ellipse cx="264" cy="150" rx="10" ry="7" fill="#3d4e5a"/>
+      </g>
+      <!-- row 2 -->
+      <g>
+        <ellipse cx="184" cy="138" rx="9.5" ry="6.6" fill="#5d7887"/>
+        <ellipse cx="202" cy="140" rx="9.5" ry="6.6" fill="#475966"/>
+        <ellipse cx="220" cy="141" rx="9.5" ry="6.6" fill="#5d8fa8"/>
+        <ellipse cx="238" cy="140" rx="9.5" ry="6.6" fill="#41535f"/>
+        <ellipse cx="255" cy="137" rx="9.5" ry="6.6" fill="#546c7a"/>
+      </g>
+      <!-- row 3 -->
+      <g>
+        <ellipse cx="192" cy="124" rx="8.6" ry="6" fill="#67808f"/>
+        <ellipse cx="209" cy="126" rx="8.6" ry="6" fill="#445562"/>
+        <ellipse cx="226" cy="126" rx="8.6" ry="6" fill="#557282"/>
+        <ellipse cx="242" cy="124" rx="8.6" ry="6" fill="#3b4c58"/>
+      </g>
+      <!-- row 4 -->
+      <g>
+        <ellipse cx="200" cy="108" rx="7.6" ry="5.4" fill="#5c7583"/>
+        <ellipse cx="216" cy="110" rx="7.6" ry="5.4" fill="#425460"/>
+        <ellipse cx="231" cy="109" rx="7.6" ry="5.4" fill="#557282"/>
+      </g>
+      <!-- row 5 -->
+      <g>
+        <ellipse cx="208" cy="92" rx="6.6" ry="4.8" fill="#526a77"/>
+        <ellipse cx="222" cy="92" rx="6.6" ry="4.8" fill="#3f505c"/>
+        <ellipse cx="235" cy="90" rx="6.6" ry="4.8" fill="#5d8fa8"/>
+      </g>
+      <!-- row 6 -->
+      <g>
+        <ellipse cx="217" cy="76" rx="5.6" ry="4.2" fill="#4b616d"/>
+        <ellipse cx="229" cy="74" rx="5.6" ry="4.2" fill="#3a4a55"/>
+      </g>
+      <!-- row 7 near tip -->
+      <ellipse cx="226" cy="60" rx="4.6" ry="3.6" fill="#44565f"/>
+      <ellipse cx="234" cy="56" rx="4" ry="3.2" fill="#37454e"/>
+    </g>
+    <!-- unified eave starter course: settles the scalloped slate rim into one continuous joint -->
+    <path d="M167,150 Q218,167 269,150 Q218,159 167,150 Z" fill="#3d525e" opacity="0.85"/>
+  </g>
+  <!-- roof left rim moonlight -->
+  <path d="M166,150 C176,110 214,66 246,44" fill="none" stroke="#bcd2df" stroke-width="2.2" opacity="0.6"/>
+  <path d="M167,150 C177,110 215,67 246,45" fill="none" stroke="#eef5fa" stroke-width="0.8" opacity="0.5"/>
+  <!-- roof right shade edge -->
+  <path d="M246,44 C256,70 272,116 270,150" fill="none" stroke="#1a232b" stroke-width="1.6" opacity="0.7"/>
+  <!-- eave line -->
+  <path d="M166,150 Q218,168 270,150" fill="none" stroke="#141b21" stroke-width="1.6" opacity="0.7"/>
+  <path d="M170,150 Q218,164 266,150" fill="none" stroke="#8fa6b3" stroke-width="0.9" opacity="0.4"/>
+
+  <!-- ===================== WEATHERVANE ===================== -->
+  <g>
+    <!-- finial ball at apex -->
+    <circle cx="246" cy="45" r="4" fill="#2e3a44"/>
+    <circle cx="244.5" cy="43.5" r="1.4" fill="#8fa6b3"/>
+    <!-- pole -->
+    <line x1="246" y1="45" x2="248" y2="12" stroke="#20282f" stroke-width="2.2" stroke-linecap="round"/>
+    <!-- direction arrow -->
+    <line x1="234" y1="22" x2="264" y2="18" stroke="#2a333b" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M264,18 l-8,-3 1,6 z" fill="#3a444d"/>
+    <path d="M234,22 l8,-2 -1,5 z" fill="#3a444d"/>
+    <!-- crescent moon + star finial -->
+    <path d="M248,12 a7,7 0 1,0 3,-13 a5.5,5.5 0 1,1 -3,13 z" fill="#ffd75e"/>
+    <path d="M248,12 a7,7 0 1,0 3,-13 a5.5,5.5 0 1,1 -3,13 z" fill="none" stroke="#a9741f" stroke-width="0.5"/>
+    <!-- glow on the moon -->
+    <circle cx="248" cy="6" r="11" fill="url(#ws-warm-halo)" opacity="0.7" filter="url(#ws-blur-soft)"/>
+  </g>
+
+  <!-- ===================== MAGICAL WISPS & FIREFLIES ===================== -->
+  <g>
+    <circle cx="118" cy="176" r="12" fill="url(#ws-wisp)"/>
+    <circle cx="118" cy="176" r="2.6" fill="#fff8de"/>
+    <circle cx="332" cy="118" r="10" fill="url(#ws-wisp)"/>
+    <circle cx="332" cy="118" r="2.2" fill="#fff8de"/>
+    <circle cx="300" cy="230" r="8" fill="url(#ws-wisp)"/>
+    <circle cx="300" cy="230" r="1.8" fill="#fff8de"/>
+    <circle cx="150" cy="330" r="9" fill="url(#ws-wisp)"/>
+    <circle cx="150" cy="330" r="2" fill="#fff8de"/>
+    <circle cx="290" cy="360" r="7" fill="url(#ws-wisp)"/>
+    <circle cx="290" cy="360" r="1.6" fill="#fff8de"/>
+  </g>
+  <g fill="#ffe9a8">
+    <circle cx="140" cy="230" r="1.3" opacity="0.9"/>
+    <circle cx="326" cy="200" r="1.1" opacity="0.8"/>
+    <circle cx="176" cy="120" r="1.2" opacity="0.85"/>
+    <circle cx="308" cy="300" r="1.1" opacity="0.8"/>
+    <circle cx="128" cy="290" r="1" opacity="0.75"/>
+    <circle cx="270" cy="100" r="1.1" opacity="0.8"/>
+    <circle cx="200" cy="96" r="1" opacity="0.7"/>
+    <circle cx="350" cy="250" r="1.1" opacity="0.7"/>
+  </g>
+</svg>
