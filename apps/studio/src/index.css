@@ -80,32 +80,24 @@
   --conifer-1: #4d8a59;
   --conifer-2: #2f6b45;
 
-  /* the UAT marker walk (forest-parcels inc 2, ADR-0208): the BRAZIER marker family. Only the
-     fire carries the verdict — the stone-plinth + iron-dish fixture is identical in every state
-     (brazierMarks in @storytree/forest-world scene.ts); PENDING has no fire at all. The stone stand
-     is a warm grey (distinct from the wood family the trunk/signpost own); the iron dish a cool
-     near-black; PROVEN reuses the owner-approved warm-gold language, FAILING the app's alarm red
-     kept duller/impurer than the gold so a glance never confuses the two. */
-  --brazier-stone-light: #928a78;
-  --brazier-stone-dark: #695f4f;
-  --brazier-iron-light: #55504a;
-  --brazier-iron-dark: #3a3631;
-  --brazier-iron: #423e38;
-  --brazier-iron-interior: #2a2622;
-  --brazier-coal-dark: #362f28;
-  --brazier-coal-light: #5c5346;
-  --brazier-glow-proven: #f2c35e; /* owner-approved warm gold */
-  --brazier-ember-proven: #e8b64e;
-  --brazier-flame-proven-outer: #c8611f;
-  --brazier-flame-proven-mid: #f2a93c;
-  --brazier-flame-proven-core: #fff0c4;
-  --brazier-spark: #ffe6a0;
-  --brazier-glow-failing: var(--danger); /* #b42318 — the app's alarm red */
-  --brazier-ember-failing: var(--crown-unhealthy-hi); /* #c75545 */
-  --brazier-flame-failing-outer: #7a2016;
-  --brazier-flame-failing-mid: #a83a26;
-  --brazier-flame-failing-core: #d2643a;
-  --brazier-smoke: #241f1c;
+  /* the UAT markers (forest-parcels inc 2, ADR-0208): the standing-stone marker family
+     (owner-chosen 2026-07-18, replacing the brazier). Colour is the only thing the verdict
+     carries — the stone silhouette is identical in every state (standingStoneMarks in
+     @storytree/forest-world scene.ts); only the carved sigil's light changes. Stone facets reuse
+     the cool neutral the palette already uses for "unknown" status; the state light reuses the
+     owner-approved warm gold + the app's alarm red. */
+  --stone-body: #4c5058; /* crown-unknown-lo, cooled/darkened for the shadowed facet */
+  --stone-face: #8a909a; /* between crown-unknown lo/hi — the lit facet */
+  --stone-cap: #c3c8d0; /* lightened past crown-unknown-hi — the fresh-hewn top */
+  --stone-crack: #33363b; /* an unlit crevice */
+  --stone-moss: #35502c; /* crown-healthy-lo, darkened toward shade */
+  --stone-moss-fleck: #6f9457; /* crown-healthy-hi, lightened for a sun-fleck */
+  --stone-rune-pending: #4a4438; /* an incised groove, no light behind it — dormant, not broken */
+  --stone-light-proven: #f2c35e; /* owner-approved warm gold */
+  --stone-fill-proven: #e8b64e; /* the deeper gold for the proven crack-vein */
+  --stone-spark: #ffe6a3;
+  --stone-light-failing: var(--danger); /* #b42318 — the app's alarm red */
+  --stone-fill-failing: var(--crown-unhealthy-hi); /* #c75545 */
 
   /* story-world flora — per-status crown pairs (one source of truth: flora +
      legend). The growth/colour ladder (ADR-0038): proposed = young amber tree,
@@ -5801,125 +5793,108 @@ button.legend-tile:hover {
 .parcel-flora.theme-heath.st-unknown .parcel-stem { stroke: #8f8d82; }
 
 /* ============================================================================
-   UAT MARKER WALK (forest-parcels inc 2, ADR-0208) — the trail-to-tree walk an island grows when
-   its story carries witnessable UAT criteria: one BRAZIER marker per criterion along an INVISIBLE
-   placement cubic (no walk-bed drawable — owner call 2026-07-18: the bed clashed with the
-   inter-island trail network), each criterion's fire coloured by its proof state (the brazier
-   replaced the rejected lantern via the ten-option ADR-0208 design swarm). The core (@storytree/
-   forest-world scene.ts) emits GEOMETRY only (the frozen brazier-body marks, `brazierMarks`); every
-   colour role resolves HERE, keyed by the wrapper's state class composed onto the shared `.brazier`
-   base (`.brazier-proven` / `-pending` / `-failing`) — the SceneView mapper emits the body-part
-   classes verbatim, with `v-<n>` facet suffixes on `.brazier-plinth/-bowl/-coal/-flame`; `shadow`
-   reuses the existing `.flora-shadow` mapping (no marker-specific shadow rule needed).
-
-   The fixture (stone plinth, iron dish, coal bed) is IDENTICAL in every state — only the fire
-   carries the verdict, and PENDING has no fire at all (cold coal in a dark bowl).
+   UAT MARKERS (forest-parcels inc 2, ADR-0208) — one standing-stone marker per witnessable UAT
+   criterion, SCATTERED deterministically around the island (owner call 2026-07-18: stones, not
+   braziers, and no path — the walk + its bed are retired), each stone's carved sigil lit by its
+   criterion's proof state. The core (@storytree/forest-world scene.ts) emits GEOMETRY only (the
+   frozen stone-body marks, `standingStoneMarks`); every colour role resolves HERE, keyed by the
+   wrapper's state class composed onto the shared `.standing-stone-marker` base
+   (`.standing-stone-proven` / `-pending` / `-failing`) — the SceneView mapper emits the body-part
+   classes (`.standing-stone-body/-face/-cap/-crack/-crack-glow/-rune/-glow/-spark/-moss/
+   -moss-fleck`) verbatim; `shadow` reuses the existing `.flora-shadow` mapping (no marker-specific
+   shadow rule needed).
 
    DEVIATION rule carried from the lantern round: the glow breathe keyframes animate `transform:
    scale` (a gentle breath), NEVER `opacity` — the core already resolves each glow layer's own
    per-node falloff opacity (the layered fake-radial halo), and a CSS opacity animation would
-   flatten it into one pulsing disc. `transform-box: fill-box` + `transform-origin: center` so each
-   glow scales from its own centre.
+   flatten it into one pulsing disc. Only the circular `.standing-stone-glow` layers breathe — the
+   long `.standing-stone-crack-glow` vein stays static (a scale on that path would drift its
+   endpoints off the rune and the ground). `transform-box: fill-box` + `transform-origin: center`
+   so each glow scales from its own centre.
    ============================================================================ */
-.brazier {
+.standing-stone-marker {
   pointer-events: none;
 }
-/* -- the fixture: stone stand + iron dish, identical across every state -- */
-.brazier-plinth.v-0 {
-  fill: var(--brazier-stone-light);
+.standing-stone-body {
+  fill: var(--stone-body);
 }
-.brazier-plinth.v-1 {
-  fill: var(--brazier-stone-dark);
+.standing-stone-face {
+  fill: var(--stone-face);
 }
-.brazier-plinth-band {
-  fill: var(--brazier-stone-dark);
+.standing-stone-cap {
+  fill: var(--stone-cap);
 }
-.brazier-collar {
-  fill: var(--brazier-iron);
+.standing-stone-moss {
+  fill: var(--stone-moss);
 }
-.brazier-bowl.v-0 {
-  fill: var(--brazier-iron-light);
+.standing-stone-moss-fleck {
+  fill: var(--stone-moss-fleck);
 }
-.brazier-bowl.v-1 {
-  fill: var(--brazier-iron-dark);
+.standing-stone-crack {
+  fill: none;
+  stroke: var(--stone-crack);
+  stroke-linecap: round;
+  opacity: 0.55;
 }
-.brazier-bowl-rim {
-  fill: var(--brazier-iron);
+.standing-stone-crack-glow {
+  fill: none;
+  stroke-linecap: round;
 }
-.brazier-bowl-interior {
-  fill: var(--brazier-iron-interior);
+.standing-stone-rune {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
-/* -- the coal bed: cold ash-grey lumps in every state -- */
-.brazier-coal.v-0 {
-  fill: var(--brazier-coal-dark);
+.standing-stone-spark {
+  fill: var(--stone-spark);
 }
-.brazier-coal.v-1 {
-  fill: var(--brazier-coal-light);
+/* -- PENDING: an incised groove with no light behind it — dormant, not broken -- */
+.standing-stone-pending .standing-stone-rune {
+  stroke: var(--stone-rune-pending);
+  opacity: 0.8;
 }
-/* the pit glows faintly warmer under a lit flame — a reflected-light cue with no new geometry. */
-.brazier-proven .brazier-bowl-interior {
-  fill: color-mix(in srgb, var(--brazier-iron-interior) 68%, var(--brazier-ember-proven) 32%);
+/* -- PROVEN: warm gold, the owner-approved "unmistakably good" language -- */
+.standing-stone-proven .standing-stone-rune {
+  stroke: var(--stone-light-proven);
 }
-.brazier-failing .brazier-bowl-interior {
-  fill: color-mix(in srgb, var(--brazier-iron-interior) 74%, var(--brazier-ember-failing) 26%);
+.standing-stone-proven .standing-stone-glow {
+  fill: var(--stone-light-proven);
 }
-/* -- embers: only PROVEN/FAILING emit them (brazierMarks omits the nodes for PENDING) -- */
-.brazier-proven .brazier-ember {
-  fill: var(--brazier-ember-proven);
+.standing-stone-proven .standing-stone-crack-glow {
+  stroke: var(--stone-fill-proven);
 }
-.brazier-failing .brazier-ember {
-  fill: var(--brazier-ember-failing);
+/* -- FAILING: tight, hot, alarming red — never proven's soft bloom -- */
+.standing-stone-failing .standing-stone-rune {
+  stroke: var(--stone-fill-failing);
 }
-/* -- the flame: three nested tongues (outer/mid/core), PROVEN warm-gold, FAILING an impure red -- */
-.brazier-proven .brazier-flame.v-0 {
-  fill: var(--brazier-flame-proven-outer);
+.standing-stone-failing .standing-stone-glow {
+  fill: var(--stone-light-failing);
 }
-.brazier-proven .brazier-flame.v-1 {
-  fill: var(--brazier-flame-proven-mid);
+.standing-stone-failing .standing-stone-crack-glow {
+  stroke: var(--stone-light-failing);
 }
-.brazier-proven .brazier-flame.v-2 {
-  fill: var(--brazier-flame-proven-core);
-}
-.brazier-failing .brazier-flame.v-0 {
-  fill: var(--brazier-flame-failing-outer);
-}
-.brazier-failing .brazier-flame.v-1 {
-  fill: var(--brazier-flame-failing-mid);
-}
-.brazier-failing .brazier-flame.v-2 {
-  fill: var(--brazier-flame-failing-core);
-}
-/* -- the glow halo: layered fake-radial circles; transform-only breathe (see deviation rule) -- */
-.brazier-proven .brazier-glow {
-  fill: var(--brazier-glow-proven);
+/* -- the glow breathe: the circular halo layers only, transform-only (see the deviation note) -- */
+.standing-stone-proven .standing-stone-glow {
   transform-box: fill-box;
   transform-origin: center;
-  animation: brazier-glow-breathe-proven 3.4s ease-in-out infinite;
+  animation: standing-stone-breathe-proven 3.6s ease-in-out infinite;
 }
-.brazier-failing .brazier-glow {
-  fill: var(--brazier-glow-failing);
+.standing-stone-failing .standing-stone-glow {
   transform-box: fill-box;
   transform-origin: center;
-  animation: brazier-glow-breathe-failing 1.5s ease-in-out infinite;
+  animation: standing-stone-breathe-failing 1.7s ease-in-out infinite;
 }
-@keyframes brazier-glow-breathe-proven {
+@keyframes standing-stone-breathe-proven {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.06); }
 }
-@keyframes brazier-glow-breathe-failing {
-  0%, 100% { transform: scale(0.96); }
+@keyframes standing-stone-breathe-failing {
+  0%, 100% { transform: scale(0.97); }
   50% { transform: scale(1.08); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .brazier-proven .brazier-glow,
-  .brazier-failing .brazier-glow {
+  .standing-stone-proven .standing-stone-glow,
+  .standing-stone-failing .standing-stone-glow {
     animation: none;
   }
-}
-/* -- PROVEN-only rising sparks / FAILING-only guttering smoke -- */
-.brazier-spark {
-  fill: var(--brazier-spark);
-}
-.brazier-smoke {
-  fill: var(--brazier-smoke);
 }

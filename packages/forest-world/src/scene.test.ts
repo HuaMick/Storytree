@@ -997,13 +997,14 @@ test('§ back-compat: parcels absent OR no substrate cells → today\'s conifer 
   assert.ok(firstByKind(layer, 'conifer'), 'conifers survive when parcels cannot render');
 });
 
-// ---------- the UAT marker walk (forest-parcels inc 2) ----------
+// ---------- the UAT markers (forest-parcels inc 2) ----------
 //
-// Stage-1 GEOMETRY only: the walk + marker STRUCTURE — wrapper kinds, counts, input order, id
-// carriage, deterministic placement. The marker BODY is behind the `brazierMarks` splice seam
-// (ADR-0208): its exact marks are deliberately NOT pinned here, so the designer's art can change the
-// body without touching these tests. The LOOK is operator-attested later (ADR-0070). The walk's
-// placement cubic is INVISIBLE (owner call 2026-07-18 — no trail-bed drawable).
+// Stage-1 GEOMETRY only: the scattered-marker STRUCTURE — wrapper kinds, counts, id carriage,
+// deterministic id-seeded placement with keep-outs. The marker BODY is behind the
+// `standingStoneMarks` splice seam (ADR-0208): its exact marks are deliberately NOT pinned here,
+// so the designer's art can change the body without touching these tests. The LOOK is
+// operator-attested later (ADR-0070). Placement is a SCATTER around the island (owner call
+// 2026-07-18 — no path, no visible bed); each stone is its own y-sorted drawable.
 
 type UatCriteria = NonNullable<SceneTerritoryInput['uatCriteria']>;
 
@@ -1020,62 +1021,74 @@ const THREE_CRITERIA: UatCriteria = [
   { id: 'crit-c', state: 'failing' },
 ];
 
-test('a uatCriteria-present island emits a uat-walk: one marker per criterion in input order, NO visible bed', () => {
+const STONE_KINDS = ['standing-stone-proven', 'standing-stone-pending', 'standing-stone-failing'] as const;
+
+/** Every standing-stone wrapper in the scene, in document order. */
+function stonesOf(scene: SceneG): SceneG[] {
+  const out: SceneG[] = [];
+  const walk = (n: SceneNode): void => {
+    if (n.el === 'g') {
+      if (n.kind && (STONE_KINDS as readonly string[]).includes(n.kind)) out.push(n);
+      for (const c of n.children) walk(c);
+    }
+  };
+  walk(scene);
+  return out;
+}
+
+test('a uatCriteria-present island scatters one stone marker per criterion, state on the wrapper kind', () => {
   const scene = markerScene(THREE_CRITERIA);
-  const walk = mustByKind(scene, 'uat-walk');
-  assert.ok(walk.el === 'g');
-  // the placement cubic is INVISIBLE — the walk carries ONLY the marker wrappers (owner call
-  // 2026-07-18: the visible bed clashed with the inter-island trail network).
-  const markers = children(walk);
-  assert.equal(markers.length, THREE_CRITERIA.length);
-  assert.deepEqual(
-    markers.map((m) => m.kind),
-    ['brazier-proven', 'brazier-pending', 'brazier-failing'],
-  );
-  assert.deepEqual(markers.map((m) => m.id), ['crit-a', 'crit-b', 'crit-c']);
-  for (const m of markers) {
-    assert.ok(m.el === 'g' && children(m).length > 0, 'a marker wrapper carries body marks');
-    // the 0.9 scale is the design review's walk-density trim, applied on the wrapper.
-    assert.match(m.transform ?? '', /^translate\(-?[\d.]+ -?[\d.]+\) scale\(0\.9\)$/);
+  const stones = stonesOf(scene);
+  assert.equal(stones.length, THREE_CRITERIA.length);
+  assert.deepEqual(new Set(stones.map((m) => m.kind)), new Set(STONE_KINDS));
+  assert.deepEqual(new Set(stones.map((m) => m.id)), new Set(['crit-a', 'crit-b', 'crit-c']));
+  for (const m of stones) {
+    assert.ok(m.children.length > 0, 'a marker wrapper carries body marks');
+    assert.match(m.transform ?? '', /^translate\(-?[\d.]+ -?[\d.]+\)$/);
   }
 });
 
-test('the markers stand on a placed walk, and the human-witness signpost seal is RETAINED', () => {
+test('the stones respect the keep-outs, and the human-witness signpost seal is RETAINED', () => {
   const scene = markerScene(THREE_CRITERIA, { signpost: { outcome: 'pass' } });
-  // the signpost is the trailhead seal — the markers never replace it.
-  assert.ok(firstByKind(scene, 'sign-pass'), 'the signpost seal survives a marker walk');
-  // every marker resolves to a concrete spot along the (invisible) placement cubic.
-  const walk = mustByKind(scene, 'uat-walk');
-  const spots = children(walk).map((m) => /^translate\((-?[\d.]+) (-?[\d.]+)\) scale\(0\.9\)$/.exec(m.transform ?? ''));
-  assert.ok(spots.every((s) => s !== null), 'every marker carries a translate + the density-trim scale');
-  assert.equal(new Set(spots.map((s) => s![0])).size, spots.length, 'markers stand on distinct spots');
+  // the signpost is retained — the markers never replace it.
+  assert.ok(firstByKind(scene, 'sign-pass'), 'the signpost seal survives the markers');
+  const spots = stonesOf(scene).map((m) => {
+    const [, x, y] = /^translate\((-?[\d.]+) (-?[\d.]+)\)$/.exec(m.transform ?? '') ?? [];
+    return { x: Number(x), y: Number(y) };
+  });
+  assert.ok(spots.every((s) => Number.isFinite(s.x) && Number.isFinite(s.y)));
+  // distinct spots, all inside the island's reach, none in the tree well (mkTerritory geometry).
+  assert.equal(new Set(spots.map((s) => `${s.x},${s.y}`)).size, spots.length, 'stones stand apart');
+  for (const s of spots) {
+    const t = mkTerritory({});
+    assert.ok(Math.hypot(s.x - t.centroid.x, s.y - t.centroid.y) <= t.radius * 0.85 + 1, 'inside the island');
+    assert.ok(Math.hypot(s.x - t.treeSpot.x, s.y - t.treeSpot.y) > 30, 'clear of the tree well');
+  }
 });
 
-test('the marker walk is deterministic (same input → byte-identical) and id-seeded (different story → different walk)', () => {
+test('the marker scatter is deterministic (same input → byte-identical) and id-seeded (different story → different spots)', () => {
   assert.deepEqual(markerScene(THREE_CRITERIA), markerScene(THREE_CRITERIA));
-  const walkOf = (id: string): SceneNode =>
-    mustByKind(markerScene(THREE_CRITERIA, { id }), 'uat-walk');
-  assert.notDeepEqual(walkOf('alpha'), walkOf('beta'));
+  const spotsOf = (id: string): string[] =>
+    stonesOf(markerScene(THREE_CRITERIA, { id })).map((m) => m.transform ?? '');
+  assert.notDeepEqual(spotsOf('alpha'), spotsOf('beta'));
 });
 
-test('many criteria space gracefully: every marker lands on its own spot along the walk', () => {
+test('many criteria still place: every stone gets its own spot (rejection sampling never drops one)', () => {
   const many: UatCriteria = Array.from({ length: 8 }, (_, i) => ({
     id: `crit-${i}`,
     state: (['proven', 'pending', 'failing'] as const)[i % 3]!,
   }));
-  const walk = mustByKind(markerScene(many), 'uat-walk');
-  const markers = children(walk);
-  assert.equal(markers.length, 8);
-  const spots = markers.map((m) => m.transform ?? '');
-  assert.equal(new Set(spots).size, 8, 'no two markers stack on one spot');
+  const stones = stonesOf(markerScene(many));
+  assert.equal(stones.length, 8);
+  assert.equal(new Set(stones.map((m) => m.transform)).size, 8, 'no two stones stack on one spot');
 });
 
 test('§ back-compat ABSENCE LOCK: uatCriteria absent OR empty → NO marker kinds; absent and [] byte-identical', () => {
-  // absent (mkTerritory carries no uatCriteria) → no uat-walk anywhere. The committed golden
+  // absent (mkTerritory carries no uatCriteria) → no stones anywhere. The committed golden
   // fixture test above ("parcels-ABSENT scene matches …") is the byte-for-byte pre-change lock —
   // it must stay green untouched; this adds the absent ≡ [] equivalence, the inc-1 pattern.
   const absent = buildScene(mkInput());
-  for (const k of ['uat-walk', 'brazier-proven', 'brazier-pending', 'brazier-failing']) {
+  for (const k of STONE_KINDS) {
     assert.equal(firstByKind(absent, k), null, `no ${k} on a uatCriteria-absent island`);
   }
   const empty = buildScene(mkInput({ territories: [mkTerritory({ uatCriteria: [] })] }));

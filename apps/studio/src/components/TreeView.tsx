@@ -975,7 +975,7 @@ function territoryToScene(
     // forest-parcels inc 2 (the UAT marker walk): a straight `{id, state}` pass-through of the
     // story's declared UAT criteria — the core owns the walk geometry + marker placement entirely;
     // the studio just threads the data through. OPTIONAL and back-compat: absent/empty ⇒ no walk
-    // (the core's `buildUatWalk` absence lock), exactly like `parcels` above.
+    // (the core's `buildUatMarkers` absence lock), exactly like `parcels` above.
     ...(story.uatCriteria?.length
       ? { uatCriteria: story.uatCriteria.map((c) => ({ id: c.id, state: c.state })) }
       : {}),
