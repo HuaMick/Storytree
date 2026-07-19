@@ -44,15 +44,12 @@ Verified by: `hosted-read`.
 
 ## 3. Send the install message
 
-The dev needs the one-liner and nothing else. Once the owner has applied
-[`dist-bucket.tf`](dist-bucket.md) and published the script:
+The dev needs the one-liner and nothing else — it is **live** and fetchable with no credentials
+(D5 applied + published 2026-07-18):
 
 ```powershell
 irm https://storage.googleapis.com/storytree-dist/install.ps1 | iex
 ```
-
-Until that apply lands, deliver `infra/install.ps1` directly (the repo is private, so a raw GitHub
-URL will not fetch unauthenticated) — see [`install.md`](install.md).
 
 Worth saying explicitly in the message: **they will sign in three times** — GitHub (code), Google
 (live data), and Claude (their own agent). Three identities, each doing exactly one job. This is
