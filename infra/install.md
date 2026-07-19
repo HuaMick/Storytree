@@ -92,19 +92,22 @@ install succeeds. `install-script.test.ts` asserts this structurally.
 
 ## Delivery
 
-Once D5 ships the public distribution bucket, the one-liner is:
+**This is live** (D5 applied + published 2026-07-18). Send the dev exactly this:
 
 ```powershell
 irm https://storage.googleapis.com/storytree-dist/install.ps1 | iex
 ```
 
-The bucket is now **codified** in [`dist-bucket.tf`](dist-bucket.tf) (see
-[`dist-bucket.md`](dist-bucket.md)) but still needs the owner's one-time `terraform apply` plus a
-`gsutil cp` of this script. The one-liner goes live the moment that URL answers.
+It is served as a public object from the `storytree-dist` bucket
+([`dist-bucket.md`](dist-bucket.md)) and is fetchable with **no credentials** — which is the point,
+since the dev has no storytree identity yet. Verified anonymously: HTTP 200, and `irm` returns a
+string, so `| iex` executes it.
 
-**Until that apply lands**, the repo is private, so a raw GitHub URL will
-not fetch unauthenticated. Deliver the script by pasting its contents or hosting it at a temporary
-public URL, then:
+⚠️ **The published copy does not update itself.** Editing `infra/install.ps1` in the repo does not
+reach the bucket — re-publish with `gcloud storage cp` (**not** `gsutil`; see
+[`dist-bucket.md`](dist-bucket.md) for the 401 trap). Automating this is an open follow-on.
+
+Running from a checkout is still valid for local testing or if the bucket is ever unreachable:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File infra/install.ps1

@@ -21,40 +21,58 @@ If gating is ever wanted, the documented upgrade path is serving downloads throu
 IAP-protected Cloud Run using the same Google identity as D4 — **never bucket IAM**, which would
 recreate exactly the runtime-token problem this decision exists to avoid.
 
-## Status — the bucket is APPLIED; publishing is the remaining step
+## Status — LIVE ✅ (applied + published 2026-07-18)
 
-`terraform apply` (2026-07-18) created the bucket and its public-read binding. Verified live:
-`uniform_bucket_level_access: True`, `versioning: True`, `STANDARD`, `public_access_prevention:
-inherited`, `allUsers → roles/storage.objectViewer`. The bucket is currently **empty** — the one-liner
-goes live once `install.ps1` is published:
-
-```bash
-gsutil cp infra/install.ps1 gs://storytree-dist/install.ps1
-curl -sSf https://storage.googleapis.com/storytree-dist/install.ps1 | head -1
-```
-
-## Owner step (one-time, BLOCKING)
-
-Creating a bucket and a public IAM binding needs Owner-level ADC an agent session lacks, so this is
-owner-run (the [`studio-cd.md`](studio-cd.md) precedent):
-
-```bash
-cd infra && terraform init && terraform apply
-```
-
-Then publish the script and verify it is fetchable **with no credentials**:
-
-```bash
-gsutil cp infra/install.ps1 gs://storytree-dist/install.ps1
-curl -sSf https://storage.googleapis.com/storytree-dist/install.ps1 | head -1
-```
-
-Once that URL answers, the one-liner in [`install.ps1`](install.ps1)'s header and
-[`install.md`](install.md)'s Delivery section is live:
+The bucket is applied and `install.ps1` is published. Verified live: `uniform_bucket_level_access:
+True`, `versioning: True`, `STANDARD`, `public_access_prevention: inherited`, `allUsers →
+roles/storage.objectViewer`; an anonymous `curl` returns **HTTP 200, 11041 bytes**, and `irm` returns a
+`System.String` (so `| iex` works). The one-liner is real:
 
 ```powershell
 irm https://storage.googleapis.com/storytree-dist/install.ps1 | iex
 ```
+
+## Publishing an updated script
+
+⚠️ **Use `gcloud storage`, not `gsutil`.** `gsutil` is the legacy standalone tool with its own
+credential path (`.boto`) — it does **not** pick up the ADC that `terraform apply` uses, and fails with
+`ServiceException: 401 Anonymous caller does not have storage.objects.create access` even when
+`gcloud auth list` shows you signed in. `gcloud storage` uses gcloud's own auth.
+
+```powershell
+gcloud storage cp infra/install.ps1 gs://storytree-dist/install.ps1
+
+# verify anonymously (PowerShell — `head` is not a cmdlet):
+curl.exe -sSf https://storage.googleapis.com/storytree-dist/install.ps1 | Select-Object -First 1
+# or, testing the actual delivery path without executing it:
+(irm https://storage.googleapis.com/storytree-dist/install.ps1).Split([char]10)[0]
+```
+
+Objects land as `application/octet-stream`. That is fine for `irm | iex` (proven above) but means a
+browser downloads rather than displays the script; pass `--content-type=text/plain` if you'd rather it
+render. Versioning is on, so an overwrite is recoverable.
+
+**This is a manual step today** — a script edited in the repo does not reach the bucket until someone
+re-runs the copy, so the published copy can silently go stale. Automating it (D5's "published by Cloud
+Build on release") is the open follow-on below.
+
+## How it was first applied (one-time, historical)
+
+Creating a bucket and a public IAM binding needs Owner-level ADC an agent session lacks, so it was
+owner-run (the [`studio-cd.md`](studio-cd.md) precedent):
+
+```powershell
+cd infra ; terraform init ; terraform apply
+```
+
+Two things worth remembering from that first apply, because both cost real time:
+
+- **A single unrelated resource failing takes the whole module down.** The apply errored on
+  `google_cloud_run_v2_service_iam_member.web_editor_deployer_run_admin` (a 404 — see
+  [`web-editor-cd.md`](web-editor-cd.md)) *after* it had already created this bucket. If an apply dies,
+  check what actually got created before assuming nothing did: `terraform plan` reporting **"No
+  changes"** is the fastest way to find out.
+- **`gsutil` is not `gcloud storage`** — see the 401 note above.
 
 ## What the config pins
 
@@ -73,11 +91,12 @@ advertises (the cross-artifact no-drift tie).
 
 ## Scope + follow-ons
 
-This increment is the **bucket + public read**, so the install script is fetchable pre-auth.
-Deliberately **not** included yet:
+The bucket + public read are **done and live**. Still open:
 
-- **Publish-on-merge automation** (D5's "published by Cloud Build on release"). Today the owner
-  uploads with `gsutil cp` after an `install.ps1` change. Automating it needs a publisher SA + WIF
-  binding — a second IAM surface, better applied after this small one is verified working.
+- **Publish-on-merge automation** (D5's "published by Cloud Build on release"). Today re-publishing is
+  a manual `gcloud storage cp` after any `install.ps1` change, so the published copy can silently
+  drift from the repo — the one real weakness of the current state. Automating it needs a publisher SA
+  + WIF binding; that was deliberately deferred until the bucket existed and was verified, which it now
+  is, so this is **unblocked**.
 - **App binaries + the `latest.yml` updater feed.** The binaries do not exist yet: pre-D5 the
   desktop app launches from the provisioned checkout. This lands with the packaged-build work.
