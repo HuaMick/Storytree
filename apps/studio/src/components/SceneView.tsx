@@ -10,7 +10,13 @@
 // render is untouched — visual parity is operator-attested (ADR-0070), not asserted.
 
 import React from 'react';
-import { trailFillWidth, type SceneKind, type SceneNode, type SceneStatus } from '@storytree/forest-world';
+import {
+  trailFillWidth,
+  type BakedPaintNode,
+  type SceneKind,
+  type SceneNode,
+  type SceneStatus,
+} from '@storytree/forest-world';
 import type { TrailRevealPlan } from '../lib/trailReveal.js';
 
 /** The focus-aware context the walk needs — the studio's per-render interactivity
@@ -149,7 +155,61 @@ const BASE: Partial<Record<SceneKind, string>> = {
   'standing-stone-spark': 'standing-stone-spark',
   'standing-stone-moss': 'standing-stone-moss',
   'standing-stone-moss-fleck': 'standing-stone-moss-fleck',
+  // ADR-0218: the fenced baked-art family. `baked-defs` is the definition layer (rendered as
+  // `<defs>`, non-rendering — no class); `baked-art` is a placement `<use>` (a stable hook, no colour
+  // of its own — the paint is inside the referenced def).
+  'baked-defs': '',
+  'baked-art': 'baked-art',
 };
+
+/**
+ * One baked paint node (ADR-0218) as a native SVG element with RESOLVED paint inline. This is the one
+ * place the studio mapper stamps `fill`/`stroke` from the scene rather than from a class, because a
+ * bake's colour is material × N·L, not a category — the fenced exception. Mirrors the factory's own
+ * SVG printer (`render-svg.ts`) element-for-element so a stone on the map and one on a contact sheet
+ * cannot drift.
+ */
+function bakedEl(n: BakedPaintNode, key: React.Key): React.JSX.Element {
+  const op = n.opacity !== undefined ? { opacity: n.opacity } : {};
+  if (n.el === 'ellipse') {
+    return React.createElement('ellipse', { key, cx: n.cx, cy: n.cy, rx: n.rx, ry: n.ry, fill: n.fill, ...op });
+  }
+  if (n.el === 'polygon') {
+    return React.createElement('polygon', {
+      key,
+      points: n.points,
+      fill: n.fill,
+      stroke: n.stroke,
+      strokeWidth: n.strokeWidth,
+      strokeLinejoin: 'round',
+      ...op,
+    });
+  }
+  // path: a pierced wall (even-odd, filled) or a split fragment's inherited outline (unfilled,
+  // round-capped so a short run does not read as a tick) — the render-svg.ts split.
+  if (n.fillRule === 'evenodd') {
+    return React.createElement('path', {
+      key,
+      d: n.d,
+      fillRule: 'evenodd',
+      fill: n.fill,
+      stroke: n.stroke,
+      strokeWidth: n.strokeWidth,
+      strokeLinejoin: 'round',
+      ...op,
+    });
+  }
+  return React.createElement('path', {
+    key,
+    d: n.d,
+    fill: 'none',
+    stroke: n.stroke,
+    strokeWidth: n.strokeWidth,
+    strokeLinejoin: 'round',
+    strokeLinecap: 'round',
+    ...op,
+  });
+}
 
 const fmt = (n: number): string => n.toFixed(1);
 
@@ -341,6 +401,19 @@ function renderNode(
   storyId: string | undefined,
   ctx: SceneCtx,
 ): React.JSX.Element | null {
+  // ADR-0218: the fenced baked-art family renders outside the generic path. A `baked-def` becomes the
+  // referenced `<g id>` holding the resolved-paint drawables; a `baked-use` becomes a `<use>` of it.
+  if (node.el === 'baked-def') {
+    return React.createElement('g', { key, id: node.defId }, ...node.nodes.map((n, i) => bakedEl(n, i)));
+  }
+  if (node.el === 'baked-use') {
+    const useProps: Record<string, unknown> = { key, href: `#${node.defId}` };
+    if (node.transform) useProps.transform = node.transform;
+    const useCls = composeClass(node, ctx);
+    if (useCls) useProps.className = useCls;
+    return React.createElement('use', useProps);
+  }
+
   const props: Record<string, unknown> = { key, ...handlersFor(node, ctx, storyId) };
   const cls = composeClass(node, ctx);
   if (cls) props.className = cls;
@@ -491,7 +564,10 @@ function renderNode(
     kids.push(node.text);
   }
 
-  return React.createElement(node.el, props, ...kids);
+  // The baked-art DEFINITION layer is a non-rendering `<defs>` (its children are referenced by
+  // `<use>`, ADR-0218); every other node keeps its own element name.
+  const elName = node.el === 'g' && node.kind === 'baked-defs' ? 'defs' : node.el;
+  return React.createElement(elName, props, ...kids);
 }
 
 /**

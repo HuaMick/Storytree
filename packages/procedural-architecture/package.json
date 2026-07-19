@@ -6,7 +6,8 @@
   "description": "The procedural-architecture organism: buildings grown from declared structural relations rather than typed coordinates. Pure math + string building — a shape/builder core, a physics invariant checker, a deterministic draw-order pass, one bake with two printers (SVG document / scene drawables), and three parametric buildings. Zero runtime dependencies, browser-safe, depends on no other workspace package.",
   "exports": {
     ".": "./src/index.ts",
-    "./kit.json": "./baked/kit.json"
+    "./kit.json": "./baked/kit.json",
+    "./stone.json": "./baked/stone.json"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

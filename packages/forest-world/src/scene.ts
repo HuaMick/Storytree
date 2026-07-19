@@ -135,6 +135,12 @@ export type SceneKind =
   | 'standing-stone-spark'
   | 'standing-stone-moss'
   | 'standing-stone-moss-fleck'
+  // baked art in the shared scene (ADR-0218) — the fenced paint-carrying family. `baked-defs` is
+  // the once-per-scene definition LAYER (a mapper renders it into `<defs>`, non-rendering);
+  // `baked-art` is a placement `<use>` referencing a def. A UAT marker's flat body is swapped for a
+  // `baked-art` of the single stone def when the surface supplies the bake (`SceneInput.bakedStone`).
+  | 'baked-defs'
+  | 'baked-art'
   // a capability as garden flora
   | 'flora'
   | 'flora-hit'
@@ -382,6 +388,39 @@ export interface SceneText extends SceneNodeBase {
   anchor: 'start' | 'middle' | 'end';
 }
 
+/**
+ * A resolved-paint baked drawable (ADR-0218) — the procedural-architecture factory's `BakedNode`
+ * vocabulary, DUPLICATED here because the scene-graph is a foundational root that depends on nothing
+ * (ADR-0093 §Open call 2), exactly as it duplicates `ClaimGrade` / `SurfaceTheme` / the gate phases.
+ *
+ * THIS IS THE ONE SHAPE IN THE SCENE-GRAPH THAT CARRIES PAINT. It exists because a bake's fill is its
+ * material colour modulated by N·L, so two facets of one solid differ and no CSS class can name them —
+ * the exact case ADR-0093 §4's colour-is-class rule cannot cover, and the fenced exception ADR-0218
+ * opens. It is confined to a `baked-def`'s `nodes`; `SceneNodeBase` stays colour-free.
+ */
+export type BakedPaintNode =
+  | { el: 'polygon'; points: string; fill: string; stroke: string; strokeWidth: number; opacity?: number }
+  | { el: 'path'; d: string; fill: string; stroke: string; strokeWidth: number; opacity?: number; fillRule?: 'evenodd' }
+  | { el: 'ellipse'; cx: number; cy: number; rx: number; ry: number; fill: string; opacity?: number };
+
+/** A baked-art DEFINITION (ADR-0218): the paint-carrying drawable list, defined ONCE in the scene's
+ *  `baked-defs` layer and referenced by every `SceneBakedUse`. Define-once-reference-many is the
+ *  node-cost contract (ADR-0069): one def, N cheap uses, instead of the solid inlined per placement. */
+export interface SceneBakedDef extends SceneNodeBase {
+  el: 'baked-def';
+  /** the id a `baked-use` references; the mapper stamps it as the SVG element `id` */
+  defId: string;
+  /** the resolved drawables, already in painter order — paint them in sequence */
+  nodes: BakedPaintNode[];
+}
+
+/** A baked-art PLACEMENT (ADR-0218): a paint-FREE `<use>` of a `baked-def`. Carries only the ordinary
+ *  semantic fields (its own `transform`, the marker `id` on its wrapper) — never colour. */
+export interface SceneBakedUse extends SceneNodeBase {
+  el: 'baked-use';
+  defId: string;
+}
+
 export type SceneNode =
   | SceneG
   | ScenePath
@@ -389,7 +428,9 @@ export type SceneNode =
   | SceneEllipse
   | ScenePolygon
   | SceneRect
-  | SceneText;
+  | SceneText
+  | SceneBakedDef
+  | SceneBakedUse;
 
 // ---------------------------------------------------------------------------
 // The structural INPUT contract (ADR-0093 design fork → option b)
@@ -554,7 +595,20 @@ export interface SceneInput {
   wheatSets: ReadonlySet<string>[];
   trails: SceneTrailsInput;
   territories: SceneTerritoryInput[];
+  /** The baked standing-stone solid (ADR-0218), supplied by the surface when `?factoryart=on`. When
+   *  present, every UAT marker's flat body is replaced by ONE `baked-art` `<use>` of this single def
+   *  (the body is state-independent — proven/pending/failing rides the glow/rune overlays, which stay
+   *  CSS-side). The surface bakes it once (a build-time factory artifact); the core defines it once in
+   *  a `baked-defs` layer and references it per marker. `width`/`height` are the baked box, used to
+   *  scale the solid to the marker envelope. OPTIONAL and back-compat: ABSENT ⇒ today's flat stones
+   *  render byte-for-byte (the public-website fold never sends it, so the site is unchanged). */
+  bakedStone?: { nodes: BakedPaintNode[]; width: number; height: number };
 }
+
+/** The scene-graph's id for the single baked standing-stone def (ADR-0218). The core owns BOTH ends —
+ *  it emits the `baked-def` and every `baked-use` under this id — so no cross-package id coordination
+ *  is needed; the surface supplies only the drawables. */
+export const BAKED_STONE_DEF = 'baked-standing-stone';
 
 // ---------------------------------------------------------------------------
 // node factories — terse, drop-undefined construction
@@ -734,7 +788,11 @@ function buildSignpost(s: { outcome: 'pass' | 'fail' | null }, R: number): Scene
  *  reads as the ABSENCE of light. Only the lean, the hand-hewn vertex jitter, and the moss
  *  placement are seeded; the stone is the same object family in every state — only its carved
  *  sigil's light carries the verdict. */
-function standingStoneMarks(state: MarkerState, k: number): SceneNode[] {
+function standingStoneMarks(
+  state: MarkerState,
+  k: number,
+  baked: { scale: number } | null = null,
+): SceneNode[] {
   const r1 = (n: number): number => Number(n.toFixed(2));
   const pt = (x: number, y: number): string => `${f(x)},${f(y)}`;
   // hand-hewn irregularity: every vertex nudges a little, deterministically per (k, state).
@@ -814,9 +872,17 @@ function standingStoneMarks(state: MarkerState, k: number): SceneNode[] {
         kind: 'standing-stone-moss-fleck',
       }),
     ),
-    polygon(bodyPts, { kind: 'standing-stone-body' }),
-    polygon(facePts, { kind: 'standing-stone-face' }),
-    polygon(capPts, { kind: 'standing-stone-cap' }),
+    // The MONOLITH. Two shapes of the same object: the flat cel-shaded silhouette (body / lit face /
+    // fresh-cut cap), or — when the surface supplies the bake (ADR-0218) — ONE `baked-art` `<use>` of
+    // the isometric solid, scaled to the same envelope so the crack / rune / glow / moss still register
+    // on it. The solid is state-INDEPENDENT: the verdict rides the glow + rune below, unchanged.
+    ...(baked
+      ? [{ el: 'baked-use', kind: 'baked-art', defId: BAKED_STONE_DEF, transform: `scale(${r1(baked.scale)})` } as SceneBakedUse]
+      : [
+          polygon(bodyPts, { kind: 'standing-stone-body' }),
+          polygon(facePts, { kind: 'standing-stone-face' }),
+          polygon(capPts, { kind: 'standing-stone-cap' }),
+        ]),
     path(crackD, { kind: 'standing-stone-crack', strokeWidth: 0.8 }),
   ];
 
@@ -863,6 +929,12 @@ function standingStoneMarks(state: MarkerState, k: number): SceneNode[] {
  *  the glow-circle CHILDREN, so the wrapper transform is never clobbered). */
 const STONE_SCALE = 0.6;
 
+/** The flat silhouette's height in the marker's local space (the `raw` polygon runs base 0 → chipped
+ *  top −43.5). A baked solid is scaled to THIS so it occupies the same envelope the crack / rune / glow
+ *  / moss overlays and the placement keep-outs were all tuned against — the swap changes the body's
+ *  RENDERING, not its footprint. */
+const STONE_MARK_HEIGHT = 43.5;
+
 /** Ray-cast point-in-polygon over a substrate cell ring. */
 function pointInPoly(x: number, y: number, poly: Pt[]): boolean {
   let inside = false;
@@ -889,9 +961,14 @@ function pointInPoly(x: number, y: number, poly: Pt[]): boolean {
 function buildUatMarkers(
   t: SceneTerritoryInput,
   ownerCells: RelaxedCell[] | null,
+  bakedStone: { height: number } | null = null,
 ): Array<{ y: number; node: SceneG }> {
   const criteria = t.uatCriteria ?? [];
   if (!criteria.length) return [];
+  // When the surface supplies the bake (ADR-0218), scale the baked solid to the flat silhouette's
+  // envelope so every stone reads at the same size the placement + overlays assume. `null` ⇒ the flat
+  // cel-shaded body, byte-for-byte.
+  const baked = bakedStone ? { scale: STONE_MARK_HEIGHT / bakedStone.height } : null;
   const land = ownerCells && ownerCells.length ? ownerCells : null;
   const onLand = (x: number, y: number): boolean =>
     !land || land.some((c) => pointInPoly(x, y, c.poly));
@@ -935,7 +1012,7 @@ function buildUatMarkers(
           : 'standing-stone-pending';
     out.push({
       y,
-      node: g(standingStoneMarks(c.state, k), {
+      node: g(standingStoneMarks(c.state, k, baked), {
         kind,
         id: c.id,
         transform: `translate(${f(x)} ${f(y)}) scale(${STONE_SCALE})`,
@@ -2105,6 +2182,7 @@ export function buildTerritoryFlora(
   t: SceneTerritoryInput,
   parcelFlora?: ParcelFloraMark[] | null,
   ownerCells?: RelaxedCell[] | null,
+  bakedStone?: { height: number } | null,
 ): SceneG {
   const drawables: { y: number; node: SceneNode }[] = [];
 
@@ -2128,7 +2206,7 @@ export function buildTerritoryFlora(
   // the UAT markers (forest-parcels inc 2) — each scattered stone is its OWN y-sorted drawable so
   // it interleaves with the tree + flora by depth. The island's substrate cells (when known) are
   // the scatter's keep-in. Absent/empty uatCriteria ⇒ nothing (the lock).
-  drawables.push(...buildUatMarkers(t, ownerCells ?? null));
+  drawables.push(...buildUatMarkers(t, ownerCells ?? null, bakedStone ?? null));
   drawables.sort((a, b) => a.y - b.y);
 
   const children: SceneNode[] = drawables.map((d) => d.node);
@@ -2373,23 +2451,33 @@ export function buildScene(input: SceneInput): SceneG {
     const own = ownerCells[i];
     return own ? buildTerritorySurface(t, own) : null;
   });
-  return g(
-    [
-      buildEmpties(input),
-      buildCoast(input),
-      buildGround(input, surfaces),
-      buildTrails(input),
-      g(
-        [
-          ...input.territories.map((t, i) =>
-            buildTerritoryFlora(t, surfaces[i]?.flora ?? null, ownerCells[i] ?? null),
-          ),
-          ...buildCaves(input),
-        ],
-        { kind: 'flora-layer' },
-      ),
-      buildHits(input),
-    ],
-    { kind: 'world', transform: `translate(${f(input.offset.x)} ${f(input.offset.y)})` },
-  );
+  // ADR-0218: the fenced baked-art definitions, emitted ONCE when the surface supplies the bake. A
+  // mapper renders this layer into `<defs>` (non-rendering) and every marker's `baked-art` `<use>`
+  // references it. Absent ⇒ no layer, and the markers render their flat cel-shaded body (back-compat).
+  const bakedStone = input.bakedStone ?? null;
+  const markerBake = bakedStone ? { height: bakedStone.height } : null;
+  const layers: SceneNode[] = [
+    buildEmpties(input),
+    buildCoast(input),
+    buildGround(input, surfaces),
+    buildTrails(input),
+    g(
+      [
+        ...input.territories.map((t, i) =>
+          buildTerritoryFlora(t, surfaces[i]?.flora ?? null, ownerCells[i] ?? null, markerBake),
+        ),
+        ...buildCaves(input),
+      ],
+      { kind: 'flora-layer' },
+    ),
+    buildHits(input),
+  ];
+  if (bakedStone) {
+    const def: SceneBakedDef = { el: 'baked-def', defId: BAKED_STONE_DEF, nodes: bakedStone.nodes };
+    layers.push(g([def], { kind: 'baked-defs' }));
+  }
+  return g(layers, {
+    kind: 'world',
+    transform: `translate(${f(input.offset.x)} ${f(input.offset.y)})`,
+  });
 }

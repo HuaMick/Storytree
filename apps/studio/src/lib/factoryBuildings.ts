@@ -27,6 +27,7 @@
 // able to enter the shared scene at all is a live question for the owner — see the
 // increment-5 notes — and deliberately NOT decided here.
 
+import type { BakedPaintNode } from '@storytree/forest-world';
 import { storyIcon } from './buildingLayout.js';
 
 /** One drawable of a baked building — the vector node vocabulary, already resolved. */
@@ -112,4 +113,39 @@ export function usedFactoryBuildings(
  */
 export function factoryScale(b: FactoryBuilding, targetHeight: number): number {
   return b.height > 0 ? targetHeight / b.height : 1;
+}
+
+// ---------------------------------------------------------------------------
+// the baked standing stone (ADR-0218) — the first landscape type in the shared scene
+// ---------------------------------------------------------------------------
+//
+// Unlike a building (studio chrome, hidden from the shared scene-graph), the stone is a semantic UAT
+// marker that lives IN the scene-graph and reaches the public website. The factory bakes ONE solid
+// (the body is state-independent — the verdict rides the glow/rune overlays); the studio fold threads
+// it into `SceneInput.bakedStone` behind `?factoryart=on`, and the core swaps each marker's flat body
+// for a `<use>` of it. The `nodes` are the fenced paint-carrying scene vocabulary (`BakedPaintNode`).
+
+/** The baked stone the scene composes: its resolved drawables + the box the core scales against. */
+export interface BakedStoneAsset {
+  nodes: BakedPaintNode[];
+  width: number;
+  height: number;
+}
+
+/** Resolved once and reused — the asset is immutable and the parse is not free. */
+let stonePromise: Promise<BakedStoneAsset> | null = null;
+
+/**
+ * Load the baked standing stone.
+ *
+ * DYNAMIC for the same reason as the kit: the geometry rides in its own chunk fetched only when
+ * `?factoryart=on` asks for it, so a studio load with the flag off pays nothing for it.
+ */
+export function loadBakedStone(): Promise<BakedStoneAsset> {
+  stonePromise ??= import('@storytree/procedural-architecture/stone.json').then((m) => {
+    const asset = (m as { default?: { stone: BakedStoneAsset } }).default ?? (m as unknown as { stone: BakedStoneAsset });
+    const s = asset.stone;
+    return { nodes: s.nodes, width: s.width, height: s.height };
+  });
+  return stonePromise;
 }
