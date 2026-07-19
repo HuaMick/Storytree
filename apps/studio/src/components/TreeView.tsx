@@ -93,7 +93,9 @@ import {
   factoryBuildingFor,
   factoryDefId,
   factoryScale,
+  loadFactoryKit,
   usedFactoryBuildings,
+  type FactoryBuilding,
   type FactoryNode,
 } from '../lib/factoryBuildings.js';
 import { ConnectionsSection } from './ConnectionsSection.js';
@@ -2835,10 +2837,16 @@ function FactoryNodeEl({ n }: { n: FactoryNode }): React.JSX.Element {
  * building is defined here and referenced by `<use>`, so adding an island costs one node rather than
  * eight hundred. Only the buildings actually referenced are defined — `<defs>` content is still DOM.
  */
-function FactoryBuildingDefs({ storyIds }: { storyIds: readonly string[] }): React.JSX.Element {
+function FactoryBuildingDefs({
+  kit,
+  storyIds,
+}: {
+  kit: readonly FactoryBuilding[];
+  storyIds: readonly string[];
+}): React.JSX.Element {
   return (
     <defs>
-      {usedFactoryBuildings(storyIds).map((b) => (
+      {usedFactoryBuildings(kit, storyIds).map((b) => (
         <g key={b.id} id={factoryDefId(b.id)}>
           {b.nodes.map((n, i) => (
             <FactoryNodeEl key={i} n={n} />
@@ -2858,8 +2866,16 @@ function FactoryBuildingDefs({ storyIds }: { storyIds: readonly string[] }): Rea
  * the same placement contract the glyph used (centred on x = 0, standing on y = 0), so every call
  * site's existing `translate` already puts it in the right place.
  */
-function FactoryGlyph({ id, height = ICON_GLYPH.H }: { id: string; height?: number }): React.JSX.Element {
-  const b = factoryBuildingFor(id);
+function FactoryGlyph({
+  kit,
+  id,
+  height = ICON_GLYPH.H,
+}: {
+  kit: readonly FactoryBuilding[];
+  id: string;
+  height?: number;
+}): React.JSX.Element {
+  const b = factoryBuildingFor(kit, id);
   const k = factoryScale(b, height);
   return (
     <g className="story-factory-art" transform={`scale(${k.toFixed(4)})`}>
@@ -2877,6 +2893,28 @@ function readFactoryArt(search: string = defaultSearch()): boolean {
 }
 
 /**
+ * The baked kit, fetched only when the flag asks for it — `null` until it arrives, and forever if
+ * the flag is off.
+ *
+ * Until it resolves the map draws the flat glyphs, so the swap is a late repaint rather than a hole
+ * in the world. That is the right failure mode for a chunk this size: an island that is briefly
+ * its old self is unremarkable, an island that is briefly missing is alarming.
+ */
+function useFactoryKit(enabled: boolean): FactoryBuilding[] | null {
+  const [kit, setKit] = useState<FactoryBuilding[] | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    let live = true;
+    void loadFactoryKit().then(
+      (k) => { if (live) setKit(k); },
+      (err: unknown) => { console.error('factory kit failed to load; keeping the flat glyphs', err); },
+    );
+    return () => { live = false; };
+  }, [enabled]);
+  return kit;
+}
+
+/**
  * A promoted ICON STAMP (ADR-0102) on a map island: the identity glyph of a BUILDING this island
  * depends on ("you carry the icon of what you depend on"). NOT a replacement for the island's tree
  * — a low-salience badge beside it (the edge is kept, not dropped: ADR-0074 §1). The named building
@@ -2889,7 +2927,7 @@ function StoryStamp({
   spot,
   hidden,
   onStampClick,
-  factoryArt = false,
+  kit = null,
 }: {
   story: TreeStory;
   /** The building id whose identity glyph this stamp carries. */
@@ -2899,8 +2937,8 @@ function StoryStamp({
   /** ADR-0102: clicking the stamp highlights the shared island it names in the left panel
    *  (instead of selecting the carrier island). Absent in the panel's own one-island render. */
   onStampClick?: (sharedId: string) => void;
-  /** `?factoryart=on` — draw the ADR-0217 factory building instead of the flat glyph. */
-  factoryArt?: boolean;
+  /** The baked kit once `?factoryart=on` has fetched it; null keeps the flat glyph. */
+  kit?: readonly FactoryBuilding[] | null;
 }): React.JSX.Element {
   const st = story.status ?? 'unknown';
   return (
@@ -2918,8 +2956,8 @@ function StoryStamp({
     >
       <title>{`${icon} — used by ${story.id} · click to find it in Shared Islands`}</title>
       {/* The factory bakes its own contact shadow, so the glyph's stand-in one would double up. */}
-      {!factoryArt && <ellipse className="flora-shadow" cx={1} cy={1.6} rx={11} ry={3.0} />}
-      {factoryArt ? <FactoryGlyph id={icon} /> : <IconGlyph id={icon} />}
+      {!kit && <ellipse className="flora-shadow" cx={1} cy={1.6} rx={11} ry={3.0} />}
+      {kit ? <FactoryGlyph kit={kit} id={icon} /> : <IconGlyph id={icon} />}
     </g>
   );
 }
@@ -2955,9 +2993,11 @@ export function StudioWorldChrome({
 }): React.JSX.Element {
   // ADR-0217 increment 5: every island's identity drawn as a building the factory produced.
   // Behind a flag because the LOOK is the owner's verdict to give (ADR-0070 stage 2), not ours.
-  const factoryArt = readFactoryArt();
+  // `kit` stays null until the chunk lands (and always, with the flag off), so the flat glyphs
+  // are what renders in the meantime.
+  const kit = useFactoryKit(readFactoryArt());
   // Every id that will ask for a building — the carried stamps plus each island's own key glyph.
-  const factoryIds = factoryArt
+  const factoryIds = kit
     ? [
         ...world.territories.flatMap((t) => t.stamps.map((s) => s.icon)),
         ...world.territories.map((t) => t.story.id),
@@ -2966,7 +3006,7 @@ export function StudioWorldChrome({
   return (
     <g className="studio-world-chrome" transform={`translate(${world.offset.x} ${world.offset.y})`}>
       {/* Define each referenced building ONCE; every stamp and key glyph below is a `<use>`. */}
-      {factoryArt && <FactoryBuildingDefs storyIds={factoryIds} />}
+      {kit && <FactoryBuildingDefs kit={kit} storyIds={factoryIds} />}
       {/* SOLAR spokes (solar mode only) — the same low-salience perimeter-docked wiring the inline
           path drew, layered UNDER the stamps so the icons stay legible. */}
       {world.solar && (
@@ -2986,7 +3026,7 @@ export function StudioWorldChrome({
             spot={stamp.spot}
             hidden={hidden}
             onStampClick={onStampClick}
-            factoryArt={factoryArt}
+            kit={kit}
           />
         )),
       )}
@@ -3004,7 +3044,7 @@ export function StudioWorldChrome({
             className="world-plate-key"
             transform={`translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${NAMEPLATE_KEY_SCALE})`}
           >
-            {factoryArt ? <FactoryGlyph id={t.story.id} /> : <IconGlyph id={t.story.id} />}
+            {kit ? <FactoryGlyph kit={kit} id={t.story.id} /> : <IconGlyph id={t.story.id} />}
           </g>
         );
       })}

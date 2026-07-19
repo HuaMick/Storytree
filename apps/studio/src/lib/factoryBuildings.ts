@@ -27,7 +27,6 @@
 // able to enter the shared scene at all is a live question for the owner — see the
 // increment-5 notes — and deliberately NOT decided here.
 
-import kitAsset from '@storytree/procedural-architecture/kit.json';
 import { storyIcon } from './buildingLayout.js';
 
 /** One drawable of a baked building — the vector node vocabulary, already resolved. */
@@ -52,8 +51,23 @@ interface KitAsset {
   entries: FactoryBuilding[];
 }
 
-/** The baked kit, exactly as `pnpm --filter @storytree/procedural-architecture bake` wrote it. */
-export const FACTORY_KIT: FactoryBuilding[] = (kitAsset as KitAsset).entries;
+/** Resolved once and reused — the asset is immutable and the parse is not free. */
+let kitPromise: Promise<FactoryBuilding[]> | null = null;
+
+/**
+ * Load the baked kit.
+ *
+ * DYNAMIC on purpose. The asset is about a megabyte of geometry, and the feature it serves is
+ * off by default — a static import would put all of it in the main chunk and charge every
+ * studio load for a flag nobody has turned on. Behind `import()` it becomes its own chunk that
+ * is fetched only when the flag is.
+ */
+export function loadFactoryKit(): Promise<FactoryBuilding[]> {
+  kitPromise ??= import('@storytree/procedural-architecture/kit.json').then(
+    (m) => ((m as { default: KitAsset }).default ?? (m as unknown as KitAsset)).entries,
+  );
+  return kitPromise;
+}
 
 /**
  * Which kit building a story shows.
@@ -63,9 +77,9 @@ export const FACTORY_KIT: FactoryBuilding[] = (kitAsset as KitAsset).entries;
  * landmarks. The bucket space (8) and the kit size (6) need not match: the modulo just
  * means two buckets share a building, which is already true of hue and monogram collisions.
  */
-export function factoryBuildingFor(storyId: string): FactoryBuilding {
+export function factoryBuildingFor(kit: readonly FactoryBuilding[], storyId: string): FactoryBuilding {
   const bucket = storyIcon(storyId).shape;
-  const entry = FACTORY_KIT[bucket % FACTORY_KIT.length];
+  const entry = kit[bucket % kit.length];
   if (!entry) throw new Error('the baked kit is empty — run `pnpm --filter @storytree/procedural-architecture bake`');
   return entry;
 }
@@ -80,9 +94,13 @@ export const factoryDefId = (kitId: string): string => `factory-building-${kitId
  * and `<defs>` content is still DOM. Filtering to what is referenced keeps the floor cost
  * proportional to what is on screen.
  */
-export function usedFactoryBuildings(storyIds: readonly string[]): FactoryBuilding[] {
-  const needed = new Set(storyIds.map((id) => factoryBuildingFor(id).id));
-  return FACTORY_KIT.filter((e) => needed.has(e.id));
+export function usedFactoryBuildings(
+  kit: readonly FactoryBuilding[],
+  storyIds: readonly string[],
+): FactoryBuilding[] {
+  if (kit.length === 0) return [];
+  const needed = new Set(storyIds.map((id) => factoryBuildingFor(kit, id).id));
+  return kit.filter((e) => needed.has(e.id));
 }
 
 /**

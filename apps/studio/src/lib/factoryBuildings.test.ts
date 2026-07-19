@@ -4,18 +4,26 @@
 // exist. The APPEARANCE — whether a factory building reads better on the island than the flat
 // glyph it replaces — is the owner's verdict and is not signable here (ADR-0070 stage 2).
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 
 import {
-  FACTORY_KIT,
   factoryBuildingFor,
   factoryDefId,
   factoryScale,
+  loadFactoryKit,
   usedFactoryBuildings,
+  type FactoryBuilding,
 } from './factoryBuildings.js';
 import { storyIcon, ICON_SHAPES } from './buildingLayout.js';
 
 const SAMPLE = ['library', 'cli', 'studio', 'forest-world', 'orchestrator', 'drive', 'agent', 'notice-board'];
+
+// The kit is fetched lazily so the megabyte of geometry stays out of the main chunk; the tests
+// await it once and then exercise the pure functions over it.
+let FACTORY_KIT: FactoryBuilding[];
+beforeAll(async () => {
+  FACTORY_KIT = await loadFactoryKit();
+});
 
 describe('the baked kit', () => {
   it('ships buildings', () => {
@@ -53,7 +61,7 @@ describe('the baked kit', () => {
 describe('which building an island gets', () => {
   it('is deterministic', () => {
     for (const id of SAMPLE) {
-      expect(factoryBuildingFor(id).id).toBe(factoryBuildingFor(id).id);
+      expect(factoryBuildingFor(FACTORY_KIT, id).id).toBe(factoryBuildingFor(FACTORY_KIT, id).id);
     }
   });
 
@@ -62,7 +70,7 @@ describe('which building an island gets', () => {
     // story's building can only change if `storyIcon` changes — which is the existing contract.
     for (const id of SAMPLE) {
       const expected = FACTORY_KIT[storyIcon(id).shape % FACTORY_KIT.length];
-      expect(factoryBuildingFor(id).id).toBe(expected!.id);
+      expect(factoryBuildingFor(FACTORY_KIT, id).id).toBe(expected!.id);
     }
   });
 
@@ -80,32 +88,32 @@ describe('which building an island gets', () => {
 
 describe('how many copies exist — the node budget', () => {
   it('defines only the buildings actually referenced', () => {
-    const oneStory = usedFactoryBuildings(['library']);
+    const oneStory = usedFactoryBuildings(FACTORY_KIT, ['library']);
     expect(oneStory).toHaveLength(1);
-    expect(oneStory[0]!.id).toBe(factoryBuildingFor('library').id);
+    expect(oneStory[0]!.id).toBe(factoryBuildingFor(FACTORY_KIT, 'library').id);
   });
 
   it('never defines the same building twice, however many islands reference it', () => {
     // This IS the budget guarantee: N islands cost N `<use>` nodes plus one shared definition,
     // not N copies of an ~800-node building (ADR-0069's ceiling is ~1,000–3,000).
     const many = Array.from({ length: 50 }, (_, i) => SAMPLE[i % SAMPLE.length]!);
-    const used = usedFactoryBuildings(many);
+    const used = usedFactoryBuildings(FACTORY_KIT, many);
     expect(used.length).toBeLessThanOrEqual(FACTORY_KIT.length);
     expect(new Set(used.map((b) => b.id)).size).toBe(used.length);
 
     const definedNodes = used.reduce((n, b) => n + b.nodes.length, 0);
-    const ifInlined = many.reduce((n, id) => n + factoryBuildingFor(id).nodes.length, 0);
+    const ifInlined = many.reduce((n, id) => n + factoryBuildingFor(FACTORY_KIT, id).nodes.length, 0);
     expect(definedNodes).toBeLessThan(ifInlined / 5);
   });
 
   it('returns kit order, so the defs block is stable across renders', () => {
-    const a = usedFactoryBuildings(SAMPLE).map((b) => b.id);
-    const b = usedFactoryBuildings([...SAMPLE].reverse()).map((x) => x.id);
+    const a = usedFactoryBuildings(FACTORY_KIT, SAMPLE).map((b) => b.id);
+    const b = usedFactoryBuildings(FACTORY_KIT, [...SAMPLE].reverse()).map((x) => x.id);
     expect(a).toEqual(b);
   });
 
   it('handles an empty map', () => {
-    expect(usedFactoryBuildings([])).toEqual([]);
+    expect(usedFactoryBuildings(FACTORY_KIT, [])).toEqual([]);
   });
 });
 
