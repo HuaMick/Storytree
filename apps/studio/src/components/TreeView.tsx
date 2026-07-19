@@ -89,6 +89,13 @@ import {
   storyIcon,
   ICON_SHAPES,
 } from '../lib/buildingLayout.js';
+import {
+  factoryBuildingFor,
+  factoryDefId,
+  factoryScale,
+  usedFactoryBuildings,
+  type FactoryNode,
+} from '../lib/factoryBuildings.js';
 import { ConnectionsSection } from './ConnectionsSection.js';
 import { BuildSection } from './BuildSection.js';
 import { WorldSettingsPanel } from './WorldSettingsPanel.js';
@@ -2700,6 +2707,106 @@ function IconGlyph({ id, label = true }: { id: string; label?: boolean }): React
 }
 
 /**
+ * ONE baked drawable. The nodes arrive from the factory in painter order with their colour already
+ * resolved, so this paints them in sequence and decides nothing — no sorting, no shading, no class.
+ * The fill is an attribute rather than CSS precisely because it is not a category: a facade's colour
+ * is its material modulated by N·L, so two walls of the same building differ and no class names that.
+ */
+function FactoryNodeEl({ n }: { n: FactoryNode }): React.JSX.Element {
+  const op = n.opacity !== undefined ? { opacity: n.opacity } : {};
+  if (n.el === 'ellipse') {
+    return <ellipse cx={n.cx} cy={n.cy} rx={n.rx} ry={n.ry} fill={n.fill} {...op} />;
+  }
+  if (n.el === 'polygon') {
+    return (
+      <polygon
+        points={n.points}
+        fill={n.fill}
+        stroke={n.stroke}
+        strokeWidth={n.strokeWidth}
+        strokeLinejoin="round"
+        {...op}
+      />
+    );
+  }
+  if (n.fillRule === 'evenodd') {
+    // A wall and its openings as one even-odd path — the hole is genuinely empty.
+    return (
+      <path
+        d={n.d}
+        fillRule="evenodd"
+        fill={n.fill}
+        stroke={n.stroke}
+        strokeWidth={n.strokeWidth}
+        strokeLinejoin="round"
+        {...op}
+      />
+    );
+  }
+  // A split fragment's inherited outline: unfilled, so the cut edges stay invisible.
+  return (
+    <path
+      d={n.d}
+      fill="none"
+      stroke={n.stroke}
+      strokeWidth={n.strokeWidth}
+      strokeLinejoin="round"
+      strokeLinecap="round"
+      {...op}
+    />
+  );
+}
+
+/**
+ * Every factory building the map references, DEFINED ONCE.
+ *
+ * This is the node-budget decision made visible. A baked building is ~800 elements; a map with a
+ * dozen islands that inlined its own copy would be past ADR-0069's ceiling several times over. Each
+ * building is defined here and referenced by `<use>`, so adding an island costs one node rather than
+ * eight hundred. Only the buildings actually referenced are defined — `<defs>` content is still DOM.
+ */
+function FactoryBuildingDefs({ storyIds }: { storyIds: readonly string[] }): React.JSX.Element {
+  return (
+    <defs>
+      {usedFactoryBuildings(storyIds).map((b) => (
+        <g key={b.id} id={factoryDefId(b.id)}>
+          {b.nodes.map((n, i) => (
+            <FactoryNodeEl key={i} n={n} />
+          ))}
+        </g>
+      ))}
+    </defs>
+  );
+}
+
+/**
+ * A story's identity as a BUILDING THE FACTORY MADE (ADR-0217) rather than as a flat glyph — the
+ * drop-in replacement for {@link IconGlyph} behind `?factoryart=on`.
+ *
+ * It is a `<use>` and a scale, and that is the whole runtime: the geometry was derived, checked,
+ * ordered and projected at build time (ADR-0217 D4 — "the runtime performs no geometry"). Baked to
+ * the same placement contract the glyph used (centred on x = 0, standing on y = 0), so every call
+ * site's existing `translate` already puts it in the right place.
+ */
+function FactoryGlyph({ id, height = ICON_GLYPH.H }: { id: string; height?: number }): React.JSX.Element {
+  const b = factoryBuildingFor(id);
+  const k = factoryScale(b, height);
+  return (
+    <g className="story-factory-art" transform={`scale(${k.toFixed(4)})`}>
+      <use href={`#${factoryDefId(b.id)}`} />
+    </g>
+  );
+}
+
+/** DEFAULT OFF. `?factoryart=on` swaps the flat ADR-0102 identity glyphs for buildings the ADR-0217
+ *  factory produced. Off by default because the appearance is the OWNER's call and has not been
+ *  given (ADR-0070 stage 2 / ADR-0159): the flag is how the look is shown without shipping it. */
+function readFactoryArt(search: string = defaultSearch()): boolean {
+  const v = new URLSearchParams(search).get('factoryart');
+  return v === 'on' || v === '1' || v === 'true';
+}
+
+/**
  * A promoted ICON STAMP (ADR-0102) on a map island: the identity glyph of a BUILDING this island
  * depends on ("you carry the icon of what you depend on"). NOT a replacement for the island's tree
  * — a low-salience badge beside it (the edge is kept, not dropped: ADR-0074 §1). The named building
@@ -2712,6 +2819,7 @@ function StoryStamp({
   spot,
   hidden,
   onStampClick,
+  factoryArt = false,
 }: {
   story: TreeStory;
   /** The building id whose identity glyph this stamp carries. */
@@ -2721,6 +2829,8 @@ function StoryStamp({
   /** ADR-0102: clicking the stamp highlights the shared island it names in the left panel
    *  (instead of selecting the carrier island). Absent in the panel's own one-island render. */
   onStampClick?: (sharedId: string) => void;
+  /** `?factoryart=on` — draw the ADR-0217 factory building instead of the flat glyph. */
+  factoryArt?: boolean;
 }): React.JSX.Element {
   const st = story.status ?? 'unknown';
   return (
@@ -2737,8 +2847,9 @@ function StoryStamp({
         : {})}
     >
       <title>{`${icon} — used by ${story.id} · click to find it in Shared Islands`}</title>
-      <ellipse className="flora-shadow" cx={1} cy={1.6} rx={11} ry={3.0} />
-      <IconGlyph id={icon} />
+      {/* The factory bakes its own contact shadow, so the glyph's stand-in one would double up. */}
+      {!factoryArt && <ellipse className="flora-shadow" cx={1} cy={1.6} rx={11} ry={3.0} />}
+      {factoryArt ? <FactoryGlyph id={icon} /> : <IconGlyph id={icon} />}
     </g>
   );
 }
@@ -2772,8 +2883,20 @@ export function StudioWorldChrome({
   /** ADR-0102: clicking an island's stamp highlights the shared island it names in the left panel. */
   onStampClick: (sharedId: string) => void;
 }): React.JSX.Element {
+  // ADR-0217 increment 5: every island's identity drawn as a building the factory produced.
+  // Behind a flag because the LOOK is the owner's verdict to give (ADR-0070 stage 2), not ours.
+  const factoryArt = readFactoryArt();
+  // Every id that will ask for a building — the carried stamps plus each island's own key glyph.
+  const factoryIds = factoryArt
+    ? [
+        ...world.territories.flatMap((t) => t.stamps.map((s) => s.icon)),
+        ...world.territories.map((t) => t.story.id),
+      ]
+    : [];
   return (
     <g className="studio-world-chrome" transform={`translate(${world.offset.x} ${world.offset.y})`}>
+      {/* Define each referenced building ONCE; every stamp and key glyph below is a `<use>`. */}
+      {factoryArt && <FactoryBuildingDefs storyIds={factoryIds} />}
       {/* SOLAR spokes (solar mode only) — the same low-salience perimeter-docked wiring the inline
           path drew, layered UNDER the stamps so the icons stay legible. */}
       {world.solar && (
@@ -2793,6 +2916,7 @@ export function StudioWorldChrome({
             spot={stamp.spot}
             hidden={hidden}
             onStampClick={onStampClick}
+            factoryArt={factoryArt}
           />
         )),
       )}
@@ -2810,7 +2934,7 @@ export function StudioWorldChrome({
             className="world-plate-key"
             transform={`translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${NAMEPLATE_KEY_SCALE})`}
           >
-            <IconGlyph id={t.story.id} />
+            {factoryArt ? <FactoryGlyph id={t.story.id} /> : <IconGlyph id={t.story.id} />}
           </g>
         );
       })}
