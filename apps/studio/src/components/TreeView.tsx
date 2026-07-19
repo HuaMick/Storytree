@@ -93,8 +93,10 @@ import {
   factoryBuildingFor,
   factoryDefId,
   factoryScale,
+  loadBakedStone,
   loadFactoryKit,
   usedFactoryBuildings,
+  type BakedStoneAsset,
   type FactoryBuilding,
   type FactoryNode,
 } from '../lib/factoryBuildings.js';
@@ -1114,6 +1116,7 @@ export function worldToScene(
   buildsByStory: Map<string, BuildActivity[]>,
   claimsByStory: Map<string, ClaimActivity[]> = new Map(),
   departuresByStory: Map<string, DepartedClaim[]> = new Map(),
+  bakedStone: BakedStoneAsset | null = null,
 ): SceneInput {
   return {
     offset: world.offset,
@@ -1133,6 +1136,9 @@ export function worldToScene(
         departuresByStory.get(t.story.id) ?? [],
       ),
     ),
+    // ADR-0218: the baked standing-stone solid, supplied only when `?factoryart=on` fetched it. The
+    // core swaps each UAT marker's flat body for a `<use>` of this one def; absent ⇒ flat stones.
+    ...(bakedStone ? { bakedStone } : {}),
   };
 }
 
@@ -1943,12 +1949,20 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
   // so it only rebuilds on the world / substrate / ticker / build-activity inputs —
   // never on hover. Hooks live above the early returns (the world may still be null).
   const renderScene = useMemo(() => readRenderScene(search), [search]);
+  // ADR-0218: the baked standing stone rides the SAME `?factoryart=on` flag as the buildings, so the
+  // owner sees the whole isometric world at once. Off by default (the look is the owner's verdict) and
+  // fetched only then; until it resolves the markers draw their flat body — a late repaint, never a
+  // hole. Absent ⇒ the scene renders flat stones (the public website's byte-for-byte path).
+  const factoryOn = useMemo(() => readFactoryArt(search), [search]);
+  const bakedStone = useBakedStone(factoryOn);
   const scene = useMemo(
     () =>
       world
-        ? buildScene(worldToScene(world, relaxedCells, now, buildsByStory, claimsByStory, departuresByStory))
+        ? buildScene(
+            worldToScene(world, relaxedCells, now, buildsByStory, claimsByStory, departuresByStory, bakedStone),
+          )
         : null,
-    [world, relaxedCells, now, buildsByStory, claimsByStory, departuresByStory],
+    [world, relaxedCells, now, buildsByStory, claimsByStory, departuresByStory, bakedStone],
   );
 
   // ADR-0169 §3: trails are hidden by default and GROW on island focus. The plan is the
@@ -2912,6 +2926,26 @@ function useFactoryKit(enabled: boolean): FactoryBuilding[] | null {
     return () => { live = false; };
   }, [enabled]);
   return kit;
+}
+
+/**
+ * The baked standing stone, fetched only when `?factoryart=on` (ADR-0218) — `null` until it arrives,
+ * and forever if the flag is off. The mirror of {@link useFactoryKit} for the scene-graph's fenced
+ * baked-art family: until it resolves the UAT markers draw their flat body, so the swap is a late
+ * repaint rather than a hole in the world.
+ */
+function useBakedStone(enabled: boolean): BakedStoneAsset | null {
+  const [stone, setStone] = useState<BakedStoneAsset | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    let live = true;
+    void loadBakedStone().then(
+      (s) => { if (live) setStone(s); },
+      (err: unknown) => { console.error('baked stone failed to load; keeping the flat markers', err); },
+    );
+    return () => { live = false; };
+  }, [enabled]);
+  return stone;
 }
 
 /**

@@ -20,11 +20,14 @@ import {
   buildPlant,
   buildConifer,
   buildBloom,
+  BAKED_STONE_DEF,
   type SceneG,
   type SceneNode,
   type SceneInput,
   type SceneTerritoryInput,
   type ScenePlantInput,
+  type SceneBakedDef,
+  type SceneBakedUse,
 } from './scene.js';
 
 // ---------- traversal helpers ----------
@@ -1223,4 +1226,100 @@ test('§ back-compat ABSENCE LOCK: uatCriteria absent OR empty → NO marker kin
   }
   const empty = buildScene(mkInput({ territories: [mkTerritory({ uatCriteria: [] })] }));
   assert.deepEqual(empty, buildScene(mkInput({ territories: [mkTerritory()] })));
+});
+
+// ---------------------------------------------------------------------------
+// ADR-0218: baked-art stones — the fenced paint-carrying family
+// ---------------------------------------------------------------------------
+//
+// A UAT marker's flat cel-shaded body is swapped for ONE `baked-art` <use> of the single stone def
+// WHEN the surface supplies the bake (`SceneInput.bakedStone`, threaded from `?factoryart=on`). The
+// solid is state-independent — the verdict still rides the glow/rune overlays, which do not move. The
+// surface supplies opaque paint-node DATA; the core owns the placement, the def id, and the swap.
+
+/** A stand-in baked stone: two shaded facet polygons + a supplied box. The scene never inspects the
+ *  drawables (they are the factory's job), so a couple of fakes exercise the plumbing exactly. */
+const FAKE_BAKE: NonNullable<SceneInput['bakedStone']> = {
+  nodes: [
+    { el: 'polygon', points: '0,0 10,-3 6,-50', fill: '#8a9299', stroke: '#464b4f', strokeWidth: 0.35 },
+    { el: 'polygon', points: '0,0 -6,-3 6,-50', fill: '#41464a', stroke: '#292c2e', strokeWidth: 0.35 },
+  ],
+  width: 22,
+  height: 50,
+};
+
+function bakedScene(uat: UatCriteria = THREE_CRITERIA, over: Partial<SceneTerritoryInput> = {}): SceneG {
+  return buildScene(
+    mkInput({
+      territories: [mkTerritory({ signpost: { outcome: null }, uatCriteria: uat, ...over })],
+      relaxedCells: FULL_LAND,
+      bakedStone: FAKE_BAKE,
+    }),
+  );
+}
+
+/** Every node (any depth) matching `pred`, in document order. */
+function collectNodes(scene: SceneNode, pred: (n: SceneNode) => boolean): SceneNode[] {
+  const out: SceneNode[] = [];
+  const walk = (n: SceneNode): void => {
+    if (pred(n)) out.push(n);
+    if (n.el === 'g') for (const c of n.children) walk(c);
+  };
+  walk(scene);
+  return out;
+}
+
+test('ADR-0218 back-compat: WITHOUT a supplied bake, stones keep their flat cel-shaded body and no baked-art appears', () => {
+  const scene = markerScene(THREE_CRITERIA);
+  assert.equal(collectNodes(scene, (n) => n.el === 'baked-def').length, 0, 'no def layer without a bake');
+  assert.equal(collectNodes(scene, (n) => n.el === 'baked-use').length, 0, 'no use without a bake');
+  for (const m of stonesOf(scene)) {
+    assert.equal(collectNodes(m, (n) => n.kind === 'standing-stone-body').length, 1, 'flat body present');
+  }
+});
+
+test('ADR-0218: a supplied bake defines the stone ONCE and every marker references it (define-once-reference-many)', () => {
+  const scene = bakedScene();
+  const defs = collectNodes(scene, (n) => n.el === 'baked-def') as SceneBakedDef[];
+  assert.equal(defs.length, 1, 'exactly one def for the whole scene');
+  assert.equal(defs[0]!.defId, BAKED_STONE_DEF);
+  assert.deepEqual(defs[0]!.nodes, FAKE_BAKE.nodes, 'the def carries the surface-supplied drawables verbatim');
+  assert.equal(
+    collectNodes(scene, (n) => n.el === 'g' && n.kind === 'baked-defs').length,
+    1,
+    'the def rides in a baked-defs layer a mapper renders into <defs>',
+  );
+
+  const uses = collectNodes(scene, (n) => n.el === 'baked-use') as SceneBakedUse[];
+  assert.equal(uses.length, THREE_CRITERIA.length, 'one use per marker');
+  for (const u of uses) {
+    assert.equal(u.kind, 'baked-art');
+    assert.equal(u.defId, BAKED_STONE_DEF);
+  }
+});
+
+test('ADR-0218: the baked solid REPLACES the flat body, and the state overlays (glow/rune) are untouched', () => {
+  const stones = stonesOf(bakedScene());
+  assert.equal(stones.length, THREE_CRITERIA.length);
+  for (const m of stones) {
+    for (const flat of ['standing-stone-body', 'standing-stone-face', 'standing-stone-cap']) {
+      assert.equal(collectNodes(m, (n) => n.kind === flat).length, 0, `no flat ${flat}`);
+    }
+    assert.equal(collectNodes(m, (n) => n.el === 'baked-use').length, 1, 'exactly one baked solid');
+    assert.ok(collectNodes(m, (n) => n.kind === 'standing-stone-rune').length >= 1, 'rune retained');
+  }
+  const proven = stones.find((m) => m.kind === 'standing-stone-proven')!;
+  assert.ok(collectNodes(proven, (n) => n.kind === 'standing-stone-glow').length > 0, 'proven still glows');
+  const pending = stones.find((m) => m.kind === 'standing-stone-pending')!;
+  assert.equal(collectNodes(pending, (n) => n.kind === 'standing-stone-glow').length, 0, 'pending stays dark');
+});
+
+test('ADR-0218: the baked solid is scaled to the flat silhouette envelope (placement + overlays stay coherent)', () => {
+  const use = collectNodes(bakedScene(), (n) => n.el === 'baked-use')[0] as SceneBakedUse;
+  // STONE_MARK_HEIGHT (43.5) / supplied height (50) = 0.87
+  assert.equal(use.transform, 'scale(0.87)');
+});
+
+test('ADR-0218: the baked scene is deterministic', () => {
+  assert.deepEqual(bakedScene(), bakedScene());
 });

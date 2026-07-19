@@ -42,3 +42,13 @@ export type { WindmillParams } from './buildings/forest-windmill.js';
 export { tieredPagoda, DEFAULTS as PAGODA_DEFAULTS } from './buildings/tiered-pagoda.js';
 export type { PagodaParams } from './buildings/tiered-pagoda.js';
 
+// The first landscape object type (ADR-0218). A stone is its own factory module (ADR-0217 D1);
+// `bakeStone` + `STONE_DEF_ID` are the build-time asset the shared scene composes.
+export {
+  standingStone,
+  bakeStone,
+  STONE_DEF_ID,
+  DEFAULTS as STANDING_STONE_DEFAULTS,
+} from './landscape/standing-stone.js';
+export type { StandingStoneParams, BakedStone } from './landscape/standing-stone.js';
+

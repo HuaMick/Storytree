@@ -11,6 +11,7 @@ import { render, fireEvent, cleanup } from '@testing-library/react';
 import {
   buildScene,
   trailFillWidth,
+  BAKED_STONE_DEF,
   type BuildPhase,
   type ClaimColourState,
   type ClaimGrade,
@@ -677,5 +678,68 @@ describe('SceneView — the UAT marker walk (forest-parcels inc 2)', () => {
   it('renders nothing marker-related when the story has no uatCriteria', () => {
     const { root } = renderScene();
     expect(root.querySelector('.standing-stone-marker')).toBeNull();
+  });
+
+  // ADR-0218: when the surface supplies the bake, the flat body is swapped for a `<use>` of the one
+  // baked solid, defined once in a `<defs>`. The paint is inline on the def (a bake's colour is
+  // material × N·L, the fenced exception) — everything else in the marker stays class-driven.
+  function mkBakedMarkerInput(): SceneInput {
+    return {
+      ...mkMarkerInput(),
+      bakedStone: {
+        nodes: [
+          { el: 'polygon', points: '0,0 10,-3 6,-50', fill: '#8a9299', stroke: '#464b4f', strokeWidth: 0.35 },
+          { el: 'polygon', points: '0,0 -6,-3 6,-50', fill: '#41464a', stroke: '#292c2e', strokeWidth: 0.35 },
+        ],
+        width: 22,
+        height: 50,
+      },
+    };
+  }
+  function renderBaked(): HTMLElement {
+    const ctx: SceneCtx = {
+      territoryClassById: (id, status) => `hex-territory st-${status}`,
+      reveal: null,
+      hidden: new Set(),
+      onSelectStory: vi.fn(),
+      onSelectCap: vi.fn(),
+    };
+    return render(
+      <svg>
+        <SceneView scene={buildScene(mkBakedMarkerInput())} ctx={ctx} />
+      </svg>,
+    ).container;
+  }
+
+  it('defines the baked stone ONCE in <defs> with resolved paint inline, referenced by <use>', () => {
+    const root = renderBaked();
+    const def = root.querySelector(`defs g#${BAKED_STONE_DEF}`);
+    expect(def).toBeTruthy();
+    const facets = def!.querySelectorAll('polygon');
+    expect(facets.length).toBe(2);
+    // paint is stamped inline (the fence), not via a class
+    expect(facets[0]!.getAttribute('fill')).toBe('#8a9299');
+    expect(facets[1]!.getAttribute('fill')).toBe('#41464a');
+
+    // one <use> per marker (3 criteria), each referencing the one def
+    const uses = [...root.querySelectorAll('use')].filter((u) => u.getAttribute('href') === `#${BAKED_STONE_DEF}`);
+    expect(uses.length).toBe(3);
+  });
+
+  it('swaps the flat body for the baked solid but leaves the state overlays (rune/glow) intact', () => {
+    const root = renderBaked();
+    // the flat cel-shaded body is gone everywhere…
+    expect(root.querySelector('.standing-stone-body')).toBeNull();
+    expect(root.querySelector('.standing-stone-face')).toBeNull();
+    expect(root.querySelector('.standing-stone-cap')).toBeNull();
+    // …replaced by the baked <use> inside each marker wrapper…
+    const proven = root.querySelector('.standing-stone-marker.standing-stone-proven')!;
+    expect(proven.querySelector('use')).toBeTruthy();
+    // …and the verdict overlays are untouched.
+    expect(proven.querySelector('.standing-stone-rune')).toBeTruthy();
+    expect(proven.querySelector('.standing-stone-glow')).toBeTruthy();
+    expect(
+      root.querySelector('.standing-stone-marker.standing-stone-pending')!.querySelector('.standing-stone-glow'),
+    ).toBeNull();
   });
 });

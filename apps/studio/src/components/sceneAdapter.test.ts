@@ -247,3 +247,24 @@ describe('worldToScene → uatCriteria (the UAT marker walk)', () => {
     expect(terr(input(stories), 'foundation').uatCriteria).toBeUndefined();
   });
 });
+
+// The baked-stone fold (ADR-0218): `?factoryart=on` loads the baked solid and threads it here; the
+// core swaps each UAT marker's flat body for a `<use>` of it. Absent ⇒ flat stones (website path).
+describe('worldToScene → SceneInput.bakedStone (ADR-0218 fold)', () => {
+  const world = buildWorld(fixture());
+  const cells = buildRelaxedCells(world, 'mesh', {});
+  const bake = {
+    nodes: [{ el: 'polygon' as const, points: '0,0 1,0 1,1', fill: '#888', stroke: '#444', strokeWidth: 0.35 }],
+    width: 10,
+    height: 20,
+  };
+
+  it('omits bakedStone when the surface supplies none (the flag-off / public-website path)', () => {
+    expect(worldToScene(world, cells, NOW, NO_BUILDS).bakedStone).toBeUndefined();
+  });
+
+  it('threads the supplied bake into SceneInput unchanged', () => {
+    const folded = worldToScene(world, cells, NOW, NO_BUILDS, undefined, undefined, bake);
+    expect(folded.bakedStone).toEqual(bake);
+  });
+});
