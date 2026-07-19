@@ -141,6 +141,14 @@ export interface Face {
   kind: FaceKind;
   /** Part of a CURVED surface: the renderer suppresses its outline (see `dome`). */
   smooth?: boolean;
+  /**
+   * The index in the owning shape's `facets` this face IS, when it is hostable.
+   *
+   * Without it the renderer cannot tell which solid face an aperture opens through,
+   * and a recessed opening has to be faked as a decal floating in front of the wall.
+   * Declared by the generator that emits both, so the two can never drift apart.
+   */
+  facet?: number;
 }
 
 /** A side quad that may host apertures. */
@@ -214,13 +222,16 @@ export function box({ w, d, h }: BoxParams): Shape {
     t2 = v3(hw, hd, h),
     t3 = v3(-hw, hd, h);
   const verts = [b0, b1, b2, b3, t0, t1, t2, t3];
+  // The `facet` index on each wall names the very facet built from the SAME corners
+  // below — that is what lets an aperture open a real hole through the wall instead of
+  // being painted on top of it.
   const faces: Face[] = [
     { idx: [4, 5, 6, 7], kind: 'roof' },
     { idx: [3, 2, 1, 0], kind: 'floor' },
-    { idx: [0, 1, 5, 4], kind: 'wall' }, // -y (north)
-    { idx: [1, 2, 6, 5], kind: 'wall' }, // +x (east)
-    { idx: [2, 3, 7, 6], kind: 'wall' }, // +y (south)
-    { idx: [3, 0, 4, 7], kind: 'wall' }, // -x (west)
+    { idx: [0, 1, 5, 4], kind: 'wall', facet: 3 }, // -y (north)
+    { idx: [1, 2, 6, 5], kind: 'wall', facet: 0 }, // +x (east)
+    { idx: [2, 3, 7, 6], kind: 'wall', facet: 1 }, // +y (south)
+    { idx: [3, 0, 4, 7], kind: 'wall', facet: 2 }, // -x (west)
   ];
   const facets = [
     quadFacet(b1, b2, t2, t1),
@@ -265,9 +276,11 @@ export function frustum({ sides = 12, r0, r1 = r0, h, rot = 0 }: FrustumParams):
       tr = ringPoint(j, r1, h),
       tl = ringPoint(i, r1, h);
     if (r1 === 0) {
-      faces.push({ idx: [i, j, sides], kind: 'wall' });
+      faces.push({ idx: [i, j, sides], kind: 'wall' }); // a cone tip hosts nothing
     } else {
-      faces.push({ idx: [i, j, sides + j, sides + i], kind: 'wall' });
+      // Face and facet are pushed together, so the index is the loop's own — no
+      // separate bookkeeping that could fall out of step.
+      faces.push({ idx: [i, j, sides + j, sides + i], kind: 'wall', facet: facets.length });
       facets.push(quadFacet(bl, br, tr, tl));
     }
   }
@@ -420,6 +433,15 @@ export interface Part {
 
 export type ApertureKind = 'window' | 'door';
 
+/**
+ * Default setback of a pane behind its wall face.
+ *
+ * Sized by eye against the existing look rather than by any real wall thickness: deep
+ * enough that the reveal reads as a band at map scale, shallow enough that it never
+ * becomes the thing you notice about a building.
+ */
+export const DEFAULT_REVEAL = 0.34;
+
 /** A hole cut into one facet of a part. */
 export interface Aperture {
   id: string;
@@ -432,6 +454,8 @@ export interface Aperture {
   w: number;
   h: number;
   kind: ApertureKind;
+  /** how deep the opening is set back into its wall — see `ApertureSpec.reveal` */
+  reveal: number;
 }
 
 export interface ApertureSpec {
@@ -442,6 +466,12 @@ export interface ApertureSpec {
   w: number;
   h: number;
   kind?: ApertureKind;
+  /**
+   * How far the pane sits BEHIND the wall face, in world units. The wall's thickness
+   * then shows as a reveal — the jamb and head surfaces you see into on the shaded
+   * side of an opening. Zero draws the pane flush, which reads as a decal.
+   */
+  reveal?: number;
 }
 
 /** The frozen model both the checker and the renderer consume. */
@@ -555,8 +585,8 @@ export function building({ name, style = 'timber', lightAngle = 135 }: BuildingP
      * `cu` is the horizontal offset from the facet's centre; `sill` the height above
      * the facet's bottom edge. Both are checked for containment and collision.
      */
-    aperture(id, { host, facet = 0, cu = 0, sill, w, h, kind = 'window' }) {
-      apertures.push({ id, host, facet, cu, sill, w, h, kind });
+    aperture(id, { host, facet = 0, cu = 0, sill, w, h, kind = 'window', reveal = DEFAULT_REVEAL }) {
+      apertures.push({ id, host, facet, cu, sill, w, h, kind, reveal });
       return id;
     },
 
@@ -584,6 +614,14 @@ export function building({ name, style = 'timber', lightAngle = 135 }: BuildingP
   };
   return api;
 }
+
+/**
+ * A point on a facet in its own parameter space: `s` runs 0..1 left-to-right along the
+ * row at height `t`, and `t` runs 0..1 base-to-top. Bilinear, so it follows a taper.
+ * The one mapping the aperture maths and the facade subdivision both go through.
+ */
+export const facetPoint = (f: Facet, s: number, t: number): Vec3 =>
+  lerp3(lerp3(f.bl, f.br, s), lerp3(f.tl, f.tr, s), t);
 
 /** The world-space quad of an aperture, plus the facet parameters it was cut with. */
 export interface ApertureQuad {
