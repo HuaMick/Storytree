@@ -1,10 +1,14 @@
 // draw-order.test.ts — station 3's red-green.
 //
 // The red these assert against is not hypothetical. Before this pass existed, the two
-// shipped spike buildings carried 85 and 52 depth-order inversions respectively while
+// shipped spike buildings carried 163 and 91 depth-order inversions respectively while
 // `check()` returned [] on both — including the exact defect the swarm catalogued by
 // hand in docs/research/forest-house-art/README.md: "the left sail blade draws behind
 // the balcony railing where it should sweep in front".
+//
+// The counts are asserted as "more than none" rather than pinned, because they are a
+// property of the oracle's sampling as much as of the models; what must not change is
+// that the defect is found before and absent after.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
