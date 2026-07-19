@@ -7,17 +7,17 @@
 
 import {
   apertureQuad,
-  centroid,
-  depthKey,
   faceNormal,
   facePoints,
   lightVector,
   project,
   shade,
-  add3,
-  scale3,
 } from './procedural-utils.js';
-import type { BuildingModel, Vec2, Vec3 } from './procedural-utils.js';
+import type { Aperture, ApertureQuad, BuildingModel, Facet, Vec2, Vec3 } from './procedural-utils.js';
+import { facadeStrips, openingOf, reveal } from './apertures.js';
+import type { Opening } from './apertures.js';
+import { orderForPainter } from './draw-order.js';
+import type { DrawOrderOptions, DrawOrderStats, OrderPoly } from './draw-order.js';
 
 // ---------------------------------------------------------------------------
 // Themes — a material key resolves to a base colour; N·L then modulates it.
@@ -98,51 +98,65 @@ export interface RenderOptions {
   lightElevation?: number;
   /** extra material-key colours merged over the theme */
   palette?: Record<string, string>;
+  /** tuning for station 3's draw-order pass */
+  drawOrder?: DrawOrderOptions;
 }
 
-interface Prim {
-  pts: Vec2[];
+/** The paint a polygon carries through the ordering pass. */
+interface Paint {
   fill: string;
-  depth: number;
   stroke: string;
   opacity?: number;
 }
 
 interface PushOptions {
-  bias?: number;
   opacity?: number;
   flat?: boolean;
-  depth?: number;
   smooth?: boolean;
+  /** openings punched out of this face — drawn as one compound path */
+  holes?: Vec3[][];
+  /** the hole-free subdivision, if the ordering pass has to take this face apart */
+  parts?: Vec3[][];
 }
 
-export function render(model: BuildingModel, opts: RenderOptions = {}): string {
+/** What a render produced, beyond the markup itself. */
+export interface RenderResult {
+  svg: string;
+  /** what station 3 cost — `output - input` is the split inflation, ADR-0069's watch */
+  order: DrawOrderStats;
+  /** the ordered world-space polygons, so a test can hold the ORDER to account
+   *  directly rather than inferring it from the markup */
+  polys: OrderPoly<Paint>[];
+}
+
+/** Render, and report what the draw-order pass did. `render` is this without the receipt. */
+export function renderDetailed(model: BuildingModel, opts: RenderOptions = {}): RenderResult {
   const { width = 640, pad = 6, background = null, showGround = true, strokeWidth = 0.35 } = opts;
   const theme: Palette = { ...themeFor(opts.theme ?? model.style), ...(opts.palette ?? {}) };
   const light = lightVector(opts.lightAngle ?? model.lightAngle, opts.lightElevation ?? 52);
 
-  const prims: Prim[] = [];
+  const prims: OrderPoly<Paint>[] = [];
 
-  const push = (worldPts: Vec3[], baseColour: string, { bias = 0, opacity, flat = false, depth, smooth = false }: PushOptions = {}): void => {
+  // Collect in WORLD space and project only at the end. Station 3 needs the 3D
+  // polygons to split them; a prim that projected on the way in could only ever be
+  // re-sorted, which is the failure this pipeline exists to retire.
+  const push = (worldPts: Vec3[], baseColour: string, { opacity, flat = false, smooth = false, holes, parts }: PushOptions = {}): void => {
     const n = faceNormal(worldPts);
     const facing = n.x + n.y + n.z; // dot with the (1,1,1) view axis
-    if (facing <= 0.0001) return; // backface cull
+    if (facing <= 0.0001) return; // backface cull — before ordering, so it splits less
     const k = flat ? 1 : shade(n, light);
     const fill = litColour(baseColour, k);
-    const prim: Prim = {
-      pts: worldPts.map(project),
+    const meta: Paint = {
       fill,
       // A curved surface's internal seams are a discretisation artefact — stroking
       // them turns a dome into a tiled parasol. Match the stroke to the fill and the
       // shell reads as one form, banded only by N·L.
       stroke: smooth ? fill : outline(fill),
-      // An aperture must sort against the wall it is CUT INTO, not against its own
-      // centroid — a low door on a tall wall has a smaller depth key than the wall's
-      // midpoint and would be painted over by its own host. Callers that belong to a
-      // parent surface pass that surface's depth explicitly.
-      depth: (depth ?? depthKey(centroid(worldPts))) + bias,
     };
-    if (opacity !== undefined) prim.opacity = opacity;
+    if (opacity !== undefined) meta.opacity = opacity;
+    const prim: OrderPoly<Paint> = { pts: worldPts, meta };
+    if (holes !== undefined) prim.holes = holes;
+    if (parts !== undefined) prim.parts = parts;
     prims.push(prim);
   };
 
@@ -171,42 +185,63 @@ export function render(model: BuildingModel, opts: RenderOptions = {}): string {
     }
   }
 
-  // --- solid faces.
-  for (const part of model.parts) {
-    for (const face of part.shape.faces) {
-      if (face.kind === 'floor') continue; // never visible from above
-      const pts = facePoints(part.world, face);
-      const key = part.material && part.material !== 'wall' ? part.material : face.kind;
-      const colour = theme[key] ?? theme[face.kind] ?? theme.wall;
-      push(pts, colour, { smooth: face.smooth === true });
-    }
-  }
-
-  // --- apertures, nudged outward along their facet normal so the depth sort lifts
-  //     them clear of the wall they are cut into. No z-fighting, no special-casing.
+  // --- which facets have been pierced, so a wall is drawn with its holes in it.
+  const cutFacets = new Map<string, { facet: Facet; openings: { opening: Opening; ring: Vec3[] }[] }>();
+  const cutQuads: { ap: Aperture; quad: ApertureQuad }[] = [];
   for (const ap of model.apertures) {
     const q = apertureQuad(model, ap);
     if (!q) continue;
-    const n = q.facet.normal;
-    const frameColour = theme.trim;
-    const paneColour = ap.kind === 'door' ? theme.door : theme.glass;
-
-    const grow = (pts: Vec3[], amount: number): Vec3[] => {
-      const c = centroid(pts);
-      return pts.map((p) => add3(add3(c, scale3({ x: p.x - c.x, y: p.y - c.y, z: p.z - c.z }, amount)), scale3(n, 0.05)));
-    };
-    // Sort against the HOST FACET's depth, so an aperture always lands in front of
-    // the wall that carries it regardless of where on that wall it sits.
-    const hostDepth = depthKey(centroid([q.facet.bl, q.facet.br, q.facet.tr, q.facet.tl]));
-    push(grow(q.pts, 1.16), frameColour, { depth: hostDepth, bias: 0.2 });
-    push(q.pts.map((p) => add3(p, scale3(n, 0.11))), paneColour, { depth: hostDepth, bias: 0.4, flat: ap.kind !== 'door' });
+    cutQuads.push({ ap, quad: q });
+    const key = `${ap.host}#${ap.facet}`;
+    const entry = cutFacets.get(key) ?? { facet: q.facet, openings: [] };
+    entry.openings.push({ opening: openingOf(ap, q), ring: [...q.pts] });
+    cutFacets.set(key, entry);
   }
 
-  // --- painter's algorithm: far to near.
-  prims.sort((a, b) => a.depth - b.depth);
+  // --- solid faces. A pierced wall is emitted as the facade strips AROUND its
+  //     openings rather than as one intact quad, so what shows through the hole is
+  //     whatever is genuinely behind it.
+  for (const part of model.parts) {
+    for (const face of part.shape.faces) {
+      if (face.kind === 'floor') continue; // never visible from above
+      const key = part.material && part.material !== 'wall' ? part.material : face.kind;
+      const colour = theme[key] ?? theme[face.kind] ?? theme.wall;
+      const cut = face.facet === undefined ? undefined : cutFacets.get(`${part.id}#${face.facet}`);
+      if (cut) {
+        // One compound path: the wall with its openings punched out. The strips go
+        // along only as the fallback the ordering pass reaches for if this wall turns
+        // out to interpenetrate something.
+        push(facePoints(part.world, face), colour, {
+          holes: cut.openings.map((o) => o.ring),
+          parts: facadeStrips(cut.facet, cut.openings.map((o) => o.opening)),
+        });
+      } else {
+        push(facePoints(part.world, face), colour, { smooth: face.smooth === true });
+      }
+    }
+  }
+
+  // --- apertures: the wall's thickness in section, then the pane set back behind it.
+  //     Ordinary geometry at honest positions — station 3 needs no hint about it.
+  for (const { ap, quad } of cutQuads) {
+    const { jambs, pane } = reveal(quad, ap.reveal);
+    for (const jamb of jambs) push(jamb, theme.trim);
+    push(pane, ap.kind === 'door' ? theme.door : theme.glass, { flat: ap.kind !== 'door' });
+  }
+
+  // --- station 3: the explicit draw-order pass (ADR-0217 decision 4). Splits every
+  //     interpenetrating polygon and hands back a painter's order that is correct by
+  //     construction, not correct on the models we happened to try.
+  const ordered = orderForPainter(prims, opts.drawOrder ?? {});
+  const projected = ordered.polys.map((p) => ({
+    pts: p.pts.map(project),
+    holes: (p.holes ?? []).map((ring) => ring.map(project)),
+    edges: p.edges,
+    paint: p.meta,
+  }));
 
   // --- fit.
-  const all = prims.flatMap((p) => p.pts);
+  const all = projected.flatMap((p) => p.pts);
   const minX = Math.min(...all.map((p) => p.x)) - pad;
   const maxX = Math.max(...all.map((p) => p.x)) + pad;
   const minY = Math.min(...all.map((p) => p.y)) - pad;
@@ -215,15 +250,57 @@ export function render(model: BuildingModel, opts: RenderOptions = {}): string {
     vh = maxY - minY;
   const height = Math.round((width * vh) / vw);
 
-  const body = prims
+  const pt = (q: Vec2): string => `${f(q.x)},${f(q.y)}`;
+  const ring = (r: readonly Vec2[]): string => `M${r.map(pt).join('L')}Z`;
+
+  const body = projected
     .map((p) => {
-      const d = p.pts.map((q) => `${f(q.x)},${f(q.y)}`).join(' ');
-      const op = p.opacity !== undefined ? ` opacity="${p.opacity}"` : '';
-      return `<polygon points="${d}" fill="${p.fill}" stroke="${p.stroke}" stroke-width="${strokeWidth}" stroke-linejoin="round"${op}/>`;
+      const op = p.paint.opacity !== undefined ? ` opacity="${p.paint.opacity}"` : '';
+      const stroked = `fill="${p.paint.fill}" stroke="${p.paint.stroke}" stroke-width="${strokeWidth}" stroke-linejoin="round"${op}`;
+
+      if (p.holes.length > 0) {
+        // A wall and its openings as ONE even-odd path. Two things fall out of that:
+        // the hole is genuinely empty rather than covered by a same-coloured patch, and
+        // the stroke lands on the opening rims — which is where the window frame comes
+        // from now that no frame quad is drawn.
+        return `<path d="${[p.pts, ...p.holes].map(ring).join('')}" fill-rule="evenodd" ${stroked}/>`;
+      }
+
+      const cut = p.edges?.some((e) => !e) === true;
+      if (!cut) return `<polygon points="${p.pts.map(pt).join(' ')}" ${stroked}/>`;
+
+      // A fragment the ordering pass cut. Outlining its cut edges would draw a line
+      // across the middle of a continuous surface, so the fill goes down unstroked and
+      // only the edges it inherited are traced. Two nodes instead of one, and only for
+      // the fragments that were actually split.
+      const runs: string[] = [];
+      let run: Vec2[] = [];
+      for (let i = 0; i < p.pts.length; i++) {
+        const a = p.pts[i];
+        const b = p.pts[(i + 1) % p.pts.length];
+        if (a === undefined || b === undefined) continue;
+        if (p.edges?.[i] === true) {
+          if (run.length === 0) run.push(a);
+          run.push(b);
+        } else if (run.length > 1) {
+          runs.push(`M${run.map(pt).join('L')}`);
+          run = [];
+        } else {
+          run = [];
+        }
+      }
+      if (run.length > 1) runs.push(`M${run.map(pt).join('L')}`);
+
+      // The fill is stroked in its OWN colour, not left bare. Two adjacent SVG fills
+      // sharing an edge do not composite to full opacity along it — antialiasing leaves
+      // a pale hairline — and a same-colour hairline is what closes that seam.
+      const fill = `<polygon points="${p.pts.map(pt).join(' ')}" fill="${p.paint.fill}" stroke="${p.paint.fill}" stroke-width="${strokeWidth}" stroke-linejoin="round"${op}/>`;
+      if (runs.length === 0) return fill;
+      return `${fill}\n  <path d="${runs.join('')}" fill="none" stroke="${p.paint.stroke}" stroke-width="${strokeWidth}" stroke-linejoin="round" stroke-linecap="round"${op}/>`;
     })
     .join('\n  ');
 
-  return [
+  const svg = [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${f(minX)} ${f(minY)} ${f(vw)} ${f(vh)}" width="${width}" height="${height}" role="img" aria-label="${esc(model.name)}">`,
     background ? `  <rect x="${f(minX)}" y="${f(minY)}" width="${f(vw)}" height="${f(vh)}" fill="${background}"/>` : '',
     ...groundPrims.map((g) => '  ' + g),
@@ -232,7 +309,12 @@ export function render(model: BuildingModel, opts: RenderOptions = {}): string {
   ]
     .filter(Boolean)
     .join('\n');
+
+  return { svg, order: ordered.stats, polys: ordered.polys };
 }
+
+/** Render a model to SVG. */
+export const render = (model: BuildingModel, opts: RenderOptions = {}): string => renderDetailed(model, opts).svg;
 
 const f = (n: number): number => Number(n.toFixed(3));
 
