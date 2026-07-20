@@ -25,6 +25,8 @@ import {
   type SceneInput,
   type SceneTerritoryInput,
   type ScenePlantInput,
+  type SceneGardenInput,
+  type SceneGardenHero,
 } from './scene.js';
 
 // ---------- traversal helpers ----------
@@ -1222,4 +1224,120 @@ test('§ back-compat ABSENCE LOCK: uatCriteria absent OR empty → NO marker kin
   }
   const empty = buildScene(mkInput({ territories: [mkTerritory({ uatCriteria: [] })] }));
   assert.deepEqual(empty, buildScene(mkInput({ territories: [mkTerritory()] })));
+});
+
+// ---------- the cosy-island GARDEN (grounded-art inc 11, ADR-0221) ----------
+//
+// PRESENT ⇒ the named island composes as the concept garden: the four heroes placed through the re-lit
+// ADR-0218 baked-art seam, decorative flora suppressed, the autumn-tree hero standing as the central
+// tree. ABSENT ⇒ every island byte-for-byte (the committed golden fixture above is the byte lock).
+
+/** A minimal baked hero (one polygon) at a given baked height — enough to assert defs/placement/scale. */
+const gHero = (height: number): SceneGardenHero => ({
+  nodes: [{ el: 'polygon', points: '0,0 5,0 0,-5', fill: '#cba', stroke: '#210', strokeWidth: 0.3 }],
+  width: 10,
+  height,
+});
+/** A garden naming `islandId`, carrying all four heroes at their real baked heights. */
+const mkGarden = (islandId: string): SceneGardenInput => ({
+  islandId,
+  heroes: {
+    cottage: gHero(21.8),
+    gazebo: gHero(15.4),
+    'autumn-tree': gHero(20.6),
+    'stepping-stone': gHero(6.3),
+  },
+});
+/** Every descendant (incl. self) whose `el` matches. */
+const allByEl = (n: SceneNode, el: string): SceneNode[] => {
+  const out: SceneNode[] = [];
+  const walk = (m: SceneNode): void => {
+    if (m.el === el) out.push(m);
+    for (const c of children(m)) walk(c);
+  };
+  walk(n);
+  return out;
+};
+/** The territory group with the given id. */
+const territoryById = (scene: SceneNode, id: string): SceneNode => {
+  const hit = allByKind(scene, 'territory').find((t) => t.id === id);
+  assert.ok(hit, `expected a territory "${id}"`);
+  return hit;
+};
+/** A two-island scene: `library` composes as a garden, `cli` is a normal island. */
+const mkGardenTerritories = (over: Partial<SceneTerritoryInput> = {}): SceneTerritoryInput[] => [
+  mkTerritory({ id: 'library', ...over }),
+  mkTerritory({ id: 'cli', caps: 2, centroid: { x: 300, y: 60 }, treeSpot: { x: 300, y: 50 }, plants: [], decor: [] }),
+];
+
+test('garden ABSENT → no baked-defs / baked-art anywhere (the absence lock; golden guards the bytes)', () => {
+  const scene = buildScene(mkInput());
+  assert.equal(firstByKind(scene, 'baked-defs'), null);
+  assert.equal(firstByKind(scene, 'baked-art'), null);
+});
+
+test('garden PRESENT → one baked-defs layer, a def per USED hero (autumn-tree, cottage, gazebo)', () => {
+  const scene = buildScene(mkInput({ garden: mkGarden('library') }));
+  const defs = allByEl(mustByKind(scene, 'baked-defs'), 'baked-def');
+  assert.equal(defs.length, 3, 'three heroes defined (the stone path is unit 2)');
+  const ids = defs.map((d) => (d as { defId: string }).defId).sort();
+  assert.deepEqual(ids, ['garden-hero-autumn-tree', 'garden-hero-cottage', 'garden-hero-gazebo']);
+});
+
+test('garden PRESENT → three hero placements (baked-use), all on the NAMED island', () => {
+  const scene = buildScene(mkInput({ garden: mkGarden('library') }));
+  const uses = allByKind(scene, 'baked-art');
+  assert.equal(uses.length, 3);
+  const refs = uses.map((u) => (u as { defId: string }).defId).sort();
+  assert.deepEqual(refs, ['garden-hero-autumn-tree', 'garden-hero-cottage', 'garden-hero-gazebo']);
+  assert.equal(allByKind(territoryById(scene, 'library'), 'baked-art').length, 3);
+  assert.equal(allByKind(territoryById(scene, 'cli'), 'baked-art').length, 0, 'the normal island is untouched');
+});
+
+test('garden PRESENT → the autumn-tree hero REPLACES the procedural tree on the garden island only', () => {
+  const scene = buildScene(mkInput({ garden: mkGarden('library') }));
+  const gardenIsle = territoryById(scene, 'library');
+  assert.equal(firstByKind(gardenIsle, 'tree'), null, 'no procedural tree on the garden island');
+  const treeUse = allByKind(gardenIsle, 'baked-art').find(
+    (u) => (u as { defId: string }).defId === 'garden-hero-autumn-tree',
+  );
+  assert.ok(treeUse, 'the autumn-tree hero stands as the central tree');
+  assert.ok(firstByKind(territoryById(scene, 'cli'), 'tree'), 'the normal island keeps its procedural tree');
+});
+
+test('garden PRESENT → decorative flora + the 1:1 UAT scatter are SUPPRESSED on the garden island', () => {
+  const scene = buildScene(
+    mkInput({
+      territories: mkGardenTerritories({ uatCriteria: [{ id: 'c1', state: 'proven' }] }),
+      garden: mkGarden('library'),
+    }),
+  );
+  const gardenIsle = territoryById(scene, 'library');
+  for (const k of ['conifer', 'flora', 'tree', ...FLOWER_KINDS]) {
+    assert.equal(firstByKind(gardenIsle, k), null, `no ${k} on the garden island`);
+  }
+});
+
+test('garden PRESENT → the human-witness signpost is RETAINED beside the hero tree', () => {
+  const scene = buildScene(
+    mkInput({
+      territories: mkGardenTerritories({ signpost: { outcome: 'pass' } }),
+      garden: mkGarden('library'),
+    }),
+  );
+  assert.ok(firstByKind(territoryById(scene, 'library'), 'sign-pass'), 'signpost retained on the garden island');
+});
+
+test('garden is deterministic — same input → byte-identical scene', () => {
+  assert.deepEqual(
+    buildScene(mkInput({ garden: mkGarden('library') })),
+    buildScene(mkInput({ garden: mkGarden('library') })),
+  );
+});
+
+test('garden def carries the hero nodes VERBATIM (BakedPaintNode shape-parity with kit.json heroes)', () => {
+  const gdn = mkGarden('library');
+  const scene = buildScene(mkInput({ garden: gdn }));
+  const def = allByEl(mustByKind(scene, 'baked-defs'), 'baked-def')[0] as { nodes: unknown[] };
+  assert.deepEqual(def.nodes, gdn.heroes['autumn-tree'].nodes, 'the def references the folded nodes unchanged');
 });

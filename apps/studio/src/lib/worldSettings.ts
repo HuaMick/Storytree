@@ -300,3 +300,17 @@ export function readCosyIsland(search: string): boolean {
   const v = new URLSearchParams(search).get('cosy');
   return v === 'on' || v === '1' || v === 'true';
 }
+
+/**
+ * grounded-art increment 11 (ADR-0221 / re-lit ADR-0218): the cosy-island GARDEN composition behind
+ * this DEFAULT-OFF flag. Off ⇒ every island renders byte-for-byte (the `SceneInput.garden` absence
+ * lock; no heroes fetched, main bundle unchanged). `?garden=on` (or `=1` / `=true`) fetches the inc-10
+ * heroes from the dynamic kit chunk and composes them onto the exemplar `studio` island — the
+ * autumn-tree hero as the central tree, a cottage and gazebo placed around it, decorative flora
+ * suppressed. The garden renders on the cosy-WARM land (it implies `?cosy`), matching the concept. The
+ * look is the owner's ADR-0070 stage-2 call — this flag is how the composed island is shown, not shipped.
+ */
+export function readGardenIsland(search: string): boolean {
+  const v = new URLSearchParams(search).get('garden');
+  return v === 'on' || v === '1' || v === 'true';
+}

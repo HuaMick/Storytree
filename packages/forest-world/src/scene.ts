@@ -600,12 +600,55 @@ export interface SceneInput {
    *  (owner call: keep the seam) for a FUTURE baked object type; that type re-lights the emission in
    *  `buildScene`. `width`/`height` are the baked box (a future consumer scales the solid to its envelope). */
   bakedStone?: { nodes: BakedPaintNode[]; width: number; height: number };
+  /** The cosy-island GARDEN composition (grounded-art inc 11, ADR-0221 / re-lit ADR-0218). PRESENT ⇒
+   *  the island named by `garden.islandId` composes as the concept garden — the four heroes placed
+   *  through the baked-art seam, decorative flora suppressed, the `autumn-tree` hero as its central
+   *  tree. OPTIONAL and back-compat: ABSENT ⇒ every island renders BYTE-FOR-BYTE (the same lock as
+   *  `parcels`/`uatCriteria`; the public website fold never sends it). */
+  garden?: SceneGardenInput;
 }
 
 /** DORMANT: the scene-graph's def id the baked standing-stone once used (ADR-0218). No longer emitted
  *  (the stone-in-scene instance retired with the tall-flower markers, grounded-art inc 7); KEPT exported
  *  as the seam's documented def-id pattern for a future baked object type. */
 export const BAKED_STONE_DEF = 'baked-standing-stone';
+
+// ---------------------------------------------------------------------------
+// the cosy-island GARDEN composition (grounded-art inc 11, ADR-0221 / re-lit ADR-0218)
+// ---------------------------------------------------------------------------
+//
+// The first LIVE consumer of ADR-0218's fenced baked-art seam. When `SceneInput.garden` is present, the
+// named exemplar island composes as the concept garden (docs/research/grounded-art-concept): the four
+// inc-10 heroes (cottage, gazebo, autumn-tree, stepping-stone) placed as `baked-use` references to
+// `baked-def`s the surface folds from procedural-architecture's `kit.json` `heroes`, with the island's
+// decorative flora (conifers / capability plants / parcel flora / the 1:1 UAT-flower scatter) SUPPRESSED
+// and the `autumn-tree` hero standing as the central tree (ADR-0221, studio flag path only). ABSENT ⇒
+// every island renders BYTE-FOR-BYTE — the same absence lock as `parcels`/`uatCriteria`; the public
+// website fold never sends it.
+
+/** The four cosy-island hero ids, keyed to `kit.json`'s `heroes` array. */
+export type GardenHeroId = 'cottage' | 'gazebo' | 'autumn-tree' | 'stepping-stone';
+
+/** A baked hero's resolved-paint drawables + its baked box, folded by the SURFACE from
+ *  procedural-architecture's `kit.json` `heroes` (the core imports nothing new — the def data is
+ *  opaque surface-supplied data, exactly like `coastPaths`). One `baked-def` is emitted per hero
+ *  (define-once, ADR-0069) and referenced by every placement `baked-use`. `width`/`height` are the
+ *  baked box, so a placement scales the solid to a target on-island envelope. */
+export interface SceneGardenHero {
+  nodes: BakedPaintNode[];
+  width: number;
+  height: number;
+}
+
+/** The garden composition input (grounded-art inc 11, ADR-0221). PRESENT ⇒ the island whose id is
+ *  `islandId` composes as the concept garden (heroes placed, flora suppressed, `autumn-tree` hero as
+ *  the central tree). ABSENT ⇒ every island renders byte-for-byte (the public website never sends it). */
+export interface SceneGardenInput {
+  /** which territory id composes as a garden — the studio exemplar island (`studio`). */
+  islandId: string;
+  /** the four heroes' baked defs, keyed by their `kit.json` id. */
+  heroes: Record<GardenHeroId, SceneGardenHero>;
+}
 
 // ---------------------------------------------------------------------------
 // node factories — terse, drop-undefined construction
@@ -2111,6 +2154,142 @@ function buildTerritorySurface(t: SceneTerritoryInput, ownerCells: RelaxedCell[]
 }
 
 // ---------------------------------------------------------------------------
+// the cosy-island GARDEN — hero placement + the re-lit ADR-0218 baked-art seam (grounded-art inc 11)
+// ---------------------------------------------------------------------------
+
+/** The scene-graph def id a garden hero's `baked-use` references (ADR-0218 define-once). */
+const gardenDefId = (id: GardenHeroId): string => `garden-hero-${id}`;
+
+/** The heroes the garden emits a `baked-def` for (define-once) — kept in sync with what
+ *  `buildGardenArt` places, so no def is an orphan `<use>`-less `<defs>` entry. The stepping-stone
+ *  path (unit 2) adds its id when it places stones. */
+const GARDEN_DEFINED_HEROES: GardenHeroId[] = ['autumn-tree', 'cottage', 'gazebo'];
+
+/** A hero's on-island target HEIGHT in map units, as a multiple of the island's crown radius so it
+ *  scales with the story like the procedural tree it stands beside. Tuned against the concept render. */
+const GARDEN_HERO_TARGET: Record<GardenHeroId, number> = {
+  'autumn-tree': 2.6, // the central tree — matches the ~2.65·R procedural tree it replaces (ADR-0221)
+  cottage: 1.7,
+  gazebo: 1.5,
+  'stepping-stone': 0.5, // the path stones (grounded-art inc 11 unit 2)
+};
+
+/** Place ONE garden hero as a paint-free `baked-use` of its def, scaled from its baked box to a target
+ *  on-island height and translated to (x, y): the hero's base sits at (x, y) and the solid rises in −y
+ *  (the bake is centred on x=0, standing on y=0 — no flip). Kind `baked-art` is the existing ADR-0218
+ *  placement kind — the studio/website mappers already render it; R3F already skips it. */
+function gardenHeroUse(
+  id: GardenHeroId,
+  hero: SceneGardenHero,
+  x: number,
+  y: number,
+  crownR: number,
+): SceneBakedUse {
+  const s = (crownR * GARDEN_HERO_TARGET[id]) / hero.height;
+  return {
+    el: 'baked-use',
+    defId: gardenDefId(id),
+    kind: 'baked-art',
+    id: `garden-${id}`,
+    transform: `translate(${f(x)} ${f(y)}) scale(${f(s)})`,
+  };
+}
+
+/** Deterministically place the free-standing garden heroes (cottage, gazebo) around the island — the
+ *  same id-seeded rejection sampling the UAT-flower scatter uses: keep-outs for the tree well, the
+ *  nameplate band and spacing from each other, and a keep-IN to the island's land cells (no hero in the
+ *  water). Same input ⇒ the same spots; exhausting the draws snaps to the nearest free land-cell centroid. */
+function placeGardenHeroes(
+  t: SceneTerritoryInput,
+  ids: GardenHeroId[],
+  land: RelaxedCell[] | null,
+): Map<GardenHeroId, Pt> {
+  const onLand = (x: number, y: number): boolean =>
+    !land || land.some((c) => pointInPoly(x, y, c.poly));
+  const placed: Pt[] = [];
+  const out = new Map<GardenHeroId, Pt>();
+  for (const id of ids) {
+    const k = hash(`${t.id}:garden:${id}`);
+    let x = t.centroid.x;
+    let y = t.centroid.y;
+    let settled = false;
+    for (let attempt = 0; attempt < 24; attempt++) {
+      const ang = rand01(k + attempt * 2) * Math.PI * 2;
+      const rr = (0.42 + rand01(k + attempt * 2 + 1) * 0.4) * t.radius;
+      x = t.centroid.x + Math.cos(ang) * rr;
+      y = t.centroid.y + Math.sin(ang) * rr * 0.7; // top-down squash, same as the marker scatter
+      const clearsTree = Math.hypot(x - t.treeSpot.x, y - t.treeSpot.y) > t.radius * 0.55;
+      const clearsPlate = y < t.labelY - 18;
+      const clearsOthers = placed.every((p) => Math.hypot(x - p.x, y - p.y) > t.radius * 0.6);
+      if (clearsTree && clearsPlate && clearsOthers && onLand(x, y)) {
+        settled = true;
+        break;
+      }
+    }
+    if (!settled && land) {
+      const spots = land
+        .map((cell) => cellCentroid(cell.poly))
+        .sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y));
+      const free =
+        spots.find((p) => placed.every((q) => Math.hypot(p.x - q.x, p.y - q.y) > t.radius * 0.5)) ??
+        spots[0]!;
+      x = free.x;
+      y = free.y;
+    }
+    placed.push({ x, y });
+    out.set(id, { x, y });
+  }
+  return out;
+}
+
+/** The garden island's art drawables (grounded-art inc 11) — the `autumn-tree` hero at the tree spot
+ *  (ADR-0221, replacing the procedural tree), the human-witness signpost RETAINED beside it, and the
+ *  cottage + gazebo placed around the island. Each is a y-sorted `baked-use` so it interleaves in
+ *  painter order with anything else on the island. The caller SUPPRESSES the decorative flora. */
+function buildGardenArt(
+  t: SceneTerritoryInput,
+  garden: SceneGardenInput,
+  ownerCells: RelaxedCell[] | null,
+): Array<{ y: number; node: SceneNode }> {
+  const land = ownerCells && ownerCells.length ? ownerCells : null;
+  const crownR = crownRadius(t.caps);
+  const out: Array<{ y: number; node: SceneNode }> = [];
+
+  // the autumn-tree hero AS the central tree (ADR-0221) — at the story's tree spot.
+  out.push({
+    y: t.treeSpot.y,
+    node: gardenHeroUse('autumn-tree', garden.heroes['autumn-tree'], t.treeSpot.x, t.treeSpot.y, crownR),
+  });
+  // the human-witness signpost is RETAINED beside the hero tree (the seal never leaves).
+  if (t.signpost) {
+    out.push({
+      y: t.treeSpot.y,
+      node: g([buildSignpost(t.signpost, crownR)], {
+        transform: `translate(${f(t.treeSpot.x)} ${f(t.treeSpot.y)})`,
+      }),
+    });
+  }
+  // the free-standing garden heroes — cottage + gazebo, deterministically placed.
+  const spots = placeGardenHeroes(t, ['cottage', 'gazebo'], land);
+  for (const [id, p] of spots) {
+    out.push({ y: p.y, node: gardenHeroUse(id, garden.heroes[id], p.x, p.y, crownR) });
+  }
+  return out;
+}
+
+/** The garden's baked-art DEFINITIONS layer (grounded-art inc 11, re-lighting ADR-0218's dormant seam):
+ *  one `baked-def` per hero the garden USES, define-once. Emitted into the scene so a mapper renders a
+ *  `<defs>` block every placement `baked-use` references. Only USED heroes are defined — no orphan defs. */
+function buildGardenDefs(garden: SceneGardenInput): SceneG {
+  const defs: SceneBakedDef[] = GARDEN_DEFINED_HEROES.map((id) => ({
+    el: 'baked-def',
+    defId: gardenDefId(id),
+    nodes: garden.heroes[id].nodes,
+  }));
+  return g(defs, { kind: 'baked-defs' });
+}
+
+// ---------------------------------------------------------------------------
 // a whole island's flora layer (TerritoryFlora)
 // ---------------------------------------------------------------------------
 
@@ -2126,30 +2305,39 @@ export function buildTerritoryFlora(
   t: SceneTerritoryInput,
   parcelFlora?: ParcelFloraMark[] | null,
   ownerCells?: RelaxedCell[] | null,
+  garden?: SceneGardenInput | null,
 ): SceneG {
   const drawables: { y: number; node: SceneNode }[] = [];
 
-  if (parcelFlora) {
-    // parcels-present: the parcel surface flora IS the island's flora (conifers + plant ring retired).
-    for (const fm of parcelFlora) drawables.push({ y: fm.y, node: fm.node });
+  if (garden) {
+    // the cosy-island GARDEN (grounded-art inc 11, ADR-0221): the four heroes ARE this island's art.
+    // The decorative flora (conifers / capability plants / parcel flora), the procedural central tree,
+    // and the 1:1 UAT-flower scatter are ALL suppressed — the heroes replace them; the `autumn-tree`
+    // hero stands as the central tree. The nameplate + session wisps/claims still layer on below.
+    drawables.push(...buildGardenArt(t, garden, ownerCells ?? null));
   } else {
-    for (const d of t.decor) {
-      const count = 2 + (d.seed % 2);
-      for (let i = 0; i < count; i++) {
-        const a = rand01(d.seed + i * 7) * Math.PI * 2;
-        const rr = rand01(d.seed + i * 13) * HEX_R * 0.55;
-        const x = d.x + Math.cos(a) * rr;
-        const y = d.y + Math.sin(a) * rr * 0.8 + 4;
-        drawables.push({ y, node: buildConifer(x, y, 7 + rand01(d.seed + i) * 4, d.seed + i) });
+    if (parcelFlora) {
+      // parcels-present: the parcel surface flora IS the island's flora (conifers + plant ring retired).
+      for (const fm of parcelFlora) drawables.push({ y: fm.y, node: fm.node });
+    } else {
+      for (const d of t.decor) {
+        const count = 2 + (d.seed % 2);
+        for (let i = 0; i < count; i++) {
+          const a = rand01(d.seed + i * 7) * Math.PI * 2;
+          const rr = rand01(d.seed + i * 13) * HEX_R * 0.55;
+          const x = d.x + Math.cos(a) * rr;
+          const y = d.y + Math.sin(a) * rr * 0.8 + 4;
+          drawables.push({ y, node: buildConifer(x, y, 7 + rand01(d.seed + i) * 4, d.seed + i) });
+        }
       }
+      for (const plant of t.plants) drawables.push({ y: plant.y, node: buildPlant(plant) });
     }
-    for (const plant of t.plants) drawables.push({ y: plant.y, node: buildPlant(plant) });
+    drawables.push({ y: t.treeSpot.y, node: buildTree(t) });
+    // the UAT markers (forest-parcels inc 2; tall flowers, grounded-art inc 7) — each scattered flower
+    // is its OWN y-sorted drawable so it interleaves with the tree + flora by depth. The island's
+    // substrate cells (when known) are the scatter's keep-in. Absent/empty uatCriteria ⇒ nothing (the lock).
+    drawables.push(...buildUatMarkers(t, ownerCells ?? null));
   }
-  drawables.push({ y: t.treeSpot.y, node: buildTree(t) });
-  // the UAT markers (forest-parcels inc 2; tall flowers, grounded-art inc 7) — each scattered flower
-  // is its OWN y-sorted drawable so it interleaves with the tree + flora by depth. The island's
-  // substrate cells (when known) are the scatter's keep-in. Absent/empty uatCriteria ⇒ nothing (the lock).
-  drawables.push(...buildUatMarkers(t, ownerCells ?? null));
   drawables.sort((a, b) => a.y - b.y);
 
   const children: SceneNode[] = drawables.map((d) => d.node);
@@ -2394,12 +2582,14 @@ export function buildScene(input: SceneInput): SceneG {
     const own = ownerCells[i];
     return own ? buildTerritorySurface(t, own) : null;
   });
-  // ADR-0218's fenced baked-art seam (the types, the `baked-defs`/`baked-art` kinds, the mapper's
-  // def/use handling, and the `SceneInput.bakedStone` hook) is KEPT as dormant reusable machinery — but
-  // the stone-in-scene INSTANCE that once fed it retired with the tall-flower markers (grounded-art inc
-  // 7). The markers are flat flowers now, so nothing emits a baked def (an emitted-but-unreferenced def
-  // would be an orphan `<use>`-less `<defs>` entry). A future baked object type re-lights the seam here.
+  // ADR-0218's fenced baked-art seam is RE-LIT here (grounded-art inc 11, ADR-0221): when `input.garden`
+  // is present, its heroes' `baked-def`s are emitted once into a `baked-defs` layer that every hero
+  // placement `baked-use` (in `buildGardenArt`) references. ABSENT ⇒ no defs layer, and every island
+  // renders byte-for-byte (the same absence lock as `parcels`/`uatCriteria`; the public website never
+  // sends `garden`). The heroes compose ONLY onto the island named by `garden.islandId`.
+  const garden = input.garden ?? null;
   const layers: SceneNode[] = [
+    ...(garden ? [buildGardenDefs(garden)] : []),
     buildEmpties(input),
     buildCoast(input),
     buildGround(input, surfaces),
@@ -2407,7 +2597,12 @@ export function buildScene(input: SceneInput): SceneG {
     g(
       [
         ...input.territories.map((t, i) =>
-          buildTerritoryFlora(t, surfaces[i]?.flora ?? null, ownerCells[i] ?? null),
+          buildTerritoryFlora(
+            t,
+            surfaces[i]?.flora ?? null,
+            ownerCells[i] ?? null,
+            garden && garden.islandId === t.id ? garden : null,
+          ),
         ),
         ...buildCaves(input),
       ],

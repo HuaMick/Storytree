@@ -60,6 +60,7 @@ import {
   readControlValue,
   readRenderScene,
   readCosyIsland,
+  readGardenIsland,
   type ControlSpec,
 } from '../lib/worldSettings.js';
 import {
@@ -96,6 +97,7 @@ import {
   factoryScale,
   loadBakedStone,
   loadFactoryKit,
+  loadGardenHeroes,
   usedFactoryBuildings,
   type BakedStoneAsset,
   type FactoryBuilding,
@@ -149,6 +151,7 @@ import {
   trailFillWidth,
   wispBand,
   type SceneInput,
+  type SceneGardenInput,
   type SceneStatus,
   type ScenePlantInput,
   type SceneTerritoryInput,
@@ -1118,6 +1121,7 @@ export function worldToScene(
   claimsByStory: Map<string, ClaimActivity[]> = new Map(),
   departuresByStory: Map<string, DepartedClaim[]> = new Map(),
   bakedStone: BakedStoneAsset | null = null,
+  garden: SceneGardenInput | null = null,
 ): SceneInput {
   return {
     offset: world.offset,
@@ -1140,6 +1144,9 @@ export function worldToScene(
     // ADR-0218: the baked standing-stone solid, supplied only when `?factoryart=on` fetched it. The
     // core swaps each UAT marker's flat body for a `<use>` of this one def; absent ⇒ flat stones.
     ...(bakedStone ? { bakedStone } : {}),
+    // ADR-0221 (grounded-art inc 11): the cosy-island garden, supplied only when `?garden=on` fetched
+    // the heroes. The core composes them onto `garden.islandId`; absent ⇒ every island byte-for-byte.
+    ...(garden ? { garden } : {}),
   };
 }
 
@@ -1963,21 +1970,27 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
   // switch the CSS override block in index.css targets. Off ⇒ no class is ever added, so the
   // default render stays byte-identical.
   const cosyOn = useMemo(() => readCosyIsland(search), [search]);
+  // grounded-art increment 11 (ADR-0221): the cosy-island GARDEN composition, default-off behind
+  // `?garden=on`. It fetches the inc-10 heroes and composes them onto the exemplar `studio` island —
+  // and it renders on the cosy-WARM land (the concept is entirely warm, style-bible.md), so the garden
+  // flag IMPLIES `?cosy`. Off ⇒ no heroes fetched, `SceneInput.garden` absent, every island byte-identical.
+  const gardenOn = useMemo(() => readGardenIsland(search), [search]);
+  const garden = useGardenIsland(gardenOn);
   useEffect(() => {
-    if (!cosyOn) return;
+    if (!cosyOn && !gardenOn) return;
     document.body.classList.add('cosy-island');
     return () => {
       document.body.classList.remove('cosy-island');
     };
-  }, [cosyOn]);
+  }, [cosyOn, gardenOn]);
   const scene = useMemo(
     () =>
       world
         ? buildScene(
-            worldToScene(world, relaxedCells, now, buildsByStory, claimsByStory, departuresByStory, bakedStone),
+            worldToScene(world, relaxedCells, now, buildsByStory, claimsByStory, departuresByStory, bakedStone, garden),
           )
         : null,
-    [world, relaxedCells, now, buildsByStory, claimsByStory, departuresByStory, bakedStone],
+    [world, relaxedCells, now, buildsByStory, claimsByStory, departuresByStory, bakedStone, garden],
   );
 
   // ADR-0169 §3: trails are hidden by default and GROW on island focus. The plan is the
@@ -2961,6 +2974,30 @@ function useBakedStone(enabled: boolean): BakedStoneAsset | null {
     return () => { live = false; };
   }, [enabled]);
   return stone;
+}
+
+/** The exemplar island the cosy-island garden composes onto (grounded-art inc 11, ADR-0221) — the
+ *  `studio` story, whose concept image the whole arc matches. */
+const GARDEN_ISLAND_ID = 'studio';
+
+/**
+ * The cosy-island garden, assembled only when `?garden=on` (ADR-0221) has fetched the inc-10 heroes
+ * from the dynamic kit chunk — `null` until they arrive, and forever if the flag is off. The mirror of
+ * {@link useBakedStone} for the garden composition: until it resolves the exemplar island renders its
+ * normal flora, so the swap is a late repaint rather than a hole in the world.
+ */
+function useGardenIsland(enabled: boolean): SceneGardenInput | null {
+  const [heroes, setHeroes] = useState<SceneGardenInput['heroes'] | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    let live = true;
+    void loadGardenHeroes().then(
+      (h) => { if (live) setHeroes(h); },
+      (err: unknown) => { console.error('garden heroes failed to load; keeping the default island', err); },
+    );
+    return () => { live = false; };
+  }, [enabled]);
+  return enabled && heroes ? { islandId: GARDEN_ISLAND_ID, heroes } : null;
 }
 
 /**
