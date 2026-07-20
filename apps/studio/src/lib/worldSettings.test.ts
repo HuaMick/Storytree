@@ -24,6 +24,7 @@ import {
   resetControls,
   buildShareUrl,
   readRenderScene,
+  readCosyIsland,
   type ControlSpec,
 } from './worldSettings.js';
 
@@ -171,5 +172,23 @@ describe('worldSettings — readRenderScene (scene is now the DEFAULT, ADR-0093 
 
   it('an unknown ?render value falls back to the scene default (not the escape hatch)', () => {
     expect(readRenderScene('?render=wat')).toBe(true);
+  });
+});
+
+describe('worldSettings — readCosyIsland (grounded-art inc 9, default-off cosy palette flag)', () => {
+  it('defaults OFF when no ?cosy param is present', () => {
+    expect(readCosyIsland('')).toBe(false);
+    expect(readCosyIsland('?substrate=hex&layout=solar')).toBe(false);
+  });
+
+  it('?cosy=on / =1 / =true all turn the cosy palette on', () => {
+    expect(readCosyIsland('?cosy=on')).toBe(true);
+    expect(readCosyIsland('?cosy=1')).toBe(true);
+    expect(readCosyIsland('?cosy=true')).toBe(true);
+  });
+
+  it('an unknown ?cosy value stays OFF (no silent typo-activation)', () => {
+    expect(readCosyIsland('?cosy=wat')).toBe(false);
+    expect(readCosyIsland('?cosy=off')).toBe(false);
   });
 });

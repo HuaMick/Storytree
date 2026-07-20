@@ -288,3 +288,15 @@ export function readRenderScene(search: string): boolean {
   // unknown value) is the scene default.
   return render !== 'legacy' && render !== 'inline';
 }
+
+/**
+ * grounded-art increment 9 (ADR-0219 / `docs/research/grounded-art-concept/style-bible.md`): the
+ * cosy palette lift is a CSS-only override (colour-is-class, ADR-0093 §4) behind this DEFAULT-OFF
+ * flag. Off ⇒ the live `:root` tokens render untouched (byte-identical); `?cosy=on` (or `=1` /
+ * `=true`) adds the `cosy-island` class the override block in `index.css` targets. The appearance
+ * is the owner's ADR-0070 stage-2 call — this flag is how the look is shown without shipping it.
+ */
+export function readCosyIsland(search: string): boolean {
+  const v = new URLSearchParams(search).get('cosy');
+  return v === 'on' || v === '1' || v === 'true';
+}
