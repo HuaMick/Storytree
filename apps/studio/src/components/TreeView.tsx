@@ -2312,6 +2312,7 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
                   world={world}
                   hidden={hidden}
                   onStampClick={(id) => setHighlightShared(id)}
+                  gardenIslandId={gardenOn ? GARDEN_ISLAND_ID : null}
                 />
               </>
             ) : (
@@ -3071,11 +3072,17 @@ export function StudioWorldChrome({
   world,
   hidden,
   onStampClick,
+  gardenIslandId = null,
 }: {
   world: HexWorld;
   hidden: ReadonlySet<string>;
   /** ADR-0102: clicking an island's stamp highlights the shared island it names in the left panel. */
   onStampClick: (sharedId: string) => void;
+  /** The cosy-island garden's exemplar island id when `?garden` is on (grounded-art inc 11, ADR-0221),
+   *  else null. The garden island carries NO 2D dependency stamps and NO identity-key glyph — the
+   *  concept is a clean garden with no little house glyphs (owner ask 2026-07-20). Every OTHER island
+   *  is untouched, and with the flag off (null) nothing changes. */
+  gardenIslandId?: string | null;
 }): React.JSX.Element {
   // ADR-0217 increment 5: every island's identity drawn as a building the factory produced.
   // Behind a flag because the LOOK is the owner's verdict to give (ADR-0070 stage 2), not ours.
@@ -3102,25 +3109,31 @@ export function StudioWorldChrome({
           ))}
         </g>
       )}
-      {/* The distributed-consumer building stamps each island carries (ADR-0102). */}
+      {/* The distributed-consumer building stamps each island carries (ADR-0102). The cosy-island
+          GARDEN island carries none — the concept is a clean garden, no little house glyphs (ADR-0221). */}
       {world.territories.map((t) =>
-        t.stamps.map((stamp) => (
-          <StoryStamp
-            key={`stamp:${t.story.id}:${stamp.icon}`}
-            story={t.story}
-            icon={stamp.icon}
-            spot={stamp.spot}
-            hidden={hidden}
-            onStampClick={onStampClick}
-            kit={kit}
-          />
-        )),
+        t.story.id === gardenIslandId
+          ? null
+          : t.stamps.map((stamp) => (
+              <StoryStamp
+                key={`stamp:${t.story.id}:${stamp.icon}`}
+                story={t.story}
+                icon={stamp.icon}
+                spot={stamp.spot}
+                hidden={hidden}
+                onStampClick={onStampClick}
+                kit={kit}
+              />
+            )),
       )}
       {/* The per-nameplate identity-key glyph (ADR-0102) — the scene draws the plate; this restores
           the key beside it at the SAME world placement the legacy TerritoryFlora used: inside the
           plate group (centroid.x - w/2, labelY), then right of the plate base-aligned to its bottom
           (w + NAMEPLATE_KEY_MARGIN, h). The building-glyph stays false on the map (ADR-0088). */}
       {world.territories.map((t) => {
+        // The garden island shows no identity-key house glyph either — a clean nameplate to match the
+        // concept (ADR-0221); every other island keeps its key. Flag off ⇒ gardenIslandId is null.
+        if (t.story.id === gardenIslandId) return null;
         const plate = nameplateLayout(t.story.id.length, t.buildingGlyph);
         const x = t.centroid.x - plate.w / 2 + plate.w + NAMEPLATE_KEY_MARGIN;
         const y = t.labelY + plate.h;

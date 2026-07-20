@@ -133,6 +133,12 @@ export type SceneKind =
   | 'tall-flower-center'
   | 'tall-flower-bud'
   | 'tall-flower-glow'
+  // the cosy-island GARDEN's flat decorative accents (grounded-art inc 11 unit 3) — a lavender bed and
+  // grass tufts in the attested tall-flower FLAT style (no isometric shading; colour is CSS-class,
+  // ADR-0093 §4). Decorative only — they carry no verdict. R3F auto-skips them (the mapper's default).
+  | 'garden-lavender-stem'
+  | 'garden-lavender-head'
+  | 'garden-grass-blade'
   // baked art in the shared scene (ADR-0218) — the fenced paint-carrying family, KEPT as dormant
   // reusable machinery. `baked-defs` is the once-per-scene definition LAYER (a mapper renders it into
   // `<defs>`, non-rendering); `baked-art` is a placement `<use>` referencing a def. The UAT-marker
@@ -2161,9 +2167,9 @@ function buildTerritorySurface(t: SceneTerritoryInput, ownerCells: RelaxedCell[]
 const gardenDefId = (id: GardenHeroId): string => `garden-hero-${id}`;
 
 /** The heroes the garden emits a `baked-def` for (define-once) — kept in sync with what
- *  `buildGardenArt` places, so no def is an orphan `<use>`-less `<defs>` entry. The stepping-stone
- *  path (unit 2) adds its id when it places stones. */
-const GARDEN_DEFINED_HEROES: GardenHeroId[] = ['autumn-tree', 'cottage', 'gazebo'];
+ *  `buildGardenArt` places, so no def is an orphan `<use>`-less `<defs>` entry. `stepping-stone` is
+ *  the garden PATH (unit 2 — one def, N cheap `<use>` stones threading the heroes to the landfall). */
+const GARDEN_DEFINED_HEROES: GardenHeroId[] = ['autumn-tree', 'cottage', 'gazebo', 'stepping-stone'];
 
 /** A hero's on-island target HEIGHT in map units, as a multiple of the island's crown radius so it
  *  scales with the story like the procedural tree it stands beside. Tuned against the concept render. */
@@ -2171,26 +2177,44 @@ const GARDEN_HERO_TARGET: Record<GardenHeroId, number> = {
   'autumn-tree': 2.6, // the central tree — matches the ~2.65·R procedural tree it replaces (ADR-0221)
   cottage: 1.7,
   gazebo: 1.5,
-  'stepping-stone': 0.5, // the path stones (grounded-art inc 11 unit 2)
+  'stepping-stone': 0.28, // small flat path stones — enough of them read as a path, not a few slabs
 };
 
-/** Place ONE garden hero as a paint-free `baked-use` of its def, scaled from its baked box to a target
- *  on-island height and translated to (x, y): the hero's base sits at (x, y) and the solid rises in −y
- *  (the bake is centred on x=0, standing on y=0 — no flip). Kind `baked-art` is the existing ADR-0218
- *  placement kind — the studio/website mappers already render it; R3F already skips it. */
+/** The island-size FIT bound (grounded-art inc 11 unit 2 — the owner's "buildings dont fully land within
+ *  the island" fix). `crownRadius` saturates at 32 regardless of tile quota, so on a SMALL island the
+ *  crown-scaled hero footprint spills past the shore. These caps hold a hero's scaled footprint inside
+ *  the island: the scaled base HALF-WIDTH stays within `HALF·radius`, and the scaled HEIGHT within
+ *  `HEIGHT·radius` so a hero never towers off a tiny island. On a big island (studio) the caps are slack
+ *  and the crown-based target wins — the concept proportions are preserved where there is room. */
+const GARDEN_FIT_HALF_FRAC = 0.42; // scaled base half-width ≤ 0.42·radius (full width ≤ 0.84·radius)
+const GARDEN_FIT_HEIGHT_FRAC = 1.25; // scaled height ≤ 1.25·radius (a standing object may rise a little above)
+
+/** The fitted scale for one hero on island `t`: the crown-based target height, CAPPED so the scaled
+ *  footprint (base half-width and height) stays inside the island (see the FIT constants). Independent
+ *  of the placement point, so a caller can derive the footprint half-width before it places the hero. */
+function fittedHeroScale(id: GardenHeroId, hero: SceneGardenHero, t: SceneTerritoryInput): number {
+  const sTarget = (crownRadius(t.caps) * GARDEN_HERO_TARGET[id]) / hero.height;
+  const sCapW = (2 * GARDEN_FIT_HALF_FRAC * t.radius) / hero.width;
+  const sCapH = (GARDEN_FIT_HEIGHT_FRAC * t.radius) / hero.height;
+  return Math.min(sTarget, sCapW, sCapH);
+}
+
+/** Place ONE garden hero as a paint-free `baked-use` of its def at scale `s`, translated to (x, y): the
+ *  hero's base sits at (x, y) and the solid rises in −y (the bake is centred on x=0, standing on y=0 —
+ *  no flip). Kind `baked-art` is the existing ADR-0218 placement kind — the studio/website mappers
+ *  already render it; R3F already skips it. `s` is the {@link fittedHeroScale} the caller computed. */
 function gardenHeroUse(
   id: GardenHeroId,
-  hero: SceneGardenHero,
   x: number,
   y: number,
-  crownR: number,
+  s: number,
+  nodeId?: string,
 ): SceneBakedUse {
-  const s = (crownR * GARDEN_HERO_TARGET[id]) / hero.height;
   return {
     el: 'baked-use',
     defId: gardenDefId(id),
     kind: 'baked-art',
-    id: `garden-${id}`,
+    id: nodeId ?? `garden-${id}`,
     transform: `translate(${f(x)} ${f(y)}) scale(${f(s)})`,
   };
 }
@@ -2202,36 +2226,50 @@ function gardenHeroUse(
 function placeGardenHeroes(
   t: SceneTerritoryInput,
   ids: GardenHeroId[],
+  halfW: Map<GardenHeroId, number>,
   land: RelaxedCell[] | null,
 ): Map<GardenHeroId, Pt> {
   const onLand = (x: number, y: number): boolean =>
     !land || land.some((c) => pointInPoly(x, y, c.poly));
+  // The WHOLE base footprint on land, not just the base point (grounded-art inc 11 unit 2 — the owner's
+  // "buildings dont fully land within the island" fix). The base spans [x−hw, x+hw] at y, so both ends
+  // AND the midpoint must sit on owned land before a spot is accepted.
+  const footprintOnLand = (x: number, y: number, hw: number): boolean =>
+    onLand(x, y) && onLand(x - hw, y) && onLand(x + hw, y);
   const placed: Pt[] = [];
   const out = new Map<GardenHeroId, Pt>();
   for (const id of ids) {
+    const hw = halfW.get(id) ?? 0;
     const k = hash(`${t.id}:garden:${id}`);
     let x = t.centroid.x;
     let y = t.centroid.y;
     let settled = false;
-    for (let attempt = 0; attempt < 24; attempt++) {
+    // Placed nearer the interior than the marker scatter (0.28–0.62·R vs 0.42–0.82) so a fitted
+    // footprint clears the shore; the footprint check is the hard guarantee, this just seeds it well.
+    for (let attempt = 0; attempt < 48; attempt++) {
       const ang = rand01(k + attempt * 2) * Math.PI * 2;
-      const rr = (0.42 + rand01(k + attempt * 2 + 1) * 0.4) * t.radius;
+      const rr = (0.28 + rand01(k + attempt * 2 + 1) * 0.34) * t.radius;
       x = t.centroid.x + Math.cos(ang) * rr;
       y = t.centroid.y + Math.sin(ang) * rr * 0.7; // top-down squash, same as the marker scatter
-      const clearsTree = Math.hypot(x - t.treeSpot.x, y - t.treeSpot.y) > t.radius * 0.55;
+      const clearsTree = Math.hypot(x - t.treeSpot.x, y - t.treeSpot.y) > t.radius * 0.5;
       const clearsPlate = y < t.labelY - 18;
-      const clearsOthers = placed.every((p) => Math.hypot(x - p.x, y - p.y) > t.radius * 0.6);
-      if (clearsTree && clearsPlate && clearsOthers && onLand(x, y)) {
+      const clearsOthers = placed.every((p) => Math.hypot(x - p.x, y - p.y) > t.radius * 0.55);
+      if (clearsTree && clearsPlate && clearsOthers && footprintOnLand(x, y, hw)) {
         settled = true;
         break;
       }
     }
     if (!settled && land) {
+      // Snap to the land-cell centroid whose whole footprint fits and that clears the others; fall back
+      // to the nearest free centroid, then the nearest centroid (a tiny island can't always do better).
       const spots = land
         .map((cell) => cellCentroid(cell.poly))
         .sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y));
+      const clearsPlaced = (p: Pt): boolean =>
+        placed.every((q) => Math.hypot(p.x - q.x, p.y - q.y) > t.radius * 0.5);
       const free =
-        spots.find((p) => placed.every((q) => Math.hypot(p.x - q.x, p.y - q.y) > t.radius * 0.5)) ??
+        spots.find((p) => clearsPlaced(p) && footprintOnLand(p.x, p.y, hw)) ??
+        spots.find(clearsPlaced) ??
         spots[0]!;
       x = free.x;
       y = free.y;
@@ -2239,6 +2277,149 @@ function placeGardenHeroes(
     placed.push({ x, y });
     out.set(id, { x, y });
   }
+  return out;
+}
+
+/** The island's downward-shore LANDFALL (grounded-art inc 11 unit 2) — where the garden's stone path
+ *  docks so it reads continuous with the inter-island trail. The concept's path exits at the island's
+ *  bottom (toward the nameplate, the direction trails leave). March DOWN from the centroid and keep the
+ *  furthest point still on owned land, so the dock sits on the shore, not in the water. */
+function islandLandfall(t: SceneTerritoryInput, land: RelaxedCell[] | null): Pt {
+  const onLand = (x: number, y: number): boolean =>
+    !land || land.some((c) => pointInPoly(x, y, c.poly));
+  let best: Pt = { x: t.centroid.x, y: t.centroid.y + t.radius * 0.2 };
+  for (let d = 0.2; d <= 1.05; d += 0.05) {
+    const p: Pt = { x: t.centroid.x, y: t.centroid.y + d * t.radius };
+    if (onLand(p.x, p.y)) best = p;
+  }
+  return best;
+}
+
+/** The deterministic stepping-stone garden PATH (grounded-art inc 11 unit 2) — a seeded walk of small
+ *  `stepping-stone` `baked-use`s threading the `waypoints` (landfall → cottage → tree → gazebo), one
+ *  cheap `<use>` per stone off the ONE shared def. Purely ADDITIVE: `buildTrails` and the segment/casing
+ *  system are untouched — these stones are garden art on the island, not trail segments. Seeded jitter
+ *  gives a natural meander (never `Math.random`). Each stone is y-sorted so it interleaves in depth. */
+function buildStonePath(
+  t: SceneTerritoryInput,
+  hero: SceneGardenHero,
+  waypoints: Pt[],
+): Array<{ y: number; node: SceneNode }> {
+  const s = fittedHeroScale('stepping-stone', hero, t);
+  const stoneW = s * hero.width; // scaled footprint width
+  const spacing = Math.max(stoneW * 1.05, t.radius * 0.06); // stone-centre gap — close enough to read as a path
+  const out: Array<{ y: number; node: SceneNode }> = [];
+  for (let leg = 0; leg + 1 < waypoints.length; leg++) {
+    const a = waypoints[leg]!;
+    const b = waypoints[leg + 1]!;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-3) continue;
+    const ux = dx / len;
+    const uy = dy / len;
+    const px = -uy; // unit perpendicular, for the seeded meander
+    const py = ux;
+    // Interior stones only — leave a margin at each waypoint so a stone doesn't sit under a hero base.
+    const margin = Math.min(stoneW * 0.8, len * 0.2);
+    const usable = len - 2 * margin;
+    if (usable <= 0) continue;
+    const n = Math.max(1, Math.round(usable / spacing));
+    for (let i = 0; i <= n; i++) {
+      const dist = margin + (usable * i) / n;
+      const k = hash(`${t.id}:stone:${leg}:${i}`);
+      const wob = (rand01(k) - 0.5) * spacing * 0.35; // seeded meander in [−0.175, 0.175)·spacing
+      const x = a.x + ux * dist + px * wob;
+      const y = a.y + uy * dist + py * wob;
+      out.push({ y, node: gardenHeroUse('stepping-stone', x, y, s, `garden-stone-${leg}-${i}`) });
+    }
+  }
+  return out;
+}
+
+/** Pull a point onto owned land: if it is already on land keep it; otherwise walk it back toward the
+ *  island centroid until it lands (a garden accent never sits in the water). */
+function towardLand(p: Pt, centroid: Pt, land: RelaxedCell[] | null): Pt {
+  const onLand = (x: number, y: number): boolean => !land || land.some((c) => pointInPoly(x, y, c.poly));
+  if (onLand(p.x, p.y)) return p;
+  for (let tt = 0.7; tt >= 0; tt -= 0.15) {
+    const q: Pt = { x: centroid.x + (p.x - centroid.x) * tt, y: centroid.y + (p.y - centroid.y) * tt };
+    if (onLand(q.x, q.y)) return q;
+  }
+  return centroid;
+}
+
+/** A flat LAVENDER clump (grounded-art inc 11 unit 3) — a few upright stems each topped with a short
+ *  bud spike, in the concept's dusty muted purple. Base at (0,0), growing UP in −y; seeded so no two
+ *  clumps clone. Decorative (carries no verdict), in the attested flat tall-flower style (colour CSS-side). */
+function lavenderMarks(k: number): SceneNode[] {
+  const marks: SceneNode[] = [ellipse(0.3, 0.6, 6, 1.8, { kind: 'shadow' })];
+  const stems = 4 + Math.floor(rand01(k) * 3);
+  for (let i = 0; i < stems; i++) {
+    const dx = (rand01(k + i * 5 + 1) - 0.5) * 11;
+    const h = 13 + rand01(k + i * 5 + 2) * 8;
+    const lean = (rand01(k + i * 5 + 3) - 0.5) * 4;
+    const topX = dx + lean;
+    marks.push(
+      path(`M ${f(dx)} 0 C ${f(dx + lean * 0.5)} ${f(-h * 0.5)}, ${f(topX)} ${f(-h * 0.8)}, ${f(topX)} ${f(-h)}`, {
+        kind: 'garden-lavender-stem',
+        strokeWidth: 1.3,
+      }),
+    );
+    for (let b = 0; b < 4; b++) marks.push(ellipse(topX, -h + b * 2.6, 1.7, 2.3, { kind: 'garden-lavender-head' }));
+  }
+  return marks;
+}
+
+/** A flat GRASS tuft (grounded-art inc 11 unit 3) — a handful of thin arching blades, seeded. Base at
+ *  (0,0), UP in −y; the concept's cosy filler between the hero objects. Decorative, no verdict. */
+function grassMarks(k: number): SceneNode[] {
+  const marks: SceneNode[] = [ellipse(0.3, 0.5, 5, 1.5, { kind: 'shadow' })];
+  const blades = 5 + Math.floor(rand01(k) * 3);
+  for (let i = 0; i < blades; i++) {
+    const dx = (rand01(k + i * 3 + 1) - 0.5) * 9;
+    const h = 9 + rand01(k + i * 3 + 2) * 8;
+    const lean = (rand01(k + i * 3 + 3) - 0.5) * 9;
+    marks.push(
+      path(`M ${f(dx)} 0 Q ${f(dx + lean * 0.5)} ${f(-h * 0.6)}, ${f(dx + lean)} ${f(-h)}`, {
+        kind: 'garden-grass-blade',
+        strokeWidth: 1.5,
+      }),
+    );
+  }
+  return marks;
+}
+
+/** The UAT verdict as a MASSED daisy BED (grounded-art inc 11 unit 3 — the owner's few-hero-objects
+ *  read). Instead of ONE tall-flower scattered per criterion across the whole island (the inc-7 render
+ *  the owner flagged as busy), the criteria cluster into one bed near the garden — each flower KEEPING
+ *  its per-criterion `state` (bloom=proven / bud=pending / wilted=failing — the FORM is the verdict) and
+ *  `id` (the click-to-detail hook, unchanged). The human-witness signpost seal is retained separately.
+ *  A phyllotactic (golden-angle) cluster reads as one dense bed. Empty criteria ⇒ no bed. */
+function buildGardenUatBed(
+  t: SceneTerritoryInput,
+  land: RelaxedCell[] | null,
+  anchor: Pt,
+): Array<{ y: number; node: SceneNode }> {
+  const criteria = t.uatCriteria ?? [];
+  if (!criteria.length) return [];
+  const out: Array<{ y: number; node: SceneNode }> = [];
+  criteria.forEach((c, i) => {
+    const k = hash(`${t.id}:bed:${c.id}`);
+    const ang = i * 2.399963; // golden angle → an even, natural cluster
+    const rr = 3 + Math.sqrt(i) * 8 + (rand01(k) - 0.5) * 3;
+    const p = towardLand({ x: anchor.x + Math.cos(ang) * rr, y: anchor.y + Math.sin(ang) * rr * 0.7 }, anchor, land);
+    const kind: SceneKind =
+      c.state === 'proven' ? 'tall-flower-proven' : c.state === 'failing' ? 'tall-flower-failing' : 'tall-flower-pending';
+    out.push({
+      y: p.y,
+      node: g(tallFlowerMarks(c.state, k), {
+        kind,
+        id: c.id,
+        transform: `translate(${f(p.x)} ${f(p.y)}) scale(${f(MARKER_SCALE * 0.8)})`,
+      }),
+    });
+  });
   return out;
 }
 
@@ -2255,10 +2436,12 @@ function buildGardenArt(
   const crownR = crownRadius(t.caps);
   const out: Array<{ y: number; node: SceneNode }> = [];
 
-  // the autumn-tree hero AS the central tree (ADR-0221) — at the story's tree spot.
+  // the autumn-tree hero AS the central tree (ADR-0221) — at the story's tree spot, FITTED to the island
+  // so its footprint lands within the shore on a small island (unit 2).
+  const treeScale = fittedHeroScale('autumn-tree', garden.heroes['autumn-tree'], t);
   out.push({
     y: t.treeSpot.y,
-    node: gardenHeroUse('autumn-tree', garden.heroes['autumn-tree'], t.treeSpot.x, t.treeSpot.y, crownR),
+    node: gardenHeroUse('autumn-tree', t.treeSpot.x, t.treeSpot.y, treeScale),
   });
   // the human-witness signpost is RETAINED beside the hero tree (the seal never leaves).
   if (t.signpost) {
@@ -2269,10 +2452,52 @@ function buildGardenArt(
       }),
     });
   }
-  // the free-standing garden heroes — cottage + gazebo, deterministically placed.
-  const spots = placeGardenHeroes(t, ['cottage', 'gazebo'], land);
+  // the free-standing garden heroes — cottage + gazebo: each FITTED to the island, then placed so the
+  // whole fitted footprint sits on owned land (unit 2 — the owner's "fully land within the island" fix).
+  const freeIds: GardenHeroId[] = ['cottage', 'gazebo'];
+  const scales = new Map<GardenHeroId, number>(
+    freeIds.map((id) => [id, fittedHeroScale(id, garden.heroes[id], t)]),
+  );
+  const halfW = new Map<GardenHeroId, number>(
+    freeIds.map((id) => [id, (scales.get(id)! * garden.heroes[id].width) / 2]),
+  );
+  const spots = placeGardenHeroes(t, freeIds, halfW, land);
   for (const [id, p] of spots) {
-    out.push({ y: p.y, node: gardenHeroUse(id, garden.heroes[id], p.x, p.y, crownR) });
+    out.push({ y: p.y, node: gardenHeroUse(id, p.x, p.y, scales.get(id)!) });
+  }
+  // the stepping-stone garden PATH (unit 2): the concept's main path runs from the shore LANDFALL up to
+  // the cottage door, then on past the tree to the gazebo — so it docks at the island's inter-island
+  // trail and threads the heroes. Fixed order (landfall → cottage → tree → gazebo) keeps that
+  // front-door leg prominent, matching the reference.
+  const landfall = islandLandfall(t, land);
+  const cottage = spots.get('cottage');
+  const gazebo = spots.get('gazebo');
+  const waypoints: Pt[] = [landfall];
+  if (cottage) waypoints.push(cottage);
+  waypoints.push({ x: t.treeSpot.x, y: t.treeSpot.y });
+  if (gazebo) waypoints.push(gazebo);
+  out.push(...buildStonePath(t, garden.heroes['stepping-stone'], waypoints));
+
+  // flat decorative accents + the UAT verdict (unit 3): a lavender clump beside the cottage, the UAT
+  // verdict as a MASSED daisy bed beside the gazebo, and a couple of grass tufts in the open — all flat,
+  // seeded, clamped to owned land. This is the cosy garden read the concept has, and it folds the
+  // per-criterion verdict into ONE bed instead of the busy 1:1 island-wide scatter.
+  const cen = t.centroid;
+  const accentScale = crownR / 26;
+  if (cottage) {
+    const a = towardLand({ x: cottage.x - crownR * 0.85, y: cottage.y + crownR * 0.4 }, cen, land);
+    out.push({ y: a.y, node: g(lavenderMarks(hash(`${t.id}:lavender`)), { transform: `translate(${f(a.x)} ${f(a.y)}) scale(${f(accentScale)})` }) });
+  }
+  const bedAnchor = gazebo
+    ? towardLand({ x: gazebo.x + crownR * 0.9, y: gazebo.y + crownR * 0.3 }, cen, land)
+    : towardLand({ x: cen.x + crownR, y: cen.y + crownR * 0.5 }, cen, land);
+  out.push(...buildGardenUatBed(t, land, bedAnchor));
+  for (let i = 0; i < 3; i++) {
+    const k = hash(`${t.id}:grass:${i}`);
+    const ang = rand01(k) * Math.PI * 2;
+    const rr = (0.4 + rand01(k + 1) * 0.32) * t.radius;
+    const gp = towardLand({ x: cen.x + Math.cos(ang) * rr, y: cen.y + Math.sin(ang) * rr * 0.7 }, cen, land);
+    out.push({ y: gp.y, node: g(grassMarks(k), { transform: `translate(${f(gp.x)} ${f(gp.y)}) scale(${f(accentScale)})` }) });
   }
   return out;
 }
