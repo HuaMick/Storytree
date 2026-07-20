@@ -90,9 +90,10 @@ unit and the spine-verdict gap are structural, not behavioural).
   `check:boundaries` on both sides.
 - **Cost:** one more story to orient on; the grounded-art arc now spans two organisms (factory +
   scene-graph) and increments must name which they claim.
-- **Cost / watch:** the routing rule (decision 4) is discipline until it is graduated into agent
-  guidance; sessions that skip orientation can still over-claim. The noticeboard's same-unit
-  refusal remains the backstop.
+- **Cost / watch:** the routing rule (decision 4) was discipline until graduated into agent
+  guidance — done 2026-07-21: the Library principle `claim-the-owning-story` (generalised beyond
+  the forest surface) now carries it, cited on the session-orchestrator's floor. Sessions that
+  skip orientation can still over-claim; the noticeboard's same-unit refusal remains the backstop.
 - The `forest-world-capability-floor` proposal retires when this lands (its readiness already
   points here).
 
