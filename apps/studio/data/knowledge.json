@@ -1080,6 +1080,25 @@
   },
   {
     "kind": "principle",
+    "id": "claim-the-owning-story",
+    "title": "Claim the story that owns the writes",
+    "description": "A session claims the story that OWNS the files its unit will write - resolved from registered ownership - never the story the change superficially resembles.",
+    "references": [
+      "asset:claims-in-the-shared-store",
+      "asset:write-ownership",
+      "asset:defects-amend-the-owning-story",
+      "asset:route-structural-forks-to-story-author",
+      "doc:decisions/0222-split-the-art-factory-into-its-own-story-forest-world-gains.md"
+    ],
+    "createdAt": "2026-07-21T00:00:00.000Z",
+    "updatedAt": "2026-07-21T00:00:00.000Z",
+    "statement": "Route a claim by write-ownership: claim the story that owns the files the unit will write (package ownership in repo-manifest.json, the owning story's registered surface), never the story the change looks or feels like.",
+    "why": "On a surface rendered by several stories, a change RESEMBLES the flagship story while its writes land in files owned elsewhere. Sessions that claim by resemblance all serialise behind the flagship claim - the lock ADR-0222 broke: every forest-look session claimed forest-world while actually writing studio CSS, art-factory kits, or the web mapper - and the ledger stops being honest: the true owner's lane reads free while someone is writing into it. The claim MECHANISM cannot catch this: the same-unit refusal rejects a DUPLICATE claim on one story, but a wrong-story claim is unique by construction, so it sails through. Routing is the session's judgment, which is exactly why it must be principled.",
+    "howToApply": "Before claiming, resolve who owns the files the unit will actually write - repo-manifest.json packageOwnership for package code, the owning story's registered surface for app code - and claim THAT story. The worked example (ADR-0222 decision 4): studio-only CSS/chrome work claims `studio`; art-kit/factory work claims `art-factory`; web-mapper work claims the web lineage; only shared scene-graph changes claim `forest-world`. The tempting move - claiming forest-world because the change is about the forest LOOK - is wrong precisely when the diff never touches forest-world's files. A unit whose writes span two stories' files is a decomposition smell: split it into per-story units sequenced by depends_on, or route the structural gap to story-author. The same-unit refusal (asset:claims-in-the-shared-store) stays the backstop for contention, never the routing oracle.",
+    "schemaVersion": 3
+  },
+  {
+    "kind": "principle",
     "id": "fail-closed-on-dirty-tree",
     "title": "fail-closed-on-dirty-tree",
     "description": "A command that writes attestable evidence refuses to run on a dirty working tree (writes nothing, non-zero exit code).",
@@ -2882,6 +2901,7 @@
       "asset:edit-first-curation",
       "asset:owner-fork-bar",
       "asset:route-structural-forks-to-story-author",
+      "asset:claim-the-owning-story",
       "asset:reference-dont-restate",
       "asset:delegate-exploration-to-digest-subagents",
       "asset:observability-first",
@@ -2930,7 +2950,7 @@
     ],
     "provenance": "Authored 2026-06-14 (ADR-0051) at the owner's steer — 'assemble the orchestrator agent from the library assets, and shape CLAUDE.md from it' — after a finished green unit was wrongly parked in a draft PR. The interactive session / outer-loop role (ADR-0030's human-owns-the-outer-loop), deliberately distinct from the deterministic orchestrator spine (packages/orchestrator). Its discipline lives in the cited ceremonies / principles / guardrails (reference-don't-restate, ADR-0029 §7); CLAUDE.md's operating-discipline region is a generated view of this artifact. No ADRs injected — searched just-in-time. Owner extension (2026-06-21, ADR-0086): the Land step now pushes spawning the librarian-curator to keep the ADR decision log honest, and `adr list` replaces the hand-maintained CLAUDE.md load-bearing list. Owner extension (2026-06-22, ADR-0095): that spawn is generalised to a pre-merge PASS (curate + graduate) — green unit → librarian pass → merge — that also graduates durable agent-memory into the Library, generalising ADR-0067's after-green spawn. Owner extension (2026-06-26, ADR-0110): an ADR for a decision the owner DIRECTED in the design conversation is authored `accepted` (the `adr new --decided` path), not hedged `proposed` for a redundant end-of-flow ratification. Owner extension (2026-07-04, graduated agent-memory per ADR-0095): the Escalate step now cites `stage-the-attestation-experience` — at an operator-attested gate the orchestrator stands up and probes the experience and hands the owner a confirmed-working URL, never a raw command to run and debug. Owner extension (2026-07-06/07, ADR-0168 D1): a **session-retro** step is inserted between the gate and the librarian pass — review the session for friction (what fought you, at what cost, with what evidence) and file at most 3 distilled `friction` items ('nothing to report' is a first-class, free outcome); capture is DISCIPLINE in this generated region, not a per-session compliance gate (a gate would price the ceremony toward retro theater — the backstop is the D4 drain ceiling), and the orchestrator CAPTURES while adjudication belongs to the librarian pass / the graduation-synthesist. It cites the evidence floor `friction-justification-bar` (the evidence must support, at capture too). Owner extension (2026-07-11, ADR-0183): the Decide step gains PLAN CONSUMPTION — when the unit is an arc increment with a `ready` plan, the orchestrator does not re-decompose: it runs the mechanical freshness check first (`storytree plan check <id> --pg`; drift → route back to the `planner` agent for a superseding plan, never repair), adopts a fresh plan's decomposition and takes lanes via the existing claim machinery (ADR-0121/0142) — and the Land step appends the arc's increment-log entry (the durable residue, D1) and flips the consumed plan's status. Plans stay never-mandatory (D6); planless work decomposes as before.",
     "createdAt": "2026-06-14T00:00:00.000Z",
-    "updatedAt": "2026-07-11T00:00:00.000Z",
+    "updatedAt": "2026-07-21T00:00:00.000Z",
     "stepRefs": [
       {
         "step": "1",
