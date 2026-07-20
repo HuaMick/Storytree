@@ -180,6 +180,19 @@ file conflicts).
   bare `node --import tsx packages/cli/src/main.ts` — tsx resolves only through the workspace, so the
   bare form errors `ERR_MODULE_NOT_FOUND 'tsx'` from the worktree root). Presence hooks also self-heal
   via `scripts/presence-hook.sh`.
+- **Worktree slot NEVER created (empty/unregistered, branch at MAIN)?** Distinct from the unprovisioned
+  worktree above: the `.claude/worktrees/<name>` slot is EMPTY and git resolves it UP to the main
+  checkout — the branch was checked out at main first, so `git worktree add` fatally refused
+  (`'<branch>' is already used by worktree at '<main>'`), leaving an unregistered husk (ADR-0033). It
+  fails **OPEN** — `git status`, reads, and CLI reads all succeed against MAIN — so it surfaces only at
+  the first worktree-identity WRITE (`noticeboard declare --pg` → *"Identity is derived from the session
+  worktree"*), many tool-calls in. A `SessionStart` hook (`node packages/cli/worktree-health.mjs --hook`)
+  auto-announces this **when the slot has content** (the populated-husk half-`git worktree remove`
+  variant); an EMPTY slot has no script to run, so at session start ALSO confirm `git worktree list`
+  shows your slot and `pwd` is a populated checkout (or run `node packages/cli/worktree-health.mjs --cwd
+  <slot>` from main). If broken: do NOT build here (writes land in main; the gate's `check:declared`
+  can't pass) and do NOT do mid-build git surgery — **RESTART the session** so the harness recreates the
+  slot, and escalate if it recurs (the creation harness is leaving the branch at main).
 - Gate: `pnpm -r typecheck` · `pnpm -r test` (tests are offline — no DB or API key needed)
 - **Credentials auto-hydrate:** the CLI fills `CLAUDE_CODE_OAUTH_TOKEN` (Claude SDK leaf),
   `STORYTREE_DB_USER` (live `--pg` store) from `~/.storytree/secrets.json` when unset — env always

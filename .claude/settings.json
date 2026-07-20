@@ -15,6 +15,11 @@
           },
           {
             "type": "command",
+            "command": "node packages/cli/worktree-health.mjs --hook",
+            "timeout": 15
+          },
+          {
+            "type": "command",
             "command": "bash scripts/presence-hook.sh start",
             "timeout": 20
           },
