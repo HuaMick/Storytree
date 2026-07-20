@@ -2028,6 +2028,30 @@
     "schemaVersion": 3
   },
   {
+    "id": "calibrate-ceremony-to-stakes",
+    "kind": "principle",
+    "title": "Calibrate ceremony to stakes",
+    "description": "Scale DISCRETIONARY process ceremony — the optional artifacts a change can accrete (a design ADR, a style bible or spec doc, a dedicated arc increment, a per-iteration attestation round-trip) — to the change's reversibility and stakes; a flag-gated, easily-reversible, cosmetic or user-customizable change earns a small PR plus a quick 'looks OK?', not the heavyweight path.",
+    "statement": "Scale DISCRETIONARY process ceremony — the OPTIONAL artifacts a change can accrete: a design ADR, a style bible or spec doc, a dedicated arc increment, a per-iteration operator-attestation round-trip — to the change's REVERSIBILITY and STAKES: a flag-gated, easily-reversible, cosmetic or user-customizable change (a theme, a palette, a copy tweak) earns a small PR plus a quick 'does this look OK?', and the heavyweight path is reserved for load-bearing or hard-to-reverse work; this right-sizes the ceremony AROUND the spine, and never lightens the spine itself (the gate, red-green, and a genuine owner judgment all still stand).",
+    "why": "Ceremony sized for architecture, spent on a throwaway change, IS the cost rather than the value. The clean case: a `?cosy=on` palette lift (byte-identical when the flag is off, a ~20-minute CSS edit a user can later re-skin) accreted a dedicated arc increment and a per-iteration operator-attestation round-trip — and the owner's retro read 'why did this take so long to just change the color theme' and 'the user can customize this at some stage so it's really not something we should have bothered with' (2026-07-20). The failure was defaulting to the full session-orchestrator ceremony REGARDLESS of stakes: every change, however reversible, drew the same weight of process. The over-spend was the DISCRETIONARY layer wrapped around a reversible surface — the dedicated increment and the attestation loop; it was NOT the ADR-0219 pivot decision or the style-bible authorship, which carry independent, durable value and are correctly heavyweight. Right-sizing is judged per change in front of you, never a blanket 'ADRs and style bibles are waste'.",
+    "howToApply": "Before spending a discretionary ceremony artifact, ask of THIS change: what does it cost to undo, and what is its blast radius? Reversible, internal, flag-gated, cosmetic, or user-customizable (a palette, a theme, a copy tweak) — ship a small PR and a quick owner 'looks OK?', and skip the ADR / spec doc / dedicated arc increment / multi-round attestation ceremony. Load-bearing, outward-facing, or hard-to-reverse — take the heavyweight path. Four fences hold, because this lightens ONLY the optional process AROUND the work, never the work's floor: (1) it is NOT `slow-growth-minimum-to-green` — that is the minimum SOURCE to turn one test green; this is the minimum PROCESS CEREMONY for the stakes, and neither ever licenses skipping red-green. (2) The gate is never the discretionary part (`never-bypass-the-gate`): a lighter-ceremony change still lands through `pnpm gate` and a non-draft PR intact. (3) The quick 'looks OK?' is still an OWNER-granted attestation wherever a real no-compiler judgment exists — the agent never self-grants it (`agent-never-self-exempts`); this reduces the weight of ceremony around an owner sign-off, it never removes the owner from a genuine judgment gap. (4) Read this NOT as 'skip attestation to save cost' (`human-witness-is-a-judgment-gap-not-cost`): a no-compiler surface still gets a human witness — just a single quick look, not a multi-increment attestation loop, when the change is reversible.",
+    "references": [
+      "asset:slow-growth-minimum-to-green",
+      "asset:never-bypass-the-gate",
+      "asset:agent-never-self-exempts",
+      "asset:human-witness-is-a-judgment-gap-not-cost",
+      "asset:owner-fork-bar",
+      "asset:plain-language-first",
+      "doc:decisions/0095-agent-memory-graduates-into-the-library-as-a-signal-sourc.md",
+      "doc:decisions/0219-generative-image-models-enter-the-art-pipeline-author-time-o.md",
+      "doc:decisions/0034-process-artifacts-ways-of-working.md"
+    ],
+    "provenance": "Graduated 2026-07-21 (ADR-0095 D7) from agent-memory `calibrate-ceremony-to-stakes` (originSessionId fb7d17bf-fa21-4e15-9385-bdb530dc1682), adjudicated route=principle by the graduation-synthesist. The incident — the `?cosy=on` palette lift (inc 9 / #840) accreting a dedicated arc increment + operator-attestation round-trip on a flag-gated, reversible, user-customizable CSS surface — was verified against the grounded-art-machinery arc log, ADR-0219, and docs/research/grounded-art-concept/style-bible.md. Owner's words on the 2026-07-20 retro: 'can you tell me why this took so long to just change the color theme' and 'the user can customize this at some stage so its really not something we should of bothered with'. States once the proportion-ceremony-to-stakes rule; distinct-axis sibling of `slow-growth-minimum-to-green` (minimum SOURCE) — this is minimum PROCESS. Fenced to preserve `never-bypass-the-gate`, `agent-never-self-exempts`, and `human-witness-is-a-judgment-gap-not-cost` (it lightens discretionary ceremony, never the spine). Primary consumers: session-orchestrator and planner / story-author at decompose-time; wiring it into their `stands on` is a deliberate guidance follow-on, not part of this graduation. `owner-fork-bar` / `plain-language-first` are related cross-refs, not fences.",
+    "createdAt": "2026-07-21T00:00:00.000Z",
+    "updatedAt": "2026-07-21T00:00:00.000Z",
+    "schemaVersion": 3
+  },
+  {
     "id": "uat-proves-the-goal-not-the-surface",
     "kind": "principle",
     "title": "UAT proves the goal, not the surface",
