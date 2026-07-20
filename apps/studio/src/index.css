@@ -124,6 +124,29 @@
   --mono: 'SF Mono', 'Cascadia Code', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
+/* grounded-art increment 9 — cosy palette lift (ADR-0219 / docs/research/grounded-art-concept/
+   style-bible.md), default-off behind ?cosy=on (TreeView.tsx toggles this class on <body>). This
+   RE-DEFINES only the island-facing tokens toward the concept's warm-sage/dusty-blush read; the
+   :root defaults above are left untouched so the flag-off render stays byte-identical. The
+   --flower-* family is deliberately NOT overridden here — it was already tuned to this same
+   concept and owner-attested in increment 7, and is the anchor the rest of the island moves to
+   meet (style-bible.md "the lift this bible enables", item 4). The middle tree / crown tokens and
+   the trail tokens (already warm) are likewise untouched — out of scope for this increment. */
+body.cosy-island {
+  --hex-top-0: #808763; /* grass: bright lime -> muted warm sage (biggest move, style-bible #1) */
+  --hex-top-1: #737a54; /* darker sage bound */
+  --hex-top-2: #8c8663; /* lighter warm-sage bound */
+  --hex-side: #5f6544; /* grass flank follows the tops into sage */
+  --hex-empty: #e8d6cf; /* hex ground: dust warmer/pinker (style-bible #2) */
+  --hex-empty-line: #dcc7bd;
+  --board-2: #ecdace; /* backdrop gradient a touch dustier, matches the hex ground move */
+  --coast-sand: #e4d3c6; /* beach rim: pinker/creamier, less yellow (style-bible #2) */
+  --coast-sand-edge: #d3bdac;
+  --conifer-0: #5e7550; /* purge the cool forest-green -> warm sage-green (style-bible #3) */
+  --conifer-1: #6d8259;
+  --conifer-2: #506a47;
+}
+
 * {
   box-sizing: border-box;
 }

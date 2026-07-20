@@ -59,6 +59,7 @@ import {
   controlByKey,
   readControlValue,
   readRenderScene,
+  readCosyIsland,
   type ControlSpec,
 } from '../lib/worldSettings.js';
 import {
@@ -1955,6 +1956,20 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
   // hole. Absent ⇒ the scene renders flat stones (the public website's byte-for-byte path).
   const factoryOn = useMemo(() => readFactoryArt(search), [search]);
   const bakedStone = useBakedStone(factoryOn);
+  // grounded-art increment 9 (ADR-0219 / style-bible.md): the cosy palette lift is CSS-only
+  // (colour-is-class, ADR-0093 §4) behind `?cosy=on`, default off. The `cosy-island` class is
+  // applied to <body> (not a local wrapper) so it reaches the board backdrop gradient painted
+  // above `.world-frame` as well as every hex/coast/conifer token inside the SVG — a single
+  // switch the CSS override block in index.css targets. Off ⇒ no class is ever added, so the
+  // default render stays byte-identical.
+  const cosyOn = useMemo(() => readCosyIsland(search), [search]);
+  useEffect(() => {
+    if (!cosyOn) return;
+    document.body.classList.add('cosy-island');
+    return () => {
+      document.body.classList.remove('cosy-island');
+    };
+  }, [cosyOn]);
   const scene = useMemo(
     () =>
       world
