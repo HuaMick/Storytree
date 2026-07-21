@@ -1,0 +1,2 @@
+VERDICT: A
+WHY: Panel A's windows are flat, shallow stickers with no depth, while Panel B renders them as properly recessed compound frames with real 3D form.

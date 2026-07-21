@@ -1,0 +1,2 @@
+VERDICT: B
+WHY: In B the dome cap is wrongly drawn in front of the front sail near the hub, an occlusion error, whereas in A that sail correctly passes in front of the dome.

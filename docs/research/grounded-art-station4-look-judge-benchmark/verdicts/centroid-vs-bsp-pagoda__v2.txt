@@ -1,0 +1,2 @@
+VERDICT: B
+WHY: In B a ground-floor window's gold frame is drawn on top of the blue roof eave, protruding onto the roof surface as a depth/occlusion error, while A's windows sit cleanly inside the wall.

@@ -1,0 +1,72 @@
+=== PER PAIR ===
+
+[aperture fix — seams (near map-scale threshold)]
+  seams-vs-compound-mushroom  worse=A  votes=[A,B,A]  agreed=2/3  same=0  false-revert=1
+     · Panel A's stem has stray diagonal beams cutting across the flat panels and cluttering the door opening, while B's stem panels and door read clean.
+     · B's door is a flat brown rectangle with no recess or threshold depth (a flat sticker), while A shows a properly recessed doorway and better-shaded base.
+     · A's top window is a flat frameless gold sticker with no recess and its spots read flatter, while B has a properly recessed framed window and more 3D-shaded spots.
+
+[aperture fix — seams (near map-scale threshold)]
+  seams-vs-compound-pagoda  worse=A  votes=[A,SAME,A]  agreed=2/3  same=1  false-revert=0
+     · Panel A's windows are flat, shallow stickers with no depth, while Panel B renders them as properly recessed compound frames with real 3D form.
+     · Both render identically well with no depth error, stray seam, or broken opening; the only difference is a sub-perceptual shading nuance at the wall-to-roof junctions.
+     · A's windows sit in shallow, flat sticker-like frames, while B gives each window a cleaner compound recess with proper 3D depth.
+
+[objective — depth order (station 3)]
+  centroid-vs-bsp-mushroom  worse=B  votes=[B,B,B]  agreed=3/3  same=0  false-revert=0
+     · In B several white cap spots have red dome facets drawn in front of them, biting triangular notches out of bumps that should sit on top, an occlusion error absent in A.
+     · In B the red cap facets draw over several white spots, cutting wedge notches out of them (one spot even splits into a floating sliver), which are depth/occlusion errors absent in A's clean rounded spots.
+     · Several white cap spots in B (front-center and left) have a sharp triangular red wedge biting into their rim where the cap renders over the dot, a recurring silhouette/occlusion defect absent in A.
+
+[objective — depth order (station 3)]
+  centroid-vs-bsp-pagoda  worse=B  votes=[B,B,B]  agreed=3/3  same=0  false-revert=0
+     · B's gold door frame floats on top of the blue roof eave instead of sitting on the wall, a depth/occlusion error that leaves a broken, half-hidden opening.
+     · In B a ground-floor window's gold frame is drawn on top of the blue roof eave, protruding onto the roof surface as a depth/occlusion error, while A's windows sit cleanly inside the wall.
+     · B's golden door frame is mis-sorted — its top rail floats detached on the blue roof and crosses the eave, with a stray golden post hanging below the left window, while A is clean.
+
+[objective — depth order (station 3)]
+  centroid-vs-bsp-windmill  worse=B  votes=[B,B,B]  agreed=3/3  same=0  false-revert=0
+     · In B the dome cap is wrongly drawn in front of the front sail near the hub, an occlusion error, whereas in A that sail correctly passes in front of the dome.
+     · In B the flat sail panel is sorted in front of its own near frame and plastered over the dome as a flat rectangle, while A keeps the 3D lattice frame and the dome's rounded form.
+     · In B the sail lattice is depth-sorted behind the beam faces, so the arms read as muddy solid planks with rung-tips stray-poking through the surface, whereas A shows a clean lattice on top.
+
+[taste — palette / shading (strong)]
+  flat-vs-shaded-mushroom  worse=A  votes=[A,A,A]  agreed=3/3  same=0  false-revert=0
+     · Panel A's cap is a flat, unshaded single-colour red mass with no light/dark contrast, while B has proper faceted shading and 3D form.
+     · Panel A's cap is a flat, unshaded single-colour red mass with no 3D form, while B's cap has clear light/dark shading that reads as a rounded dome.
+     · A's red cap is a flat uniform mass with no light/dark contrast, while B has shaded facets giving the dome a clear 3D form.
+
+[taste — palette / shading (strong)]
+  oneblue-vs-temple-pagoda  worse=B  votes=[B,B,B]  agreed=3/3  same=0  false-revert=0
+     · Its blue walls merge with the blue roofs into a muddy single-colour mass with weak light/dark contrast, whereas A's brown walls keep the tiers distinct.
+     · B's walls, roofs, and base share one blue tone, collapsing into a muddy single-colour mass with weak contrast, while A's brown walls read distinctly against the blue roofs.
+     · B's walls are the same blue-grey as the roofs, making the whole building a muddy single-colour mass with weak contrast, whereas A's brown walls separate cleanly from the blue roofs.
+
+[taste — reveal depth (subtle)]
+  deep-vs-reveal-pagoda  worse=B  votes=[B,B,B]  agreed=3/3  same=0  false-revert=0
+     · B's deep window recesses expose a stray blue-grey wedge inside each opening, reading as a see-through hole, while A's recesses are cleanly rendered.
+     · B's window recesses are too deep, exposing a bright grey inner reveal wall that reads as a stray light band running down the dark wall and muddling into the stone base, while A's recesses stay clean and read clearly as windows.
+     · B's window recesses are too deep, swallowing the yellow glow and adding a distracting pale reveal band across each opening, while A's shallower recesses read as cleanly lit windows.
+
+[taste — reveal depth (subtle)]
+  flush-vs-reveal-pagoda  worse=B  votes=[B,SAME,B]  agreed=2/3  same=1  false-revert=0
+     · B's windows sit flush with no dark recess frame, reading as flat pasted-on stickers, while A's windows have a shadowed reveal that gives real 3D depth.
+     · Both render clearly recessed windows differing only in reveal tint (dark shadowed vs warm lit), with no occlusion, stray-line, or broken-opening defect, so neither is confidently worse.
+     · B's windows sit flush on the wall as bright flat frames with no recess shadow, looking like stickers, while A's are set into a shadowed opening with proper 3D depth.
+
+
+=== BY BUCKET ===
+  objective — depth order (station 3)
+     pairs=3 judgments=9  agreement=100% (9/9)  same=0  false-revert=0
+  taste — palette / shading (strong)
+     pairs=2 judgments=6  agreement=100% (6/6)  same=0  false-revert=0
+  taste — reveal depth (subtle)
+     pairs=2 judgments=6  agreement=83% (5/6)  same=1  false-revert=0
+  aperture fix — seams (near map-scale threshold)
+     pairs=2 judgments=6  agreement=67% (4/6)  same=1  false-revert=1
+
+=== HEADLINE ===
+  overall agreement:                 89% (24/27)
+  objective depth-order agreement:   100% (9/9)
+  suprathreshold (visible) agreement:95% (20/21)   false-reverts=0
+  baseline (chance, A/B):            ~50%

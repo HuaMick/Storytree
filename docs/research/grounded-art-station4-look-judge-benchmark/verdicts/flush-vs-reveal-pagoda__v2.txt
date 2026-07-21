@@ -1,0 +1,2 @@
+VERDICT: SAME
+WHY: Both render clearly recessed windows differing only in reveal tint (dark shadowed vs warm lit), with no occlusion, stray-line, or broken-opening defect, so neither is confidently worse.

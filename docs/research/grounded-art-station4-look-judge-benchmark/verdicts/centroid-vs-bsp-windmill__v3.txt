@@ -1,0 +1,2 @@
+VERDICT: B
+WHY: In B the sail lattice is depth-sorted behind the beam faces, so the arms read as muddy solid planks with rung-tips stray-poking through the surface, whereas A shows a clean lattice on top.

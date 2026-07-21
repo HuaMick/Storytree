@@ -1,0 +1,2 @@
+VERDICT: B
+WHY: B's gold door frame floats on top of the blue roof eave instead of sitting on the wall, a depth/occlusion error that leaves a broken, half-hidden opening.
