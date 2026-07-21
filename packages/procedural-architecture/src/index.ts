@@ -67,6 +67,15 @@ export { autumnTree, expectedTreePartCount, DEFAULTS as AUTUMN_TREE_DEFAULTS } f
 export type { AutumnTreeParams } from './landscape/autumn-tree.js';
 export { steppingStone, DEFAULTS as STEPPING_STONE_DEFAULTS } from './landscape/stepping-stone.js';
 export type { SteppingStoneParams } from './landscape/stepping-stone.js';
+// The grounded UAT-criteria marker (grounded-art inc 14) — the fourth landscape object type; one
+// parametric module, three verdict states, replacing the flat 2D `tallFlowerMarks` decal.
+export {
+  uatFlower,
+  FLOWER_STATES,
+  expectedFlowerPartCount,
+  DEFAULTS as UAT_FLOWER_DEFAULTS,
+} from './landscape/uat-flower.js';
+export type { UatFlowerParams, FlowerState } from './landscape/uat-flower.js';
 export { HERO_KIT, bakeHeroKit } from './hero-kit.js';
 export type { HeroEntry, BakedHeroEntry } from './hero-kit.js';
 
