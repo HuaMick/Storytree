@@ -1,0 +1,183 @@
+{
+  "selfCheck": [
+    {
+      "object": "mushroom dwelling",
+      "benchNodes": 1394,
+      "realNodes": 1394
+    },
+    {
+      "object": "forest windmill",
+      "benchNodes": 725,
+      "realNodes": 725
+    },
+    {
+      "object": "tiered pagoda",
+      "benchNodes": 222,
+      "realNodes": 222
+    }
+  ],
+  "pairs": [
+    {
+      "id": "centroid-vs-bsp-pagoda",
+      "category": "objective",
+      "object": "tiered pagoda",
+      "fix": "station 3 (draw-order.ts): explicit BSP draw order vs a centroid painter's sort",
+      "worse": "before",
+      "groundTruth": "centroid sort inverts the stacked-eave overlaps (oracle: conflicts>0); BSP order is 0.",
+      "variants": {
+        "before": {
+          "svg": "centroid-vs-bsp-pagoda__before.svg",
+          "oracleConflicts": 27
+        },
+        "after": {
+          "svg": "centroid-vs-bsp-pagoda__after.svg",
+          "oracleConflicts": 0
+        }
+      }
+    },
+    {
+      "id": "centroid-vs-bsp-windmill",
+      "category": "objective",
+      "object": "forest windmill",
+      "fix": "station 3: a sail blade sweeping past the balcony railing — the catalogued inversion",
+      "worse": "before",
+      "groundTruth": "centroid sort paints the far sail blade over the near railing (oracle: conflicts>0); BSP is 0.",
+      "variants": {
+        "before": {
+          "svg": "centroid-vs-bsp-windmill__before.svg",
+          "oracleConflicts": 173
+        },
+        "after": {
+          "svg": "centroid-vs-bsp-windmill__after.svg",
+          "oracleConflicts": 0
+        }
+      }
+    },
+    {
+      "id": "centroid-vs-bsp-mushroom",
+      "category": "objective",
+      "object": "mushroom dwelling",
+      "fix": "station 3: the ground-level door/windows sorting behind the wall they are cut into",
+      "worse": "before",
+      "groundTruth": "centroid sort paints apertures/parts in the wrong depth order (oracle: conflicts>0); BSP is 0.",
+      "variants": {
+        "before": {
+          "svg": "centroid-vs-bsp-mushroom__before.svg",
+          "oracleConflicts": 104
+        },
+        "after": {
+          "svg": "centroid-vs-bsp-mushroom__after.svg",
+          "oracleConflicts": 0
+        }
+      }
+    },
+    {
+      "id": "seams-vs-compound-mushroom",
+      "category": "objective",
+      "object": "mushroom dwelling",
+      "fix": "the aperture fix (176aca90): compound-path opening + edge provenance vs stroked facade strips",
+      "worse": "before",
+      "groundTruth": "stroked subdivision paints seams across the wall / a box around the door that are not real edges.",
+      "variants": {
+        "before": {
+          "svg": "seams-vs-compound-mushroom__before.svg",
+          "oracleConflicts": 0
+        },
+        "after": {
+          "svg": "seams-vs-compound-mushroom__after.svg",
+          "oracleConflicts": 0
+        }
+      }
+    },
+    {
+      "id": "seams-vs-compound-pagoda",
+      "category": "objective",
+      "object": "tiered pagoda",
+      "fix": "the aperture fix: compound-path windows + edge provenance vs stroked facade strips",
+      "worse": "before",
+      "groundTruth": "stroked subdivision draws grid seams across every pierced wall that are not real edges.",
+      "variants": {
+        "before": {
+          "svg": "seams-vs-compound-pagoda__before.svg",
+          "oracleConflicts": 0
+        },
+        "after": {
+          "svg": "seams-vs-compound-pagoda__after.svg",
+          "oracleConflicts": 0
+        }
+      }
+    },
+    {
+      "id": "oneblue-vs-temple-pagoda",
+      "category": "taste",
+      "object": "tiered pagoda",
+      "fix": "the temple palette (warm timber vs cool slate) vs one flat blue mass",
+      "worse": "before",
+      "groundTruth": "without the warm/cool contrast the tiered roof reads as one blue mass (owner call, #823).",
+      "variants": {
+        "before": {
+          "svg": "oneblue-vs-temple-pagoda__before.svg",
+          "oracleConflicts": 0
+        },
+        "after": {
+          "svg": "oneblue-vs-temple-pagoda__after.svg",
+          "oracleConflicts": 0
+        }
+      }
+    },
+    {
+      "id": "flush-vs-reveal-pagoda",
+      "category": "taste",
+      "object": "tiered pagoda",
+      "fix": "the 0.34 reveal (windows recessed with a shaded jamb) vs a flush pane",
+      "worse": "before",
+      "groundTruth": "a flush pane reads as a decal stuck on the wall; 0.34 gives depth (reveal study, DEFAULT_REVEAL).",
+      "variants": {
+        "before": {
+          "svg": "flush-vs-reveal-pagoda__before.svg",
+          "oracleConflicts": 0
+        },
+        "after": {
+          "svg": "flush-vs-reveal-pagoda__after.svg",
+          "oracleConflicts": 0
+        }
+      }
+    },
+    {
+      "id": "deep-vs-reveal-pagoda",
+      "category": "taste",
+      "object": "tiered pagoda",
+      "fix": "the 0.34 reveal vs an over-deep 0.7 reveal",
+      "worse": "before",
+      "groundTruth": "a 0.7 reveal becomes the thing you notice about the building; 0.34 was the owner-scoped depth.",
+      "variants": {
+        "before": {
+          "svg": "deep-vs-reveal-pagoda__before.svg",
+          "oracleConflicts": 0
+        },
+        "after": {
+          "svg": "deep-vs-reveal-pagoda__after.svg",
+          "oracleConflicts": 0
+        }
+      }
+    },
+    {
+      "id": "flat-vs-shaded-mushroom",
+      "category": "taste",
+      "object": "mushroom dwelling",
+      "fix": "N·L shading (facets read as solid form) vs flat plates (every face one tone)",
+      "worse": "before",
+      "groundTruth": "flat shading collapses the isometric solid into flat coloured plates with no read of depth.",
+      "variants": {
+        "before": {
+          "svg": "flat-vs-shaded-mushroom__before.svg",
+          "oracleConflicts": 0
+        },
+        "after": {
+          "svg": "flat-vs-shaded-mushroom__after.svg",
+          "oracleConflicts": 0
+        }
+      }
+    }
+  ]
+}
