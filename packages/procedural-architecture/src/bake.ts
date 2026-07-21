@@ -96,6 +96,18 @@ export const THEMES = {
   // not tiles), a dark timber frame (`trim`), a warm-lit window (`glass`) and a warm
   // putty-STONE chimney (`stone` — no cool grey, per the style bible).
   foresthut:{ wall: '#a67c50', roof: '#bd7a4e', gable: '#9a7145', soffit: '#5f4a33', trim: '#674627', glass: '#f4d38f', door: '#6a4a30', stone: '#a99a82' },
+  // The UAT-criteria marker flower (grounded-art inc 14 — the "grounded flower, still 1:1"
+  // owner direction, 2026-07-21). ONE theme carries all three verdict states; the flower module
+  // picks the state's material NAMES so the geometry stays state-agnostic. The bloom colours match
+  // the owner-attested `--flower-*` family (cream petal `#fbf3e0`, gold centre `#eab94e`) so the
+  // grounded flower sits beside the flat one it replaces rather than reading foreign; the stem and
+  // leaf are the concept's muted warm sage-green, and the failing state mutes petal + centre toward
+  // a dormant, dusty read. No cool grey — the whole family is warm (style-bible.md).
+  flower:   { wall: '#7d9a5a', roof: '#8aa663', gable: '#7d9a5a', soffit: '#5f7742', trim: '#5f7742', glass: '#f4d38f', door: '#5a3a24', stone: '#b8a888',
+              stem: '#6f8a4f', leaf: '#7d9a5a',
+              'petal-proven': '#fbf3e0', 'center-proven': '#eab94e',
+              bud: '#7d9a5a', sepal: '#6f8a4f',
+              'petal-failing': '#cabfa6', 'center-failing': '#9f9176' },
 } satisfies Record<string, Palette>;
 
 /** The themes that ship. A `style` outside this set falls back to `timber`. */
