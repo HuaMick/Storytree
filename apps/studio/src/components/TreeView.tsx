@@ -18,9 +18,9 @@
 // bushes / saplings); one whose last signed run failed — or whose status is
 // unhealthy — withers to a dead plant. There are no ✓/✗ badges in the world:
 // the hue IS the verdict (precise facts stay in the panel and tooltips). A
-// signpost marks a HUMAN-witnessed story (uat_witness absent or human):
-// dashed-blank until the operator's UAT ceremony signs a verdict, a filled
-// seal after; machine-witnessed stories carry none.
+// human-witnessed story's UAT proof reads from the crown's hue and its UAT
+// flower markers, never a separate signpost (the signpost drawable was retired
+// in grounded-art inc 15 — redundant with the flowers + the crown bloom).
 // Story-level `depends_on` (∪ derived cross-story capability deps) renders as
 // roads; hovering a territory lights its upstream chain (gold) vs downstream
 // dependents (red) — the focus interaction carried from V1's
@@ -1067,9 +1067,6 @@ function territoryToScene(
       ? { uatCriteria: story.uatCriteria.map((c) => ({ id: c.id, state: c.state })) }
       : {}),
     treeTitle: `${story.id} — ${story.error ? 'story spec error' : st}${verdictNote}`,
-    ...(story.uatWitness === 'human'
-      ? { signpost: { outcome: story.verdict?.outcome ?? null } }
-      : {}),
     ...(bloom ? { bloom: { ageRatio: bloom.ageRatio, outcome: bloom.outcome } } : {}),
     // ADR-0212: the separate build-wisp LAYER is no longer fed. Wisp count encodes SESSIONS, and a
     // session that both HOLDS and BUILDS a story used to draw two orbiting bodies 12px apart — an
@@ -2616,10 +2613,10 @@ function LandingBloom({
  * withers it to a sparse drooped crown with bare branches and leaf-fall.
  * Retired stories never reach this component (worldStatus.ts prunes them),
  * and the status arrives PROVEN (provenStatus): a green or withered crown is
- * the story's OWN UAT verdict speaking, never a child roll-up. The signpost
- * is the human-witness mark (ADR-0040): only uat_witness-human stories carry
- * one — dashed-blank until their UAT verdict is signed, a filled seal after
- * (the seal echoes the crown's hue; the FILL is the new bit).
+ * the story's OWN UAT verdict speaking, never a child roll-up (ADR-0040). The
+ * human-witness signpost that once stood beside the tree was retired in
+ * grounded-art inc 15 — the crown's hue + the UAT flower markers now carry that
+ * proof, so no separate signpost drawable is emitted.
  */
 // The per-island ICON glyph (ADR-0102 §1): every island has its OWN deterministic identity icon
 // — a distinct silhouette SHAPE bucket filled by its HUE, with a 1–2 char MONOGRAM for up-close
@@ -3773,18 +3770,6 @@ function StoryTree({
           kind="crown"
         />
       )}
-      {story.uatWitness === 'human' && (
-        <g
-          className={`story-sign ${
-            story.verdict ? `sign-witnessed verdict-${story.verdict.outcome}` : 'sign-blank'
-          }`}
-          transform={`translate(${(R * 0.7 + 9).toFixed(1)} 0)`}
-        >
-          <ellipse className="flora-shadow" cx={0.6} cy={0.8} rx={4} ry={1.6} />
-          <rect x={-1.3} y={-15} width={2.6} height={15} rx={1.1} />
-          <circle cy={-18} r={6.5} />
-        </g>
-      )}
     </g>
   );
 }
@@ -4069,7 +4054,7 @@ function TerritoryFlora({
         <text className="world-plate-sub" x={plate.w / 2} y={plate.subY} textAnchor="middle">
           {story.error
             ? 'story spec error'
-            : // No ✓/✗ here — the crown's hue and the signpost carry proof (ADR-0040);
+            : // No ✓/✗ here — the crown's hue carries proof (ADR-0040);
               // precise verdict facts live in the tooltip and the panel.
               `${statusKey} · ${story.capabilities.length} caps`}
         </text>

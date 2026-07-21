@@ -109,21 +109,15 @@ export type SceneKind =
   | 'crown-hi'
   | 'bare'
   | 'litter'
-  // the human-witness signpost
-  | 'sign-blank'
-  | 'sign-pass'
-  | 'sign-fail'
-  | 'sign-post'
-  | 'sign-head'
-  // the UAT markers (forest-parcels inc 2; stones → tall flowers, grounded-art inc 7). The story's UAT
-  // criteria as TALL-FLOWER markers scattered deterministically around the island. The owner rejected
-  // the standing-stones as noisy/colliding (#832) and directed a cosy stand-in (2026-07-20): one soft,
-  // flat flower per criterion, its STATE read from FORM — a bloomed daisy = proven, a closed bud =
-  // pending, a wilted nodding head = failing (the `sign-blank/pass/fail` precedent). The WRAPPER kind
-  // encodes the state + carries the criterion id; the body marks come from the `tallFlowerMarks` painter
-  // on the child kinds below (+ the shared `shadow`). Colour stays CSS-side (ADR-0093 §4). No group
-  // kind: each flower is its own y-sorted drawable inside the territory, so painter depth interleaves
-  // with the tree + flora.
+  // the UAT markers (forest-parcels inc 2; stones → tall flowers, grounded-art inc 7; small flowers
+  // folded into the grass, inc 15). The story's UAT criteria as SMALL-FLOWER markers scattered across
+  // the island's grass — one small flower per criterion, its STATE read from FORM: a bloomed flower =
+  // UAT passed (a signed pass, ADR-0045), a closed bud = awaiting UAT, a wilted head = failing. The
+  // WRAPPER kind encodes the state + carries the criterion id; the body marks come from the
+  // `tallFlowerMarks` painter on the child kinds below (+ the shared `shadow`). Colour stays CSS-side
+  // (ADR-0093 §4). No group kind: each flower is its own y-sorted drawable inside the territory, so
+  // painter depth interleaves with the grass + tree. (The human-witness signpost that once stood beside
+  // the tree was retired in inc 15 — redundant with these UAT flowers + the crown verdict bloom.)
   | 'tall-flower-proven'
   | 'tall-flower-pending'
   | 'tall-flower-failing'
@@ -513,17 +507,15 @@ export interface SceneTerritoryInput {
   parcels?: SceneParcelInput[];
   /** The crown tooltip (surface vocabulary). */
   treeTitle: string;
-  /** Present only for a human-witness story; `outcome` null = a blank (unsigned) seal. */
-  signpost?: { outcome: 'pass' | 'fail' | null };
-  /** The UAT markers (forest-parcels inc 2; tall flowers, grounded-art inc 7). When PRESENT and
-   *  non-empty, the island grows ONE tall-flower marker per criterion, SCATTERED deterministically
-   *  around the island (each spot is id-seeded with keep-outs for the tree well, the signpost, the
-   *  nameplate band, and other flowers, and a keep-IN to the island's substrate land cells so no flower
-   *  drifts into the water). Each criterion's `state` is encoded in its wrapper KIND
+  /** The UAT markers (forest-parcels inc 2; tall flowers grounded-art inc 7; small flowers folded into
+   *  the grass, inc 15). When PRESENT and non-empty, the island grows ONE small flower per criterion,
+   *  SCATTERED deterministically across the island's grass (each spot is id-seeded with keep-outs for
+   *  the tree well, the nameplate band, and other flowers, and a keep-IN to the island's substrate land
+   *  cells so no flower drifts into the water). Each criterion's `state` is encoded in its wrapper KIND
    *  (`tall-flower-proven`/`-pending`/`-failing`) and its `id` carried as the node id (the
-   *  hover/delegation hook). The human-witness `signpost` seal is RETAINED unconditionally — the markers
-   *  never replace it. OPTIONAL and back-compat: ABSENT ⇒ today's island renders BYTE-FOR-BYTE (the
-   *  public website fold never sends it and must be unchanged). */
+   *  hover/delegation hook). The honesty wall holds (ADR-0045): only a signed UAT pass (`proven`) blooms
+   *  — a `pending` bud is never a bloom. OPTIONAL and back-compat: ABSENT ⇒ today's island renders
+   *  BYTE-FOR-BYTE (the public website fold never sends it and must be unchanged). */
   uatCriteria?: { id: string; state: MarkerState }[];
   /** The crown bloom, folded by the surface; omitted when withered or none. */
   bloom?: { ageRatio: number; outcome: 'pass' | 'fail' };
@@ -781,7 +773,6 @@ export function buildTree(t: SceneTerritoryInput): SceneG {
   }
 
   if (t.bloom) children.push(buildBloom(t.id, t.bloom, 0, cy, R * 1.18, 'crown'));
-  if (t.signpost) children.push(buildSignpost(t.signpost, R));
 
   return g(children, {
     kind: 'tree',
@@ -791,41 +782,27 @@ export function buildTree(t: SceneTerritoryInput): SceneG {
   });
 }
 
-/** The human-witness signpost — a dashed-blank seal until the UAT verdict is
- *  signed, a filled seal (echoing the verdict's hue) after. The studio shows the
- *  state via the group class; the post + head shapes are the shared geometry. */
-function buildSignpost(s: { outcome: 'pass' | 'fail' | null }, R: number): SceneG {
-  const kind: SceneKind =
-    s.outcome === null ? 'sign-blank' : s.outcome === 'pass' ? 'sign-pass' : 'sign-fail';
-  return g(
-    [
-      ellipse(0.6, 0.8, 4, 1.6, { kind: 'shadow' }),
-      rect(-1.3, -15, 2.6, 15, 1.1, { kind: 'sign-post' }),
-      circle(0, -18, 6.5, { kind: 'sign-head' }),
-    ],
-    { kind, transform: `translate(${f(R * 0.7 + 9)} 0)` },
-  );
-}
-
 // ---------------------------------------------------------------------------
-// the UAT markers (forest-parcels inc 2; stones → tall flowers, grounded-art inc 7)
+// the UAT markers (forest-parcels inc 2; stones → tall flowers, grounded-art inc 7; small flowers
+// folded into the grass, inc 15)
 // ---------------------------------------------------------------------------
 //
-// A uatCriteria-present island grows ONE tall-flower marker per criterion, SCATTERED deterministically
-// around the island. The standing-stones the placement first carried (owner call 2026-07-18) were
-// rejected as noisy/colliding (#832) and replaced with a cosy stand-in (owner call 2026-07-20): a soft
-// flat flower whose FORM reads the verdict. Each spot is id-seeded with keep-outs for the tree well
-// (which also covers the signpost beside it), the nameplate band, and the other flowers — and a keep-IN
-// to the island's substrate land cells (no flower in the water); every flower is its OWN y-sorted
-// drawable so it interleaves honestly with the tree + flora in painter order. The human-witness signpost
-// seal is RETAINED. Everything is seeded from the story id via the existing `hash`/`rand01` helpers —
-// same input ⇒ byte-identical output.
+// A uatCriteria-present island grows ONE SMALL flower per criterion, SCATTERED deterministically across
+// the island's grass. The standing-stones the placement first carried (owner call 2026-07-18) were
+// rejected as noisy/colliding (#832) and replaced with a flat flower whose FORM reads the verdict
+// (2026-07-20); the owner then directed a unified vegetation vocabulary (inc 15): the flower is now
+// SMALL and folded into the grass — grass = a capability's tests, a flower = the story's UAT. Each spot
+// is id-seeded with keep-outs for the tree well, the nameplate band, and the other flowers — and a
+// keep-IN to the island's substrate land cells (no flower in the water); every flower is its OWN
+// y-sorted drawable so it interleaves honestly with the grass + tree in painter order. Everything is
+// seeded from the story id via the existing `hash`/`rand01` helpers — same input ⇒ byte-identical output.
 
 /** THE MARKER-BODY PAINTER (grounded-art inc 7, superseding the ADR-0208 standing-stone splice seam):
  *  a soft, flat, colour-class-driven TALL FLOWER — the cosy stand-in the owner directed after rejecting
  *  the baked standing-stones as "messy and noisy rather than cosy" (#832, 2026-07-20). One flower per
  *  UAT criterion; the verdict is read from its FORM, not a glow: a bloomed daisy = proven, a closed bud
- *  = pending, a wilted nodding head = failing (the `sign-blank/pass/fail` precedent). Contract
+ *  = pending, a wilted nodding head = failing (inc 15 shrank it to a small flower folded into the grass
+ *  and retired the human-witness signpost this form had stood beside). Contract
  *  `(state, k) => SceneNode[]` — marks positioned with the flower's BASE at (0,0), growing UP in −y; `k`
  *  is a hash seed for deterministic jitter (`rand01(k + i)`, never Math.random), so a cluster reads
  *  natural not cloned (lean, height, petal count, rotation all seeded). The wrapper's KIND carries the
@@ -836,27 +813,30 @@ function tallFlowerMarks(state: MarkerState, k: number): SceneNode[] {
   const jx = (n: number): number => rand01(k + n) - 0.5; // per-marker jitter in [-0.5, 0.5)
   const j01 = (n: number): number => rand01(k + n); // per-marker roll in [0, 1)
 
-  const height = 36 + j01(0) * 8; // 36–44u tall — a slender flower, a narrower footprint than the stone
-  const lean = jx(1) * 7; // the whole stalk leans a touch off true vertical (base planted)
+  // inc 15 — a SMALL flower folded into the grass (owner's unified vegetation vocabulary): ~13u tall
+  // local × the 0.6 wrapper = ~8u on the map, so it stands just proud of the grass tufts (~3–6u) rather
+  // than towering like the old 36–44u stalk. All proportions scale down together.
+  const height = 12 + j01(0) * 4; // 12–16u tall
+  const lean = jx(1) * 3; // a small lean off true vertical (base planted)
 
   // the upright head anchor; failing nods it over + sinks it (a wilted, bowed head).
   const upX = lean;
   const upY = -height;
   const nodSide = jx(2) < 0 ? -1 : 1;
   const failing = state === 'failing';
-  const headX = failing ? upX + nodSide * 6.5 : upX;
-  const headY = failing ? upY + 7 : upY;
+  const headX = failing ? upX + nodSide * 2.6 : upX;
+  const headY = failing ? upY + 2.8 : upY;
 
   // the stalk: a gentle cubic from the planted base up to the head. Failing arcs OVER — the second
   // control point pulls above the sunken head so the tip bows down, reading as a wilted stem.
   const stemD = failing
-    ? `M 0 0 C ${f(lean * 0.5)} ${f(-height * 0.5)}, ${f(upX)} ${f(upY - 5)}, ${f(headX)} ${f(headY)}`
-    : `M 0 0 C ${f(lean * 0.5 + jx(3) * 2)} ${f(-height * 0.4)}, ${f(upX * 0.85)} ${f(-height * 0.78)}, ${f(headX)} ${f(headY)}`;
+    ? `M 0 0 C ${f(lean * 0.5)} ${f(-height * 0.5)}, ${f(upX)} ${f(upY - 2)}, ${f(headX)} ${f(headY)}`
+    : `M 0 0 C ${f(lean * 0.5 + jx(3) * 0.8)} ${f(-height * 0.4)}, ${f(upX * 0.85)} ${f(-height * 0.78)}, ${f(headX)} ${f(headY)}`;
 
   const marks: SceneNode[] = [
     // a soft flat ground shadow (reuses the shared `shadow` kind the flora already map to `.flora-shadow`).
-    ellipse(0.4, 0.6, 5.2, 1.7, { kind: 'shadow' }),
-    path(stemD, { kind: 'tall-flower-stem', strokeWidth: 2.2 }),
+    ellipse(0.2, 0.3, 2.3, 0.8, { kind: 'shadow' }),
+    path(stemD, { kind: 'tall-flower-stem', strokeWidth: 1.1 }),
   ];
 
   // two small leaves along the stalk, alternating sides, angled up-and-out — seeded so they vary.
@@ -868,7 +848,7 @@ function tallFlowerMarks(state: MarkerState, k: number): SceneNode[] {
     const ly = -height * t;
     const lx = lean * t;
     marks.push(
-      ellipse(lx + side * 3.4, ly, 4.0 + jx(10 + i) * 0.9, 1.8, {
+      ellipse(lx + side * 1.4, ly, 1.7 + jx(10 + i) * 0.4, 0.8, {
         kind: 'tall-flower-leaf',
         transform: `rotate(${f(side * (34 + jx(12 + i) * 12))} ${f(lx)} ${f(ly)})`,
       }),
@@ -879,55 +859,55 @@ function tallFlowerMarks(state: MarkerState, k: number): SceneNode[] {
     // a soft warm glow behind the bloom — proven ONLY, low opacity, calm (no sparks: the owner's noise
     // complaint). Drawn first so the petals sit crisp on top.
     marks.push(
-      circle(headX, headY, 10.5, { kind: 'tall-flower-glow', opacity: 0.1 }),
-      circle(headX, headY, 6.8, { kind: 'tall-flower-glow', opacity: 0.16 }),
+      circle(headX, headY, 4.2, { kind: 'tall-flower-glow', opacity: 0.1 }),
+      circle(headX, headY, 2.7, { kind: 'tall-flower-glow', opacity: 0.16 }),
     );
-    // 7–8 soft petals radiating around the centre disc — a full daisy (the concept's flower). Each petal
-    // is a slender elongated ellipse rooted at the head centre and rotated into place; count + angle +
-    // length are seeded so no two flowers are identical.
-    const petals = 7 + (j01(5) > 0.5 ? 1 : 0);
+    // 6–7 soft petals radiating around the centre disc — a small daisy. Each petal is a slender
+    // elongated ellipse rooted at the head centre and rotated into place; count + angle + length are
+    // seeded so no two flowers are identical.
+    const petals = 6 + (j01(5) > 0.5 ? 1 : 0);
     for (let i = 0; i < petals; i++) {
       const ang = (i / petals) * 360 + jx(20 + i) * 10;
-      const plen = 6.8 + jx(30 + i) * 1.1;
+      const plen = 2.6 + jx(30 + i) * 0.5;
       marks.push(
-        ellipse(headX, headY - plen, 2.15, plen, {
+        ellipse(headX, headY - plen, 0.85, plen, {
           kind: 'tall-flower-petal',
           transform: `rotate(${f(ang)} ${f(headX)} ${f(headY)})`,
         }),
       );
     }
-    marks.push(circle(headX, headY, 3.4, { kind: 'tall-flower-center' }));
+    marks.push(circle(headX, headY, 1.35, { kind: 'tall-flower-center' }));
   } else if (failing) {
     // a wilted, nodding head: petals all droop into the lower arc, sitting low + to one side on the
     // bowed stem — the muted colour resolves CSS-side. No glow (dormant/failing is not a bloom).
-    const petals = 6;
+    const petals = 5;
     for (let i = 0; i < petals; i++) {
       const ang = 112 + (i / (petals - 1)) * 136 + jx(20 + i) * 12; // 112–248°: hangs down + out
-      const plen = 5.8 + jx(30 + i) * 1.0;
+      const plen = 2.3 + jx(30 + i) * 0.45;
       marks.push(
-        ellipse(headX, headY - plen, 1.95, plen, {
+        ellipse(headX, headY - plen, 0.78, plen, {
           kind: 'tall-flower-petal',
           transform: `rotate(${f(ang)} ${f(headX)} ${f(headY)})`,
         }),
       );
     }
-    marks.push(circle(headX, headY, 2.9, { kind: 'tall-flower-center' }));
+    marks.push(circle(headX, headY, 1.15, { kind: 'tall-flower-center' }));
   } else {
-    // pending: a closed teardrop bud — calm, unopened; dormant reads as the ABSENCE of bloom (the
-    // stone's dark-rune precedent).
+    // pending: a closed teardrop bud — calm, unopened; awaiting UAT reads as the ABSENCE of bloom (the
+    // honesty wall, ADR-0045: a bud is never a bloom). Only a signed pass ('proven') opens.
     const bx = headX;
     const by = headY;
     const budD =
-      `M ${f(bx)} ${f(by - 10.5)} ` +
-      `C ${f(bx - 3.7)} ${f(by - 7.5)}, ${f(bx - 3.5)} ${f(by - 1.5)}, ${f(bx)} ${f(by)} ` +
-      `C ${f(bx + 3.5)} ${f(by - 1.5)}, ${f(bx + 3.7)} ${f(by - 7.5)}, ${f(bx)} ${f(by - 10.5)} Z`;
+      `M ${f(bx)} ${f(by - 4.1)} ` +
+      `C ${f(bx - 1.45)} ${f(by - 2.9)}, ${f(bx - 1.4)} ${f(by - 0.6)}, ${f(bx)} ${f(by)} ` +
+      `C ${f(bx + 1.4)} ${f(by - 0.6)}, ${f(bx + 1.45)} ${f(by - 2.9)}, ${f(bx)} ${f(by - 4.1)} Z`;
     marks.push(path(budD, { kind: 'tall-flower-bud' }));
   }
 
   return marks;
 }
 
-/** The flower's wrapper scale — kept at the stone's 0.6 so the scatter keep-outs (tree well, spacing,
+/** The flower's wrapper scale — kept at the historical 0.6 so the scatter keep-outs (tree well, spacing,
  *  nameplate band) still hold against the same footprint they were tuned for. The whole marker scales
  *  at the WRAPPER (translate + scale — CSS only ever animates the glow-circle CHILDREN, so the wrapper
  *  transform is never clobbered). */
@@ -1546,26 +1526,17 @@ function meadowSurface(
     parcelFloraItem('meadow', status, y, marks);
 
   // density budget (verbatim): grass is the ramp bulk; shrubs a "grown" mark only where standing bulk
-  // grows (healthy/building/unhealthy); flowers a healthy (mapped-rare) accent.
+  // grows (healthy/building/unhealthy). The decorative wildflower accent was RETIRED (inc 15): the
+  // meadow reads as PURE GRASS so a "flower" on an island means one thing — a UAT criterion.
   const shrubEligible = status === 'healthy' || status === 'building' || status === 'unhealthy';
   let grassCount: number;
   let shrubCount: number;
-  let flowerCount: number;
   if (tests <= 0) {
     grassCount = Math.min(2, cells.length);
     shrubCount = 0;
-    flowerCount = 0;
   } else {
     grassCount = Math.round(2 + tests * 1.9);
     shrubCount = shrubEligible ? Math.round(tests / 2.6) : 0;
-    flowerCount =
-      status === 'healthy'
-        ? Math.round(Math.max(0, tests - 1) * 0.7)
-        : status === 'mapped'
-          ? tests >= 8
-            ? 1
-            : 0
-          : 0;
   }
   if (status === 'unhealthy') shrubCount = Math.round(shrubCount * 0.7);
   if (status === 'unknown') grassCount = Math.round(grassCount * 0.6);
@@ -1630,21 +1601,6 @@ function meadowSurface(
     return marks;
   };
 
-  // mark: flower — stem (parcel-stem v1) + 4-petal blossom (ONE species: petal v0 — the island
-  // agrees on a flower; the old 0/4/5/6 hue rotation read as confetti) + core (v1) + a speck (v2).
-  const flower = (x: number, y: number): SceneNode[] => {
-    const petalV = 0;
-    const top = y - 4.6 - rand() * 1.6;
-    const marks: SceneNode[] = [];
-    marks.push(path(`M ${f(x)} ${f(y)} L ${f(x)} ${f(top + 1.0)}`, { kind: 'parcel-stem', variant: 1, strokeWidth: 0.9 }));
-    for (const [dx, dy] of [[-1.4, 0], [1.4, 0], [0, -1.4], [0, 1.4]] as const) {
-      marks.push(circle(x + dx, top + dy, 1.35, { kind: 'parcel-flower', variant: petalV }));
-    }
-    marks.push(circle(x, top, 1.05, { kind: 'parcel-flower', variant: 1 }));
-    marks.push(circle(x - 0.3, top - 0.3, 0.4, { kind: 'parcel-flower', variant: 2 }));
-    return marks;
-  };
-
   // mark: sprout (proposed = muted straw bud, building = amber active bud) — stem (parcel-stem v1) +
   // bud (dark v1 / light v0 / highlight v2) + two seed-leaves (parcel-stem v0).
   const sprout = (x: number, y: number): SceneNode[] => {
@@ -1692,12 +1648,6 @@ function meadowSurface(
     const marks = grassTuft(pg.x, pg.y);
     if (status === 'unhealthy' && rand() < 0.4) marks.push(...wilt(pg.x + 3, pg.y));
     flora.push(item(pg.y, marks));
-  }
-  if (status === 'healthy' || (status === 'mapped' && flowerCount)) {
-    for (let k = 0; k < flowerCount; k++) {
-      const pf = spot();
-      flora.push(item(pf.y, flower(pf.x, pf.y)));
-    }
   }
   if (status === 'proposed' || status === 'building') {
     const sproutCount = tests <= 0 ? 0 : Math.max(1, Math.round(tests * (status === 'building' ? 0.6 : 0.45)));
@@ -1808,29 +1758,6 @@ function woodlandSurface(
     return { y: y + 2.5 * s, marks };
   };
 
-  // mark: anemone bloom — stem (parcel-stem v1) + shadow petals (v1) + lit petals (v0) + core (v2).
-  const flower = (x: number, y: number): { y: number; marks: SceneNode[] } | null => {
-    if (distressed) return null;
-    const stemH = 3.4 + rand() * 1.4;
-    const top = y - stemH;
-    const marks: SceneNode[] = [];
-    marks.push(path(`M${f(x)} ${f(y)} Q${f(x + 0.4)} ${f(y - stemH * 0.6)} ${f(x)} ${f(top)}`, { kind: 'parcel-stem', variant: 1, strokeWidth: 0.6 }));
-    const petals = 5;
-    for (let pass = 0; pass < 2; pass++) {
-      const ox = pass === 0 ? 0.5 : -0.15;
-      const oy = pass === 0 ? 0.4 : -0.2;
-      const variant = pass === 0 ? 1 : 0;
-      for (let pt = 0; pt < petals; pt++) {
-        const ang = (pt / petals) * Math.PI * 2 + rand() * 0.2;
-        const px = x + ox + Math.cos(ang) * 1.5;
-        const py = top + oy + Math.sin(ang) * 1.5;
-        marks.push(circle(px, py, 1.0, { kind: 'parcel-flower', variant }));
-      }
-    }
-    marks.push(circle(x, top, 0.75, { kind: 'parcel-flower', variant: 2 }));
-    return { y, marks };
-  };
-
   // mark: sapling — trunk (parcel-stem v2) + crown facet pair on its OWN variants (dark v3 / light v2).
   const sapling = (x: number, y: number): { y: number; marks: SceneNode[] } => {
     const s = 0.8 + rand() * 0.3;
@@ -1855,10 +1782,10 @@ function woodlandSurface(
     return { y, marks };
   };
 
-  // density: three tiers always present past 0, saplings a bonus top layer.
+  // density (inc 15 — the anemone bloom tier retired: a flower means UAT, not decoration): ferns + shrubs
+  // are the understory bulk, saplings a bonus top layer.
   const nFerns = tests <= 0 ? 1 : Math.min(cells.length, 2 + Math.round(tests * 0.85));
   const nShrubs = tests <= 0 ? 0 : Math.max(1, Math.round(tests * 0.45));
-  const nFlowers = tests < 2 ? 0 : Math.max(1, Math.round(tests * 0.32));
   const nSaplings = Math.floor(tests / 4);
 
   for (let i = 0; i < nFerns; i++) {
@@ -1870,11 +1797,6 @@ function woodlandSurface(
     const p = spot();
     const m = shrub(p.x, p.y);
     flora.push(item(m.y, m.marks));
-  }
-  for (let i = 0; i < nFlowers; i++) {
-    const p = spot();
-    const m = flower(p.x, p.y);
-    if (m) flora.push(item(m.y, m.marks));
   }
   for (let i = 0; i < nSaplings; i++) {
     const p = spot();
@@ -1933,30 +1855,14 @@ function heathSurface(
 
   const item = (y: number, marks: SceneNode[]): ParcelFloraMark =>
     parcelFloraItem('heath', status, y, marks, conf.opacity < 1 ? conf.opacity : undefined);
-  // bell face variants: light index 0/1 → v0/v4, dark index 0/1 → v1/v5 (the healthy 2-colour rotation).
-  const bellLightV = (idx: number): number => (idx === 1 ? 4 : 0);
-  const bellDarkV = (idx: number): number => (idx === 1 ? 5 : 1);
 
-  // one clean two-face domed lobe: a body-tone mound + an offset highlight cap.
+  // one clean two-face domed lobe: a body-tone mound + an offset highlight cap. (inc 15 — the heather
+  // BELLS that once bloomed on these mounds + as racemes retired: a flower means UAT, not decoration;
+  // the heather MOUNDS stay as the heath's density-driving bulk.)
   const mound = (cx: number, cy: number, s: number, bodyV: number, hiV: number): SceneNode[] => [
     ellipse(cx, cy, 3.3 * s, 2.7 * s, { kind: 'parcel-shrub', variant: bodyV }),
     ellipse(cx - 1.15 * s, cy - 1.05 * s, 1.85 * s, 1.5 * s, { kind: 'parcel-shrub', variant: hiV }),
   ];
-  // a couple of small bells sitting on a mound's crown (bloom-in-flower).
-  const bloomOnMound = (cx: number, cy: number, s: number): SceneNode[] => {
-    if (!conf.bellLight) return [];
-    const out: SceneNode[] = [];
-    const n = 1 + Math.floor(rand() * 2);
-    for (let bi = 0; bi < n; bi++) {
-      const bx = cx + (rand() * 2 - 1) * 1.8 * s;
-      const by = cy - 2.1 * s - rand() * 0.8 * s;
-      const dv = bellDarkV(Math.floor(rand() * conf.bellDark));
-      const lv = bellLightV(Math.floor(rand() * conf.bellLight));
-      out.push(ellipse(bx, by, 0.75 * s, 1.0 * s, { kind: 'parcel-flower', variant: dv }));
-      out.push(ellipse(bx - 0.3 * s, by - 0.25 * s, 0.55 * s, 0.75 * s, { kind: 'parcel-flower', variant: lv }));
-    }
-    return out;
-  };
 
   // tier 1: long wiry moor-grass tufts (stroked blades, grassA dark v1 / grassB light v0 alternating).
   const grassTuft = (x: number, y: number): { y: number; marks: SceneNode[] } => {
@@ -2017,9 +1923,6 @@ function heathSurface(
     }
     marks.push(...mound(x, y, s, bodyV, hiV));
 
-    if (conf.bloomChance && rand() < conf.bloomChance) {
-      marks.push(...bloomOnMound(x, y, s));
-    }
     if (conf.spark) {
       const sk = 1 + Math.floor(rand() * 2);
       for (let k = 0; k < sk; k++) {
@@ -2029,41 +1932,14 @@ function heathSurface(
     return { y: y + 3.0 * s, marks };
   };
 
-  // tier 3: heather-bell raceme — a stem (parcel-stem v0) up which bells (dark back v1/v5, light face
-  // v0/v4, tiny core v2) climb.
-  const bellCluster = (x: number, y: number): { y: number; marks: SceneNode[] } => {
-    if (!conf.bellLight) return { y, marks: [] };
-    const s = conf.scale * (1.0 + rand() * 0.3);
-    const n = 3 + Math.floor(rand() * 3);
-    const topY = y - (2.4 + n * 1.15) * s;
-    const marks: SceneNode[] = [];
-    marks.push(
-      path(`M${f(x)} ${f(y)} Q${f(x + 0.5 * s)} ${f((y + topY) / 2)} ${f(x + 0.3 * s)} ${f(topY)}`, {
-        kind: 'parcel-stem',
-        variant: 0,
-        strokeWidth: 0.65 * s,
-      }),
-    );
-    for (let i = 0; i < n; i++) {
-      const bx = x + 0.3 * s + (i % 2 === 0 ? -1 : 1) * 1.0 * s;
-      const by = y - (2.0 + i * 1.15) * s;
-      const dv = bellDarkV(Math.floor(rand() * conf.bellDark));
-      const lv = bellLightV(Math.floor(rand() * conf.bellLight));
-      marks.push(ellipse(bx, by, 1.0 * s, 1.35 * s, { kind: 'parcel-flower', variant: dv }));
-      marks.push(ellipse(bx - 0.35 * s, by - 0.3 * s, 0.75 * s, 1.02 * s, { kind: 'parcel-flower', variant: lv }));
-      marks.push(circle(bx - 0.3 * s, by + 0.55 * s, 0.32 * s, { kind: 'parcel-flower', variant: 2 }));
-    }
-    return { y, marks };
-  };
-
   // the drift beds: the whole budget plants inside them (the all-cells spread retired).
   const next = driftSpot(cells, tests, rand);
 
-  // density budget: tests drives every tier, status only recolours/mutes.
+  // density budget (inc 15 — the heather-bell raceme tier retired; a flower means UAT): tests drives
+  // grass + heather mounds, status only recolours/mutes.
   const t = Math.max(0, tests | 0);
   const grassCount = cells.length ? Math.min(cells.length, t === 0 ? 4 : 4 + Math.round(t * 1.3)) : 0;
   const shrubCount = Math.round(t * 0.75);
-  const flowerClusters = t < 2 ? 0 : Math.round((t - 1) * 0.3 * conf.flowerBoost);
 
   for (let i = 0; i < grassCount; i++) {
     const p = next();
@@ -2073,11 +1949,6 @@ function heathSurface(
   for (let i = 0; i < shrubCount; i++) {
     const p = next();
     const m = shrub(p.x, p.y, i < 2);
-    flora.push(item(m.y, m.marks));
-  }
-  for (let i = 0; i < flowerClusters; i++) {
-    const p = next();
-    const m = bellCluster(p.x, p.y);
     flora.push(item(m.y, m.marks));
   }
   return { ground, flora };
@@ -2532,15 +2403,7 @@ function buildGardenArt(
     y: t.treeSpot.y,
     node: gardenHeroUse('autumn-tree', t.treeSpot.x, t.treeSpot.y, treeScale),
   });
-  // the human-witness signpost is RETAINED beside the hero tree (the seal never leaves).
-  if (t.signpost) {
-    out.push({
-      y: t.treeSpot.y,
-      node: g([buildSignpost(t.signpost, crownR)], {
-        transform: `translate(${f(t.treeSpot.x)} ${f(t.treeSpot.y)})`,
-      }),
-    });
-  }
+  // (the human-witness signpost that once stood beside the hero tree was retired in inc 15.)
   // the free-standing garden heroes — cottage + gazebo: each FITTED to the island, then placed so the
   // whole fitted footprint sits on owned land (unit 2 — the owner's "fully land within the island" fix).
   const freeIds: GardenHeroId[] = ['cottage', 'gazebo'];

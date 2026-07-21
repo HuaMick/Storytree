@@ -132,7 +132,7 @@ describe('presentStories', () => {
     const out = presentStories(input);
     expect(out[0]?.status).toBeNull();
     expect(out[0]?.capabilities[0]?.status).toBe('mapped');
-    // uatWitness rides the presentation untouched (the signpost rule reads it)
+    // uatWitness rides the presentation untouched (the attestation glyphs + tree card read it)
     expect(out[0]?.uatWitness).toBe('human');
     // and never mutates its input
     expect(input[0]?.capabilities).toHaveLength(1);

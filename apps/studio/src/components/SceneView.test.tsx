@@ -102,7 +102,6 @@ function mkInput(
         decor: [{ x: 40, y: 40, seed: 5 }],
         plants: [{ id: 'lib#c', status: 'unhealthy', x: 45, y: 55, title: 'cap c' }],
         treeTitle: 'lib — healthy',
-        signpost: { outcome: null },
         wisps: [{ runId: 'r1', title: 'building', ...(wispPhase ? { phase: wispPhase } : {}) }],
         claims: [
           {
@@ -159,8 +158,6 @@ describe('SceneView — the studio scene mapper', () => {
     expect(root.querySelector('.relaxed-cell.is-wheat')).toBeTruthy();
     // conifer colour band = seed % 3 (5 % 3 = 2).
     expect(root.querySelector('.conifer-body.c-2')).toBeTruthy();
-    // the human-witness signpost (blank, unsigned).
-    expect(root.querySelector('.story-sign.sign-blank')).toBeTruthy();
   });
 
   it('applies the focus-aware island class + the legend status filter', () => {

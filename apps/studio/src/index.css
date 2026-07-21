@@ -2084,30 +2084,6 @@ a.stat:hover {
   opacity: 0.85;
 }
 
-/* the story's human-witness signpost (ADR-0040): only uat_witness-human stories
-   carry one — a dashed blank disc awaits the operator's UAT ceremony, a filled
-   seal means the story's OWN UAT verdict is signed (the seal echoes the crown's
-   hue; the FILL is the new bit — the ceremony happened) */
-.story-sign rect {
-  fill: var(--story-trunk);
-}
-.story-sign circle {
-  fill: #ffffff;
-  stroke: var(--border-strong);
-  stroke-width: 1;
-}
-.story-sign.sign-blank circle {
-  stroke-dasharray: 2.5 2.5;
-}
-.story-sign.sign-witnessed.verdict-pass circle {
-  fill: var(--good);
-  stroke: var(--good);
-}
-.story-sign.sign-witnessed.verdict-fail circle {
-  fill: var(--danger);
-  stroke: var(--danger);
-}
-
 /* Per-UAT-test attestation table in the story detail (ADR-0082 / ADR-0044 attestation-surface).
    Owner redesign: each test is a row with ONE glyph at its RIGHT edge — a witness ICON whose SHAPE is
    the witness (a robot = machine-witnessed, a person = human-witnessed) and whose HUE is the SIGNED

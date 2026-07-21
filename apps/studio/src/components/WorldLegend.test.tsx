@@ -6,9 +6,9 @@
 // builds, that absent states render dimmed as "not in world yet", and that the
 // status fan drives the same hidden-status filter the old toolbar chips did.
 // The legend receives the PRESENTED world (worldStatus.ts): hue already carries
-// the signed verdict (ADR-0040), so the proof row speaks hue + signpost, never
-// ✓/✗ badges. Session presence no longer orbits (ADR-0048 §5) — it has no
-// legend row; the world's only orbiting layer is the in-flight build.
+// the signed verdict (ADR-0040), so the proof row speaks hue, never ✓/✗ badges.
+// Session presence no longer orbits (ADR-0048 §5) — it has no legend row; the
+// world's only orbiting layer is the in-flight build.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
@@ -104,12 +104,9 @@ describe('legendFacts', () => {
     // The sapling state was folded into `young` (ADR-0038 / owner 2026-06-21): the legend
     // no longer surfaces a distinct sapling fact.
     expect('saplingPresent' in facts).toBe(false);
-    // no presented green, no withered, nothing witnessed — offline under-claims
+    // no presented green, no withered — offline under-claims
     expect(facts.anyProven).toBe(false);
     expect(facts.anyDeadFlora).toBe(false);
-    expect(facts.signWitnessedPass || facts.signWitnessedFail).toBe(false);
-    // every story here is human-witnessed (the default) and unsigned → blank signs
-    expect(facts.signBlank).toBe(true);
   });
 
   it('presented healthy = a signed pass painted it — anyProven on either tier', () => {
@@ -121,22 +118,6 @@ describe('legendFacts', () => {
   it('a presented-unhealthy capability withers flora (signed ✗ or authored unhealthy)', () => {
     const facts = legendFacts([story('s', 'mapped', [cap('c', 'unhealthy')])]);
     expect(facts.anyDeadFlora).toBe(true);
-  });
-
-  it('the signpost facts follow the human-witness rule (ADR-0040)', () => {
-    const pass = { outcome: 'pass', at: 'now' } as const;
-    const fail = { outcome: 'fail', at: 'now' } as const;
-    // human + signed → witnessed (by outcome); human + unsigned → blank
-    expect(legendFacts([story('s', 'healthy', [], { verdict: pass })]).signWitnessedPass).toBe(true);
-    expect(legendFacts([story('s', 'unhealthy', [], { verdict: fail })]).signWitnessedFail).toBe(
-      true,
-    );
-    expect(legendFacts([story('s', 'mapped', [])]).signBlank).toBe(true);
-    // a machine-witnessed story contributes NO signpost facts at all
-    const machine = legendFacts([
-      story('s', 'healthy', [], { uatWitness: 'machine', verdict: pass }),
-    ]);
-    expect(machine.signBlank || machine.signWitnessedPass || machine.signWitnessedFail).toBe(false);
   });
 
   it('a zero-cap story takes its status FORM (young / withered), not a distinct sapling', () => {
@@ -164,18 +145,13 @@ describe('WorldLegend (adaptive bar)', () => {
     expect(screen.queryByRole('button', { name: 'focus' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'proof' }));
     expect(screen.getByText(/under-claims/)).toBeTruthy();
-    // no signed verdicts anywhere — proof hues and the witnessed seal are dimmed examples,
-    // while every (default-human) story stands behind a blank signpost
+    // no signed verdicts anywhere — the proven-green hue is a dimmed example
     expect(screen.getByText('proven green').closest('.legend-tile')?.className).toContain(
-      'is-absent',
-    );
-    expect(screen.getByText('witnessed').closest('.legend-tile')?.className).toContain('is-absent');
-    expect(screen.getByText('awaiting witness').closest('.legend-tile')?.className).not.toContain(
       'is-absent',
     );
   });
 
-  it('proof hues and witnessed signposts light their tiles', () => {
+  it('proof hues light their tiles once a signed pass paints them', () => {
     const stories = [
       story('s', 'healthy', [cap('c', 'healthy', { verdict: { outcome: 'pass', at: 'now' } })], {
         verdict: { outcome: 'pass', at: 'now' },
@@ -183,11 +159,8 @@ describe('WorldLegend (adaptive bar)', () => {
     ];
     renderLegend(stories);
     fireEvent.click(screen.getByRole('button', { name: 'proof' }));
-    expect(screen.getByText(/never a roll-up/)).toBeTruthy();
+    expect(screen.getByText(/different claims/)).toBeTruthy();
     expect(screen.getByText('proven green').closest('.legend-tile')?.className).not.toContain(
-      'is-absent',
-    );
-    expect(screen.getByText('witnessed').closest('.legend-tile')?.className).not.toContain(
       'is-absent',
     );
   });
@@ -271,20 +244,6 @@ describe('WorldLegend (adaptive bar)', () => {
     expect(screen.queryByRole('button', { name: 'sessions working' })).toBeNull();
     // ADR-0212 widened the row's visibility to "claimed OR building" (a live build now renders on
     // this layer), so an in-flight build DOES light it — asserted in the ADR-0212 test above.
-  });
-
-  it('a machine-witnessed world has no signpost states at all', () => {
-    renderLegend([
-      story('s', 'healthy', [cap('c', 'healthy')], {
-        uatWitness: 'machine',
-        verdict: { outcome: 'pass', at: 'now' },
-      }),
-    ]);
-    fireEvent.click(screen.getByRole('button', { name: 'proof' }));
-    expect(screen.getByText('awaiting witness').closest('.legend-tile')?.className).toContain(
-      'is-absent',
-    );
-    expect(screen.getByText('witnessed').closest('.legend-tile')?.className).toContain('is-absent');
   });
 
   it('Escape closes the drawer', () => {

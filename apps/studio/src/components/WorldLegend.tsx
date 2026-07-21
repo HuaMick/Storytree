@@ -17,13 +17,13 @@
 // The status fan doubles as the status filter (it absorbed the old toolbar
 // chips): tiles toggle the same `hidden` set, and the world fades matching
 // trees/flora. Icons reuse the world's OWN css classes (story-tree st-*,
-// garden-flora, story-sign, world-wisp band-building), so the legend can never
-// drift from the world's palette — it IS the world's palette.
+// garden-flora, world-wisp band-building), so the legend can never drift from
+// the world's palette — it IS the world's palette.
 //
 // The captions carry the observability contract's caveats in operator-facing
 // text: hue-is-the-signed-verdict (ADR-0040 — authored status can never paint
-// green), crown-is-never-a-roll-up, signpost-is-the-human-witness-mark,
-// offline-under-claims, build-wisps-are-the-harness (ADR-0048).
+// green), crown-is-never-a-roll-up, offline-under-claims,
+// build-wisps-are-the-harness (ADR-0048).
 
 import { useEffect, useRef, useState } from 'react';
 import { anyInFlight, anyRecentLanding } from '../lib/activity';
@@ -49,10 +49,6 @@ export interface LegendFacts {
   statusTotals: Map<string, { stories: number; caps: number }>;
   /** Any unit wears healthy — which, post ADR-0040, only a signed pass can paint. */
   anyProven: boolean;
-  /** Human-witness signpost states (ADR-0040): blank = the UAT awaits the operator. */
-  signBlank: boolean;
-  signWitnessedPass: boolean;
-  signWitnessedFail: boolean;
   /** Any capability renders the dead silhouette (signed ✗ or authored unhealthy). */
   anyDeadFlora: boolean;
 }
@@ -70,19 +66,11 @@ export function legendFacts(stories: TreeStory[]): LegendFacts {
     statusTotals.set(key, cur);
   };
   let anyProven = false;
-  let signBlank = false;
-  let signWitnessedPass = false;
-  let signWitnessedFail = false;
   let anyDeadFlora = false;
   for (const s of stories) {
     const st = s.status ?? 'unknown';
     bump(st, 'stories');
     if (st === 'healthy') anyProven = true;
-    if (s.uatWitness === 'human') {
-      if (!s.verdict) signBlank = true;
-      else if (s.verdict.outcome === 'pass') signWitnessedPass = true;
-      else signWitnessedFail = true;
-    }
     for (const c of s.capabilities) {
       const cst = c.status ?? 'unknown';
       bump(cst, 'caps');
@@ -93,9 +81,6 @@ export function legendFacts(stories: TreeStory[]): LegendFacts {
   return {
     statusTotals,
     anyProven,
-    signBlank,
-    signWitnessedPass,
-    signWitnessedFail,
     anyDeadFlora,
   };
 }
@@ -208,22 +193,6 @@ function PlantIcon({
           points="-1,-12.5 4.5,-10.8 6,-7 0.5,-5.6 -4.8,-7.4 -4.6,-10.6"
         />
         <circle className="flora-core" cx={2} cy={-7.5} r={1.5} />
-      </g>
-    </svg>
-  );
-}
-
-/** The human-witness signpost (ADR-0040): dashed-blank, or a verdict-hued seal. */
-function SignIcon({ state }: { state: 'blank' | 'pass' | 'fail' }): React.JSX.Element {
-  return (
-    <svg viewBox="-9 -26 18 28" aria-hidden="true">
-      <g
-        className={`story-sign ${
-          state === 'blank' ? 'sign-blank' : `sign-witnessed verdict-${state}`
-        }`}
-      >
-        <rect x={-1.3} y={-15} width={2.6} height={15} rx={1.1} />
-        <circle cy={-18} r={6.5} />
       </g>
     </svg>
   );
@@ -419,7 +388,6 @@ export interface LegendModel {
   facts: LegendFacts;
   rows: LegendRow[];
   totals: (st: string) => { stories: number; caps: number };
-  anyWitnessed: boolean;
   unknownPresent: boolean;
 }
 
@@ -450,14 +418,6 @@ function legendModel(
     const t = totals(st);
     return t.stories > 0 || t.caps > 0;
   };
-  const anyWitnessed = facts.signWitnessedPass || facts.signWitnessedFail;
-  const anySign = facts.signBlank || anyWitnessed;
-  // The bar shows the most informative signpost state in the world right now.
-  const signState: 'blank' | 'pass' | 'fail' = facts.signWitnessedPass
-    ? 'pass'
-    : facts.signWitnessedFail
-      ? 'fail'
-      : 'blank';
   const recentLandings = anyRecentLanding(stories, now);
   const building = anyInFlight(builds, now);
   const rows: LegendRow[] = [
@@ -496,7 +456,6 @@ function legendModel(
         <>
           {facts.anyProven && <PlantIcon status="healthy" />}
           {facts.anyDeadFlora && <PlantIcon status="unhealthy" dead />}
-          {anySign && <SignIcon state={signState} />}
         </>
       ),
     },
@@ -523,7 +482,7 @@ function legendModel(
     },
     { key: 'decor', label: 'decoration', visible: true, icons: <ConiferIcon /> },
   ];
-  return { facts, rows, totals, anyWitnessed, unknownPresent: present('unknown') };
+  return { facts, rows, totals, unknownPresent: present('unknown') };
 }
 
 /** A row's human label, for the flyout heading / aria. */
@@ -557,7 +516,7 @@ export function LegendDrawerBody({
   hidden: ReadonlySet<string>;
   onToggleStatus: (st: string) => void;
 }): React.JSX.Element {
-  const { facts, totals, anyWitnessed, unknownPresent } = model;
+  const { facts, totals, unknownPresent } = model;
   const region = (label: string, body: React.JSX.Element): React.JSX.Element => (
     <div className="legend-drawer" role="region" aria-label={`legend — ${label}`}>
       {body}
@@ -658,28 +617,15 @@ export function LegendDrawerBody({
             note="failed its last signed run, or authored unhealthy"
             absent={!facts.anyDeadFlora}
           />
-          <Tile
-            icon={<SignIcon state="blank" />}
-            label="awaiting witness"
-            note="a human must see this story's UAT"
-            absent={!facts.signBlank}
-          />
-          <Tile
-            icon={<SignIcon state={facts.signWitnessedPass ? 'pass' : 'fail'} />}
-            label="witnessed"
-            note="the story's own UAT was signed — never a roll-up"
-            absent={!anyWitnessed}
-          />
         </div>
         <p className="legend-cap">
           Hue only ever reports a <strong>signed</strong> prove-it-gate verdict — authored status
           can never paint green, and a story's crown answers only to its <strong>own</strong> UAT
-          (“all capabilities pass” and “the story passed UAT” are different claims). Stories with a{' '}
-          <strong>human</strong> witness (the default) carry a signpost — dashed-blank until the
-          operator's ceremony, a filled seal once signed (a signed fail also withers the crown);
-          machine-witnessed stories carry none. With the live store down, verdicts are absent and
-          the world <strong>under-claims</strong>: trees fall back to the authored ladder — the
-          store banner is the signal.
+          (“all capabilities pass” and “the story passed UAT” are different claims). A
+          human-witnessed story's UAT proof reads from that crown hue and its UAT flower markers, not
+          a separate signpost (retired in grounded-art inc 15). With the live store down, verdicts
+          are absent and the world <strong>under-claims</strong>: trees fall back to the authored
+          ladder — the store banner is the signal.
         </p>
       </>,
     );

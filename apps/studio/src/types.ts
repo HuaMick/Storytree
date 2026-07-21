@@ -532,8 +532,9 @@ export interface TreeStory {
   proofMode: string;
   /**
    * Who witnesses this story's UAT (ADR-0040) — the EFFECTIVE value, resolved server-side
-   * through core's `effectiveUatWitness` (absent frontmatter = 'human', fail-closed). Only
-   * human-witnessed stories carry a signpost in the world.
+   * through core's `effectiveUatWitness` (absent frontmatter = 'human', fail-closed). Drives
+   * the per-UAT attestation glyphs + the tree card's witness note; the human-witness signpost
+   * drawable it once also fed was retired in grounded-art inc 15.
    */
   uatWitness: 'human' | 'machine';
   /** Story ids this story depends on (frontmatter `depends_on` — consumed cross-story seams). */

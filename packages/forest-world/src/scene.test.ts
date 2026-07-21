@@ -383,12 +383,6 @@ test('proposed + claimed-but-empty stories render the not-yet-full (young) form'
   assert.equal(central(mkTerritory({ status: 'healthy', caps: 4 })), crownRadius(4));
 });
 
-test('the human-witness signpost appears only when declared; blank vs signed seal', () => {
-  assert.equal(firstByKind(buildTree(mkTerritory()), 'sign-blank'), null);
-  assert.ok(firstByKind(buildTree(mkTerritory({ signpost: { outcome: null } })), 'sign-blank'));
-  assert.ok(firstByKind(buildTree(mkTerritory({ signpost: { outcome: 'pass' } })), 'sign-pass'));
-  assert.ok(firstByKind(buildTree(mkTerritory({ signpost: { outcome: 'fail' } })), 'sign-fail'));
-});
 
 // ---------- flora ----------
 
@@ -841,8 +835,8 @@ test('website back-compat: NO claims + NO departures → no wisp layers at all �
 // path. If this test goes red, the absence path drifted: fix the drift, never re-bake the fixture.
 //
 // The fixture input deliberately exercises every parcels-absent drawable family: conifer decor,
-// the capability plant ring (alive + withered + a plant bloom), scattered wheat, a crown bloom, a
-// signpost, an in-flight build wisp, and a story claim — across a healthy and a proposed island.
+// the capability plant ring (alive + withered + a plant bloom), scattered wheat, a crown bloom,
+// an in-flight build wisp, and a story claim — across a healthy and a proposed island.
 
 /** The pinned parcels-ABSENT input. Kept as pure literal data (+ a routed trail) so the golden
  *  generator can reproduce it verbatim; NO `parcels` field anywhere → the absence render path. */
@@ -891,7 +885,6 @@ function absenceLockInput(): SceneInput {
           { id: 'library#cap-b', status: 'unhealthy', x: 110, y: 215, title: 'cap b' },
         ],
         treeTitle: 'library — healthy',
-        signpost: { outcome: 'pass' },
         bloom: { ageRatio: 0.8, outcome: 'pass' },
         wisps: [{ runId: 'r1', title: 'building', phase: 'CONFIRM_RED', colourState: 'proving' }],
         claims: [{ key: 's1', title: 'a session is here', colourState: 'authoring', grade: 'work' }],
@@ -1109,8 +1102,8 @@ function inPoly(x: number, y: number, poly: { x: number; y: number }[]): boolean
   return inside;
 }
 
-/** A one-island scene whose territory carries `uatCriteria` + the human-witness signpost. Land
- *  cells default to the full-disc grid; pass `cells: null` for the no-mesh (classic ground) path. */
+/** A one-island scene whose territory carries `uatCriteria`. Land cells default to the full-disc
+ *  grid; pass `cells: null` for the no-mesh (classic ground) path. */
 function markerScene(
   uatCriteria: UatCriteria,
   over: Partial<SceneTerritoryInput> = {},
@@ -1118,7 +1111,7 @@ function markerScene(
 ): SceneG {
   return buildScene(
     mkInput({
-      territories: [mkTerritory({ signpost: { outcome: null }, uatCriteria, ...over })],
+      territories: [mkTerritory({ uatCriteria, ...over })],
       relaxedCells: cells,
     }),
   );
@@ -1166,10 +1159,8 @@ test('a uatCriteria-present island scatters one flower marker per criterion, sta
   }
 });
 
-test('the flowers respect the keep-outs, and the human-witness signpost seal is RETAINED', () => {
-  const scene = markerScene(THREE_CRITERIA, { signpost: { outcome: 'pass' } });
-  // the signpost is retained — the markers never replace it.
-  assert.ok(firstByKind(scene, 'sign-pass'), 'the signpost seal survives the markers');
+test('the flowers respect the keep-outs (tree well + island reach)', () => {
+  const scene = markerScene(THREE_CRITERIA);
   const spots = flowersOf(scene).map(markerSpot);
   assert.ok(spots.every((s) => Number.isFinite(s.x) && Number.isFinite(s.y)));
   // distinct spots, all inside the island's reach, none in the tree well (mkTerritory geometry).
@@ -1348,15 +1339,6 @@ test('garden PRESENT → procedural flora + central tree suppressed; the 1:1 UAT
   assert.deepEqual(beds.map((f) => f.id).sort(), ['c1', 'c2', 'c3'], 'each bed flower keeps its criterion id');
 });
 
-test('garden PRESENT → the human-witness signpost is RETAINED beside the hero tree', () => {
-  const scene = buildScene(
-    mkInput({
-      territories: mkGardenTerritories({ signpost: { outcome: 'pass' } }),
-      garden: mkGarden('library'),
-    }),
-  );
-  assert.ok(firstByKind(territoryById(scene, 'library'), 'sign-pass'), 'signpost retained on the garden island');
-});
 
 test('garden is deterministic — same input → byte-identical scene', () => {
   assert.deepEqual(
