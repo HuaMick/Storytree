@@ -1,0 +1,2 @@
+VERDICT: B
+WHY: In B several white cap spots have red dome facets drawn in front of them, biting triangular notches out of bumps that should sit on top, an occlusion error absent in A.

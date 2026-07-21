@@ -1,0 +1,2 @@
+VERDICT: B
+WHY: In B the red cap facets draw over several white spots, cutting wedge notches out of them (one spot even splits into a floating sliver), which are depth/occlusion errors absent in A's clean rounded spots.

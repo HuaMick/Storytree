@@ -1,0 +1,2 @@
+VERDICT: SAME
+WHY: Both render identically well with no depth error, stray seam, or broken opening; the only difference is a sub-perceptual shading nuance at the wall-to-roof junctions.

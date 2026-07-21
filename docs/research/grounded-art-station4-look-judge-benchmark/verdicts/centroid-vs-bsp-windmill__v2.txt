@@ -1,0 +1,2 @@
+VERDICT: B
+WHY: In B the flat sail panel is sorted in front of its own near frame and plastered over the dome as a flat rectangle, while A keeps the 3D lattice frame and the dome's rounded form.
