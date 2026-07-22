@@ -44,7 +44,7 @@ describe('worldSettings — schema (docked-line roads, ADR-0076)', () => {
     // (`garden` / `cosy` / `veg`) surfaced as gear toggles (owner ask 2026-07-20 — flick them in the
     // panel rather than type URLs). The `buildingIsland` toggle was REMOVED with ADR-0088 (the
     // shared-island panel is permanent, not a gear flag), so the gear no longer carries a Panels switch.
-    const expected = ['layout', 'substrate', 'garden', 'cosy', 'veg'];
+    const expected = ['layout', 'substrate', 'garden', 'cosy', 'veg', 'artStyle'];
     expect([...keys].sort()).toEqual([...expected].sort());
     // The retired river/pond dials, road-routing dials AND the removed building toggles
     // (building-DRAWER, then building-ISLAND) must be GONE (genuinely stripped, not shelved —
@@ -83,7 +83,9 @@ describe('worldSettings — schema (docked-line roads, ADR-0076)', () => {
     expect(groups.has('Cosy island')).toBe(true);
     // The building-island toggle (the only Panels control) was removed — no Panels section.
     expect(groups.has('Panels')).toBe(false);
-    expect(groups.size).toBe(3);
+    // The sprite-art-sheets spike's `artStyle` select lives in its own "Art style" section.
+    expect(groups.has('Art style')).toBe(true);
+    expect(groups.size).toBe(4);
   });
 
   it('keys are unique', () => {
@@ -250,6 +252,31 @@ describe('worldSettings — the cosy-island gear TOGGLES (owner ask: gear panel,
     expect(setControlValue('', c, false)).toBe('?veg=off');
     expect(readVegetationVocab('?veg=off')).toBe(false);
     expect(setControlValue('?veg=off', c, true)).toBe('');
+  });
+});
+
+describe('worldSettings — artStyle control (sprite-art-sheets spike, default-off select)', () => {
+  it('defaults to vector and writing vector REMOVES the param (byte-identical world)', () => {
+    expect(readControlValue('', ctl('artStyle'))).toBe('vector');
+    expect(setControlValue('?artStyle=stub-a', ctl('artStyle'), 'vector')).toBe('');
+  });
+
+  it('writes artStyle=stub-a / artStyle=stub-b when a stub sheet is picked', () => {
+    expect(setControlValue('', ctl('artStyle'), 'stub-a')).toBe('?artStyle=stub-a');
+    expect(readControlValue('?artStyle=stub-a', ctl('artStyle'))).toBe('stub-a');
+    expect(setControlValue('', ctl('artStyle'), 'stub-b')).toBe('?artStyle=stub-b');
+    expect(readControlValue('?artStyle=stub-b', ctl('artStyle'))).toBe('stub-b');
+  });
+
+  it('an unknown/typo`d value normalizes to the vector default (never a silent broken sheet)', () => {
+    expect(readControlValue('?artStyle=stub-z', ctl('artStyle'))).toBe('vector');
+    expect(readControlValue('?artStyle=', ctl('artStyle'))).toBe('vector');
+  });
+
+  it('preserves UNRELATED params when setting the select', () => {
+    const out = setControlValue('?debug=1', ctl('artStyle'), 'stub-a');
+    expect(out).toContain('debug=1');
+    expect(out).toContain('artStyle=stub-a');
   });
 });
 

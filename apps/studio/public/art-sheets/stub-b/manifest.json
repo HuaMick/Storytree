@@ -1,0 +1,139 @@
+{
+  "name": "stub-b",
+  "label": "Stub B — twilight",
+  "sprites": {
+    "tree:healthy": {
+      "href": "/art-sheets/stub-b/tree-healthy.svg",
+      "w": 40,
+      "h": 70,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    "autumn-tree:healthy": {
+      "href": "/art-sheets/stub-b/tree-healthy.svg",
+      "w": 40,
+      "h": 70,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    "tree:unhealthy": {
+      "href": "/art-sheets/stub-b/tree-unhealthy.svg",
+      "w": 40,
+      "h": 70,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    "autumn-tree:unhealthy": {
+      "href": "/art-sheets/stub-b/tree-unhealthy.svg",
+      "w": 40,
+      "h": 70,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    "tree:proposed": {
+      "href": "/art-sheets/stub-b/tree-proposed.svg",
+      "w": 40,
+      "h": 70,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    "autumn-tree:proposed": {
+      "href": "/art-sheets/stub-b/tree-proposed.svg",
+      "w": 40,
+      "h": 70,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    "tree:mapped": {
+      "href": "/art-sheets/stub-b/tree-mapped.svg",
+      "w": 40,
+      "h": 70,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    "autumn-tree:mapped": {
+      "href": "/art-sheets/stub-b/tree-mapped.svg",
+      "w": 40,
+      "h": 70,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    "tree:unknown": {
+      "href": "/art-sheets/stub-b/tree-unknown.svg",
+      "w": 40,
+      "h": 70,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    "autumn-tree:unknown": {
+      "href": "/art-sheets/stub-b/tree-unknown.svg",
+      "w": 40,
+      "h": 70,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    "autumn-tree": {
+      "href": "/art-sheets/stub-b/tree-healthy.svg",
+      "w": 40,
+      "h": 70,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    "conifer": {
+      "href": "/art-sheets/stub-b/conifer.svg",
+      "w": 24,
+      "h": 34,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    "flora": {
+      "href": "/art-sheets/stub-b/flora.svg",
+      "w": 20,
+      "h": 26,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    "flora:unhealthy": {
+      "href": "/art-sheets/stub-b/flora-dead.svg",
+      "w": 20,
+      "h": 26,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    "tall-flower-proven": {
+      "href": "/art-sheets/stub-b/flower-proven.svg",
+      "w": 14,
+      "h": 30,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    "tall-flower-pending": {
+      "href": "/art-sheets/stub-b/flower-pending.svg",
+      "w": 14,
+      "h": 30,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    "tall-flower-failing": {
+      "href": "/art-sheets/stub-b/flower-failing.svg",
+      "w": 14,
+      "h": 30,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    "cottage": {
+      "href": "/art-sheets/stub-b/cottage.svg",
+      "w": 56,
+      "h": 50,
+      "anchorX": 0.5,
+      "anchorY": 1
+    },
+    "gazebo": {
+      "href": "/art-sheets/stub-b/gazebo.svg",
+      "w": 56,
+      "h": 50,
+      "anchorX": 0.5,
+      "anchorY": 1
+    }
+  }
+}

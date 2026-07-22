@@ -152,6 +152,7 @@ import {
   routeTrails,
   trailFillWidth,
   wispBand,
+  parseStyleSheet,
   type SceneInput,
   type SceneGardenInput,
   type SceneVegHeroTrees,
@@ -162,6 +163,7 @@ import {
   type TrailNetwork,
   type ClaimGrade,
   type BuildPhase,
+  type SpriteStyleSheet,
 } from '@storytree/forest-world';
 import { SceneView, type SceneCtx } from './SceneView.js';
 
@@ -184,6 +186,7 @@ function requireControl(key: string): ControlSpec {
 }
 const SUBSTRATE_CTL = requireControl('substrate');
 const LAYOUT_CTL = requireControl('layout');
+const ART_STYLE_CTL = requireControl('artStyle');
 
 /** Shared empty id-set (the DAG path passes no hub ids). */
 const EMPTY_ID_SET: ReadonlySet<string> = new Set();
@@ -1327,6 +1330,17 @@ function readLayoutMode(search: string = defaultSearch()): LayoutMode {
 }
 
 /**
+ * Which sprite art STYLE SHEET re-skins the map (sprite-art-sheets spike) — `'vector'` (default,
+ * absence) is the byte-identical procedural render; any other value names a sheet folder under
+ * `apps/studio/public/art-sheets/<name>/`. Gear-panel managed (worldSettings' `artStyle` control is
+ * the single source of truth for the default + the option list), so the panel and this reader never
+ * drift.
+ */
+export function readArtStyle(search: string = defaultSearch()): string {
+  return readControlValue(search, ART_STYLE_CTL) as string;
+}
+
+/**
  * The central wiring hubs everything orbits in solar mode (ADR-0074 §2 — the wiring
  * layer is VISIBLE, not exempt: hiding the most-connected nodes hides the most
  * architecturally important relationships). `cli` / `store` are now FIRST-CLASS hub
@@ -2039,6 +2053,12 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
   // chunk and sends it as `vegetation.heroTree`, so every non-garden island's central tree becomes the
   // baked hero. Until it resolves the procedural tree stands (a late repaint). Off ⇒ vegetation null.
   const vegetation = useVegetation(vegOn);
+  // sprite-art-sheets spike: a default-off render-mode swap (worldSettings' `artStyle` select). `vector`
+  // (default/absence) fetches nothing — `spriteSheet` stays null and SceneView's sprite branch never
+  // fires, so the render is byte-identical to before this flag existed. A chosen sheet only affects
+  // `sceneCtx` below (NOT `SceneInput`/`buildScene` — the scene graph itself carries no sprite opinion).
+  const artStyle = useMemo(() => readArtStyle(search), [search]);
+  const spriteSheet = useArtStyleSheet(artStyle);
   useEffect(() => {
     if (!cosyOn && !gardenOn) return;
     document.body.classList.add('cosy-island');
@@ -2165,8 +2185,9 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
       arrivalIds,
       onSelectStory: onSelectStoryStable,
       onSelectCap: onSelectCapStable,
+      spriteSheet,
     }),
-    [territoryClassById, growPlan, hidden, arrivalIds, onSelectStoryStable, onSelectCapStable],
+    [territoryClassById, growPlan, hidden, arrivalIds, onSelectStoryStable, onSelectCapStable, spriteSheet],
   );
 
   if (loadError) {
@@ -3119,6 +3140,47 @@ function useVegetation(enabled: boolean): SceneVegetationInput | null {
     () => (enabled ? (heroTrees ? { heroTrees } : {}) : null),
     [enabled, heroTrees],
   );
+}
+
+/**
+ * The resolved sprite ART STYLE SHEET for the default-off `artStyle` world setting
+ * (sprite-art-sheets spike) — `null` while `artStyle` is `'vector'` (the default: no fetch at all, so
+ * the flag-off path stays fully inert) or until a chosen sheet's manifest resolves. The mirror of
+ * {@link useBakedStone} / {@link useGardenIsland} for this seam: until it resolves the map keeps its
+ * current render (vector, or a previously-loaded sheet), so a style swap is a late repaint rather than
+ * a hole in the world.
+ *
+ * UNLIKE the factory kit / garden heroes / hero-tree colourways (a bundled `kit.json` chunk), a sheet
+ * is a studio-served STATIC asset fetched from `/art-sheets/<name>/manifest.json` — the manifest names
+ * its own sprite images, so there is nothing to bundle. `parseStyleSheet` (forest-world) validates the
+ * fetched JSON and throws on anything malformed; the throw is caught + logged here so a bad manifest
+ * degrades to vector, never a crash.
+ */
+function useArtStyleSheet(artStyle: string): SpriteStyleSheet | null {
+  const [sheet, setSheet] = useState<SpriteStyleSheet | null>(null);
+  useEffect(() => {
+    if (artStyle === 'vector') {
+      setSheet(null);
+      return;
+    }
+    let live = true;
+    void fetch(`/art-sheets/${artStyle}/manifest.json`)
+      .then((r) => {
+        if (!r.ok) throw new Error(`art-sheet manifest fetch failed: ${r.status}`);
+        return r.json() as Promise<unknown>;
+      })
+      .then((json) => {
+        const parsed = parseStyleSheet(json);
+        if (live) setSheet(parsed);
+      })
+      .catch((err: unknown) => {
+        console.error(`art-style sheet "${artStyle}" failed to load; keeping the current render`, err);
+      });
+    return () => {
+      live = false;
+    };
+  }, [artStyle]);
+  return sheet;
 }
 
 /**

@@ -12,10 +12,13 @@
 import React from 'react';
 import {
   trailFillWidth,
+  resolveSprite,
+  spritePlacement,
   type BakedPaintNode,
   type SceneKind,
   type SceneNode,
   type SceneStatus,
+  type SpriteStyleSheet,
 } from '@storytree/forest-world';
 import type { TrailRevealPlan } from '../lib/trailReveal.js';
 
@@ -42,6 +45,12 @@ export interface SceneCtx {
    *  stages AND their direct incident trails draw on from the new island (the `reveal`
    *  plan above). Absent/empty ⇒ no arrival classes/masks at all. */
   arrivalIds?: ReadonlySet<string> | null;
+  /** The resolved sprite ART STYLE SHEET (sprite-art-sheets spike, default-off `artStyle` world
+   *  setting) — PRESENT ⇒ any node whose sprite key {@link resolveSprite} covers renders an `<image>`
+   *  instead of recursing into its vector children (see {@link trySprite} below); an uncovered kind
+   *  always stays vector, so a sheet may cover only some kinds. `null`/absent (the `vector` default) ⇒
+   *  every node renders vector, byte-identical to before this flag existed. */
+  spriteSheet?: SpriteStyleSheet | null;
 }
 
 /** Role → the studio's base class(es). Composed kinds (status / variant / focus) are
@@ -397,12 +406,97 @@ function hitsLayerToBack(children: readonly SceneNode[]): readonly SceneNode[] {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// the sprite art-style render mode (sprite-art-sheets spike, default-off)
+// ---------------------------------------------------------------------------
+//
+// Every per-type factory (`buildTree`/`buildPlant`/`buildConifer`/the tall-flower marker/
+// `gardenHeroUse`/`vegHeroTreeUse`) returns exactly ONE wrapper node whose own `transform` is its
+// ground anchor. `resolveSprite` is a per-node lookup keyed by that wrapper's SEMANTIC kind (+ its
+// folded status, when it carries one) — a hit swaps the wrapper for a single `<image>` positioned by
+// `spritePlacement`, WITHOUT recursing into the wrapper's vector children (the sprite replaces the
+// whole object, ADR sprite-art-sheets design rule 1); a miss falls through to today's vector render
+// unchanged, so a sheet covering only SOME kinds still works everywhere else.
+
+const GARDEN_HERO_DEF_PREFIX = 'garden-hero-';
+const VEG_TREE_DEF_PREFIX = 'veg-hero-autumn-tree-';
+
+/**
+ * The sprite lookup key for a node. Most drawables key by their own `kind` (+ `status`, when folded) —
+ * `tree`/`flora`/`conifer`/`tall-flower-proven` etc. A `baked-use` PLACEMENT (ADR-0218: the cottage /
+ * gazebo / autumn-tree garden heroes, and the tree-spread's per-status `autumn-tree` colourway,
+ * ADR-0227) is different: every such node shares the ONE scene `kind: 'baked-art'`, which cannot itself
+ * tell a cottage from a gazebo — so it keys off its `defId` instead, stripping the known
+ * `garden-hero-<id>` / `veg-hero-autumn-tree-<status>` def-id prefixes back to a stable manifest kind
+ * (+ the folded status, for the tree-spread colourway). Returns `null` for anything with no usable key
+ * (a plain structural `<g>`, an unrecognised baked-use def) — the caller's cue to render vector.
+ */
+function spriteKeyFor(node: SceneNode): { kind: string; status?: SceneStatus } | null {
+  if (node.el === 'baked-use') {
+    if (node.defId.startsWith(VEG_TREE_DEF_PREFIX)) {
+      return { kind: 'autumn-tree', status: node.defId.slice(VEG_TREE_DEF_PREFIX.length) as SceneStatus };
+    }
+    if (node.defId.startsWith(GARDEN_HERO_DEF_PREFIX)) {
+      return { kind: node.defId.slice(GARDEN_HERO_DEF_PREFIX.length) };
+    }
+    return null;
+  }
+  if (!node.kind) return null;
+  return node.status ? { kind: node.kind, status: node.status } : { kind: node.kind };
+}
+
+/**
+ * Render `node` as a sprite `<image>` when `ctx.spriteSheet` covers its key — `null` when there is no
+ * sheet, no usable key, or the sheet doesn't cover this node (the caller falls through to vector). The
+ * image is positioned by {@link spritePlacement} and carries the wrapper's OWN `transform` untouched
+ * (the object's existing ground anchor / scale), so nothing about WHERE the object sits changes — only
+ * what draws there. Interactivity (the click handlers + delegation `data-*` hooks a vector `flora` node
+ * would carry) is preserved so a sprite-swapped capability plant stays clickable. Text/tooltips/a11y
+ * stay in the DOM: a `title` rides along as an accessible `<title>` child of the `<image>`, exactly as
+ * the vector path does.
+ */
+function trySprite(
+  node: SceneNode,
+  key: React.Key,
+  storyId: string | undefined,
+  ctx: SceneCtx,
+): React.JSX.Element | null {
+  const sheet = ctx.spriteSheet;
+  if (!sheet) return null;
+  const sk = spriteKeyFor(node);
+  if (!sk) return null;
+  const def = resolveSprite(sheet, sk.kind, sk.status);
+  if (!def) return null;
+  const place = spritePlacement(def);
+  const props: Record<string, unknown> = {
+    key,
+    href: def.href,
+    x: fmt(place.x),
+    y: fmt(place.y),
+    width: fmt(place.width),
+    height: fmt(place.height),
+    ...handlersFor(node, ctx, storyId),
+  };
+  if (node.transform) props.transform = node.transform;
+  if (node.kind === 'flora') {
+    if (node.id) props['data-cap-id'] = node.id;
+    if (storyId) props['data-story-id'] = storyId;
+  }
+  const kids: React.ReactNode[] = [];
+  if (node.title) kids.push(React.createElement('title', { key: '__title' }, node.title));
+  return React.createElement('image', props, ...kids);
+}
+
 function renderNode(
   node: SceneNode,
   key: React.Key,
   storyId: string | undefined,
   ctx: SceneCtx,
 ): React.JSX.Element | null {
+  if (ctx.spriteSheet) {
+    const sprite = trySprite(node, key, storyId, ctx);
+    if (sprite) return sprite;
+  }
   // ADR-0218: the fenced baked-art family renders outside the generic path. A `baked-def` becomes the
   // referenced `<g id>` holding the resolved-paint drawables; a `baked-use` becomes a `<use>` of it.
   if (node.el === 'baked-def') {

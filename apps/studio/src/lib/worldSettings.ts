@@ -95,6 +95,16 @@ export type ControlValue = number | boolean | string;
 const GROUP_GROUND = 'Ground';
 const GROUP_LAYOUT = 'Layout';
 const GROUP_COSY = 'Cosy island';
+const GROUP_ART = 'Art style';
+
+/** artStyle aliases (sprite-art-sheets spike). Only the sheet names the studio actually ships resolve;
+ *  an absent/unknown/typo'd value is the `vector` default — the byte-identical procedural render — so a
+ *  bad `?artStyle=` param can never silently break the map. Wave 2 appends more sheet names here as more
+ *  sheets ship; it never needs to touch the reader / mapper, only this list + the CONTROLS options below. */
+const ART_STYLE_NAMES = ['stub-a', 'stub-b'] as const;
+function normalizeArtStyle(raw: string | null): string {
+  return (ART_STYLE_NAMES as readonly string[]).includes(raw ?? '') ? (raw as string) : 'vector';
+}
 
 /** substrate aliases, mirroring readSubstrateMode. */
 function normalizeSubstrate(raw: string | null): string {
@@ -204,6 +214,30 @@ export const CONTROLS: readonly ControlSpec[] = [
     offToken: 'off',
     onToken: 'on',
     offReads: ['off', '0', 'false'],
+  },
+
+  // ---- Art style (sprite-art-sheets spike) ----
+  // A default-off render-mode swap: instead of drawing an object's procedural vector body, the studio
+  // mapper can re-skin it from a sprite STYLE SHEET — a manifest of images keyed by drawable kind (+
+  // status), fetched from `apps/studio/public/art-sheets/<name>/manifest.json` (see
+  // `@storytree/forest-world`'s `sprite-sheet.ts` for the manifest contract). `vector` (default, absence)
+  // fetches nothing and renders byte-identical to today; each other option re-skins every COVERED kind
+  // and leaves everything uncovered as vector, so a sheet may cover only some kinds. Today's two options
+  // are prototype-quality STUBS proving the swap mechanism; wave 2 replaces them with real sheets under
+  // the same contract (new entries here, no reader/mapper change).
+  {
+    kind: 'select',
+    key: 'artStyle',
+    label: 'Art style',
+    group: GROUP_ART,
+    hint: 'Re-skin the map from a sprite style sheet instead of the procedural vector shapes. Vector is the default (byte-identical); the stub sheets are placeholder art proving the swap mechanism, not the final look.',
+    default: 'vector',
+    options: [
+      { value: 'vector', label: 'Vector (default)' },
+      { value: 'stub-a', label: 'Stub A' },
+      { value: 'stub-b', label: 'Stub B' },
+    ],
+    normalize: normalizeArtStyle,
   },
 ] as const;
 
