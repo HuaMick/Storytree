@@ -195,8 +195,8 @@ export const CONTROLS: readonly ControlSpec[] = [
   // ---- Art style (sprite-art-sheets spike) ----
   // A default-off render-mode swap: instead of drawing an object's procedural vector body, the studio
   // mapper can re-skin it from a sprite STYLE SHEET — a manifest of images keyed by drawable kind (+
-  // status), fetched from `apps/studio/public/art-sheets/<name>/manifest.json` (see
-  // `@storytree/forest-world`'s `sprite-sheet.ts` for the manifest contract). `vector` (default, absence)
+  // status), fetched from `apps/studio/public/art-sheets/<name>/manifest.json` (see the studio's
+  // `./sprite-sheet.ts` for the manifest contract). `vector` (default, absence)
   // fetches nothing and renders byte-identical to today; each other option re-skins every COVERED kind
   // and leaves everything uncovered as vector, so a sheet may cover only some kinds. Today's two options
   // are prototype-quality STUBS proving the swap mechanism; wave 2 replaces them with real sheets under

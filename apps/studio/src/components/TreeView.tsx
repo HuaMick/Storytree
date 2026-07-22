@@ -141,7 +141,6 @@ import {
   routeTrails,
   trailFillWidth,
   wispBand,
-  parseStyleSheet,
   type SceneInput,
   type SceneGardenInput,
   type SceneVegHeroTrees,
@@ -152,8 +151,8 @@ import {
   type TrailNetwork,
   type ClaimGrade,
   type BuildPhase,
-  type SpriteStyleSheet,
 } from '@storytree/forest-world';
+import { parseStyleSheet, type SpriteStyleSheet } from '../lib/sprite-sheet.js';
 import { SceneView, type SceneCtx } from './SceneView.js';
 
 // The current `?…` search string, SSR-guarded ('' when there is no window). The

@@ -12,14 +12,12 @@
 import React from 'react';
 import {
   trailFillWidth,
-  resolveSprite,
-  spritePlacement,
   type BakedPaintNode,
   type SceneKind,
   type SceneNode,
   type SceneStatus,
-  type SpriteStyleSheet,
 } from '@storytree/forest-world';
+import { resolveSprite, spritePlacement, type SpriteStyleSheet } from '../lib/sprite-sheet.js';
 import type { TrailRevealPlan } from '../lib/trailReveal.js';
 
 /** The focus-aware context the walk needs — the studio's per-render interactivity

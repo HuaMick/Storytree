@@ -111,11 +111,3 @@ export {
   buildBloom,
   buildTerritoryFlora,
 } from './scene.js';
-
-export {
-  type SpriteDef,
-  type SpriteStyleSheet,
-  resolveSprite,
-  parseStyleSheet,
-  spritePlacement,
-} from './sprite-sheet.js';
