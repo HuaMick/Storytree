@@ -39,9 +39,10 @@ describe('worldSettings — schema (docked-line roads, ADR-0076)', () => {
   it('exposes exactly the surviving dials, each with a key/label/group/kind/hint', () => {
     const keys = CONTROLS.map((c) => c.key);
     // Layout (DAG vs solar) + Ground (tiling), plus the grounded-art `veg` toggle (the promoted
-    // vegetation-vocabulary default). The `buildingIsland` toggle was REMOVED with ADR-0088, and the
-    // `garden` / `cosy` grounded-art toggles were REMOVED with ADR-0228 (the flags are retired).
-    const expected = ['layout', 'substrate', 'veg'];
+    // vegetation-vocabulary default; the `garden` / `cosy` toggles were retired by ADR-0228) and the
+    // sprite-art-sheets spike's `artStyle` select. The `buildingIsland` toggle was REMOVED with
+    // ADR-0088 (the shared-island panel is permanent, not a gear flag), so the gear carries no Panels switch.
+    const expected = ['layout', 'substrate', 'veg', 'artStyle'];
     expect([...keys].sort()).toEqual([...expected].sort());
     // The retired river/pond dials, road-routing dials, the removed building toggles
     // (building-DRAWER, then building-ISLAND) AND the retired grounded-art `garden` / `cosy` toggles
@@ -83,7 +84,9 @@ describe('worldSettings — schema (docked-line roads, ADR-0076)', () => {
     expect(groups.has('World art')).toBe(true);
     // The building-island toggle (the only Panels control) was removed — no Panels section.
     expect(groups.has('Panels')).toBe(false);
-    expect(groups.size).toBe(3);
+    // The sprite-art-sheets spike's `artStyle` select lives in its own "Art style" section.
+    expect(groups.has('Art style')).toBe(true);
+    expect(groups.size).toBe(4);
   });
 
   it('keys are unique', () => {
@@ -196,6 +199,44 @@ describe('worldSettings — the vegetation-vocabulary gear TOGGLE (owner ask: ge
     expect(setControlValue('', c, false)).toBe('?veg=off');
     expect(readVegetationVocab('?veg=off')).toBe(false);
     expect(setControlValue('?veg=off', c, true)).toBe('');
+  });
+});
+
+describe('worldSettings — artStyle control (sprite-art-sheets spike, default-off select)', () => {
+  it('defaults to vector and writing vector REMOVES the param (byte-identical world)', () => {
+    expect(readControlValue('', ctl('artStyle'))).toBe('vector');
+    expect(setControlValue('?artStyle=stub-a', ctl('artStyle'), 'vector')).toBe('');
+  });
+
+  it('writes artStyle=stub-a / artStyle=stub-b when a stub sheet is picked', () => {
+    expect(setControlValue('', ctl('artStyle'), 'stub-a')).toBe('?artStyle=stub-a');
+    expect(readControlValue('?artStyle=stub-a', ctl('artStyle'))).toBe('stub-a');
+    expect(setControlValue('', ctl('artStyle'), 'stub-b')).toBe('?artStyle=stub-b');
+    expect(readControlValue('?artStyle=stub-b', ctl('artStyle'))).toBe('stub-b');
+  });
+
+  it('writes the real nano-banana sheets (cosy / evening) when picked (sprite-art-sheets wave 2)', () => {
+    expect(setControlValue('', ctl('artStyle'), 'cosy')).toBe('?artStyle=cosy');
+    expect(readControlValue('?artStyle=cosy', ctl('artStyle'))).toBe('cosy');
+    expect(setControlValue('', ctl('artStyle'), 'evening')).toBe('?artStyle=evening');
+    expect(readControlValue('?artStyle=evening', ctl('artStyle'))).toBe('evening');
+    // both are offered in the panel dropdown
+    const artStyle = ctl('artStyle');
+    if (artStyle.kind !== 'select') throw new Error('artStyle should be a select control');
+    const opts = artStyle.options.map((o) => o.value);
+    expect(opts).toContain('cosy');
+    expect(opts).toContain('evening');
+  });
+
+  it('an unknown/typo`d value normalizes to the vector default (never a silent broken sheet)', () => {
+    expect(readControlValue('?artStyle=stub-z', ctl('artStyle'))).toBe('vector');
+    expect(readControlValue('?artStyle=', ctl('artStyle'))).toBe('vector');
+  });
+
+  it('preserves UNRELATED params when setting the select', () => {
+    const out = setControlValue('?debug=1', ctl('artStyle'), 'stub-a');
+    expect(out).toContain('debug=1');
+    expect(out).toContain('artStyle=stub-a');
   });
 });
 

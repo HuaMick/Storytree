@@ -15,9 +15,11 @@ import {
   type ClaimColourState,
   type ClaimGrade,
   type SceneInput,
+  type SceneNode,
   type SceneTrailsInput,
 } from '@storytree/forest-world';
 import { arrivalGrowPlan } from '../lib/trailReveal';
+import type { SpriteStyleSheet } from '../lib/sprite-sheet';
 import { SceneView, type SceneCtx } from './SceneView';
 
 afterEach(cleanup);
@@ -690,5 +692,205 @@ describe('SceneView — the UAT marker flowers (forest-parcels inc 2; grounded-a
   it('renders nothing marker-related when the story has no uatCriteria', () => {
     const { root } = renderScene();
     expect(root.querySelector('.tall-flower-marker')).toBeNull();
+  });
+});
+
+// sprite-art-sheets spike: a default-off render mode that re-skins a covered wrapper node as an
+// `<image>` from a sprite STYLE SHEET instead of drawing its procedural vector body. Hand-built minimal
+// `SceneNode` fixtures (SceneView takes a `SceneNode` directly — no need to route through buildScene)
+// keep each case isolated to exactly the wrapper kind under test.
+describe('SceneView — the sprite art-style render mode (default-off spike)', () => {
+  function baseCtx(spriteSheet?: SpriteStyleSheet | null): SceneCtx {
+    return {
+      territoryClassById: (id, status) => `hex-territory st-${status}`,
+      reveal: null,
+      hidden: new Set(),
+      onSelectStory: vi.fn(),
+      onSelectCap: vi.fn(),
+      ...(spriteSheet !== undefined ? { spriteSheet } : {}),
+    };
+  }
+
+  function treeScene(): SceneNode {
+    return {
+      el: 'g',
+      kind: 'world',
+      children: [
+        {
+          el: 'g',
+          kind: 'tree',
+          status: 'healthy',
+          transform: 'translate(10.0 20.0)',
+          children: [{ el: 'path', kind: 'trunk', d: 'M 0 0 Z' }],
+        },
+      ],
+    };
+  }
+
+  function renderTree(sheet?: SpriteStyleSheet | null, ctxOverride: Partial<SceneCtx> = {}): HTMLElement {
+    const ctx: SceneCtx = { ...baseCtx(sheet), ...ctxOverride };
+    const { container } = render(
+      <svg>
+        <SceneView scene={treeScene()} ctx={ctx} />
+      </svg>,
+    );
+    return container;
+  }
+
+  it('is fully inert with no sprite sheet — vector renders exactly as before (byte-identical default)', () => {
+    const root = renderTree();
+    expect(root.querySelector('.story-tree')).toBeTruthy();
+    expect(root.querySelector('.story-trunk')).toBeTruthy();
+    expect(root.querySelector('image')).toBeNull();
+  });
+
+  it('swaps a covered kind:status for an `<image>` positioned by spritePlacement, with NO child recursion', () => {
+    const sheet: SpriteStyleSheet = {
+      name: 'stub-a',
+      label: 'Stub A',
+      sprites: {
+        'tree:healthy': { href: '/art-sheets/stub-a/tree-healthy.svg', w: 40, h: 60, anchorX: 0.5, anchorY: 1 },
+      },
+    };
+    const root = renderTree(sheet);
+    const img = root.querySelector('image');
+    expect(img).toBeTruthy();
+    expect(img?.getAttribute('href')).toBe('/art-sheets/stub-a/tree-healthy.svg');
+    // the wrapper's OWN ground-anchor transform rides unchanged.
+    expect(img?.getAttribute('transform')).toBe('translate(10.0 20.0)');
+    // spritePlacement: anchorX 0.5 anchorY 1, w 40 h 60 → x=-20 y=-60 (bottom-centre ground pivot).
+    expect(img?.getAttribute('x')).toBe('-20.0');
+    expect(img?.getAttribute('y')).toBe('-60.0');
+    expect(img?.getAttribute('width')).toBe('40.0');
+    expect(img?.getAttribute('height')).toBe('60.0');
+    // NO recursion into the wrapper's vector children — the sprite REPLACES the whole object.
+    expect(root.querySelector('.story-tree')).toBeNull();
+    expect(root.querySelector('.story-trunk')).toBeNull();
+  });
+
+  it('falls back to vector for an UNCOVERED kind (a partial sheet still works everywhere else)', () => {
+    const sheet: SpriteStyleSheet = {
+      name: 'stub-a',
+      label: 'Stub A',
+      sprites: { conifer: { href: '/x.svg', w: 10, h: 10, anchorX: 0.5, anchorY: 1 } },
+    };
+    const root = renderTree(sheet);
+    expect(root.querySelector('.story-tree')).toBeTruthy();
+    expect(root.querySelector('image')).toBeNull();
+  });
+
+  it('a kind-only sprite covers a status the manifest has no exact entry for', () => {
+    const sheet: SpriteStyleSheet = {
+      name: 'stub-a',
+      label: 'Stub A',
+      sprites: { tree: { href: '/art-sheets/stub-a/tree.svg', w: 10, h: 10, anchorX: 0.5, anchorY: 1 } },
+    };
+    const root = renderTree(sheet);
+    expect(root.querySelector('image')?.getAttribute('href')).toBe('/art-sheets/stub-a/tree.svg');
+  });
+
+  it('resolves a baked-art GARDEN HERO (cottage/gazebo) by its defId, not the shared "baked-art" kind', () => {
+    const scene: SceneNode = {
+      el: 'g',
+      kind: 'world',
+      children: [
+        { el: 'baked-use', kind: 'baked-art', defId: 'garden-hero-cottage', id: 'garden-cottage', transform: 'translate(1.0 2.0)' },
+        { el: 'baked-use', kind: 'baked-art', defId: 'garden-hero-stepping-stone', id: 'garden-walk-0', transform: 'translate(3.0 4.0)' },
+      ],
+    };
+    const sheet: SpriteStyleSheet = {
+      name: 'stub-a',
+      label: 'Stub A',
+      sprites: { cottage: { href: '/art-sheets/stub-a/cottage.svg', w: 20, h: 20, anchorX: 0.5, anchorY: 1 } },
+    };
+    const { container } = render(
+      <svg>
+        <SceneView scene={scene} ctx={baseCtx(sheet)} />
+      </svg>,
+    );
+    const images = [...container.querySelectorAll('image')];
+    // only cottage is covered — the uncovered stepping-stone stays its vector `<use>` placement.
+    expect(images.length).toBe(1);
+    expect(images[0]?.getAttribute('href')).toBe('/art-sheets/stub-a/cottage.svg');
+    expect(container.querySelector('use[href="#garden-hero-stepping-stone"]')).toBeTruthy();
+  });
+
+  it('resolves the tree-spread `autumn-tree` colourway by STATUS, stripped from its per-status defId (ADR-0227)', () => {
+    const scene: SceneNode = {
+      el: 'g',
+      kind: 'world',
+      children: [
+        { el: 'baked-use', kind: 'baked-art', defId: 'veg-hero-autumn-tree-unhealthy', id: 'veg-tree-lib', transform: 'translate(1.0 2.0)' },
+      ],
+    };
+    const sheet: SpriteStyleSheet = {
+      name: 'stub-a',
+      label: 'Stub A',
+      sprites: {
+        'autumn-tree:unhealthy': { href: '/art-sheets/stub-a/tree-unhealthy.svg', w: 20, h: 20, anchorX: 0.5, anchorY: 1 },
+      },
+    };
+    const { container } = render(
+      <svg>
+        <SceneView scene={scene} ctx={baseCtx(sheet)} />
+      </svg>,
+    );
+    expect(container.querySelector('image')?.getAttribute('href')).toBe('/art-sheets/stub-a/tree-unhealthy.svg');
+  });
+
+  it('keeps the node title as an accessible `<title>` child of the sprite image (text/a11y stays in the DOM)', () => {
+    const scene: SceneNode = {
+      el: 'g',
+      kind: 'world',
+      children: [
+        {
+          el: 'g',
+          kind: 'flora',
+          status: 'healthy',
+          id: 'lib#c',
+          title: 'cap c',
+          transform: 'translate(1.0 2.0)',
+          children: [],
+        },
+      ],
+    };
+    const sheet: SpriteStyleSheet = {
+      name: 'stub-a',
+      label: 'Stub A',
+      sprites: { flora: { href: '/art-sheets/stub-a/flora.svg', w: 10, h: 10, anchorX: 0.5, anchorY: 1 } },
+    };
+    const { container } = render(
+      <svg>
+        <SceneView scene={scene} ctx={baseCtx(sheet)} />
+      </svg>,
+    );
+    const img = container.querySelector('image')!;
+    expect(img.querySelector('title')?.textContent).toBe('cap c');
+  });
+
+  it('keeps a sprite-swapped capability plant clickable (interactivity preserved across the swap)', () => {
+    const onSelectCap = vi.fn();
+    const scene: SceneNode = {
+      el: 'g',
+      kind: 'territory',
+      id: 'lib',
+      children: [
+        { el: 'g', kind: 'flora', status: 'healthy', id: 'lib#c', transform: 'translate(1.0 2.0)', children: [] },
+      ],
+    };
+    const sheet: SpriteStyleSheet = {
+      name: 'stub-a',
+      label: 'Stub A',
+      sprites: { flora: { href: '/art-sheets/stub-a/flora.svg', w: 10, h: 10, anchorX: 0.5, anchorY: 1 } },
+    };
+    const ctx: SceneCtx = { ...baseCtx(sheet), onSelectCap };
+    const { container } = render(
+      <svg>
+        <SceneView scene={scene} ctx={ctx} />
+      </svg>,
+    );
+    const img = container.querySelector('image')!;
+    fireEvent.click(img);
+    expect(onSelectCap).toHaveBeenCalledWith('lib', 'lib#c');
   });
 });
