@@ -79,3 +79,51 @@ export function bakeHeroKit(): BakedHeroEntry[] {
     label: e.label,
   }));
 }
+
+// ---------------------------------------------------------------------------
+// the tree-spread's per-status crown colourways (ADR-0227, amends ADR-0226 / 0221)
+// ---------------------------------------------------------------------------
+//
+// The tree-spread (ADR-0226 decision 1) makes the `autumn-tree` hero every non-garden island's
+// central tree — but a baked hero's paint is FIXED (ADR-0218's fence), so every island's tree read
+// one uniform autumn brown, LOSING the per-status crown hue the procedural `buildTree` carried through
+// CSS (colour-is-class, ADR-0093 §4: green=healthy, red=unhealthy, amber=proposed, brown=mapped). The
+// owner's verdict on the promoted look ("all the trees are brown?") is that loss.
+//
+// The fix is N baked colourways of the ONE authored silhouette: the crown (`foliage`) recolours per
+// status; the trunk, shadow, geometry and node ORDER are identical across every variant (only the crown
+// fills differ), so each is one baked-def, define-once/reference-many (ADR-0069), and the trunk stays
+// byte-identical to the garden `autumn-tree` hero. The surface picks the variant by the story's status.
+//
+// Honesty wall (ADR-0045): only `healthy` — a proven story — wears green; a proposed/mapped/building
+// tree is warm amber/gold/brown and a failing one is a muted brick-red, so a bud is never a bloom. The
+// bases below are LIT tones (the soft `HERO_BAKE` light keeps N·L in [0.7, 1.0], so a facet reads
+// ≈ the base at its brightest and a soft-shaded sibling below) — kin to the studio's `--crown-*-hi`
+// family, warm and low-saturation per the style bible. The exact hues are the owner's stage-2 look call.
+
+export const HERO_TREE_STATUS_VARIANTS: { status: string; foliage: string }[] = [
+  { status: 'healthy',   foliage: '#5aa46e' }, // proven — a green summer canopy
+  { status: 'building',  foliage: '#d1913a' }, // actively growing — a warm gold (echoes the ground tint)
+  { status: 'proposed',  foliage: '#cf9350' }, // claimed, not yet grown — autumn amber
+  { status: 'mapped',    foliage: '#96723f' }, // dormant / mapped — brown (≈ the retired autumn default)
+  { status: 'unhealthy', foliage: '#b05a48' }, // failing — a muted brick-red, dying canopy
+  { status: 'unknown',   foliage: '#93a58c' }, // status not known — a neutral sage grey-green
+];
+
+/** A baked tree colourway — a full {@link BakedBuilding} plus the status it paints. */
+export interface BakedHeroTreeVariant extends BakedBuilding {
+  status: string;
+}
+
+/**
+ * Bake the `autumn-tree` hero once per status, recolouring ONLY its crown (`foliage`). Same model,
+ * same {@link HERO_BAKE} light, same geometry and painter order — so every variant is byte-identical
+ * to the others (and to the garden hero) except for the crown fills. That is what lets the surface
+ * treat each as one cheap baked-def and select by status, restoring the tree's status hue.
+ */
+export function bakeHeroTreeVariants(): BakedHeroTreeVariant[] {
+  return HERO_TREE_STATUS_VARIANTS.map((v) => ({
+    ...bakeBuilding(autumnTree({ light_angle: KIT_LIGHT_ANGLE }), { ...HERO_BAKE, palette: { foliage: v.foliage } }),
+    status: v.status,
+  }));
+}

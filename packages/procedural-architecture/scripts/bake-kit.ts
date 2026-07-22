@@ -16,7 +16,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { bakeKit } from '../src/kit.js';
-import { bakeHeroKit } from '../src/hero-kit.js';
+import { bakeHeroKit, bakeHeroTreeVariants } from '../src/hero-kit.js';
 import { bakeStone } from '../src/landscape/standing-stone.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -37,6 +37,11 @@ const kit = bakeKit();
 // ride alongside `entries` so the existing building bake stays byte-for-byte unchanged and
 // the studio's `loadFactoryKit` (which reads `.entries`) is untouched.
 const heroes = bakeHeroKit();
+// --- the tree-spread's per-status crown colourways (ADR-0227, amends 0226/0221) ----
+// The `autumn-tree` hero baked once per status with only its crown recoloured, so a non-garden
+// island's central tree carries its story's status hue instead of one fixed autumn brown. A THIRD
+// array in the same file, alongside `heroes`; the existing bakes stay byte-for-byte.
+const heroTreeVariants = bakeHeroTreeVariants();
 const kitOut = resolve(bakedDir, 'kit.json');
 writeFileSync(
   kitOut,
@@ -45,6 +50,7 @@ writeFileSync(
       note: GENERATED('kit.test.ts'),
       entries: kit.map(({ polys: _polys, ...rest }) => rest),
       heroes: heroes.map(({ polys: _polys, ...rest }) => rest),
+      heroTreeVariants: heroTreeVariants.map(({ polys: _polys, ...rest }) => rest),
     },
     null,
     2,
@@ -53,8 +59,10 @@ writeFileSync(
 );
 const kitNodes = kit.reduce((n, e) => n + e.nodes.length, 0);
 const heroNodes = heroes.reduce((n, e) => n + e.nodes.length, 0);
+const variantNodes = heroTreeVariants.reduce((n, e) => n + e.nodes.length, 0);
 console.log(`baked ${kit.length} buildings, ${kitNodes} nodes → ${kitOut}`);
 console.log(`baked ${heroes.length} heroes, ${heroNodes} nodes → ${kitOut}`);
+console.log(`baked ${heroTreeVariants.length} tree colourways, ${variantNodes} nodes → ${kitOut}`);
 
 // --- the standing stone (ADR-0218, the first landscape type) ----------------
 // A SEPARATE asset, not a kit entry: a stone is its own object type (ADR-0217 D1), and the

@@ -99,6 +99,7 @@ import {
   loadBakedStone,
   loadFactoryKit,
   loadGardenHeroes,
+  loadHeroTreeVariants,
   usedFactoryBuildings,
   type BakedStoneAsset,
   type FactoryBuilding,
@@ -153,7 +154,7 @@ import {
   wispBand,
   type SceneInput,
   type SceneGardenInput,
-  type SceneGardenHero,
+  type SceneVegHeroTrees,
   type SceneVegetationInput,
   type SceneStatus,
   type ScenePlantInput,
@@ -3096,26 +3097,27 @@ function useGardenIsland(enabled: boolean): SceneGardenInput | null {
 
 /**
  * The unified vegetation vocabulary (grounded-art, ADR-0226), assembled when `?veg=on`. Presence flips
- * the vocabulary on the non-garden islands; the `autumn-tree` hero — fetched from the SAME dynamic kit
- * chunk as the garden heroes (the tree-spread, decision 1, amends ADR-0221) — is added once it resolves,
- * replacing every non-garden island's procedural central tree with a `<use>`. `null` when the flag is
- * off; `{}` (vocabulary on, procedural tree) until the hero arrives, so the tree swap is a late repaint
+ * the vocabulary on the non-garden islands; the per-status `autumn-tree` colourways — fetched from the
+ * SAME dynamic kit chunk as the garden heroes (the tree-spread, decision 1, amends ADR-0221; per-status
+ * hue restored by ADR-0227) — are added once they resolve, replacing every non-garden island's procedural
+ * central tree with a `<use>` of the colourway for that island's status. `null` when the flag is off;
+ * `{}` (vocabulary on, procedural tree) until the colourways arrive, so the tree swap is a late repaint
  * rather than a hole. Off ⇒ `SceneInput.vegetation` absent, every island byte-identical.
  */
 function useVegetation(enabled: boolean): SceneVegetationInput | null {
-  const [heroTree, setHeroTree] = useState<SceneGardenHero | null>(null);
+  const [heroTrees, setHeroTrees] = useState<SceneVegHeroTrees | null>(null);
   useEffect(() => {
     if (!enabled) return;
     let live = true;
-    void loadGardenHeroes().then(
-      (h) => { if (live) setHeroTree(h['autumn-tree']); },
-      (err: unknown) => { console.error('vegetation hero tree failed to load; keeping the procedural tree', err); },
+    void loadHeroTreeVariants().then(
+      (h) => { if (live) setHeroTrees(h); },
+      (err: unknown) => { console.error('vegetation tree colourways failed to load; keeping the procedural tree', err); },
     );
     return () => { live = false; };
   }, [enabled]);
   return useMemo<SceneVegetationInput | null>(
-    () => (enabled ? (heroTree ? { heroTree } : {}) : null),
-    [enabled, heroTree],
+    () => (enabled ? (heroTrees ? { heroTrees } : {}) : null),
+    [enabled, heroTrees],
   );
 }
 

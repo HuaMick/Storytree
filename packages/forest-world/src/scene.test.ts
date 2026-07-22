@@ -31,6 +31,7 @@ import {
   type SceneGardenInput,
   type SceneGardenHero,
   type SceneVegetationInput,
+  type SceneVegHeroTrees,
   type GardenHeroId,
 } from './scene.js';
 
@@ -1608,42 +1609,80 @@ test('placeGardenHeroes keeps every settled hero outside the fitted tree footpri
   }
 });
 
-// ---------- the tree-spread (ADR-0226 decision 1, amends ADR-0221) ----------
+// ---------- the tree-spread (ADR-0226 §1, amends ADR-0221; per-status colourways, ADR-0227) ----------
 //
-// When `vegetation.heroTree` is supplied (studio-only, `?veg=on` fetching the autumn-tree hero), EVERY
-// non-garden island's procedural central tree becomes a `<use>` of the ONE baked hero def — define-once,
-// reference-many, so the whole map reads as one authored world. ABSENT ⇒ the procedural tree stays
-// byte-for-byte. The garden island keeps its own composition (the hero doesn't double-apply). The hero
-// rides kind `baked-art`, which the studio/website mappers already render and R3F already skips — zero
-// new mapper/R3F code.
+// When `vegetation.heroTrees` is supplied (studio-only, `?veg=on` fetching the per-status autumn-tree
+// colourways), EVERY non-garden island's procedural central tree becomes a `<use>` of the colourway for
+// THAT island's status — define-once/reference-many (one def per status present), so the whole map reads
+// as one authored world AND each tree keeps its status hue (the loss the owner flagged as "all the trees
+// are brown"). ABSENT ⇒ the procedural tree stays byte-for-byte. The garden island keeps its own
+// composition (the tree-spread doesn't double-apply). The colourways ride kind `baked-art`, which the
+// studio/website mappers already render and R3F already skips — zero new mapper/R3F code.
 
-const HERO_TREE = gHero(20.6); // the autumn-tree hero's baked height
-const VEG_TREE: SceneVegetationInput = { heroTree: HERO_TREE };
+/** A minimal baked hero with a distinguishable crown fill, so a test can assert WHICH colourway an island
+ *  referenced (all real colourways share one silhouette; here the fill stands in for the crown hue). */
+const vHero = (fill: string): SceneGardenHero => ({
+  nodes: [{ el: 'polygon', points: '0,0 5,0 0,-5', fill, stroke: '#210', strokeWidth: 0.3 }],
+  width: 10,
+  height: 20.6, // the autumn-tree hero's baked height
+});
+const VEG_HEROES: SceneVegHeroTrees = {
+  healthy: vHero('#0a0'),
+  building: vHero('#d91'),
+  proposed: vHero('#e95'),
+  mapped: vHero('#963'),
+  unhealthy: vHero('#c33'),
+  unknown: vHero('#9a9'),
+};
+const VEG_TREE: SceneVegetationInput = { heroTrees: VEG_HEROES };
+const vegDefId = (status: string): string => `veg-hero-autumn-tree-${status}`;
 
-test('ADR-0226 §1: heroTree replaces the procedural tree with a baked-use on every non-garden island', () => {
+test('ADR-0227: the tree-spread replaces the procedural tree with a per-status baked-use on every island', () => {
   const scene = buildScene(mkInput({ vegetation: VEG_TREE }));
   assert.equal(firstByKind(scene, 'tree'), null, 'the procedural tree is gone');
-  const trees = allByKind(scene, 'baked-art').filter((u) => (u as { defId: string }).defId === 'veg-hero-autumn-tree');
+  // mkInput's two islands are both `healthy` ⇒ both reference the healthy colourway.
+  const trees = allByKind(scene, 'baked-art').filter((u) => (u as { defId: string }).defId === vegDefId('healthy'));
   assert.equal(trees.length, mkInput().territories.length, 'one hero-tree use per island');
   for (const t of trees) assert.match((t as { transform?: string }).transform ?? '', /^translate\(.*\) scale\(.*\)$/);
 });
 
-test('ADR-0226 §1: the tree-spread emits ONE hero-tree def (define-once), carrying the hero nodes verbatim', () => {
-  const scene = buildScene(mkInput({ vegetation: VEG_TREE }));
+test('ADR-0227: each island uses the colourway for ITS status (colour-is-class restored)', () => {
+  const scene = buildScene(
+    mkInput({
+      territories: [mkTerritory({ status: 'healthy' }), mkTerritory({ id: 'cli', status: 'unhealthy', centroid: { x: 300, y: 60 }, treeSpot: { x: 300, y: 50 }, plants: [], decor: [] })],
+      vegetation: VEG_TREE,
+    }),
+  );
+  const useDefId = (islandId: string): string =>
+    (allByKind(territoryById(scene, islandId), 'baked-art').find((u) => String((u as { defId?: string }).defId).startsWith('veg-hero-autumn-tree')) as { defId: string }).defId;
+  assert.equal(useDefId('library'), vegDefId('healthy'), 'the healthy island wears the green colourway');
+  assert.equal(useDefId('cli'), vegDefId('unhealthy'), 'the unhealthy island wears the red colourway');
+  // exactly the two used colourways are defined (define-once, node-budget: never a def for an absent status).
   const defs = allByEl(mustByKind(scene, 'baked-defs'), 'baked-def');
-  assert.equal(defs.length, 1, 'exactly one def — define-once');
-  assert.equal((defs[0] as { defId: string }).defId, 'veg-hero-autumn-tree');
-  assert.deepEqual((defs[0] as { nodes: unknown }).nodes, HERO_TREE.nodes);
+  const defIds = defs.map((d) => (d as { defId: string }).defId).sort();
+  assert.deepEqual(defIds, [vegDefId('healthy'), vegDefId('unhealthy')].sort(), 'one def per status present, no more');
+  const healthyDef = defs.find((d) => (d as { defId: string }).defId === vegDefId('healthy'));
+  assert.deepEqual((healthyDef as { nodes: unknown }).nodes, VEG_HEROES.healthy!.nodes, 'the def carries the healthy colourway nodes verbatim');
 });
 
-test('ADR-0226 §1: absent heroTree keeps the procedural tree (the UNIT-1 vocabulary still applies)', () => {
+test('ADR-0227: an unrecognised status falls back to the unknown colourway (never a missing def)', () => {
+  // supply a heroTrees map WITHOUT a `proposed` variant; a proposed island falls back to `unknown`.
+  const partial: SceneVegetationInput = { heroTrees: { healthy: vHero('#0a0'), unknown: vHero('#9a9') } };
+  const scene = buildScene(mkInput({ territories: [mkTerritory({ id: 'cli', status: 'proposed', centroid: { x: 300, y: 60 }, treeSpot: { x: 300, y: 50 }, plants: [], decor: [] })], vegetation: partial }));
+  const use = allByKind(territoryById(scene, 'cli'), 'baked-art').find((u) => String((u as { defId?: string }).defId).startsWith('veg-hero-autumn-tree'));
+  assert.equal((use as { defId: string }).defId, vegDefId('unknown'), 'the proposed island falls back to unknown');
+  const defs = allByEl(mustByKind(scene, 'baked-defs'), 'baked-def');
+  assert.deepEqual(defs.map((d) => (d as { defId: string }).defId), [vegDefId('unknown')], 'only the referenced def is emitted');
+});
+
+test('ADR-0227: absent heroTrees keeps the procedural tree (the UNIT-1 vocabulary still applies)', () => {
   const scene = buildScene(mkInput({ vegetation: {} }));
-  assert.ok(firstByKind(scene, 'tree'), 'the procedural tree stays without a heroTree');
+  assert.ok(firstByKind(scene, 'tree'), 'the procedural tree stays without heroTrees');
   assert.equal(firstByKind(scene, 'baked-art'), null, 'no hero-tree use');
   assert.equal(firstByKind(scene, 'baked-defs'), null, 'no hero-tree def');
 });
 
-test('ADR-0226 §1: the island keeps its UAT markers — ONLY the tree becomes the hero', () => {
+test('ADR-0227: the island keeps its UAT markers — ONLY the tree becomes the hero', () => {
   const scene = buildScene(
     mkInput({
       relaxedCells: FULL_LAND,
@@ -1653,25 +1692,25 @@ test('ADR-0226 §1: the island keeps its UAT markers — ONLY the tree becomes t
   );
   const isle = territoryById(scene, 'library');
   assert.ok(
-    allByKind(isle, 'baked-art').some((u) => (u as { defId: string }).defId === 'veg-hero-autumn-tree'),
+    allByKind(isle, 'baked-art').some((u) => (u as { defId: string }).defId === vegDefId('healthy')),
     'the hero tree stands',
   );
   assert.equal(flowersOf(scene).length, THREE_CRITERIA.length, 'the UAT flowers still render (1:1)');
 });
 
-test('ADR-0226 §1: garden takes precedence on its island; the tree-spread governs the others', () => {
+test('ADR-0227: garden takes precedence on its island; the tree-spread governs the others', () => {
   const scene = buildScene(mkInput({ territories: mkGardenTerritories(), garden: mkGarden('library'), vegetation: VEG_TREE }));
   const gardenTree = allByKind(territoryById(scene, 'library'), 'baked-art').find(
     (u) => (u as { defId: string }).defId === 'garden-hero-autumn-tree',
   );
   assert.ok(gardenTree, 'the garden island keeps its own autumn-tree composition');
   const normalTree = allByKind(territoryById(scene, 'cli'), 'baked-art').find(
-    (u) => (u as { defId: string }).defId === 'veg-hero-autumn-tree',
+    (u) => String((u as { defId?: string }).defId).startsWith('veg-hero-autumn-tree'),
   );
-  assert.ok(normalTree, 'the normal island gets the tree-spread hero');
+  assert.ok(normalTree, 'the normal island gets the tree-spread colourway');
   assert.equal(firstByKind(territoryById(scene, 'cli'), 'tree'), null, 'no procedural tree on the normal island');
 });
 
-test('ADR-0226 §1: the tree-spread is deterministic (same input → byte-identical)', () => {
+test('ADR-0227: the tree-spread is deterministic (same input → byte-identical)', () => {
   assert.deepEqual(buildScene(mkInput({ vegetation: VEG_TREE })), buildScene(mkInput({ vegetation: VEG_TREE })));
 });

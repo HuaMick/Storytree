@@ -12,17 +12,19 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { HERO_KIT, bakeHeroKit } from './hero-kit.js';
+import { HERO_KIT, bakeHeroKit, bakeHeroTreeVariants, HERO_TREE_STATUS_VARIANTS } from './hero-kit.js';
 import { KIT_LIGHT_ANGLE } from './kit.js';
 import type { BakedNode } from './bake.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const assetPath = resolve(here, '..', 'baked', 'kit.json');
 
+interface HeroShape { id: string; label: string; name: string; nodes: BakedNode[]; width: number; height: number; minX: number; minY: number }
 interface Asset {
   note: string;
   entries: unknown[];
-  heroes: { id: string; label: string; name: string; nodes: BakedNode[]; width: number; height: number; minX: number; minY: number }[];
+  heroes: HeroShape[];
+  heroTreeVariants: (Omit<HeroShape, 'id' | 'label'> & { status: string })[];
 }
 
 const readAsset = (): Asset => JSON.parse(readFileSync(assetPath, 'utf8')) as Asset;
@@ -80,4 +82,56 @@ test('every hero stands on the origin and reports a usable box', () => {
     assert.ok(Math.abs(e.minX + e.width / 2) < 0.01, `${e.id} is not centred on x=0`);
     assert.ok(Math.abs(e.minY + e.height) < 0.01, `${e.id} does not stand on y=0`);
   }
+});
+
+// ---------------------------------------------------------------------------
+// the tree-spread's per-status crown colourways (ADR-0227, amends 0226/0221)
+// ---------------------------------------------------------------------------
+
+test('the committed tree colourways match a fresh bake', () => {
+  const asset = readAsset();
+  const fresh = bakeHeroTreeVariants();
+  assert.ok(Array.isArray(asset.heroTreeVariants), 'kit.json carries a `heroTreeVariants` array — run `pnpm --filter @storytree/procedural-architecture bake`');
+  assert.equal(asset.heroTreeVariants.length, fresh.length, 'the tree colourways changed without a re-bake — run `pnpm --filter @storytree/procedural-architecture bake`');
+  for (const [i, f] of fresh.entries()) {
+    const committed = asset.heroTreeVariants[i];
+    assert.ok(committed, `no committed bake for the ${f.status} tree`);
+    assert.equal(committed.status, f.status);
+    assert.deepEqual(
+      committed.nodes,
+      f.nodes,
+      `the ${f.status} tree has drifted from its committed bake — run \`pnpm --filter @storytree/procedural-architecture bake\``,
+    );
+  }
+});
+
+test('the colourways cover the status set with distinct crowns and one shared silhouette', () => {
+  const variants = readAsset().heroTreeVariants;
+  // every SceneStatus a story can carry has a variant (the surface falls back to `unknown` only for
+  // an unrecognised status).
+  const statuses = variants.map((v) => v.status).sort();
+  assert.deepEqual(statuses, ['building', 'healthy', 'mapped', 'proposed', 'unhealthy', 'unknown']);
+  assert.deepEqual(
+    HERO_TREE_STATUS_VARIANTS.map((v) => v.status).sort(),
+    statuses,
+    'HERO_TREE_STATUS_VARIANTS and the baked set agree',
+  );
+  // ONE authored silhouette: every variant is byte-identical in GEOMETRY (define-once/reference-many),
+  // differing only in the resolved crown fills — so the trunk/shadow stay put and only the crown recolours.
+  const geom = (v: (typeof variants)[number]): string =>
+    v.nodes.map((n) => `${n.el}|${'points' in n ? n.points : 'd' in n ? n.d : `${n.cx},${n.cy}`}`).join(';');
+  assert.equal(new Set(variants.map(geom)).size, 1, 'the colourways share one silhouette');
+  assert.equal(new Set(variants.map((v) => `${v.width}x${v.height}`)).size, 1, 'the colourways share one box');
+  // the healthy crown is green and the unhealthy crown is red — different fill sets, honesty wall (only
+  // a proven story wears green).
+  const crownFills = (status: string): Set<string> => {
+    const v = variants.find((x) => x.status === status);
+    assert.ok(v, `${status} colourway present`);
+    return new Set(v.nodes.map((n) => n.fill).filter((fRaw): fRaw is string => !!fRaw && fRaw !== '#000' && fRaw !== 'none'));
+  };
+  const green = crownFills('healthy');
+  const red = crownFills('unhealthy');
+  // no green crown fill leaks into the unhealthy tree, and vice-versa — the crowns are genuinely distinct.
+  assert.equal([...green].some((c) => red.has(c) && c.startsWith('#4')), false);
+  assert.ok([...green].some((c) => c.startsWith('#4') || c.startsWith('#5')), 'healthy wears a green canopy');
 });
