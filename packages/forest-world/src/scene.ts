@@ -666,17 +666,25 @@ export interface SceneGardenInput {
   heroes: Record<GardenHeroId, SceneGardenHero>;
 }
 
+/** The tree-spread's per-status colourways, keyed by status (ADR-0227). The `autumn-tree` hero baked
+ *  once per status with only its crown recoloured — so a non-garden island's central tree carries its
+ *  story's status hue rather than one fixed autumn brown. `Partial` because the surface may supply a
+ *  subset; a missing status falls back to `unknown` (which the surface always supplies). */
+export type SceneVegHeroTrees = Partial<Record<SceneStatus, SceneGardenHero>>;
+
 /** The unified vegetation-vocabulary input (grounded-art, ADR-0226). PRESENT ⇒ every non-garden island
  *  renders the unified vocabulary (grass = a capability's tests, small flowers = the story's UAT, dead
  *  grass = an unhealthy capability, the human-witness signpost retired). ABSENT ⇒ byte-for-byte, exactly
- *  like `garden`. Its presence alone flips the vocabulary; the optional `heroTree` carries the tree-spread. */
+ *  like `garden`. Its presence alone flips the vocabulary; the optional `heroTrees` carries the tree-spread. */
 export interface SceneVegetationInput {
-  /** The tree-spread (ADR-0226 decision 1, amends ADR-0221): the baked `autumn-tree` hero, folded by the
-   *  SURFACE from `kit.json`'s `heroes` exactly like the garden's heroes. When PRESENT, a non-garden
-   *  island's procedural central tree (`buildTree`) is replaced by a `<use>` of this hero
-   *  (`gardenHeroUse` + `fittedHeroScale`), define-once / reference-many. ABSENT ⇒ the procedural tree
-   *  stays (the vocabulary's grass/flowers still apply). */
-  heroTree?: SceneGardenHero;
+  /** The tree-spread (ADR-0226 decision 1, amends ADR-0221; per-status colourways added by ADR-0227):
+   *  the baked `autumn-tree` hero, folded by the SURFACE from `kit.json`'s `heroTreeVariants` (one bake
+   *  per status, only the crown recoloured). When PRESENT, a non-garden island's procedural central tree
+   *  (`buildTree`) is replaced by a `<use>` of the colourway for the ISLAND'S STATUS — restoring the
+   *  per-status crown hue (green=healthy, red=unhealthy, amber=proposed, brown=mapped) the procedural
+   *  tree carried through CSS, now on the authored hero silhouette (define-once / reference-many). ABSENT
+   *  ⇒ the procedural tree stays (the vocabulary's grass/flowers still apply). */
+  heroTrees?: SceneVegHeroTrees;
 }
 
 // ---------------------------------------------------------------------------
@@ -2640,33 +2648,57 @@ function buildGardenDefs(garden: SceneGardenInput): SceneG {
   return g(defs, { kind: 'baked-defs' });
 }
 
-/** The scene-graph def id the tree-spread's `autumn-tree` hero `<use>` references (ADR-0226 decision 1,
- *  amends ADR-0221). Distinct from the garden's `garden-hero-autumn-tree` so the two features stay
- *  independent — the tree-spread applies to EVERY non-garden island, the garden to its one exemplar. */
-const VEG_HERO_TREE_DEF = 'veg-hero-autumn-tree';
+/** The scene-graph def-id for a tree-spread `autumn-tree` colourway (ADR-0227, amends ADR-0226/0221) —
+ *  one per status (`veg-hero-autumn-tree-healthy`, `…-unhealthy`, …). Distinct from the garden's
+ *  `garden-hero-autumn-tree` so the two features stay independent — the tree-spread applies to EVERY
+ *  non-garden island, the garden to its one exemplar. */
+function vegHeroTreeDefId(status: SceneStatus): string {
+  return `veg-hero-autumn-tree-${status}`;
+}
 
-/** Place the tree-spread's `autumn-tree` hero as the central tree of a non-garden island (ADR-0226
- *  decision 1) — a paint-free `baked-use` at the island's tree spot, FITTED to the island exactly like a
- *  garden hero (`fittedHeroScale`), so its footprint lands within a small island's shore. Define-once /
- *  reference-many: one {@link VEG_HERO_TREE_DEF} def, N cheap `<use>`s (one per island). Kind `baked-art`
- *  is the existing ADR-0218 placement kind — the studio/website mappers already render it and R3F already
- *  skips it, so there is zero new mapper/R3F code (the same de-risk as the garden hero tree). */
-function vegHeroTreeUse(heroTree: SceneGardenHero, t: SceneTerritoryInput): SceneBakedUse {
-  const s = fittedHeroScale('autumn-tree', heroTree, t);
+/** The status whose colourway a given island actually uses: its own status when a variant is supplied,
+ *  else the `unknown` fallback (which the surface always supplies). Keeps every `<use>` pointing at a def
+ *  the defs layer emitted. */
+function resolvedTreeStatus(heroTrees: SceneVegHeroTrees, status: SceneStatus): SceneStatus {
+  return heroTrees[status] ? status : 'unknown';
+}
+
+/** Place the tree-spread's `autumn-tree` colourway as the central tree of a non-garden island (ADR-0227)
+ *  — a paint-free `baked-use` at the island's tree spot, referencing the def for the ISLAND'S STATUS so
+ *  the crown carries the status hue the procedural tree carried (green=healthy, brown=mapped, …), restored
+ *  on the authored silhouette. FITTED to the island exactly like a garden hero (`fittedHeroScale`); every
+ *  colourway shares one box, so the fit is status-independent. Define-once / reference-many: one def per
+ *  status, N cheap `<use>`s. Kind `baked-art` is the existing ADR-0218 placement kind — the studio/website
+ *  mappers already render it and R3F already skips it, so there is zero new mapper/R3F code. */
+function vegHeroTreeUse(heroTrees: SceneVegHeroTrees, t: SceneTerritoryInput): SceneBakedUse {
+  const status = resolvedTreeStatus(heroTrees, t.status);
+  const hero = heroTrees[status];
+  const s = hero ? fittedHeroScale('autumn-tree', hero, t) : 1;
   return {
     el: 'baked-use',
-    defId: VEG_HERO_TREE_DEF,
+    defId: vegHeroTreeDefId(status),
     kind: 'baked-art',
     id: `veg-tree-${t.id}`,
     transform: `translate(${f(t.treeSpot.x)} ${f(t.treeSpot.y)}) scale(${f(s)})`,
   };
 }
 
-/** The tree-spread's baked-art DEFINITIONS layer (ADR-0226 decision 1): the ONE `autumn-tree` hero def,
- *  define-once, referenced by every island's `vegHeroTreeUse`. Emitted only when the surface supplies
- *  `vegetation.heroTree`; absent ⇒ the procedural tree stays and no defs layer is emitted. */
-function buildVegetationDefs(heroTree: SceneGardenHero): SceneG {
-  return g([{ el: 'baked-def', defId: VEG_HERO_TREE_DEF, nodes: heroTree.nodes }], { kind: 'baked-defs' });
+/** The tree-spread's baked-art DEFINITIONS layer (ADR-0227): one `autumn-tree` colourway def per STATUS
+ *  actually used by the islands on this map (define-once / reference-many, ADR-0069 — never more defs than
+ *  distinct statuses present, so the node floor stays proportional). Referenced by each island's
+ *  `vegHeroTreeUse`. Emitted only when the surface supplies `vegetation.heroTrees`; absent ⇒ the procedural
+ *  tree stays and no defs layer is emitted. */
+function buildVegetationDefs(heroTrees: SceneVegHeroTrees, statuses: Iterable<SceneStatus>): SceneG {
+  const seen = new Set<SceneStatus>();
+  const defs: SceneNode[] = [];
+  for (const st of statuses) {
+    const status = resolvedTreeStatus(heroTrees, st);
+    if (seen.has(status)) continue;
+    seen.add(status);
+    const hero = heroTrees[status];
+    if (hero) defs.push({ el: 'baked-def', defId: vegHeroTreeDefId(status), nodes: hero.nodes });
+  }
+  return g(defs, { kind: 'baked-defs' });
 }
 
 // ---------------------------------------------------------------------------
@@ -2717,14 +2749,15 @@ export function buildTerritoryFlora(
       }
       for (const plant of t.plants) drawables.push({ y: plant.y, node: buildPlant(plant) });
     }
-    // The central tree. Under the tree-spread (ADR-0226 decision 1, amends ADR-0221), a supplied
-    // `vegetation.heroTree` replaces the procedural `buildTree` with a `<use>` of the baked `autumn-tree`
-    // hero — define-once / reference-many, so the whole map reads as one authored world (and, per island,
-    // one cheap `<use>` instead of the inlined procedural crown). The island keeps its grass / flora / UAT
-    // markers; ONLY the tree becomes the hero. Absent `heroTree` ⇒ the procedural tree (the vocabulary's
-    // grass/flowers still apply, and flag-off is byte-for-byte).
-    if (vegetation?.heroTree) {
-      drawables.push({ y: t.treeSpot.y, node: vegHeroTreeUse(vegetation.heroTree, t) });
+    // The central tree. Under the tree-spread (ADR-0226 decision 1, amends ADR-0221; per-status
+    // colourways, ADR-0227), a supplied `vegetation.heroTrees` replaces the procedural `buildTree` with a
+    // `<use>` of the `autumn-tree` colourway for THIS island's status — define-once / reference-many, so
+    // the whole map reads as one authored world AND each tree still carries its status hue (the loss the
+    // owner flagged in the uniform-brown promotion). The island keeps its grass / flora / UAT markers;
+    // ONLY the tree becomes the hero. Absent `heroTrees` ⇒ the procedural tree (grass/flowers still
+    // apply, and flag-off is byte-for-byte).
+    if (vegetation?.heroTrees) {
+      drawables.push({ y: t.treeSpot.y, node: vegHeroTreeUse(vegetation.heroTrees, t) });
     } else {
       drawables.push({ y: t.treeSpot.y, node: buildTree(t, unifiedVeg) });
     }
@@ -2992,10 +3025,11 @@ export function buildScene(input: SceneInput): SceneG {
   const garden = input.garden ?? null;
   const layers: SceneNode[] = [
     ...(garden ? [buildGardenDefs(garden)] : []),
-    // ADR-0226 decision 1 (the tree-spread): the ONE `autumn-tree` hero def, emitted when the surface
-    // supplies `vegetation.heroTree`, referenced by every non-garden island's central-tree `<use>`.
-    // Absent ⇒ no defs layer, and every island's tree renders as the procedural `buildTree` byte-for-byte.
-    ...(vegetation?.heroTree ? [buildVegetationDefs(vegetation.heroTree)] : []),
+    // ADR-0226 decision 1 (the tree-spread) + ADR-0227 (per-status colourways): one `autumn-tree` def per
+    // STATUS present on the map, emitted when the surface supplies `vegetation.heroTrees`, referenced by
+    // every non-garden island's central-tree `<use>`. Absent ⇒ no defs layer, and every island's tree
+    // renders as the procedural `buildTree` byte-for-byte.
+    ...(vegetation?.heroTrees ? [buildVegetationDefs(vegetation.heroTrees, input.territories.map((t) => t.status))] : []),
     buildEmpties(input),
     buildCoast(input),
     buildGround(input, surfaces),

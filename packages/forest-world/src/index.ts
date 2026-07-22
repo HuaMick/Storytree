@@ -82,6 +82,7 @@ export {
   type SceneGardenInput,
   type SceneGardenHero,
   type SceneVegetationInput,
+  type SceneVegHeroTrees,
   type GardenHeroId,
   SURFACES,
   wispBand,
