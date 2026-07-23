@@ -97,11 +97,12 @@ const GROUP_LAYOUT = 'Layout';
 const GROUP_COSY = 'World art';
 const GROUP_ART = 'Art style';
 
-/** artStyle aliases (sprite-art-sheets spike). Only the sheet names the studio actually ships resolve;
+/** artStyle aliases (sprite-art-sheets arc). Only the sheet names the studio actually ships resolve;
  *  an absent/unknown/typo'd value is the `vector` default — the byte-identical procedural render — so a
- *  bad `?artStyle=` param can never silently break the map. Wave 2 appends more sheet names here as more
- *  sheets ship; it never needs to touch the reader / mapper, only this list + the CONTROLS options below. */
-const ART_STYLE_NAMES = ['stub-a', 'stub-b', 'cosy', 'evening'] as const;
+ *  bad `?artStyle=` param can never silently break the map. The three coherent nano-banana sheets
+ *  (whole-sheet gen → content-aware slice → crown recolour, owner-attested 2026-07-23); adding a sheet
+ *  never touches the reader / mapper, only this list + the CONTROLS options below. */
+const ART_STYLE_NAMES = ['storybook', 'daylight', 'watercolor'] as const;
 function normalizeArtStyle(raw: string | null): string {
   return (ART_STYLE_NAMES as readonly string[]).includes(raw ?? '') ? (raw as string) : 'vector';
 }
@@ -192,28 +193,28 @@ export const CONTROLS: readonly ControlSpec[] = [
     offReads: ['off', '0', 'false'],
   },
 
-  // ---- Art style (sprite-art-sheets spike) ----
+  // ---- Art style (sprite-art-sheets arc) ----
   // A default-off render-mode swap: instead of drawing an object's procedural vector body, the studio
   // mapper can re-skin it from a sprite STYLE SHEET — a manifest of images keyed by drawable kind (+
   // status), fetched from `apps/studio/public/art-sheets/<name>/manifest.json` (see the studio's
-  // `./sprite-sheet.ts` for the manifest contract). `vector` (default, absence)
-  // fetches nothing and renders byte-identical to today; each other option re-skins every COVERED kind
-  // and leaves everything uncovered as vector, so a sheet may cover only some kinds. Today's two options
-  // are prototype-quality STUBS proving the swap mechanism; wave 2 replaces them with real sheets under
-  // the same contract (new entries here, no reader/mapper change).
+  // `./sprite-sheet.ts` for the manifest contract). `vector` (default, absence) fetches nothing and
+  // renders byte-identical to today; each other option re-skins every COVERED kind and leaves everything
+  // uncovered as vector. The three sheets are the coherent nano-banana set (one whole-sheet generation per
+  // style, content-aware sliced, per-status trees recoloured from one master, unhealthy = the withered
+  // form) — owner-attested 2026-07-23. Adding/removing a sheet touches only this options list + the names
+  // alias above, never the reader/mapper.
   {
     kind: 'select',
     key: 'artStyle',
     label: 'Art style',
     group: GROUP_ART,
-    hint: 'Re-skin the map from a sprite style sheet instead of the procedural vector shapes. Vector is the default (byte-identical); the stub sheets are placeholder art, and Cosy / Evening are real nano-banana sprite sheets (warm storybook vs cool moonlit) proving the swap with finished art.',
+    hint: 'Re-skin the map from a sprite art sheet instead of the procedural vector shapes. Vector is the default (byte-identical). Storybook is a warm cosy look, Daylight a brighter one, and Watercolour a soft hand-painted wash — all AI-authored, default-off until picked here.',
     default: 'vector',
     options: [
       { value: 'vector', label: 'Vector (default)' },
-      { value: 'stub-a', label: 'Stub A' },
-      { value: 'stub-b', label: 'Stub B' },
-      { value: 'cosy', label: 'Cosy — warm storybook' },
-      { value: 'evening', label: 'Evening — moonlit' },
+      { value: 'storybook', label: 'Storybook — warm' },
+      { value: 'daylight', label: 'Daylight — bright' },
+      { value: 'watercolor', label: 'Watercolour — soft wash' },
     ],
     normalize: normalizeArtStyle,
   },

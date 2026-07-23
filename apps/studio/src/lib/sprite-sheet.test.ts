@@ -10,12 +10,12 @@ import { resolveSprite, parseStyleSheet, spritePlacement, type SpriteStyleSheet 
 
 function mkSheet(): SpriteStyleSheet {
   return {
-    name: 'stub-a',
+    name: 'test-sheet',
     label: 'Stub A',
     sprites: {
-      tree: { href: '/art-sheets/stub-a/tree.svg', w: 40, h: 70, anchorX: 0.5, anchorY: 1 },
-      'tree:unhealthy': { href: '/art-sheets/stub-a/tree-unhealthy.svg', w: 40, h: 70, anchorX: 0.5, anchorY: 1 },
-      conifer: { href: '/art-sheets/stub-a/conifer.svg', w: 24, h: 34, anchorX: 0.5, anchorY: 1, scale: 2 },
+      tree: { href: '/art-sheets/test-sheet/tree.svg', w: 40, h: 70, anchorX: 0.5, anchorY: 1 },
+      'tree:unhealthy': { href: '/art-sheets/test-sheet/tree-unhealthy.svg', w: 40, h: 70, anchorX: 0.5, anchorY: 1 },
+      conifer: { href: '/art-sheets/test-sheet/conifer.svg', w: 24, h: 34, anchorX: 0.5, anchorY: 1, scale: 2 },
     },
   };
 }
@@ -24,19 +24,19 @@ describe('sprite-sheet', () => {
   test('resolveSprite — exact `${kind}:${status}` wins over the kind-only fallback', () => {
     const sheet = mkSheet();
     const hit = resolveSprite(sheet, 'tree', 'unhealthy');
-    expect(hit?.href).toBe('/art-sheets/stub-a/tree-unhealthy.svg');
+    expect(hit?.href).toBe('/art-sheets/test-sheet/tree-unhealthy.svg');
   });
 
   test('resolveSprite — falls back to the kind-only entry when no exact status match exists', () => {
     const sheet = mkSheet();
     const hit = resolveSprite(sheet, 'tree', 'healthy');
-    expect(hit?.href).toBe('/art-sheets/stub-a/tree.svg');
+    expect(hit?.href).toBe('/art-sheets/test-sheet/tree.svg');
   });
 
   test('resolveSprite — a kind with no status arg still resolves the kind-only entry', () => {
     const sheet = mkSheet();
     const hit = resolveSprite(sheet, 'conifer');
-    expect(hit?.href).toBe('/art-sheets/stub-a/conifer.svg');
+    expect(hit?.href).toBe('/art-sheets/test-sheet/conifer.svg');
   });
 
   test('resolveSprite — returns null when neither the exact nor the kind-only key is covered', () => {
@@ -49,7 +49,7 @@ describe('sprite-sheet', () => {
     const sheet = mkSheet();
     // `tree:proposed` is not authored; must fall back to the bare `tree` entry, not null.
     const hit = resolveSprite(sheet, 'tree', 'proposed');
-    expect(hit?.href).toBe('/art-sheets/stub-a/tree.svg');
+    expect(hit?.href).toBe('/art-sheets/test-sheet/tree.svg');
   });
 
   test('spritePlacement — anchor (0.5, 1) (bottom-centre) seats the ground pivot at local (0,0)', () => {
@@ -74,20 +74,20 @@ describe('sprite-sheet', () => {
 
   test('parseStyleSheet — accepts a valid manifest and preserves every sprite', () => {
     const parsed = parseStyleSheet({
-      name: 'stub-a',
+      name: 'test-sheet',
       label: 'Stub A',
       sprites: {
         tree: { href: '/x/tree.svg', w: 10, h: 20, anchorX: 0.5, anchorY: 1 },
       },
     });
-    expect(parsed.name).toBe('stub-a');
+    expect(parsed.name).toBe('test-sheet');
     expect(parsed.label).toBe('Stub A');
     expect(parsed.sprites.tree).toEqual({ href: '/x/tree.svg', w: 10, h: 20, anchorX: 0.5, anchorY: 1 });
   });
 
   test('parseStyleSheet — round-trips a sprite carrying an optional `scale`', () => {
     const parsed = parseStyleSheet({
-      name: 'stub-a',
+      name: 'test-sheet',
       label: 'Stub A',
       sprites: { conifer: { href: '/x/conifer.svg', w: 10, h: 20, anchorX: 0.5, anchorY: 1, scale: 1.5 } },
     });
@@ -103,14 +103,14 @@ describe('sprite-sheet', () => {
 
   test('parseStyleSheet — throws when "name" / "label" / "sprites" are missing or the wrong shape', () => {
     expect(() => parseStyleSheet({ label: 'Stub A', sprites: {} })).toThrow(/"name"/);
-    expect(() => parseStyleSheet({ name: 'stub-a', sprites: {} })).toThrow(/"label"/);
-    expect(() => parseStyleSheet({ name: 'stub-a', label: 'Stub A' })).toThrow(/"sprites"/);
+    expect(() => parseStyleSheet({ name: 'test-sheet', sprites: {} })).toThrow(/"label"/);
+    expect(() => parseStyleSheet({ name: 'test-sheet', label: 'Stub A' })).toThrow(/"sprites"/);
     expect(() => parseStyleSheet({ name: '', label: 'Stub A', sprites: {} })).toThrow();
-    expect(() => parseStyleSheet({ name: 'stub-a', label: 'Stub A', sprites: 'nope' })).toThrow();
+    expect(() => parseStyleSheet({ name: 'test-sheet', label: 'Stub A', sprites: 'nope' })).toThrow();
   });
 
   test('parseStyleSheet — throws on a malformed sprite def (missing/invalid fields)', () => {
-    const bad = (sprite: unknown): unknown => ({ name: 'stub-a', label: 'Stub A', sprites: { tree: sprite } });
+    const bad = (sprite: unknown): unknown => ({ name: 'test-sheet', label: 'Stub A', sprites: { tree: sprite } });
     expect(() => parseStyleSheet(bad({}))).toThrow(/"href"/); // missing href
     expect(() => parseStyleSheet(bad({ href: '' }))).toThrow(/"href"/); // empty href
     expect(() => parseStyleSheet(bad({ href: '/x.svg', w: 0, h: 10, anchorX: 0, anchorY: 0 }))).toThrow(/"w"/); // w<=0

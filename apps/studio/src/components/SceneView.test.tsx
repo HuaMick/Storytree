@@ -753,16 +753,16 @@ describe('SceneView — the sprite art-style render mode (default-off spike)', (
 
   it('swaps a covered kind:status for an `<image>` FITTED to the vector body it replaces, with NO child recursion', () => {
     const sheet: SpriteStyleSheet = {
-      name: 'stub-a',
+      name: 'test-sheet',
       label: 'Stub A',
       sprites: {
-        'tree:healthy': { href: '/art-sheets/stub-a/tree-healthy.svg', w: 40, h: 60, anchorX: 0.5, anchorY: 1 },
+        'tree:healthy': { href: '/art-sheets/test-sheet/tree-healthy.svg', w: 40, h: 60, anchorX: 0.5, anchorY: 1 },
       },
     };
     const root = renderTree(sheet);
     const img = root.querySelector('image');
     expect(img).toBeTruthy();
-    expect(img?.getAttribute('href')).toBe('/art-sheets/stub-a/tree-healthy.svg');
+    expect(img?.getAttribute('href')).toBe('/art-sheets/test-sheet/tree-healthy.svg');
     // the wrapper's OWN ground-anchor transform rides unchanged.
     expect(img?.getAttribute('transform')).toBe('translate(10.0 20.0)');
     // DERIVED sizing (sprite-sizing.ts): the content box is x ∈ [−10,10], y ∈ [−60,3] → height 63,
@@ -779,10 +779,10 @@ describe('SceneView — the sprite art-style render mode (default-off spike)', (
 
   it('the artScale world-setting dial multiplies the fitted size around the same ground line', () => {
     const sheet: SpriteStyleSheet = {
-      name: 'stub-a',
+      name: 'test-sheet',
       label: 'Stub A',
       sprites: {
-        'tree:healthy': { href: '/art-sheets/stub-a/tree-healthy.svg', w: 40, h: 60, anchorX: 0.5, anchorY: 1 },
+        'tree:healthy': { href: '/art-sheets/test-sheet/tree-healthy.svg', w: 40, h: 60, anchorX: 0.5, anchorY: 1 },
       },
     };
     const root = renderTree(sheet, { artScale: 0.5 });
@@ -808,7 +808,7 @@ describe('SceneView — the sprite art-style render mode (default-off spike)', (
       ],
     };
     const sheet: SpriteStyleSheet = {
-      name: 'stub-a',
+      name: 'test-sheet',
       label: 'Stub A',
       sprites: { conifer: { href: '/x.svg', w: 10, h: 20, anchorX: 0.5, anchorY: 1 } },
     };
@@ -847,10 +847,10 @@ describe('SceneView — the sprite art-style render mode (default-off spike)', (
       ],
     };
     const sheet: SpriteStyleSheet = {
-      name: 'stub-a',
+      name: 'test-sheet',
       label: 'Stub A',
       sprites: {
-        'autumn-tree:healthy': { href: '/art-sheets/stub-a/tree-healthy.svg', w: 40, h: 60, anchorX: 0.5, anchorY: 1 },
+        'autumn-tree:healthy': { href: '/art-sheets/test-sheet/tree-healthy.svg', w: 40, h: 60, anchorX: 0.5, anchorY: 1 },
       },
     };
     const { container } = render(
@@ -868,7 +868,7 @@ describe('SceneView — the sprite art-style render mode (default-off spike)', (
 
   it('falls back to vector for an UNCOVERED kind (a partial sheet still works everywhere else)', () => {
     const sheet: SpriteStyleSheet = {
-      name: 'stub-a',
+      name: 'test-sheet',
       label: 'Stub A',
       sprites: { conifer: { href: '/x.svg', w: 10, h: 10, anchorX: 0.5, anchorY: 1 } },
     };
@@ -879,12 +879,12 @@ describe('SceneView — the sprite art-style render mode (default-off spike)', (
 
   it('a kind-only sprite covers a status the manifest has no exact entry for', () => {
     const sheet: SpriteStyleSheet = {
-      name: 'stub-a',
+      name: 'test-sheet',
       label: 'Stub A',
-      sprites: { tree: { href: '/art-sheets/stub-a/tree.svg', w: 10, h: 10, anchorX: 0.5, anchorY: 1 } },
+      sprites: { tree: { href: '/art-sheets/test-sheet/tree.svg', w: 10, h: 10, anchorX: 0.5, anchorY: 1 } },
     };
     const root = renderTree(sheet);
-    expect(root.querySelector('image')?.getAttribute('href')).toBe('/art-sheets/stub-a/tree.svg');
+    expect(root.querySelector('image')?.getAttribute('href')).toBe('/art-sheets/test-sheet/tree.svg');
   });
 
   it('resolves a baked-art GARDEN HERO (cottage/gazebo) by its defId, not the shared "baked-art" kind', () => {
@@ -897,9 +897,9 @@ describe('SceneView — the sprite art-style render mode (default-off spike)', (
       ],
     };
     const sheet: SpriteStyleSheet = {
-      name: 'stub-a',
+      name: 'test-sheet',
       label: 'Stub A',
-      sprites: { cottage: { href: '/art-sheets/stub-a/cottage.svg', w: 20, h: 20, anchorX: 0.5, anchorY: 1 } },
+      sprites: { cottage: { href: '/art-sheets/test-sheet/cottage.svg', w: 20, h: 20, anchorX: 0.5, anchorY: 1 } },
     };
     const { container } = render(
       <svg>
@@ -909,7 +909,7 @@ describe('SceneView — the sprite art-style render mode (default-off spike)', (
     const images = [...container.querySelectorAll('image')];
     // only cottage is covered — the uncovered stepping-stone stays its vector `<use>` placement.
     expect(images.length).toBe(1);
-    expect(images[0]?.getAttribute('href')).toBe('/art-sheets/stub-a/cottage.svg');
+    expect(images[0]?.getAttribute('href')).toBe('/art-sheets/test-sheet/cottage.svg');
     expect(container.querySelector('use[href="#garden-hero-stepping-stone"]')).toBeTruthy();
   });
 
@@ -922,10 +922,10 @@ describe('SceneView — the sprite art-style render mode (default-off spike)', (
       ],
     };
     const sheet: SpriteStyleSheet = {
-      name: 'stub-a',
+      name: 'test-sheet',
       label: 'Stub A',
       sprites: {
-        'autumn-tree:unhealthy': { href: '/art-sheets/stub-a/tree-unhealthy.svg', w: 20, h: 20, anchorX: 0.5, anchorY: 1 },
+        'autumn-tree:unhealthy': { href: '/art-sheets/test-sheet/tree-unhealthy.svg', w: 20, h: 20, anchorX: 0.5, anchorY: 1 },
       },
     };
     const { container } = render(
@@ -933,7 +933,7 @@ describe('SceneView — the sprite art-style render mode (default-off spike)', (
         <SceneView scene={scene} ctx={baseCtx(sheet)} />
       </svg>,
     );
-    expect(container.querySelector('image')?.getAttribute('href')).toBe('/art-sheets/stub-a/tree-unhealthy.svg');
+    expect(container.querySelector('image')?.getAttribute('href')).toBe('/art-sheets/test-sheet/tree-unhealthy.svg');
   });
 
   it('keeps the node title as an accessible `<title>` child of the sprite image (text/a11y stays in the DOM)', () => {
@@ -953,9 +953,9 @@ describe('SceneView — the sprite art-style render mode (default-off spike)', (
       ],
     };
     const sheet: SpriteStyleSheet = {
-      name: 'stub-a',
+      name: 'test-sheet',
       label: 'Stub A',
-      sprites: { flora: { href: '/art-sheets/stub-a/flora.svg', w: 10, h: 10, anchorX: 0.5, anchorY: 1 } },
+      sprites: { flora: { href: '/art-sheets/test-sheet/flora.svg', w: 10, h: 10, anchorX: 0.5, anchorY: 1 } },
     };
     const { container } = render(
       <svg>
@@ -977,9 +977,9 @@ describe('SceneView — the sprite art-style render mode (default-off spike)', (
       ],
     };
     const sheet: SpriteStyleSheet = {
-      name: 'stub-a',
+      name: 'test-sheet',
       label: 'Stub A',
-      sprites: { flora: { href: '/art-sheets/stub-a/flora.svg', w: 10, h: 10, anchorX: 0.5, anchorY: 1 } },
+      sprites: { flora: { href: '/art-sheets/test-sheet/flora.svg', w: 10, h: 10, anchorX: 0.5, anchorY: 1 } },
     };
     const ctx: SceneCtx = { ...baseCtx(sheet), onSelectCap };
     const { container } = render(
