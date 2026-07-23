@@ -17,7 +17,11 @@
 import { hash, rand01 } from './rng.js';
 import { HEX_R, hexCenter, hexCorners, pixelToHex, axialKey, type Axial, type Pt } from './hex.js';
 
-export type SubstrateMode = 'relaxed-hex' | 'relaxed-quad' | 'mesh';
+// ADR-0233: the forest ground tiling is ALWAYS the Townscaper mesh now — the earlier `relaxed-hex` /
+// `relaxed-quad` spike alternates (and the studio gear select that chose between them) were retired
+// (nothing rendered them). `SubstrateMode` stays a named type (one member) so `buildRelaxedCells(mode)`
+// keeps its shape for callers.
+export type SubstrateMode = 'mesh';
 
 /** A claimed tile and the territory index that owns it (the layout's output). */
 export interface DrawTile {
@@ -42,11 +46,8 @@ export interface SubstrateTuning {
   subdiv?: number;
 }
 
-const QUAD_TUNING: SubstrateTuning = { jitter: 0.78, iters: 2, relax: 0.26, wheatScatter: true };
-const HEX_TUNING: SubstrateTuning = { jitter: 0.7, iters: 2, relax: 0.28, wheatScatter: false };
-// Path B's irregular topology carries the de-hexing, so jitter sits lower than
-// path A (less needed; too much tangles the finer mesh); relax a touch firmer to
-// settle the merged quads into clean Townscaper cells.
+// The mesh's irregular topology carries the de-hexing, so jitter sits low (too much tangles the finer
+// mesh) and relax is a touch firmer to settle the merged quads into clean Townscaper cells.
 export const MESH_TUNING: SubstrateTuning = {
   jitter: 0.42,
   iters: 3,
@@ -116,141 +117,6 @@ function relaxVerts(
       }
     }
   }
-}
-
-/** Path A — relax the shared hex-corner lattice; rebuild irregular hexagons. */
-function buildRelaxedHexCells(
-  drawTiles: readonly DrawTile[],
-  wheatSets: readonly ReadonlySet<string>[],
-  t: SubstrateTuning,
-): RelaxedCell[] {
-  const verts: Pt[] = [];
-  const vId = new Map<string, number>();
-  const adj: Set<number>[] = [];
-  const intern = (p: Pt): number => {
-    const k = VKEY(p);
-    let id = vId.get(k);
-    if (id === undefined) {
-      id = verts.length;
-      verts.push({ x: p.x, y: p.y });
-      vId.set(k, id);
-      adj.push(new Set());
-    }
-    return id;
-  };
-  // Each tile → its 6 shared corner ids; track hex-edge usage to find the shore.
-  const tileCorners: { owner: number; key: string; ids: number[] }[] = [];
-  const edgeUse = new Map<string, number>();
-  const eKey = (a: number, b: number): string => (a < b ? `${a}|${b}` : `${b}|${a}`);
-  for (const { h, owner } of drawTiles) {
-    const c = hexCenter(h);
-    const ids = hexCorners(c.x, c.y, HEX_R).map(intern);
-    tileCorners.push({ owner, key: axialKey(h), ids });
-    for (let i = 0; i < 6; i++) {
-      const a = ids[i];
-      const b = ids[(i + 1) % 6];
-      if (a === undefined || b === undefined) continue;
-      adj[a]?.add(b);
-      adj[b]?.add(a);
-      const k = eKey(a, b);
-      edgeUse.set(k, (edgeUse.get(k) ?? 0) + 1);
-    }
-  }
-  const pinned = new Set<number>();
-  for (const [k, n] of edgeUse) {
-    if (n === 1) {
-      const [a, b] = k.split('|');
-      pinned.add(Number(a));
-      pinned.add(Number(b));
-    }
-  }
-  relaxVerts(verts, adj, pinned, { jitterMag: HEX_R * t.jitter, iters: t.iters, relax: t.relax });
-  return tileCorners.map(({ owner, key, ids }) => ({
-    owner,
-    poly: ids.map((id) => verts[id] ?? { x: 0, y: 0 }),
-    variant: hash(`tile:${key}`) % 3,
-    wheat: wheatSets[owner]?.has(key) ?? false,
-  }));
-}
-
-/** Path B — subdivide each hex into 6 quads, relax the shared mesh (Townscaper). */
-function buildRelaxedQuadCells(
-  drawTiles: readonly DrawTile[],
-  wheatSets: readonly ReadonlySet<string>[],
-  t: SubstrateTuning,
-): RelaxedCell[] {
-  const verts: Pt[] = [];
-  const vId = new Map<string, number>();
-  const adj: Set<number>[] = [];
-  const intern = (p: Pt): number => {
-    const k = VKEY(p);
-    let id = vId.get(k);
-    if (id === undefined) {
-      id = verts.length;
-      verts.push({ x: p.x, y: p.y });
-      vId.set(k, id);
-      adj.push(new Set());
-    }
-    return id;
-  };
-  interface Quad {
-    owner: number;
-    ids: number[];
-    variant: number;
-    wheat: boolean;
-  }
-  const quads: Quad[] = [];
-  const edgeUse = new Map<string, number>();
-  const eKey = (a: number, b: number): string => (a < b ? `${a}|${b}` : `${b}|${a}`);
-  const link = (a: number, b: number): void => {
-    adj[a]?.add(b);
-    adj[b]?.add(a);
-    const k = eKey(a, b);
-    edgeUse.set(k, (edgeUse.get(k) ?? 0) + 1);
-  };
-  for (const { h, owner } of drawTiles) {
-    const c = hexCenter(h);
-    const corners = hexCorners(c.x, c.y, HEX_R);
-    const oid = intern(c);
-    const key = axialKey(h);
-    const wheat = wheatSets[owner]?.has(key) ?? false;
-    const cornerIds = corners.map(intern);
-    const midIds = corners.map((cor, i) => {
-      const nxt = corners[(i + 1) % 6] ?? cor;
-      return intern({ x: (cor.x + nxt.x) / 2, y: (cor.y + nxt.y) / 2 });
-    });
-    for (let i = 0; i < 6; i++) {
-      const ci = cornerIds[i];
-      const mPrev = midIds[(i + 5) % 6];
-      const mNext = midIds[i];
-      if (ci === undefined || mPrev === undefined || mNext === undefined) continue;
-      const ids = [oid, mPrev, ci, mNext];
-      // wheatScatter: a wheat hex normally tints all 6 sub-cells — which reads as
-      // a tan hexagon. Scatter it per-cell instead so the field stops being hexy
-      // (grass cells mixed back in; ~70% of a wheat hex's cells stay wheat).
-      const cellWheat = wheat && (!t.wheatScatter || rand01(hash(`wheat:${key}:${i}`)) < 0.7);
-      quads.push({ owner, ids, variant: hash(`cell:${key}:${i}`) % 3, wheat: cellWheat });
-      link(ids[0]!, ids[1]!);
-      link(ids[1]!, ids[2]!);
-      link(ids[2]!, ids[3]!);
-      link(ids[3]!, ids[0]!);
-    }
-  }
-  const pinned = new Set<number>();
-  for (const [k, n] of edgeUse) {
-    if (n === 1) {
-      const [a, b] = k.split('|');
-      pinned.add(Number(a));
-      pinned.add(Number(b));
-    }
-  }
-  relaxVerts(verts, adj, pinned, { jitterMag: HEX_R * t.jitter, iters: t.iters, relax: t.relax });
-  return quads.map((q) => ({
-    owner: q.owner,
-    poly: q.ids.map((id) => verts[id] ?? { x: 0, y: 0 }),
-    variant: q.variant,
-    wheat: q.wheat,
-  }));
 }
 
 /**
@@ -468,20 +334,15 @@ function buildMeshCells(
 
 /**
  * Build the relaxed substrate cells for the whole map from the layout's claimed
- * tiles + per-territory wheat sets. `mesh` is the canonical Townscaper look;
- * `relaxed-hex`/`relaxed-quad` are the lighter alternates. Pure, deterministic.
+ * tiles + per-territory wheat sets. The tiling is the canonical Townscaper `mesh`
+ * (ADR-0233 — the only mode now; the `relaxed-hex`/`relaxed-quad` alternates were
+ * retired). `mode` is retained for API shape but always `'mesh'`. Pure, deterministic.
  */
 export function buildRelaxedCells(
   drawTiles: readonly DrawTile[],
   wheatSets: readonly ReadonlySet<string>[],
-  mode: SubstrateMode,
+  _mode: SubstrateMode,
   override: Partial<SubstrateTuning> = {},
 ): RelaxedCell[] {
-  if (mode === 'relaxed-hex') {
-    return buildRelaxedHexCells(drawTiles, wheatSets, { ...HEX_TUNING, ...override });
-  }
-  if (mode === 'mesh') {
-    return buildMeshCells(drawTiles, wheatSets, { ...MESH_TUNING, ...override });
-  }
-  return buildRelaxedQuadCells(drawTiles, wheatSets, { ...QUAD_TUNING, ...override });
+  return buildMeshCells(drawTiles, wheatSets, { ...MESH_TUNING, ...override });
 }

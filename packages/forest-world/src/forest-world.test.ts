@@ -217,12 +217,11 @@ test('wheat tinting honours the per-territory wheat set', () => {
   );
 });
 
-test('the three substrate modes all produce cells for the same land', () => {
+test('the mesh substrate produces cells for the land (the one tiling now, ADR-0233)', () => {
+  // ADR-0233 retired the `relaxed-hex` / `relaxed-quad` alternates — mesh is the only SubstrateMode.
   const tiles = blobTiles();
   const wheat: ReadonlySet<string>[] = [new Set<string>()];
-  for (const mode of ['mesh', 'relaxed-quad', 'relaxed-hex'] as const) {
-    assert.ok(buildRelaxedCells(tiles, wheat, mode).length > 0, `${mode} produced no cells`);
-  }
+  assert.ok(buildRelaxedCells(tiles, wheat, 'mesh').length > 0, 'mesh produced no cells');
   // MESH_TUNING is the canonical default the mesh path uses.
   assert.equal(MESH_TUNING.subdiv, 1);
 });
