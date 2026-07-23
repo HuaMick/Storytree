@@ -130,6 +130,32 @@ async function validateKey(): Promise<void> {
   console.log(`[validate] key OK — ${count}+ models visible; ${GEMINI_NANO_BANANA_MODEL} ${hasModel ? 'present' : 'not on the first page (generation will still be attempted)'}.`);
 }
 
+/** Measure the on-disk sprite PNGs a sheet's manifest references and (re)write manifest.json. Reused by
+ *  the full pipeline and by `--manifest-only` — the latter rebuilds the manifest after the PNGs were
+ *  hand-adjusted (e.g. `tree-unhealthy.png` overwritten with the withered master), with NO generation. */
+async function writeSheetManifest(name: string, label: string, styleClause: string, outDir: string): Promise<void> {
+  const plan = { name, label, styleClause, jobs: FULL_ROSTER, keyToFile: FULL_KEY_TO_FILE };
+  const files = [...new Set(Object.values(FULL_KEY_TO_FILE))];
+  const measured: MeasuredImage[] = [];
+  const missing: string[] = [];
+  for (const file of files) {
+    const p = join(outDir, `${file}.png`);
+    if (!(await exists(p))) {
+      missing.push(file);
+      continue;
+    }
+    const png = PNG.sync.read(await readFile(p));
+    measured.push({ file, pxWidth: png.width, pxHeight: png.height });
+  }
+  if (missing.length === 0) {
+    const manifest = buildManifest(plan, measured);
+    await writeFile(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
+    console.log(`[sheet ${name}] wrote manifest.json (${Object.keys(manifest.sprites).length} keys)`);
+  } else {
+    console.log(`[sheet ${name}] manifest NOT written — missing files: ${missing.join(', ')}`);
+  }
+}
+
 interface RunOpts {
   size: string;
   aspect: string;
@@ -203,26 +229,7 @@ async function authorStyle(style: WholeSheetStyle, styleRef: { data: string; mim
   }
 
   // Manifest: reuse the studio contract's builder against the produced files.
-  const plan = { name: style.name, label: style.label, styleClause: style.styleClause, jobs: FULL_ROSTER, keyToFile: FULL_KEY_TO_FILE };
-  const files = [...new Set(Object.values(FULL_KEY_TO_FILE))];
-  const measured: MeasuredImage[] = [];
-  const missing: string[] = [];
-  for (const file of files) {
-    const p = join(outDir, `${file}.png`);
-    if (!(await exists(p))) {
-      missing.push(file);
-      continue;
-    }
-    const png = PNG.sync.read(await readFile(p));
-    measured.push({ file, pxWidth: png.width, pxHeight: png.height });
-  }
-  if (missing.length === 0) {
-    const manifest = buildManifest(plan, measured);
-    await writeFile(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
-    console.log(`[sheet ${style.name}] wrote manifest.json (${Object.keys(manifest.sprites).length} keys)`);
-  } else {
-    console.log(`[sheet ${style.name}] manifest NOT written — missing files: ${missing.join(', ')}`);
-  }
+  await writeSheetManifest(style.name, style.label, style.styleClause, outDir);
 
   // Contact sheet (the owner's look-pick surface).
   const witheredSlice = slices.find((s) => s.name === 'tree-withered');
@@ -247,12 +254,6 @@ async function authorStyle(style: WholeSheetStyle, styleRef: { data: string; mim
 }
 
 async function main(): Promise<void> {
-  await validateKey();
-  if (flag('validate-only')) {
-    console.log('[validate-only] done — no generation.');
-    return;
-  }
-
   const styles: WholeSheetStyle[] = flag('all')
     ? [...WHOLE_SHEET_STYLES]
     : (() => {
@@ -261,12 +262,29 @@ async function main(): Promise<void> {
         if (!s) throw new Error(`--style must be one of ${WHOLE_SHEET_STYLES.map((x) => x.name).join('|')} (or --all)`);
         return [s];
       })();
+  const outRoot = arg('out-root') ?? DEFAULT_SHEETS_DIR;
+
+  // Manifest-only: rebuild manifest.json from the on-disk PNGs, no generation, no key needed (used after
+  // hand-adjusting a sheet's sprites — e.g. swapping in the withered master for unhealthy).
+  if (flag('manifest-only')) {
+    for (const style of styles) {
+      await writeSheetManifest(style.name, style.label, style.styleClause, join(outRoot, style.name));
+    }
+    console.log(`[manifest-only] rebuilt ${styles.length} manifest(s).`);
+    return;
+  }
+
+  await validateKey();
+  if (flag('validate-only')) {
+    console.log('[validate-only] done — no generation.');
+    return;
+  }
 
   const opts: RunOpts = {
     size: arg('size') ?? '2K',
     aspect: arg('aspect') ?? '16:9',
     ...(arg('raw-dir') ? { rawDir: arg('raw-dir')! } : {}),
-    outRoot: arg('out-root') ?? DEFAULT_SHEETS_DIR,
+    outRoot,
     contactDir: arg('contact-dir') ?? DEFAULT_CONTACT_DIR,
     mergeGap: Number(arg('merge-gap') ?? '8'),
     minArea: Number(arg('min-area') ?? '200'),

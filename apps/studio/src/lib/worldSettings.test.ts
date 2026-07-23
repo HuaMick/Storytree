@@ -204,30 +204,27 @@ describe('worldSettings — the vegetation-vocabulary gear TOGGLE (owner ask: ge
   });
 });
 
-describe('worldSettings — artStyle control (sprite-art-sheets spike, default-off select)', () => {
+describe('worldSettings — artStyle control (sprite-art-sheets arc, default-off select)', () => {
   it('defaults to vector and writing vector REMOVES the param (byte-identical world)', () => {
     expect(readControlValue('', ctl('artStyle'))).toBe('vector');
-    expect(setControlValue('?artStyle=stub-a', ctl('artStyle'), 'vector')).toBe('');
+    expect(setControlValue('?artStyle=storybook', ctl('artStyle'), 'vector')).toBe('');
   });
 
-  it('writes artStyle=stub-a / artStyle=stub-b when a stub sheet is picked', () => {
-    expect(setControlValue('', ctl('artStyle'), 'stub-a')).toBe('?artStyle=stub-a');
-    expect(readControlValue('?artStyle=stub-a', ctl('artStyle'))).toBe('stub-a');
-    expect(setControlValue('', ctl('artStyle'), 'stub-b')).toBe('?artStyle=stub-b');
-    expect(readControlValue('?artStyle=stub-b', ctl('artStyle'))).toBe('stub-b');
-  });
-
-  it('writes the real nano-banana sheets (cosy / evening) when picked (sprite-art-sheets wave 2)', () => {
-    expect(setControlValue('', ctl('artStyle'), 'cosy')).toBe('?artStyle=cosy');
-    expect(readControlValue('?artStyle=cosy', ctl('artStyle'))).toBe('cosy');
-    expect(setControlValue('', ctl('artStyle'), 'evening')).toBe('?artStyle=evening');
-    expect(readControlValue('?artStyle=evening', ctl('artStyle'))).toBe('evening');
-    // both are offered in the panel dropdown
+  it('writes the three coherent nano-banana sheets when picked, and offers them in the dropdown', () => {
+    for (const name of ['storybook', 'daylight', 'watercolor']) {
+      expect(setControlValue('', ctl('artStyle'), name)).toBe(`?artStyle=${name}`);
+      expect(readControlValue(`?artStyle=${name}`, ctl('artStyle'))).toBe(name);
+    }
     const artStyle = ctl('artStyle');
     if (artStyle.kind !== 'select') throw new Error('artStyle should be a select control');
     const opts = artStyle.options.map((o) => o.value);
-    expect(opts).toContain('cosy');
-    expect(opts).toContain('evening');
+    expect(opts).toEqual(['vector', 'storybook', 'daylight', 'watercolor']);
+  });
+
+  it('the retired stub / cosy / evening sheets no longer resolve (fall back to vector)', () => {
+    for (const gone of ['stub-a', 'stub-b', 'cosy', 'evening']) {
+      expect(readControlValue(`?artStyle=${gone}`, ctl('artStyle'))).toBe('vector');
+    }
   });
 
   it('an unknown/typo`d value normalizes to the vector default (never a silent broken sheet)', () => {
@@ -236,9 +233,9 @@ describe('worldSettings — artStyle control (sprite-art-sheets spike, default-o
   });
 
   it('preserves UNRELATED params when setting the select', () => {
-    const out = setControlValue('?debug=1', ctl('artStyle'), 'stub-a');
+    const out = setControlValue('?debug=1', ctl('artStyle'), 'storybook');
     expect(out).toContain('debug=1');
-    expect(out).toContain('artStyle=stub-a');
+    expect(out).toContain('artStyle=storybook');
   });
 });
 
