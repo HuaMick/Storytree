@@ -30,15 +30,16 @@ decisions: [8, 36, 38, 100, 112, 221, 222, 237]
 
 **Outcome —** An operator reviews the project record through one browsable forum studio.
 
-apps/studio is a hand-built, single-process Vite dev app (run with `pnpm --filter studio dev`) that turns the repo's own docs/ corpus and a synthesised guidance Library into a reviewable forum: read rendered ADRs/glossary, anchor comments onto exact text spans / sections / whole topics and resolve them, and browse-author-seed a categorised Library of injectable guidance artifacts. The whole 'backend' is one Vite middleware file (server/devApi.ts) serving docs read-only from <repo>/docs and persisting comments + assets to git-tracked JSON stores under apps/studio/data. HONESTY: every unit below is a RETROSPECTIVE spec over already-working code: each contract describes the isolated unit test that WOULD prove a leaf (citing real code at file:line), each capability describes the integration test that WOULD prove it against its real in-story collaborators (no stubs within the organism), and the single story-level UAT below describes the acceptance walkthrough that WOULD prove the whole organism against the real running app. As of 2026-06-12 the package carries test tooling (a vitest suite in `pnpm -r test` scope, and a scripted Playwright shadow of part of the story UAT — see § Proof), but no proof ceremony has run. Nothing here is 'proven', 'healthy', or 'mapped'; proof status is authored-only.
+apps/studio is a hand-built, single-process Vite dev app (run with `pnpm --filter studio dev`) that turns the repo's own docs/ corpus and a synthesised guidance Library into a reviewable forum: read rendered ADRs/glossary, anchor comments onto exact text spans / sections / whole topics and resolve them, and browse-author-seed a categorised Library of injectable guidance artifacts. The backend serves docs read-only from <repo>/docs and persists through the LibraryBackend seam: Cloud SQL in the live posture, or the offline JSON stores (`comments.json` plus the knowledge-derived, gitignored `assets.runtime.json`) used by the scripted UAT. HONESTY: every unit below is a RETROSPECTIVE spec over already-working code: each contract describes the isolated unit test that WOULD prove a leaf (citing real code at file:line), each capability describes the integration test that WOULD prove it against its real in-story collaborators (no stubs within the organism), and the single story-level UAT below describes the acceptance walkthrough that WOULD prove the whole organism against the real running app. The package carries test tooling (a vitest suite in `pnpm -r test` scope and the scripted Playwright story UAT — see § Proof), but no passing proof ceremony is claimed here. Nothing here is authored proven or healthy; proof state derives from signed evidence.
 
-> **Historical note (librarian pass, 2026-07-18):** the `assets.json` / `seed.assets.mjs` machinery this
-> story and its UAT walkthrough describe is **retired** — `seed.assets.mjs` → the `build-corpus.mjs`
+> **Historical note (librarian pass, 2026-07-18; UAT re-tensed 2026-07-25):** the `assets.json` /
+> `seed.assets.mjs` machinery retained in the retrospective capability prose is **retired** —
+> `seed.assets.mjs` → the `build-corpus.mjs`
 > generator at ADR-0018, artifact state to the live Cloud SQL store at ADR-0023, and the last committed
 > `assets.json` + `build-corpus.mjs` at ADR-0210. The studio's Library tier is now DB-backed (the offline
 > backend derives its view from `knowledge.json` + `@storytree/library` `libraryTemplates()` at runtime);
-> comments likewise moved off `comments.json` to the store. Kept as a retrospective spec of the original
-> JSON-store era, not current code.
+> comments likewise moved to the store in the live posture. The Story UAT below is current: its offline
+> proof seam exercises `comments.json` plus derived `assets.runtime.json`, never the retired `assets.json`.
 
 ## What this is
 
@@ -187,56 +188,53 @@ this capability. (Full reasoning: chat-panel.md "No new cross-story edge".)
 
 ## UAT Test Criteria
 
-The integrated **acceptance walkthrough** that proves the whole `studio`
-organism meets its outcome end-to-end against the **real running studio** — the proof
-that moved up to the story tier (ADR-0010 §2). It is minimal-first (one coherent
-operator journey that touches read, annotate, resolve, browse, and author once) and
-synthesised from the seven per-capability walkthroughs that were folded up into it; mocks
-are forbidden — the consumed cross-story seams (§"Cross-story boundary") are exercised real
-when the live store is up and degrade silently offline, never stubbed.
+The integrated **acceptance walkthrough** proves the whole `studio` organism end-to-end against the
+real running app in Chromium (ADR-0010 §2). It is one coherent deterministic journey over the current
+product: forest → Library lens → document → review → Library artifact → author/edit/delete → cold
+restart → byte-identical cleanup. `pnpm --filter studio uat` owns the server/browser lifecycle and pins
+the cross-story live-store seam to the permitted offline JSON backend; every in-story collaborator is
+real. Under ADR-0106 every criterion below is therefore `witness: machine`, bound to the exact
+command-bearing `studio#gate-1`.
 
-**Goal —** One operator, in one session against `pnpm --filter studio dev`, reviews the
-project record through the studio: reads a rendered ADR, anchors a comment on it and
-resolves it, browses the seeded guidance Library down to one artifact and follows its
-citation back to the corpus, then authors a Library artifact — every durable change
-surviving in the git-tracked JSON stores.
+**Goal —** One scripted operator reviews the project record through the current studio: opens the
+Library from the forest, reads a rendered ADR, anchors and resolves a verified-attribution comment,
+browses a knowledge-derived artifact and follows its source back to the corpus, authors a structured
+artifact, proves durability across a cold process, and restores both offline stores byte-for-byte.
 
-1. Start the studio with `pnpm --filter studio dev` and confirm it logs the `storytree data api: … store → apps/studio/data/` line (devApi.ts:353-355). **Success —** the dev server is up with the `/api/*` middleware mounted ahead of Vite's SPA fallback (the persistence backbone is live).
-2. Open the app — it now lands on the forest map (the Overview/Home page is retired, ADR-0204), with the floating HUD's brand chip (top-left) and verified-identity avatar (top-right) as the only chrome. Open the avatar menu and choose **Documents** to reach the corpus, then in the Sidebar confirm the grouped corpus index ('ADRs (history)' + 'Reference') rendered from the real docs/ tree, and click into `decisions/0002-...md` (or any ADR). **Success —** the hash becomes #/doc/decisions%2F0002-…, DocView fetches /api/docs/content and renders the markdown with slugged headings (read-corpus end-to-end).
-3. Follow the rendered doc's in-corpus cross-link to a sibling doc (e.g. glossary → ADR-0002), then return. **Success —** the link resolved through resolveDocHref to an internal #/doc/<relpath> nav and the sibling rendered from disk — the corpus is genuinely navigable, not a single page.
-4. Select an exact span of the rendered body, pick a colour in the popover, and Post a comment on it. (The free-text operator field is gone, and comment attribution now derives from the verified `/api/me` identity — the `operator` fallback only in the offline dev posture, ADR-0204 D4.) **Success —** the span is wrapped in a coloured `<mark class='st-hl'>` with a gutter tick, the thread shows the comment, and a new text-anchored record (with quote/prefix/suffix, author = the verified identity — the server stamps it on the scoped path; the `operator` fallback in the open dev posture) is appended to apps/studio/data/comments.json (annotate-topic against the real corpus + backbone).
-5. Reload the page. **Success —** the comment is re-fetched and the highlight is re-found and re-wrapped at the same span (findQuoteRange) with its gutter tick — the anchor durably survived a fresh render and the GET → readStore round-trip.
-6. Click the comment's **Resolve** button. **Success —** without a manual reload every surface flips off the single `resolved` flag (header open-count decrements, the row gains the 'resolved' pill, the 'hide resolved' toggle appears, the section/gutter badge updates, the Sidebar count drops), and comments.json now shows resolved:true with a non-null resolvedAt (resolve-comment fan-out + backbone persistence).
-7. Navigate to #/library. **Success —** the grid renders the seeded corpus with the 'all (88)' chip and one live-count chip per non-empty category (definition 54, pattern 11, guardrail 8, principle 5, techstack 4, template 6) — the artifacts the seeder wrote, served from assets.json.
-8. Narrow by the 'definition' chip, then type a substring (e.g. 'deep') into search. **Success —** the route becomes #/library/definition with its gloss banner, and the grid narrows to the matching cards (case-insensitive id+title+description+body match) — browse-library's filter end-to-end.
-9. Open a seeded artifact carrying a doc: citation (e.g. 'deep-modules') and click its reference link. **Success —** AssetView renders the artifact (header gloss, body, References), and the citation routes to #/doc/decisions%2F0002-…md and lands on that ADR rendered in-app — proving the Library→corpus seam (browse-library riding read-corpus).
-10. Go to #/asset/new, author a fresh artifact (title auto-slugs the id, pick a category, fill body, watch the live preview), and click **Create artifact**. **Success —** the POST /api/assets returns 201, the app refreshAssets + navigates to the rendered detail with createdAt===updatedAt, and the new record is present on disk in assets.json.
-11. From the detail, **Edit** the artifact (id input disabled), change the body, **Save changes**, then **Delete** it and accept the confirm. **Success —** the edit footer shows 'updated' later than 'created' (id re-locked, createdAt preserved), and after delete you land on the Library list with the artifact gone from assets.json — the full create→edit→delete loop is durable (author-library-artifact + backbone).
-12. Stop and restart `pnpm --filter studio dev`, then re-open the annotated doc and the Library. **Success —** the resolved comment from steps 4-6 is still present and resolved, and the authored artifact is correctly absent (it was deleted) — the whole organism's state survived a cold restart from the JSON stores alone, end-to-end.
-13. Clean up: delete the probe comment so the git-tracked stores return to their seeded baseline (comments.json `[]`, assets.json its 88 records). **Success —** the working tree is clean — the UAT left no residue.
+1. **Boot the current offline studio on the forest.** _(witness: machine)_ _(proof-gate: studio#gate-1)_ Let the UAT-managed Vite process start with `STORYTREE_STUDIO_STORE=json`, then open `/`. **Success —** the `/api/*` backbone answers, the app lands on the forest map, and the offline-store status is visible; no retired Overview page or pre-fold sidebar is required.
+2. **Open an ADR through the forest's Library-and-document chrome.** _(witness: machine)_ _(proof-gate: studio#gate-1)_ From the forest, expand the persistent Library drawer, find ADR-0002 in the Library lens, and open it in the full-detail document overlay. **Success —** the real `docs/` markdown renders with its heading and slugged sections while the only global HUD chrome remains the verified-identity account avatar; no retired brand chip or avatar-menu Documents shortcut is used.
+3. **Follow an in-corpus cross-link.** _(witness: machine)_ _(proof-gate: studio#gate-1)_ From a rendered document that cites ADR-0002, follow the source link and then return. **Success —** `resolveDocHref` produces the internal document target, the sibling markdown renders from disk in the document surface, and returning restores the prior document context.
+4. **Anchor a comment with verified attribution.** _(witness: machine)_ _(proof-gate: studio#gate-1)_ Open the document's review affordance, target the declared prose span/block, and post the probe comment. **Success —** the review surface shows the anchored comment and the offline comment record carries the resolved `/api/me` identity (or the conventional `operator` fallback in open offline dev); there is no editable operator-identity input and the server, not the request body, stamps attribution.
+5. **Reload and recover the anchored comment.** _(witness: machine)_ _(proof-gate: studio#gate-1)_ Reload and reopen the same document through the Library lens. **Success —** the comment is re-fetched and rendered at the same declared target, proving the anchor survived a fresh browser render and the real offline-store read-back.
+6. **Resolve the comment across its surfaces.** _(witness: machine)_ _(proof-gate: studio#gate-1)_ Resolve the probe comment. **Success —** the thread and all current comment-status surfaces update without a manual reload, and `comments.json` records `resolved: true` with a non-null `resolvedAt`.
+7. **Browse the knowledge-derived Library.** _(witness: machine)_ _(proof-gate: studio#gate-1)_ Return to the forest Library lens and inspect its lifecycle/category surface. **Success —** non-empty categories and their live counts derive from `knowledge.json` plus `@storytree/library` templates as served through the seeded `assets.runtime.json`; no retired hard-coded 88-record `assets.json` corpus is assumed.
+8. **Narrow the Library deterministically.** _(witness: machine)_ _(proof-gate: studio#gate-1)_ Choose the declared lifecycle/category scope and search for `deep`. **Success —** the Library finder narrows to the matching current-corpus items using its real searchable fields, while the forest remains the underlying surface.
+9. **Follow an artifact source back to the corpus.** _(witness: machine)_ _(proof-gate: studio#gate-1)_ Open `deep-modules` in the Library's full-detail overlay and follow its ADR-0002 source. **Success —** the artifact's derived body and Sources render, then the cited ADR opens as real document markdown — the Library→corpus seam works through the current overlay.
+10. **Author a structured Library artifact.** _(witness: machine)_ _(proof-gate: studio#gate-1)_ Open the new-artifact editor, let the title slug the id, keep the `pattern` kind, fill its required structured fields, verify the derived live preview, and create it. **Success —** `POST /api/assets` returns 201, the detail renders with `createdAt === updatedAt`, and the probe record exists in `assets.runtime.json` with its structured fields.
+11. **Edit, relock, and delete the artifact.** _(witness: machine)_ _(proof-gate: studio#gate-1)_ Edit the probe through its structured fields, save, then delete it through the UI. **Success —** the id stays locked, `createdAt` is preserved, `updatedAt` advances, the edited field persists, and deletion removes the probe from `assets.runtime.json` before returning to the forest Library.
+12. **Survive a cold process restart.** _(witness: machine)_ _(proof-gate: studio#gate-1)_ Start a second fresh Vite process over the same offline stores, reopen the reviewed document through the current forest/Library path, and inspect the deleted artifact id. **Success —** the resolved comment is reconstructed from storage and the deleted artifact remains absent, proving durability without relying on the first process's memory.
+13. **Restore both offline stores byte-for-byte.** _(witness: machine)_ _(proof-gate: studio#gate-1)_ Delete the probe comment through the UI and compare the stores with their snapshots from before the journey. **Success —** both `comments.json` and the knowledge-derived `assets.runtime.json` are byte-identical to their baselines; the UAT leaves no persistent residue.
+
+## Reliability Gates
+
+1. **The current Studio story UAT passes** _(gate: observe)_ `pnpm --filter studio uat`. This exact
+   command is the machine proof obligation for `studio#uat-1` through `studio#uat-13`. It boots the real
+   dev server against the offline JSON seam, drives the real browser journey, and owns snapshot/restore
+   cleanup. No capability-coverage annotation is claimed. If the command is stale or red, observe-and-sign
+   produces no green verdict: the uncovered machine work defers to Build under ADR-0106/ADR-0098.
 
 ## Proof
 
-The story now **carries the UAT** (above): under the organism model the integrated
-acceptance walkthrough lives at the story tier, not as a pure rollup of capability UATs
-(ADR-0010 §2 — this supersedes ADR-0002's "story = pure rollup" default that the earlier
-draft cited). The story is proven when that UAT passes against the real running organism
-*and* its capabilities' integration tests and contracts pass underneath it.
+The integrated acceptance walkthrough lives at the story tier (ADR-0010 §2). All 13 real criteria are
+machine-witnessed through the same exact `studio#gate-1` command, so no human attestation is required
+and no leg may be signed from prose or from the separate vitest suite. The story proves only when
+`pnpm --filter studio uat` passes at a clean HEAD and the spine signs the gate-backed UAT verdicts,
+with the capabilities' own integration-test/contract obligations healthy underneath.
 
-**Honest status — `proposed`.** Nothing here is proven *through the ceremony*. As of
-2026-06-12 `apps/studio` carries an automated suite — `pnpm --filter studio test` (vitest,
-in `pnpm -r test` scope: the db-control spawn contract, `/api/db/*` integration against a
-fake gcloud shim, and the StoreBanner state machine) — and a **scripted shadow of the story
-UAT now exists**: `pnpm --filter studio uat` (Playwright, `apps/studio/uat/story-uat.spec.ts`)
-executes **every step** of the walkthrough above — the read slice (steps 1-3, 7-9, including
-the in-corpus cross-link hop) **and the mutating journey
-(steps 4-6, 10-13)** — annotate → reload → resolve with the fan-out assertions, author → edit →
-delete through the editor, cold-restart durability (a second dev-server process spawned from the
-spec, since Playwright's managed webServer can't be bounced mid-run), and UI cleanup proven
-byte-identical to the git-tracked stores' baseline (with a snapshot/restore guard for failed
-runs) — against the real running studio pinned to the offline json store (the cross-story
-live-store seam stubbed per ADR-0010 §5; in-story collaborators real; one-time setup:
-`pnpm --filter studio exec playwright install chromium`). Status stays `proposed`: healthy is
-**earned through the prove-it-gate, never edited** — a scripted UAT existing is not the
-ceremony having run it. The lifecycle status for retro-authored specs over built code is an
-open modeling call — see [`../README.md`](../README.md) § "Open modeling calls".
+**Honest status — `proposed`.** The Playwright file exists, but existence is not green. Its current run
+may expose stale selectors or product/storage drift; any failing command is the red evidence that routes
+the machine legs to Build, not a warning to ignore and never a signed pass. A passing local run likewise
+does not self-author `healthy`: the prove-it ceremony must observe and sign it. The command uses the
+offline JSON seam allowed by ADR-0010 §5, real in-story collaborators, a second cold server for restart
+durability, and snapshot/restore cleanup; Chromium may require the one-time
+`pnpm --filter studio exec playwright install chromium`.

@@ -20,7 +20,7 @@ drawables — the one deterministic look both the studio and the website render.
 surfaces/packages, not here.
 
 > **Proof status (honest) — `mapped`, brownfield.** `packages/forest-world` has a real, passing OFFLINE
-> suite (106 tests: the geometry kernel, the deterministic trail router, and the scene-graph), but
+> suite (122 tests: the geometry kernel, the deterministic trail router, and the scene-graph), but
 > storytree's prove-it-gate never DROVE it red→green. This capability greens via the story's `observe`
 > reliability gate (`forest-world#gate-1`, `(covers: render-core)`, ADR-0085 / ADR-0097). This is the
 > capability FLOOR (ADR-0222 D2, option A): one capability standing for the render core so the island
