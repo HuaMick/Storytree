@@ -150,8 +150,13 @@ import {
   type ClaimGrade,
   type BuildPhase,
 } from '@storytree/forest-world';
+import {
+  normalizeWorldPresentationModel,
+  WorldSceneView,
+  type WorldPresentationEvents,
+  type WorldPresentationModel,
+} from '@storytree/app-surface';
 import { parseStyleSheet, type SpriteStyleSheet } from '../lib/sprite-sheet.js';
-import { SceneView, type SceneCtx } from './SceneView.js';
 
 // The current `?…` search string, SSR-guarded ('' when there is no window). The
 // panel-exposed readers default to this so non-panel call sites (and SSR) keep
@@ -2084,14 +2089,15 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
     [world, arrivalIds],
   );
 
-  // ── A STABLE scene ctx so the memoised <SceneView> skips the O(nodes) re-walk on a pan ──
+  // ── A STABLE presentation model so the memoised shared view skips the O(nodes) re-walk on a pan ──
   // A pointermove pans by updating `cam` (state), re-rendering TreeView. Neither the scene nor this
-  // ctx depends on `cam`, so giving both a stable identity lets React.memo(SceneView) bail out — only
+  // model depends on `cam`, so giving it a stable identity lets the shared SceneView bail out — only
   // the parent `.world-camera` <g> transform updates (the felt pan lag, ADR-0069 / memory
   // `studio-map-svg-scaling-wall`). These hooks sit ABOVE the early returns so their order is fixed.
   //
   // territoryClassById DOES affect the render (the `.is-selected` shore border, the hub tag), so it is
-  // a dep of the ctx memo below — the map re-walks when the SELECTION changes, just not on a pan.
+  // a dep of the legacy inline renderer below. The shared view derives the same selected/hub classes
+  // from its typed presentation model.
   const territoryClassById = useCallback(
     (id: string, status: string): string => {
       const cls = ['hex-territory', `st-${status}`];
@@ -2116,18 +2122,28 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
     handledRef.current = true;
     selectStoryRef.current(storyId, capId);
   }, []);
-  const sceneCtx = useMemo<SceneCtx>(
+  const worldPresentationModel = useMemo<WorldPresentationModel | null>(
+    () =>
+      scene
+        ? normalizeWorldPresentationModel({
+            scene,
+            selectedStoryId: selectedStory,
+            emphasizedStoryIds: [...HUB_IDS],
+            hiddenStatuses: [...hidden],
+            arrivalIds: [...(arrivalIds ?? [])],
+            reveal: growPlan,
+            spriteSheet,
+            artScale,
+          })
+        : null,
+    [scene, selectedStory, hidden, arrivalIds, growPlan, spriteSheet, artScale],
+  );
+  const worldPresentationEvents = useMemo<WorldPresentationEvents>(
     () => ({
-      territoryClassById,
-      reveal: growPlan,
-      hidden,
-      arrivalIds,
       onSelectStory: onSelectStoryStable,
-      onSelectCap: onSelectCapStable,
-      spriteSheet,
-      artScale,
+      onSelectCapability: onSelectCapStable,
     }),
-    [territoryClassById, growPlan, hidden, arrivalIds, onSelectStoryStable, onSelectCapStable, spriteSheet, artScale],
+    [onSelectStoryStable, onSelectCapStable],
   );
 
   if (loadError) {
@@ -2346,7 +2362,7 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
                 visibility: cam ? undefined : 'hidden',
               }}
             >
-            {renderScene && scene ? (
+            {renderScene && worldPresentationModel ? (
               // ADR-0093 Unit D: render FROM the shared scene-graph via the thin React mapper — now
               // the DEFAULT (the `?render=legacy`/`inline` escape hatch falls to the inline `<g>`
               // below). The studio-only chrome that is NOT in the shared core — the solar spokes and
@@ -2355,14 +2371,14 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
               // Shared-Islands panel / session dock / settings gear are React `<div>`s outside this
               // `<svg>` and are untouched.
               <>
-                <SceneView
+                <WorldSceneView
                   // The key only needs to change for the `?arrive=` DEMO replay (its button bumps
                   // `arriveRun` to remount the subtree so the CSS keyframes run again). In normal
                   // operation (no demo) it stays constant so a re-render NEVER remounts the whole map —
                   // a live arrival stages via classes, not a remount (ADR-0069 / studio-map-svg-scaling-wall).
                   key={demoArrivalId ? `arrive-${arriveRun}` : 'scene'}
-                  scene={scene}
-                  ctx={sceneCtx}
+                  model={worldPresentationModel}
+                  events={worldPresentationEvents}
                 />
                 <StudioWorldChrome
                   world={world}

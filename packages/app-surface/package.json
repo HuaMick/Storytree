@@ -1,0 +1,29 @@
+{
+  "name": "@storytree/app-surface",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The shared browser product-presentation surface above @storytree/forest-world: React scene mapping, sprite policy, and deterministic presentation selectors consumed first by Studio and later by Chapter 2 (ADR-0237).",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@storytree/forest-world": "workspace:*",
+    "react": "^19.1.1"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^26.0.0",
+    "react-dom": "^19.1.1",
+    "typescript": "~5.7.3",
+    "vite": "^6.0.7",
+    "vitest": "^3.0.0"
+  }
+}

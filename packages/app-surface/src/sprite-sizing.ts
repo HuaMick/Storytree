@@ -10,7 +10,7 @@
 // aspect ratio; its optional `scale` stays as a per-asset art fudge; the `artScale` world setting is a
 // global taste dial on top (default 1 = match the vector footprint).
 //
-// Pure and dependency-free like `sprite-sheet.ts` (no React, no DOM) — `SceneView` is the only
+// Pure and dependency-free like `sprite-sheet.ts` (no React, no DOM) — the shared `SceneView` is the only
 // consumer. Measurement is deliberately conservative: only `translate`/`scale` transforms are folded
 // (a child carrying any other op is skipped), text is unmeasurable (skipped), and pure hit-targets /
 // companion marks that are not part of the object's visual mass (`flora-hit`, blooms, signposts) are

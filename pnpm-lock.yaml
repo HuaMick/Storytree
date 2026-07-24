@@ -65,6 +65,9 @@ importers:
       '@dagrejs/dagre':
         specifier: ^1.1.4
         version: 1.1.8
+      '@storytree/app-surface':
+        specifier: workspace:*
+        version: link:../../packages/app-surface
       '@storytree/drive':
         specifier: workspace:*
         version: link:../../packages/drive
@@ -193,6 +196,43 @@ importers:
       typescript:
         specifier: ~5.7.3
         version: 5.7.3
+
+  packages/app-surface:
+    dependencies:
+      '@storytree/forest-world':
+        specifier: workspace:*
+        version: link:../forest-world
+      react:
+        specifier: ^19.1.1
+        version: 19.2.7
+    devDependencies:
+      '@testing-library/react':
+        specifier: ^16.3.0
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.16))(@types/react@19.2.16)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@types/react':
+        specifier: ^19.1.8
+        version: 19.2.16
+      '@types/react-dom':
+        specifier: ^19.1.6
+        version: 19.2.3(@types/react@19.2.16)
+      '@vitejs/plugin-react':
+        specifier: ^4.3.4
+        version: 4.7.0(vite@6.4.3(@types/node@22.19.19)(tsx@4.22.4)(yaml@2.9.0))
+      jsdom:
+        specifier: ^26.0.0
+        version: 26.1.0
+      react-dom:
+        specifier: ^19.1.1
+        version: 19.2.7(react@19.2.7)
+      typescript:
+        specifier: ~5.7.3
+        version: 5.7.3
+      vite:
+        specifier: ^6.0.7
+        version: 6.4.3(@types/node@22.19.19)(tsx@4.22.4)(yaml@2.9.0)
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.6(@types/debug@4.1.13)(@types/node@22.19.19)(jsdom@26.1.0)(tsx@4.22.4)(yaml@2.9.0)
 
   packages/art-authoring:
     dependencies:

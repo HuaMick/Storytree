@@ -12,6 +12,8 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { act, render, cleanup } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { AppDataContext, type AppData } from '../lib/appData';
 import { api } from '../api';
 import { TreeView } from './TreeView';
@@ -63,6 +65,21 @@ async function renderTree(): Promise<HTMLElement> {
 }
 
 describe('TreeView shell — full-bleed map, no session counter (owner feedback 2026-07-13)', () => {
+  it('asa-treeview-mounts-one-shared-world-view', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src', 'components', 'TreeView.tsx'),
+      'utf8',
+    );
+
+    expect(source).toMatch(
+      /import\s*\{[\s\S]*?\bWorldSceneView\b[\s\S]*?\}\s*from '@storytree\/app-surface'/,
+    );
+    expect(source).toMatch(/<WorldSceneView\b/);
+    expect(source).not.toMatch(
+      /import\s*\{[\s\S]*?\bSceneView\b[\s\S]*?\}\s*from '\.\/SceneView\.js'/,
+    );
+  });
+
   it('full-bleed-map: the tree wrap carries no `pad` padding ring around the world', async () => {
     const container = await renderTree();
     const wrap = container.querySelector('.tree-wrap');

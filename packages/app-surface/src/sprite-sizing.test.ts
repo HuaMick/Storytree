@@ -1,4 +1,4 @@
-// sprite-sizing.test — the derived-sizing contract: a sprite inherits the size of the vector body it
+// sprite-sizing.test — the shared derived-sizing contract: a sprite inherits the size of the vector body it
 // replaces (the "way too big" owner verdict, sprite-art-sheets arc). Pure math, no DOM.
 
 import { describe, expect, test } from 'vitest';

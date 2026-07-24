@@ -37,8 +37,9 @@ app uses are the first Chapter 2 art substrate.
 
 The repository already contains two materially different versions of the product:
 
-- the actual studio renders the forest through the React
-  [`SceneView`](../../apps/studio/src/components/SceneView.tsx), the app's
+- the actual studio renders the forest through the shared React
+  [`SceneView`](../../packages/app-surface/src/SceneView.tsx), mounted by
+  [`TreeView`](../../apps/studio/src/components/TreeView.tsx), the app's
   [`WorldLegend`](../../apps/studio/src/components/WorldLegend.tsx), chat/inspector chrome and the
   owner-attested Storybook sprite sheet; while
 - Chapter 2 builds a separate string-SVG world in
@@ -236,12 +237,13 @@ proved. It is not reachable from Chapter 2 after migration.
   for behaviour, owner proof for appearance.
 - [ADR-0219](0219-generative-image-models-enter-the-art-pipeline-author-time-o.md) — author-time
   generative entry and 2.5D-isometric permanence.
-- [`SceneView`](../../apps/studio/src/components/SceneView.tsx),
+- [`SceneView`](../../packages/app-surface/src/SceneView.tsx) and its typed
+  [`WorldSceneView`](../../packages/app-surface/src/WorldSceneView.tsx),
   [`TreeView`](../../apps/studio/src/components/TreeView.tsx),
   [`WorldLegend`](../../apps/studio/src/components/WorldLegend.tsx),
   [`ChatPanel`](../../apps/studio/src/components/ChatPanel.tsx) — the actual app surface to
   separate from its live controllers.
-- [`sprite-sheet.ts`](../../apps/studio/src/lib/sprite-sheet.ts) and
+- [`sprite-sheet.ts`](../../packages/app-surface/src/sprite-sheet.ts) and
   [`apps/studio/public/art-sheets/storybook/`](../../apps/studio/public/art-sheets/storybook/) —
   the current canonical sprite contract/assets.
 - [`worldSvg.ts`](../../web/src/lib/worldSvg.ts),
