@@ -1,5 +1,12 @@
 export { SceneView, type SceneCtx } from './SceneView.js';
 export {
+  normalizeWorldPresentationModel,
+  WorldSceneView,
+  type WorldPresentationEvents,
+  type WorldPresentationModel,
+  type WorldPresentationModelInput,
+} from './WorldSceneView.js';
+export {
   parseStyleSheet,
   resolveSprite,
   spritePlacement,
