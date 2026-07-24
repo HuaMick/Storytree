@@ -1,0 +1,24 @@
+{
+  "name": "@storytree/context-traversal-telemetry",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser-safe metadata-only context traversal events, deterministic record/replay, and honest runtime-boundary adapters (ADR-0235).",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test \"src/**/*.test.ts\""
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@storytree/drive": "workspace:*",
+    "@storytree/storage-protocol": "workspace:*",
+    "@types/node": "^22.10.7",
+    "tsx": "^4.19.2",
+    "typescript": "~5.7.3"
+  }
+}

@@ -1,0 +1,121 @@
+---
+id: "context-traversal-telemetry"
+tier: story
+title: "An orientation runner records one real-boundary metadata-only context traversal"
+outcome: "A real createOrientationRunner instance can be decorated so one successful orientation journey replays as an identity-stable metadata-only traversal trace."
+status: proposed
+proof_mode: UAT
+uat_witness: machine
+arc: linked-session-context-arc
+depends_on: [drive-machinery]
+artifact_edges: [drive-machinery]
+decisions: [235, 192]
+capabilities: [traversal-event-vocabulary, orientation-runner-telemetry]
+proof:
+  command:
+    file: pnpm
+    args: ["--filter", "@storytree/context-traversal-telemetry", "test"]
+  scope:
+    testGlobs: ["packages/context-traversal-telemetry/src/orientation-runner-adapter.uat.test.ts"]
+    sourceGlobs: ["packages/context-traversal-telemetry/src/traversal-events.ts", "packages/context-traversal-telemetry/src/traversal-trace.ts", "packages/context-traversal-telemetry/src/orientation-runner-adapter.ts"]
+  real:
+    testFile: "packages/context-traversal-telemetry/src/orientation-runner-adapter.uat.test.ts"
+    sourceFile: "packages/context-traversal-telemetry/src/orientation-runner-adapter.ts"
+    scope:
+      testGlobs: ["packages/context-traversal-telemetry/src/orientation-runner-adapter.uat.test.ts"]
+      sourceGlobs: ["packages/context-traversal-telemetry/src/traversal-events.ts", "packages/context-traversal-telemetry/src/traversal-trace.ts", "packages/context-traversal-telemetry/src/orientation-runner-adapter.ts"]
+    install: true
+    proofCommand:
+      file: pnpm
+      args: ["--filter", "@storytree/context-traversal-telemetry", "test"]
+    typecheck:
+      file: pnpm
+      args: ["--filter", "@storytree/context-traversal-telemetry", "typecheck"]
+---
+
+# An orientation runner records one real-boundary metadata-only context traversal
+
+**Outcome —** A real `createOrientationRunner` instance can be decorated so one successful
+orientation journey replays as an identity-stable metadata-only traversal trace.
+
+This observability-first increment establishes a story-owned telemetry package with a strict event
+and trace core plus one integration adapter. The adapter wraps an injected orientation runner and
+structured store; the UAT injects a runner returned by the production `createOrientationRunner`
+factory. This proves integration against the real boundary without editing drive sources or
+claiming that desktop production composition activates the adapter. The model performs no
+bookkeeping, and the trace never stores prompts, context bodies, tool results, hidden reasoning,
+credentials, spawn payloads, or returned result content.
+
+## Why this is one story
+
+The consumer is an orientation-boundary integrator answering one question: *what context path did
+this real runner observably serve?* The shared precondition is a successful request through the
+decorated runner, and the shared observable is one replayed metadata trace.
+
+## Capabilities
+
+| # | capability | outcome | depends on |
+|---|---|---|---|
+| 1 | [`traversal-event-vocabulary`](traversal-event-vocabulary.md) | Boundary observations have a strict metadata-only shape and replay with stable session, visit, and canonical node identity. | — |
+| 2 | [`orientation-runner-telemetry`](orientation-runner-telemetry.md) | A wrapper around an injected orientation runner records successful supported search/list and read observations while declaring every omitted adapter surface. | `traversal-event-vocabulary` |
+
+The graph is acyclic: the adapter consumes the vocabulary and structured trace; the vocabulary
+consumes nothing.
+
+## UAT Test Criteria
+
+**Goal —** Decorate a real `createOrientationRunner` instance, drive one successful orientation
+journey, and replay its deterministic observations while preserving every uncertainty and identity
+boundary ADR-0235 settles.
+
+1. **Cross the real factory boundary through the story-owned adapter.** _(witness: machine)_ Create a
+   runner with the production `createOrientationRunner` factory, then pass that runner and a
+   structured trace store to the story-owned decorator. Invoke a front-matter-derived focused-tree
+   read followed by `tree spec` for the same canonical node. **Success —** the unchanged runner
+   responses return, and replay contains two unique chronological `visitId` values under one stable
+   `sessionId` and canonical `nodeId`; the front-matter and full-payload visits remain distinct,
+   with no returned markdown copied into telemetry.
+2. **Record search/list coverage without claiming a follow.** _(witness: machine)_ Invoke the
+   decorated runner's Library artifact-list boundary, then request one returned artifact.
+   **Success —** the search/list observation records only operation and canonical result ids; the
+   artifact request is a full-payload visit, but no followed edge appears because the adapter
+   receives no explicit followed-edge identity.
+3. **Expose the adapter's honest coverage.** _(witness: machine)_ Query the wrapper's coverage
+   declaration. **Success —** it names only the tree/Library search-list, front-matter, and
+   full-payload observations emitted by this adapter; it explicitly omits model-token/capacity,
+   candidate-follow causality, spawn/handoff/return, agents, noticeboard, direct CLI, SDK,
+   owned-loop, and every other runtime adapter. Missing capacity remains unknown.
+4. **Refuse inferred causality.** _(witness: machine)_ Place visits close together in time without an
+   explicit followed edge, and include a revisit carrying an explicit prior-visit reference.
+   **Success —** temporal proximity creates no causal edge; the revisit is a new forward
+   chronological visit linked only to its declared earlier visit.
+5. **Prove future parent/child shapes without inventing live wiring.** _(witness: machine)_ Parse and
+   replay schema fixtures carrying explicit spawn-handoff and result-return edges. **Success —**
+   parent and child windows remain independent and link only through explicit edge identity; this
+   is schema/replay proof only, while the orientation adapter declares those event kinds unsupported
+   and emits none.
+
+## Evidence
+
+The standing machine UAT is
+`packages/context-traversal-telemetry/src/orientation-runner-adapter.uat.test.ts`, run by
+`pnpm --filter @storytree/context-traversal-telemetry test`. It constructs the runner through the
+production `createOrientationRunner` factory, decorates that injected runner with the story-owned
+adapter and structured store, then drives front-matter, full-payload, and search/list requests.
+This is a real-boundary integration adapter proof, not proof of desktop application activation.
+All proof sources and tests owned by this story remain under
+`packages/context-traversal-telemetry`; no drive source is edited or claimed.
+
+## Explicitly outside this increment
+
+- Desktop production composition and activation of the adapter, and any claim that desktop consumes
+  this package.
+- Direct CLI, SDK, Codex, owned-loop, spawned-agent, agents, and noticeboard production adapters.
+  Spawn handoff and result return are schema-only in this increment.
+- Persistence, retention, access-control policy, long-session aggregation, or idle-span folding.
+- Forest playback, gauges, drill-down UI, icons, colors, or the 500k danger-region rendering.
+- Ranking, guidance, prefetch, compaction, pruning, eviction, context removal, or traversal limits.
+- Any causal edge inferred from timestamps or adjacency.
+
+Those are later evidence-backed increments. This story supplies the trustworthy observational seam
+they can consume without reopening ADR-0235.
