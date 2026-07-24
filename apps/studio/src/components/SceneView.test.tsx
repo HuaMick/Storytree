@@ -699,7 +699,7 @@ describe('SceneView — the UAT marker flowers (forest-parcels inc 2; grounded-a
 // `<image>` from a sprite STYLE SHEET instead of drawing its procedural vector body. Hand-built minimal
 // `SceneNode` fixtures (SceneView takes a `SceneNode` directly — no need to route through buildScene)
 // keep each case isolated to exactly the wrapper kind under test.
-describe('SceneView — the sprite art-style render mode (default-off spike)', () => {
+describe('SceneView — the sprite art-style render mode', () => {
   function baseCtx(spriteSheet?: SpriteStyleSheet | null): SceneCtx {
     return {
       territoryClassById: (id, status) => `hex-territory st-${status}`,
@@ -773,7 +773,9 @@ describe('SceneView — the sprite art-style render mode (default-off spike)', (
     expect(img?.getAttribute('width')).toBe('42.0');
     expect(img?.getAttribute('height')).toBe('63.0');
     // NO recursion into the wrapper's vector children — the sprite REPLACES the whole object.
-    expect(root.querySelector('.story-tree')).toBeNull();
+    // The semantic class intentionally survives ON the image for hit-testing; no vector `<g>` survives.
+    expect(root.querySelector('g.story-tree')).toBeNull();
+    expect(img?.classList.contains('story-tree')).toBe(true);
     expect(root.querySelector('.story-trunk')).toBeNull();
   });
 
@@ -864,6 +866,46 @@ describe('SceneView — the sprite art-style render mode (default-off spike)', (
     expect(img?.getAttribute('width')).toBe('28.0');
     expect(img?.getAttribute('x')).toBe('-14.0');
     expect(img?.getAttribute('y')).toBe('-40.0');
+  });
+
+  it('a sprite-swapped hero keeps its class and story delegation hook (default-sheet nodes stay clickable)', () => {
+    const onSelectStory = vi.fn();
+    const scene: SceneNode = {
+      el: 'g',
+      kind: 'territory',
+      id: 'lib',
+      children: [
+        {
+          el: 'baked-use',
+          kind: 'baked-art',
+          defId: 'veg-hero-autumn-tree-healthy',
+          transform: 'translate(1.0 2.0)',
+        },
+      ],
+    };
+    const sheet: SpriteStyleSheet = {
+      name: 'test-sheet',
+      label: 'Stub A',
+      sprites: {
+        'autumn-tree:healthy': {
+          href: '/art-sheets/test-sheet/tree-healthy.svg',
+          w: 40,
+          h: 60,
+          anchorX: 0.5,
+          anchorY: 1,
+        },
+      },
+    };
+    const { container } = render(
+      <svg>
+        <SceneView scene={scene} ctx={{ ...baseCtx(sheet), onSelectStory }} />
+      </svg>,
+    );
+    const img = container.querySelector('image')!;
+    expect(img.classList.contains('baked-art')).toBe(true);
+    expect(img.getAttribute('data-story-id')).toBe('lib');
+    fireEvent.click(img);
+    expect(onSelectStory).toHaveBeenCalledWith('lib');
   });
 
   it('falls back to vector for an UNCOVERED kind (a partial sheet still works everywhere else)', () => {
