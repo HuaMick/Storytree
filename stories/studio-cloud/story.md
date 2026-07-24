@@ -88,34 +88,78 @@ side, so a silently-failed deploy is loud at the gate tail — ADR-0194).
 | 7 | [`write-broker`](write-broker.md) | A members-gated POST endpoint persists a builder's locally-signed verdict / presence — validating shape + attribution, refusing a non-builder (403) / malformed (400) / mismatched signer — holding no signing key, never re-signing. | proposed | `guest-scope` |
 | 8 | [`deploy-health-signal`](deploy-health-signal.md) | A pure classifier turns the deploy-studio CD run list into an ok / red / unknown health signal, so a red post-merge deploy is loud at the gate tail (best-effort, WARN-only, ADR-0194). | proposed | — |
 
-## UAT Test Criteria (would-be)
+## UAT Test Criteria
 
 **Goal —** One trusted dev who has never seen the system goes from an invite to a comment the
 owner reads, without touching a terminal.
 
-1. **Grant:** the owner adds `dev@example.com` to the IAP allowlist (one Terraform var / one
-   gcloud command from the runbook). **Success —** the grant is visible in the allowlist
-   enumeration.
-2. **Sign in:** the dev opens the studio URL, lands on Google sign-in, and arrives at the studio
-   with no further setup. **Success —** the world renders with live verdict hues and wisps.
-3. **Browse:** the dev clicks through the story world, a story panel, the library, and an ADR.
-   **Success —** all read surfaces work; no write affordance errors out on sight.
-4. **Comment:** the dev leaves a comment on an artifact. **Success —** it persists to the live
-   store with `author = dev@example.com` — regardless of what the client sent.
-5. **Scope walls:** the dev attempts an artifact edit and a db start (curl or devtools).
-   **Success —** 403 with a clear reason; their own comment they can edit/resolve; another
-   author's comment they cannot.
-6. **No identity, no API:** a request that bypasses IAP (no identity header) is refused (401)
-   even though the static bundle serves. **Success —** fail-closed posture observed.
-7. **Revoke:** the owner removes the grant. **Success —** the dev's next visit stops at
-   sign-in; nothing else changed.
-8. **Broker a build (ADR-0117):** the owner marks `friend@example.com` a **builder** (Members panel);
-   the friend's thick-local desktop POSTs a locally-signed verdict to the write-broker. **Success —** the
-   broker validates shape + attribution + the builder scope and persists it (the server is the single DB
-   authority); the friend's build blooms in the forest the owner watches; a `member` (non-builder) POST is
-   403, a malformed body 400, a mismatched-signer body refused. *(The broker's gate/shape/attribution core
-   is [`write-broker`](write-broker.md)'s contracts; the end-to-end "a builder's brokered write blooms in
-   the shared forest" walk is operator-attested under ADR-0070, witnessed jointly with `desktop` UAT leg 5.)*
+> **Per-leg witness (ADR-0106 / ADR-0184).** Legs 1–7 are `witness: machine`: their success
+> conditions are observable IAM, HTTP, browser-DOM, and persisted-store facts, never human merely
+> because the faithful proof is live or not yet harnessed. Legs 4–6 bind to the exact landed,
+> command-bearing hosted-router gate. Legs 1–3 and 7 deliberately carry NO `proof-gate`: the repo has
+> no standing command or persisted live-proof verifier that grants/revokes production IAP, drives
+> Google's real sign-in, and verifies the deployed browser journey. They therefore remain explicit
+> machine-proof binding gaps that adoption must refuse until a faithful deliberate live producer +
+> standing verifier lands; the offline membership/header and local-browser checks below are
+> supplements, never substitutes. Leg 8 is `witness: human`: ADR-0117's required end state is the
+> operator seeing the friend's REAL brokered build bloom in the deployed forest, and no integrated
+> desktop → hosted broker/store → browser harness exists. No leg rests `either`.
+
+1. **Grant.** _(witness: machine)(detail: studio-cloud#uat-1)_
+   The owner grants `dev@example.com` `roles/iap.httpsResourceAccessor` on the production Cloud Run
+   IAP resource using the runbook, then enumerates that resource's IAM policy. **Success —** the real
+   IAP policy contains exactly the granted user on the served studio resource.
+2. **Sign in.** _(witness: machine)(detail: studio-cloud#uat-2)_
+   The dev opens the production studio URL, completes Google's real sign-in, and reaches the served
+   studio with no local setup or forged identity header. **Success —** the deployed world renders
+   from the live store with verdict hues and active wisps under `dev@example.com`.
+3. **Browse.** _(witness: machine)(detail: studio-cloud#uat-3)_
+   In that authenticated production browser session, the dev navigates the story world, a story
+   panel, the Library, and an ADR. **Success —** every deployed read surface renders from its real
+   served route/API and the journey completes without a read or authorization error.
+4. **Comment.** _(witness: machine)(detail: studio-cloud#uat-4)_
+   _(proof-gate: studio-cloud#gate-1)_ POST a comment carrying a forged client author through the
+   mounted hosted route table as a member. **Success —** the backend persistence seam receives the
+   comment with `author` stamped to the verified member email, never the client value.
+5. **Scope walls.** _(witness: machine)(detail: studio-cloud#uat-5)_
+   _(proof-gate: studio-cloud#gate-1)_ Exercise member asset writes, hosted DB control, and comment
+   ownership through the mounted route table. **Success —** member asset writes and DB control are
+   `403`, the member can patch their own comment, another author's comment is `403`, and an admin may
+   perform the privileged asset/comment operations.
+6. **No identity, no API.** _(witness: machine)(detail: studio-cloud#uat-6)_
+   _(proof-gate: studio-cloud#gate-1)_ Request the static SPA and guarded API routes without the IAP
+   identity header. **Success —** `/` and a real static asset return `200`, while every sampled
+   `/api/*` route — including health, membership, corpus, and DB control — returns `401`.
+7. **Revoke.** _(witness: machine)(detail: studio-cloud#uat-7)_
+   The owner removes `dev@example.com`'s `roles/iap.httpsResourceAccessor` binding from the
+   production IAP resource, then the dev starts a fresh visit. **Success —** the real IAP policy no
+   longer contains the user and Google's edge denies the next visit before any studio API is reached.
+8. **Broker a build (ADR-0117).** _(witness: human)(detail: studio-cloud#uat-8)_ The owner marks
+   `friend@example.com` a **builder** in the deployed Members panel; the friend's thick-local desktop
+   performs a REAL local build and POSTs its already-signed verdict through the production hosted
+   write-broker into the live shared store. **Success —** the broker validates shape, attribution,
+   and builder scope without re-signing; the persisted verdict reaches live activity; and the owner
+   sees the friend's build bloom in the deployed forest. A `member` POST is `403`, malformed is
+   `400`, and mismatched attribution is refused. *(Operator-attested end-to-end appearance,
+   ADR-0117/ADR-0070; the offline broker mechanics below do not attest the bloom.)*
+
+## Reliability Gates
+
+1. **The hosted route-table policy journey is green** _(gate: observe)_
+   `pnpm --filter studio test -- server/serveApi.integration.test.ts`.
+
+## Supplemental deterministic checks
+
+- `pnpm --filter studio uat` is the local real-browser read/comment shadow, but repository convention
+  requires a separately installed Playwright Chromium. It is not self-preparing and does not cross
+  production IAP, so it is not an adoption observe gate for legs 1–3 or 7.
+- `pnpm --filter studio test -- server/serveApi.integration.test.ts` additionally proves the
+  application-membership and exact IAP-header boundary using a stub backend; those assertions
+  supplement, but do not replace, the production IAM/sign-in/revoke facts.
+- `pnpm --filter studio test -- server/writeBrokerApi.integration.test.ts src/lib/activity.test.ts src/lib/worldStatus.test.ts`
+  proves mounted broker authorization/shape/attribution/unchanged persistence plus the pure
+  verdict-to-bloom/status projections. It does not compose the thick-local desktop, production IAP,
+  live store, and deployed browser, so it cannot machine-attest leg 8.
 
 ## Open modeling calls (for the owner)
 
