@@ -105,12 +105,9 @@ describe('legendFacts', () => {
     // The sapling state was folded into `young` (ADR-0038 / owner 2026-06-21): the legend
     // no longer surfaces a distinct sapling fact.
     expect('saplingPresent' in facts).toBe(false);
-    // no presented green, no withered, nothing witnessed — offline under-claims
+    // no presented green or withered flora — offline under-claims
     expect(facts.anyProven).toBe(false);
     expect(facts.anyDeadFlora).toBe(false);
-    expect(facts.signWitnessedPass || facts.signWitnessedFail).toBe(false);
-    // every story here is human-witnessed (the default) and unsigned → blank signs
-    expect(facts.signBlank).toBe(true);
   });
 
   it('presented healthy = a signed pass painted it — anyProven on either tier', () => {
@@ -122,22 +119,6 @@ describe('legendFacts', () => {
   it('a presented-unhealthy capability withers flora (signed ✗ or authored unhealthy)', () => {
     const facts = legendFacts([story('s', 'mapped', [cap('c', 'unhealthy')])]);
     expect(facts.anyDeadFlora).toBe(true);
-  });
-
-  it('the signpost facts follow the human-witness rule (ADR-0040)', () => {
-    const pass = { outcome: 'pass', at: 'now' } as const;
-    const fail = { outcome: 'fail', at: 'now' } as const;
-    // human + signed → witnessed (by outcome); human + unsigned → blank
-    expect(legendFacts([story('s', 'healthy', [], { verdict: pass })]).signWitnessedPass).toBe(true);
-    expect(legendFacts([story('s', 'unhealthy', [], { verdict: fail })]).signWitnessedFail).toBe(
-      true,
-    );
-    expect(legendFacts([story('s', 'mapped', [])]).signBlank).toBe(true);
-    // a machine-witnessed story contributes NO signpost facts at all
-    const machine = legendFacts([
-      story('s', 'healthy', [], { uatWitness: 'machine', verdict: pass }),
-    ]);
-    expect(machine.signBlank || machine.signWitnessedPass || machine.signWitnessedFail).toBe(false);
   });
 
   it('a zero-cap story takes its status FORM (young / withered), not a distinct sapling', () => {
@@ -154,9 +135,10 @@ describe('legendFacts', () => {
 describe('WorldLegend (adaptive bar)', () => {
   it('offline world: no orbiting (building) entry; proof stays and explains the under-claim', () => {
     renderLegend(offlineWorld());
-    for (const label of ['story trees', 'garden plants', 'proof', 'decoration']) {
+    for (const label of ['story trees', 'test coverage', 'proof']) {
       expect(screen.getByRole('button', { name: label })).toBeTruthy();
     }
+    expect(screen.queryByRole('button', { name: 'decoration' })).toBeNull();
     // sessions never orbit (ADR-0048 §5) and nothing is building → no orbiting row
     expect(screen.queryByRole('button', { name: 'sessions' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'building' })).toBeNull();
@@ -165,18 +147,15 @@ describe('WorldLegend (adaptive bar)', () => {
     expect(screen.queryByRole('button', { name: 'focus' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'proof' }));
     expect(screen.getByText(/under-claims/)).toBeTruthy();
-    // no signed verdicts anywhere — proof hues and the witnessed seal are dimmed examples,
-    // while every (default-human) story stands behind a blank signpost
+    // no signed verdicts anywhere — the proven hue is a dimmed example.
     expect(screen.getByText('proven green').closest('.legend-tile')?.className).toContain(
       'is-absent',
     );
-    expect(screen.getByText('witnessed').closest('.legend-tile')?.className).toContain('is-absent');
-    expect(screen.getByText('awaiting witness').closest('.legend-tile')?.className).not.toContain(
-      'is-absent',
-    );
+    expect(screen.queryByText('witnessed')).toBeNull();
+    expect(screen.queryByText('awaiting witness')).toBeNull();
   });
 
-  it('proof hues and witnessed signposts light their tiles', () => {
+  it('proof hues light their tiles without the retired witness vocabulary', () => {
     const stories = [
       story('s', 'healthy', [cap('c', 'healthy', { verdict: { outcome: 'pass', at: 'now' } })], {
         verdict: { outcome: 'pass', at: 'now' },
@@ -184,13 +163,14 @@ describe('WorldLegend (adaptive bar)', () => {
     ];
     renderLegend(stories);
     fireEvent.click(screen.getByRole('button', { name: 'proof' }));
-    expect(screen.getByText(/never a roll-up/)).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'legend — proof' }).textContent).toContain(
+      'different claims',
+    );
     expect(screen.getByText('proven green').closest('.legend-tile')?.className).not.toContain(
       'is-absent',
     );
-    expect(screen.getByText('witnessed').closest('.legend-tile')?.className).not.toContain(
-      'is-absent',
-    );
+    expect(screen.queryByText('witnessed')).toBeNull();
+    expect(screen.queryByText('awaiting witness')).toBeNull();
   });
 
   it('a recent signed PASS lights the activity row with the honesty caption (ADR-0045)', () => {
@@ -274,20 +254,6 @@ describe('WorldLegend (adaptive bar)', () => {
     // this layer), so an in-flight build DOES light it — asserted in the ADR-0212 test above.
   });
 
-  it('a machine-witnessed world has no signpost states at all', () => {
-    renderLegend([
-      story('s', 'healthy', [cap('c', 'healthy')], {
-        uatWitness: 'machine',
-        verdict: { outcome: 'pass', at: 'now' },
-      }),
-    ]);
-    fireEvent.click(screen.getByRole('button', { name: 'proof' }));
-    expect(screen.getByText('awaiting witness').closest('.legend-tile')?.className).toContain(
-      'is-absent',
-    );
-    expect(screen.getByText('witnessed').closest('.legend-tile')?.className).toContain('is-absent');
-  });
-
   it('Escape closes the drawer', () => {
     renderLegend(offlineWorld());
     fireEvent.click(screen.getByRole('button', { name: 'story trees' }));
@@ -332,7 +298,7 @@ describe('WorldLegend (adaptive bar)', () => {
 // kind/status the sheet doesn't cover falls back to its vector shape.
 describe('WorldLegend — sprite art sheet (ADR-0230)', () => {
   const spr = (href: string) => ({ href, w: 100, h: 120, anchorX: 0.5, anchorY: 1 });
-  // Covers tree (per-status), flora (+ dead), conifer — but NOT wheat, so wheat stays vector.
+  // Covers the two remaining sprite-backed legend families: trees and test-coverage flora.
   const sheet: SpriteStyleSheet = {
     name: 'test-sheet',
     label: 'Test sheet',
@@ -340,7 +306,6 @@ describe('WorldLegend — sprite art sheet (ADR-0230)', () => {
       'tree:proposed': spr('/art-sheets/test/tree-proposed.png'),
       'tree:mapped': spr('/art-sheets/test/tree-mapped.png'),
       'tree:unhealthy': spr('/art-sheets/test/tree-withered.png'),
-      conifer: spr('/art-sheets/test/conifer.png'),
       flora: spr('/art-sheets/test/flora.png'),
       'flora:unhealthy': spr('/art-sheets/test/flora-dead.png'),
     },
@@ -353,27 +318,16 @@ describe('WorldLegend — sprite art sheet (ADR-0230)', () => {
     expect(document.querySelector('image')).toBeNull();
   });
 
-  it('with a sheet, the chip-bar tree/flora/conifer icons render the sprite image', () => {
-    // offlineWorld has proposed + mapped stories/caps → the tree chip shows both, the flora chip shows
-    // the alive `flora` sprite, and the always-present decoration chip shows the conifer sprite.
+  it('with a sheet, the chip-bar tree and test-coverage flora icons render sprite images', () => {
+    // offlineWorld has proposed + mapped stories/caps → the tree chip shows both and the flora chip
+    // shows the alive `flora` sprite.
     renderLegend(offlineWorld(), { spriteSheet: sheet });
     const hrefs = spriteHrefs();
     expect(hrefs).toContain('/art-sheets/test/tree-proposed.png');
     expect(hrefs).toContain('/art-sheets/test/tree-mapped.png');
     expect(hrefs).toContain('/art-sheets/test/flora.png');
-    expect(hrefs).toContain('/art-sheets/test/conifer.png');
-    // the sprite swatches replaced the vector shapes — no vector story-tree/conifer left in the bar
+    // the sprite swatches replaced the vector tree shape.
     expect(document.querySelector('.legend-bar .story-tree')).toBeNull();
-    expect(document.querySelector('.legend-bar .hex-conifer')).toBeNull();
-  });
-
-  it('an UNCOVERED icon (wheat — not in the sheet) falls back to its vector shape', () => {
-    renderLegend(offlineWorld(), { spriteSheet: sheet });
-    fireEvent.click(screen.getByRole('button', { name: 'decoration' }));
-    // conifer IS covered → sprite; wheat is NOT → the vector `hex-top is-wheat` path stays, no wheat image
-    expect(spriteHrefs()).toContain('/art-sheets/test/conifer.png');
-    expect(document.querySelector('.legend-drawer .hex-top.is-wheat')).toBeTruthy();
-    expect(spriteHrefs().some((h) => h.includes('wheat'))).toBe(false);
   });
 
   it('the withered (unhealthy) tree resolves the `tree:unhealthy` sprite in the drawer fan', () => {

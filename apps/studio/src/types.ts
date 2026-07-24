@@ -532,8 +532,8 @@ export interface TreeStory {
   proofMode: string;
   /**
    * Who witnesses this story's UAT (ADR-0040) — the EFFECTIVE value, resolved server-side
-   * through core's `effectiveUatWitness` (absent frontmatter = 'human', fail-closed). Only
-   * human-witnessed stories carry a signpost in the world.
+   * through core's `effectiveUatWitness` (absent frontmatter = 'human', fail-closed). The value
+   * drives the UAT detail/signing surface; ADR-0238 retired its redundant world signpost.
    */
   uatWitness: 'human' | 'machine';
   /** Story ids this story depends on (frontmatter `depends_on` — consumed cross-story seams). */
@@ -941,4 +941,3 @@ export interface BuildStatus {
   envelope?: string;
   reason?: string;
 }
-
