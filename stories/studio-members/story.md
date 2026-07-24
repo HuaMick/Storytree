@@ -70,28 +70,52 @@ marks/invites a builder is the in-UI invitation (ADR-0043 extended), operator-at
 | 4 | [`invite-notify`](invite-notify.md) | Inviting emails the invitee the studio link (best-effort, config-gated) so they learn they have access; the admin sees whether it sent. | proposed | `invite-ui` |
 | 5 | [`builder-role`](builder-role.md) | A third role — `builder` — a member who may POST brokered builds/writes, resolved by the same access compute, holding no DB identity; `admin ⊇ builder ⊇ member`, last-admin guard unaffected. | proposed | `user-directory` |
 
-## UAT Test Criteria (would-be)
+## UAT Test Criteria
 
-1. **Bootstrap admin:** the seeded admin signs in. **Success —** they land in the studio as an
-   active admin; a `users` row exists with role admin.
-2. **Invite:** the admin invites `dev@example.com` as a member from the UI. **Success —** an
-   `invited` member row exists; no gcloud was run.
-3. **Activate:** the invitee signs in with Google. **Success —** their row flips to `active`; they
-   see the world/library and can comment as themselves.
-4. **Role wall:** the member attempts an asset edit and a user invite. **Success —** both 403; an
-   admin doing the same succeeds.
-5. **Stranger:** an un-invited Google account signs in. **Success —** they get the request-access
-   wall and are served no corpus (no world, no library, no docs).
-6. **No lockout:** the sole admin tries to remove themselves / drop to member. **Success —**
-   refused with a clear reason.
-7. **Remove:** an admin removes `dev@example.com`. **Success —** that account drops to the
-   request-access wall on its next request; its comment history remains attributed.
-8. **Mark a builder (ADR-0117, operator-attested):** the admin invites / re-roles `friend@example.com`
-   as a **builder** from the Members panel. **Success —** a `builder` row exists (in-app, no gcloud, no
+1. **Bootstrap admin:** _(witness: machine)_ _(proof-gate: studio-members#gate-1)_ the seeded admin
+   reaches `/api/me` with its verified identity header. **Success —** the response resolves an active
+   admin and the seed is persisted as an active admin user row.
+2. **Invite:** _(witness: machine)_ _(proof-gate: studio-members#gate-1)_ the admin POSTs
+   `dev@example.com` as a member through the shared `/api/users` route the Members panel calls.
+   **Success —** the response and user projection contain an `invited` member row; this in-app route
+   crosses no gcloud or IAM boundary.
+3. **Activate:** _(witness: machine)_ _(proof-gate: studio-members#gate-1)_ the invited email reaches
+   `/api/me` with its verified identity header. **Success —** its row is persisted `active`; the
+   resolved member can read corpus APIs and a comment write is stamped with that verified identity.
+4. **Role wall:** _(witness: machine)_ _(proof-gate: studio-members#gate-1)_ a resolved member POSTs
+   an asset edit and a user invitation through their API routes. **Success —** both are 403 with no
+   mutation; the corresponding admin requests succeed.
+5. **Stranger:** _(witness: machine)_ _(proof-gate: studio-members#gate-1)_ an uninvited verified
+   identity requests `/api/me` and each corpus API. **Success —** `/api/me` reports `member: false`,
+   corpus requests return 403 with `requestAccess`, and the frontend load-state projects that result
+   to the request-access wall.
+6. **No lockout:** _(witness: machine)_ _(proof-gate: studio-members#gate-1)_ the sole admin tries to
+   DELETE themselves or PATCH their role to member through `/api/users`. **Success —** both return
+   409 and the guarded user mutation does not occur.
+7. **Remove:** _(witness: machine)_ _(proof-gate: studio-members#gate-1)_ an admin DELETEs
+   `dev@example.com` through `/api/users`. **Success —** the next `/api/me` resolves that identity as
+   `member: false`; the membership delete path does not mutate comment records, whose author was
+   already stamped from verified identity at comment creation.
+8. **Mark a builder (ADR-0117, operator-attested):** _(witness: human)_ the admin invites / re-roles
+   `friend@example.com` as a **builder** from the Members panel. **Success —** a `builder` row exists (in-app, no gcloud, no
    Cloud SQL IAM grant); the friend reads + comments like a member and now satisfies the brokered-write
    scope the [`write-broker`](../studio-cloud/write-broker.md) gate reads. *(The Members-panel affordance's
    appearance is operator-attested per ADR-0070; the role-resolution core is [`builder-role`](builder-role.md)'s
    contracts.)*
+
+## Reliability Gates
+
+1. **The membership API and domain seams are green** _(gate: observe)_
+   `pnpm --filter @storytree/studio-members --filter studio test`. The studio integration suite drives
+   verified identity headers through bootstrap and activation, and drives the same `/api/users` route
+   the Members panel calls through invitation, role enforcement, last-admin refusal, and removal. It
+   also asserts stranger denial across the corpus APIs, member corpus reach, verified comment-author
+   stamping, and post-removal nonmembership. The `@storytree/studio-members` suite proves the schema,
+   access compute, event/projection store seam, last-admin guard, and builder-scope core. The removal
+   test does not re-read an earlier comment after deletion: the asserted boundary is that comment
+   authorship is stamped independently and the membership delete path issues no comment mutation.
+   This offline command does not drive the Members-panel UI, a live Google/IAP exchange, or Cloud SQL;
+   it does not attest the unbuilt builder affordance's appearance (leg 8 remains human).
 
 ## Open modeling calls (for the owner)
 
