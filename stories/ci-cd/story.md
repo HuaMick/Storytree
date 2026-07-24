@@ -130,47 +130,88 @@ process-axis fact, with these two real *outbound* dependencies. Note that **fres
 outcome, not studio-cloud's**; counting it in both is exactly what produced the false "symbiotic
 cycle" ADR-0058 §1 dissolves.
 
-## UAT Test Criteria (would-be)
+## UAT Test Criteria
 
-The integrated acceptance walkthrough that proves the whole `ci-cd` organism end-to-end: one
-contributor takes one green, **studio-touching** unit from a non-draft PR all the way to a fresh live
-site — so the single journey exercises the entire chain, caps 6 and 7 included. (Greenfield: no
-scripted UAT exists yet; this is the would-be walkthrough.)
+The adopted acceptance walkthrough keeps the original seven positions and their semantic roles, but
+binds each one to the exact standing seam that exists today. All seven are machine-observable:
+none asks for an aesthetic or owner-value judgment, so none is labelled `human` merely because the
+faithful live run would be expensive or external (ADR-0106 / ADR-0184). The commands below prove the
+repository-owned mechanics and workflow posture. They do not pretend to audit GitHub branch-protection
+settings or to perform a fresh Cloud Run rollout.
 
-**Goal —** A contributor finishes a green, studio-touching unit, opens a non-draft PR, and walks
-away — CI proves it against the future main, lands it, retires their presence, and serves the change
-on the live studio, with no manual merge and no terminal step after the push.
+**Goal —** A contributor finishes a green, studio-affecting unit and hands it to the repository-owned
+landing path; that path opens a ready PR, proves the merge candidate, lands only after green, clears
+the branch's coordination claim, and dispatches the keyless Studio deployment.
 
-1. **Open non-draft:** the contributor's local `pnpm gate` is green; they push a `claude/*` branch
-   touching `apps/studio/**` and open a **non-draft** PR (no `hold` label). **Success —** the PR
-   exists; `gh pr checks` shows `verify` queued — the only door is this one PR.
-2. **Prove against future main:** `verify` runs on the **merge of branch+main** and all three content
-   gates hold green — `check:manifest` (no stray root surface), `check:claude` + `check:agents` (no
-   generated-view drift), `adr-number-unique` + the cross-PR collision check (no duplicate ADR
-   number) — then `typecheck`, `test`, and `build`. **Success —** `verify` is green; had the branch
-   been behind `main` such that the merge-ref broke, the gate would be RED here, not on the branch.
-3. **Parity holds:** the contributor's local `pnpm gate` (which omits `pnpm -r build` and runs on
-   HEAD, not the merge-ref) enforced exactly the CI content set minus build — so local-green
-   predicted CI-green for everything except the build/merge-ref delta. **Success —** the declared
-   `gate = CI − build` relationship held; no surprise red in a check the local gate also runs.
-4. **Auto-merge on green:** because the PR is non-draft and unlabelled, the `automerge` job (`needs:
-   verify`) runs `gh pr merge --merge --delete-branch`. **Success —** the unit is on `main`, the
-   branch is deleted, and no human ran `gh pr merge`.
-5. **Presence retires:** in the same `automerge` job, the fail-soft retire steps run `ingest-merge.ts`
-   under keyless WIF and mark the merged session's `events.session` row done (forward edge →
-   notice-board `presence-store`). **Success —** the session's wisp leaves the active board; a
-   GCP/DB hiccup here would have been swallowed (`continue-on-error`), never failing the merge.
-6. **Live site is fresh:** because the merge touched `apps/studio/**`, `deploy-studio.yml` runs on
-   `push:main` — keyless WIF → Cloud Build image (short-SHA tag) → `gcloud run deploy` with the full
-   IAP + runtime-SA + env-var posture (forward edge → studio-cloud `cloud-run-iap`) — and the smoke
-   check confirms the newest revision is the newest Ready one. **Success —** the live studio serves
-   the contributor's change; the rollout took (latest-ready == latest-created). *(Honest caveat: an
-   auto-merged PR's `push:main` does not cascade from the GITHUB_TOKEN merge — see
-   `deploy-on-merge`'s `manual-or-dispatch-trigger` contract; the on-demand `gh workflow run` /
-   owner-merge path is what fires it today.)*
-7. **Nothing unproven landed:** at rest, `main` contains exactly the proven unit; no draft, no
-   `hold`, no red check was ever waved through. **Success —** every commit on `main` traces to a
-   green `verify` run.
+1. **Open non-draft.** _(witness: machine)_ _(proof-gate: ci-cd#gate-1)_ Exercise the real landing
+   dependency composition's three independent surfaces in the required procedure: observe
+   `runGate`, proceed to `openLandingPr` only after that result is green, then use `pollPrChecks`.
+   **Success —** `runGate` maps the local gate's real exit code without rewriting red; the PR-opening
+   surface commits and pushes the branch, invokes `gh pr create` without `--draft`, returns the PR
+   URL, and stops its own command sequence on a failing commit/push/create step; the polling surface
+   classifies the `verify` rollup without ever invoking `gh pr merge`. The composition exposes these
+   tools independently: gate-before-PR is the required caller procedure, not a state machine that
+   makes `openLandingPr` unreachable after a red gate.
+2. **Prove the merge candidate.** _(witness: machine)_ _(proof-gate: ci-cd#gate-2)_ Audit the real
+   `verify` job definition. **Success —** PRs into `main` use checkout's merge candidate and the job
+   retains the collision/merged-branch guards, manifest/boundary/generated-view/web checks, conservative
+   affected-or-full typecheck and test selection, and the unconditional Studio build; `automerge`
+   still declares `needs: verify`.
+3. **The local/CI delta is explicit.** _(witness: machine)_ _(proof-gate: ci-cd#gate-3)_ Compare the
+   root `gate` script with the real `verify` definition. **Success —** their shared blocking floor is
+   present in both, while the current deliberate differences remain visible: CI adds PR-only guards,
+   merge-ref execution, affected selection, web checkout, and build; local gate adds its live/advisory
+   health tails. This is the honest current relationship, not the obsolete claim that build is the
+   only difference.
+4. **Auto-merge on green.** _(witness: machine)_ _(proof-gate: ci-cd#gate-4)_ Audit the real
+   `automerge` job. **Success —** it needs `verify`, admits only a pull request that is non-draft and
+   lacks `hold`, and its sole merge command uses `--merge --delete-branch`, preserving ancestry.
+5. **Merged coordination claims retire.** _(witness: machine)_ _(proof-gate: ci-cd#gate-5)_ Drive
+   the branch-claim release seam and audit its workflow wiring. **Success —** the full merged branch
+   name reaches `releaseClaimsByBranch`; zero claims are a clean no-op; store failure is swallowed;
+   and the keyless WIF/install/writer steps remain `continue-on-error`. This is the current
+   notice-board ledger boundary after `events.session` presence retired under ADR-0200.
+6. **The Studio deployment handoff is complete.** _(witness: machine)_
+   _(proof-gate: ci-cd#gate-6)_ Audit both workflow definitions. **Success —** the automerge job
+   loudly dispatches `deploy-studio.yml` on `main` for the declared Studio-affecting path set, and the
+   deploy workflow retains keyless WIF, Cloud Build with a short-SHA tag, the full runtime-SA/IAP/env
+   posture, serialized rollouts, and the newest-created-equals-newest-ready smoke assertion.
+7. **The repository-owned path has no unproven merge door.** _(witness: machine)_
+   _(proof-gate: ci-cd#gate-7)_ Audit the landing seam together with the workflow's only merge command.
+   **Success —** contributor-side landing code opens and observes a PR but cannot merge it; the sole
+   repository-owned `gh pr merge` occurrence is in `automerge`, which is downstream of `verify`.
+   This proves the in-repo rail; GitHub administrator settings remain an external operational control,
+   not a fact this repository can honestly attest.
+
+## Reliability Gates
+
+1. **The ready-PR landing seam is green** _(gate: observe)_
+   `pnpm --filter @storytree/drive exec node --import tsx --test src/landing-deps.test.ts`.
+   This dedicated integration file proves the independent surfaces: real gate exit-code mapping; the
+   PR-opening call's internal commit → push → non-draft PR sequence and fail-closed step exits; PR URL
+   parsing; and non-blocking `verify` rollup classification. It does not claim stateful coupling
+   between `runGate` and `openLandingPr`; invoking them in gate-before-PR order is the required
+   landing procedure.
+2. **The verify workflow keeps its hard merge-candidate floor** _(gate: observe)_
+   `node --input-type=module -e "import fs from 'node:fs';const c=fs.readFileSync('.github/workflows/ci.yml','utf8');for(const s of ['pull_request:','branches: [main]','uses: actions/checkout@v6','ADR number collision (open PRs)','Merged-branch guard (a branch dies on merge)','run: pnpm check:manifest','run: pnpm check:boundaries','run: pnpm check:claude','run: pnpm check:agents','run: pnpm check:web-grounding','run: pnpm check:web-engine','run: pnpm check:web-experience','Affected scope (PRs only)','- name: Typecheck','- name: Test','run: pnpm -r build','needs: verify'])if(!c.includes(s))throw new Error('missing verify seam: '+s)"`.
+   The command reads the landed workflow itself and fails on removal of any named standing seam.
+3. **The current local/CI relationship is declared** _(gate: observe)_
+   `node --input-type=module -e "import fs from 'node:fs';const g=JSON.parse(fs.readFileSync('package.json','utf8')).scripts.gate;const c=fs.readFileSync('.github/workflows/ci.yml','utf8');for(const s of ['check:manifest','check:boundaries','check:claude','check:agents','check:web-grounding','check:web-engine','check:web-experience','typecheck','test'])if(!g.includes(s)||!c.includes(s))throw new Error('shared gate seam drifted: '+s);for(const s of ['check:process-graph','check:agents-sync','check:corpus-sync','check:deploy-health'])if(!g.includes(s))throw new Error('local tail drifted: '+s);for(const s of ['ADR number collision (open PRs)','Affected scope (PRs only)','pnpm -r build'])if(!c.includes(s))throw new Error('CI delta drifted: '+s)"`.
+   This checks the actual declarations and intentionally does not revive the stale equality claim.
+4. **The green-only non-squash automerge rail is present** _(gate: observe)_
+   `node --input-type=module -e "import fs from 'node:fs';const c=fs.readFileSync('.github/workflows/ci.yml','utf8');for(const s of ['automerge:','needs: verify','github.event.pull_request.draft == false','!contains(github.event.pull_request.labels.*.name','hold','gh pr merge','--merge','--delete-branch'])if(!c.includes(s))throw new Error('automerge seam drifted: '+s)"`.
+   The audit is structural and deterministic; it does not claim to create a live PR.
+5. **Merged branch claims release fail-soft** _(gate: observe)_
+   `pnpm --filter @storytree/notice-board exec node --import tsx --test src/store/ingest-merge.test.ts && node --input-type=module -e "import fs from 'node:fs';const c=fs.readFileSync('.github/workflows/ci.yml','utf8');for(const s of ['Authenticate to GCP (keyless WIF','continue-on-error: true','STORYTREE_MERGED_HEAD_REF','pnpm --filter @storytree/notice-board exec tsx src/store/ingest-merge.ts'])if(!c.includes(s))throw new Error('claim-retire wiring drifted: '+s)"`.
+   The focused suite proves the writer's release/no-op/swallow boundaries; the audit pins the
+   repository-owned keyless fail-soft composition around it.
+6. **The dispatch and keyless deploy posture are present** _(gate: observe)_
+   `node --input-type=module -e "import fs from 'node:fs';const c=fs.readFileSync('.github/workflows/ci.yml','utf8'),d=fs.readFileSync('.github/workflows/deploy-studio.yml','utf8');for(const s of ['actions: write','gh workflow run deploy-studio.yml --ref main','apps/studio/','packages/','docs/','stories/'])if(!c.includes(s))throw new Error('deploy dispatch drifted: '+s);for(const s of ['workflow_dispatch:','cancel-in-progress: false','google-github-actions/auth@v3','storytree-studio-deployer@','gcloud builds submit','git rev-parse --short HEAD','gcloud run deploy','--service-account','--set-env-vars','--no-allow-unauthenticated --iap','latestReadyRevisionName','latestCreatedRevisionName'])if(!d.includes(s))throw new Error('deploy posture drifted: '+s)"`.
+   This is a standing workflow/posture proof, not a fabricated fresh deployment.
+7. **Only verified CI owns the merge command** _(gate: observe)_
+   `pnpm --filter @storytree/drive exec node --import tsx --test src/landing-deps.test.ts && node --input-type=module -e "import fs from 'node:fs';const c=fs.readFileSync('.github/workflows/ci.yml','utf8');if((c.match(/gh pr merge/g)||[]).length!==1)throw new Error('workflow merge-command count drifted');if(!c.includes('needs: verify'))throw new Error('automerge lost verify dependency')"`.
+   This deliberately proves only the repository-owned path; external branch-policy configuration is
+   a residual live control.
 
 ## Open modeling calls (for the owner)
 
