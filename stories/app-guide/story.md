@@ -156,11 +156,11 @@ everything it depends on).
 | 3 | [`transcript-reset`](transcript-reset.md) | A reset control clears the transcript to idle AND aborts the in-flight SSE stream (an `AbortSignal` threaded through `api.chatStream` into `fetch`). | integration-test (studio vitest, red→green) | `multi-turn-transcript`, `auto-grow-input` |
 | 4 | [`backend-chat-reset-route`](backend-chat-reset-route.md) **(OPTIONAL / STRETCH)** | A `POST /api/chat/reset` sidecar route clears the backend composition single-session guard so a wedged session recovers without an app restart. | integration-test (desktop node:test, red→green) | — (cross-story: drive-machinery) |
 
-**Capability 4 is OPTIONAL / STRETCH and MAY BE HELD.** The story's present-slice proof is satisfiable
-without it (the thin-client reset in `transcript-reset` clears the panel and aborts the CLIENT stream;
-the "New chat" affordance works). Cap 4 recovers a genuinely WEDGED BACKEND session — a stretch that
-lands separately, only if/when the owner asks for backend-wedge recovery. Do NOT auto-build it in the
-same chain as caps 1–3.
+**Capability 4 is OPTIONAL / STRETCH in prioritisation, not in proof accounting.** It may land
+separately from caps 1–3, but while it remains a normal authored capability and Story-UAT criterion it
+blocks the crown until its capability is healthy and UAT leg 5 is human-attested. Holding it therefore
+means holding the story at unproven; the label never makes either obligation moot. Do NOT auto-build it
+in the same chain as caps 1–3.
 
 ### Future slice — the concierge behaviour itself (NOT YET CAPABILITIES; prose only, ADR-0175 deferred)
 
@@ -236,44 +236,43 @@ permanent regression case, never speculative breadth).
 > help/advise → wire the user's Claude Code → verify a wisp lights — is the DEFERRED app-guide build; its
 > wire-and-verify UAT is authored with that build, alongside the future-slice capabilities named above.
 
-> **Per-leg witness (ADR-0106 / ADR-0070).** The behaviour legs are covered by the capabilities' signed
-> `--real` verdicts (studio vitest red→green: append-not-replace, auto-scroll recompute, height recompute +
-> cap, clear-to-idle + abort, the signal threading). The FEEL legs — "does the panel read like one
-> continuous conversation", "does the growing input feel comfortable to edit a pasted multi-line prompt",
-> "does reset give a clean fresh surface" — are `witness: human` (operator-attested, ADR-0070): an
-> automated CI run cannot judge the conversational feel, because jsdom lays out no pixels and the look is
-> subjective. The story-level `uat_witness` is absent → human (the ADR-0040 fail-closed signpost), so the
-> machine-driven whole-story UAT node stays WITHHELD; the crown derives from the per-cap signed verdicts
-> plus the operator's attestations of the feel legs.
+> **Per-leg witness (ADR-0106 / ADR-0070).** Deterministic behaviour legs 1–3 are `witness: machine`,
+> each bound exactly to the command-bearing `app-guide#gate-1`: the studio vitest suite covers
+> append-not-replace + auto-scroll, height recompute + cap + keybindings, and clear-to-idle + abort +
+> signal threading. The holistic conversational-feel judgment in leg 4 and the live backend-wedge
+> recovery in stretch leg 5 are `witness: human` (operator-attested, ADR-0070). The story-level
+> `uat_witness` is absent → human (the ADR-0040 fail-closed signpost), so the machine-driven whole-story
+> UAT node stays WITHHELD; the crown derives from the gate-signed machine legs, the gate's declared
+> capability coverage, and the operator's attestations.
 
 **Goal —** A member opens the desktop chat panel, holds a multi-turn conversation whose scrollback
 persists, edits a comfortable multi-line prompt in an input that grows, and resets to a fresh surface —
 the panel reading and behaving like one continuous conversation throughout.
 
-1. **The transcript persists across turns.** _(witness: machine for the behaviour; human for the feel)_ The
+1. **The transcript persists across turns.** _(witness: machine)_ _(proof-gate: app-guide#gate-1)_ The
    member sends several prompts in a row; each `› <prompt>` echo and its reply APPENDS below the last, prior
    exchanges stay visible, and the surface auto-scrolls to the newest line. **Success —** a persistent
-   multi-turn scrollback, never a replace-on-send exchange. (The behaviour is `multi-turn-transcript`'s
-   signed verdict; the "reads like one continuous conversation" FEEL is operator-attested.)
-2. **The input grows and caps.** _(witness: machine for the recompute; human for the feel)_ The member types
-   / pastes a multi-line prompt; the input grows to fit up to a max, then scrolls inside itself; plain Enter
-   sends, Shift+Enter inserts a newline. **Success —** a comfortable multi-line input. (The recompute + cap +
-   keybinding-keep is `auto-grow-input`'s signed verdict; the "comfortable to edit" FEEL is
-   operator-attested.)
-3. **Reset gives a fresh surface.** _(witness: machine for clear+abort; human for the feel)_ The member
-   clicks reset mid-conversation; the transcript clears to idle, the in-flight stream aborts (no ghost
-   reply), and the input returns to its resting one-row height. **Success —** a clean fresh conversation
-   without an app restart. (The clear-to-idle + abort is `transcript-reset`'s signed verdict; the "feels like
-   a fresh start" FEEL is operator-attested.)
+   multi-turn scrollback, never a replace-on-send exchange; the named studio suite tests provide positive,
+   deterministic evidence for this `multi-turn-transcript` behaviour.
+2. **The input grows and caps.** _(witness: machine)_ _(proof-gate: app-guide#gate-1)_ The member types /
+   pastes a multi-line prompt; the input grows to fit up to a max, then scrolls inside itself; plain Enter
+   sends, Shift+Enter inserts a newline. **Success —** the height recompute, cap, internal scrolling, and
+   preserved keybindings behave as declared; the named studio suite tests provide positive, deterministic
+   evidence for this `auto-grow-input` behaviour.
+3. **Reset clears and aborts.** _(witness: machine)_ _(proof-gate: app-guide#gate-1)_ The member clicks
+   reset mid-conversation; the transcript clears to idle, the in-flight stream aborts (no ghost reply), and
+   the input returns to its resting one-row height. **Success —** the clear-to-idle, abort, and input reset
+   behaviours occur without an app restart; the named studio suite tests provide positive, deterministic
+   evidence for this `transcript-reset` behaviour.
 4. **It reads like one continuous conversation.** _(witness: human)_ Across the whole conversation — the
    growing scrollback, the pinned-flush input, the reset — the panel reads and behaves as ONE coherent
    conversational surface inside the native desktop shell (the concierge-chat feel). **Success —** the
    owner's two-stage visual verdict (ADR-0070): the conversational feel is witnessed, not machine-asserted.
 5. **(OPTIONAL / STRETCH) A wedged backend session recovers without a restart.** _(witness: human)_ If the
    backend single-session guard is stuck (a wedged composition), a `POST /api/chat/reset` clears it and chat
-   resumes without restarting the app. **Success —** backend-wedge recovery. (Behaviour is
-   `backend-chat-reset-route`'s signed verdict when that stretch cap is built; the leg is MOOT / not
-   required while the cap is held.)
+   resumes without restarting the app. **Success —** backend-wedge recovery is witnessed on the live
+   surface. The stretch label controls prioritisation only: as a normal authored UAT criterion, this leg
+   remains a crown-blocking human obligation until attested.
 
 End state — the desktop chat panel reads and behaves like one continuous conversation: a persistent
 multi-turn scrollback, an input that grows and resets cleanly, the caps' behaviours signed under the studio
@@ -316,13 +315,15 @@ Story UAT's operator-attested `witness: human` legs.
    The three caps green via this gate's `(covers:)` (ADR-0097 §5). This is the two-stage proof (ADR-0070):
    the gate proves the machine GEOMETRY/BEHAVIOUR only; the conversational FEEL (does the growing scrollback
    / the clean reset read like one continuous conversation) is the Story UAT's operator-attested
-   `witness: human` legs (1-feel, 2-feel, 3-feel, 4), never machine-asserted here.
+   `witness: human` leg 4, never machine-asserted here.
 
 The OPTIONAL / STRETCH `backend-chat-reset-route` cap is deliberately **left uncovered**: it is a desktop
 sidecar/drive `node:test` unit (not thin-client), its backend-wedge-recovery behaviour is UNBUILT (no
 `apps/desktop/src/backend/chat-reset-route.test.ts`), so an `observe` gate over it would be exactly the
 rubber-stamp ADR-0097 §2 bans. It therefore keeps the crown at `proposed` alongside its backing
-`witness: human` Story-UAT leg (leg 5, backend-wedge recovery) — the owner's optional stretch. Adopting
+`witness: human` Story-UAT leg (leg 5, backend-wedge recovery) — the owner's optional stretch. The
+OPTIONAL / STRETCH label does not remove either normal obligation: until the capability is healthy and
+leg 5 is attested, the crown remains blocked. Adopting
 this one gate flips the story off `mapped`; `healthy` stays non-authorable
 ([ADR-0020](../../docs/decisions/0020-red-green-enforcement-on-the-owned-loop.md)) — the world's crown
 DERIVES green from the signed verdicts and only when every capability is healthy AND every own-proof
@@ -333,15 +334,14 @@ stretch (its cap + leg 5).
 
 ## Proof
 
-The present slice is proven when that walkthrough passes — the behaviour legs (1–3, and 5 if the stretch cap
-is built) green under the capabilities' signed `--real` verdicts (studio vitest / desktop node:test
-red→green, with each cap's contracts green underneath), and the FEEL legs (1-feel, 2-feel, 3-feel, and 4)
-operator-attested. Per ADR-0020, `healthy` is only ever DERIVED from signed verdicts; nothing here is
-authored healthy. The three thin-client capabilities are proof-wired (each carries a `proof:` block with a
-`real:` arm — a brownfield red→green over the existing `ChatPanel.tsx` / `api.ts`) so the spine can drive
-their studio suites red→green under its own gate; the story's machine-driven UAT node is WITHHELD (its
-`uat_witness` is absent → human, ADR-0040), so driving those capabilities to signed verdicts is what makes
-the continuous-conversation chat surface buildable, and the crown additionally awaits the operator's
-attestations (legs 1-feel, 2-feel, 3-feel, 4). Capability 4 is OPTIONAL/STRETCH — leg 5 is moot while it is
-held. The concierge onboarding/wiring behaviour that rides this substrate is the DEFERRED app-guide build
-(ADR-0175); its capabilities and wire-and-verify UAT are authored when that build is picked up.
+The present slice is proven when that walkthrough passes: deterministic behaviour legs 1–3 sign through
+their exact `app-guide#gate-1` observe binding, and the same signed gate derives
+`multi-turn-transcript`, `auto-grow-input`, and `transcript-reset` healthy through its declared
+`(covers:)` list. No separate per-capability `--real` verdict is claimed. Holistic conversational-feel
+leg 4 and live backend-wedge-recovery leg 5 are operator-attested. Per ADR-0020, `healthy` is only ever
+DERIVED from signed verdicts; nothing here is authored healthy. The story's machine-driven UAT node is
+WITHHELD (`uat_witness` is absent → human, ADR-0040), so the crown awaits both the gate-backed machine
+legs and the two human attestations. Capability 4 is OPTIONAL/STRETCH only in prioritisation: because it
+and UAT leg 5 are normal authored obligations, holding that work keeps the story unproven. The concierge
+onboarding/wiring behaviour that rides this substrate is the DEFERRED app-guide build (ADR-0175); its
+capabilities and wire-and-verify UAT are authored when that build is picked up.
