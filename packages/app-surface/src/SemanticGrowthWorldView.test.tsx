@@ -10,6 +10,7 @@ import {
 } from '@storytree/forest-world';
 import { normalizeWorldPresentationModel } from './WorldSceneView.js';
 import { SemanticGrowthWorldView } from './SemanticGrowthWorldView.js';
+import * as AppSurfacePackageRoot from './index.js';
 
 afterEach(cleanup);
 
@@ -129,5 +130,15 @@ describe('SemanticGrowthWorldView', () => {
         />,
       ),
     ).toThrow(/six|duplicate|ordered/i);
+  });
+
+  it('exports the semantic growth player from the package root as the same public seam', () => {
+    // Guidance: "Export the public seam from the package root." A consumer must be able to
+    // reach this view via `@storytree/app-surface`'s root barrel (this file's `index.ts`),
+    // not only via the internal `./SemanticGrowthWorldView.js` module path used above.
+    const rootExport = (
+      AppSurfacePackageRoot as { SemanticGrowthWorldView?: typeof SemanticGrowthWorldView }
+    ).SemanticGrowthWorldView;
+    expect(rootExport).toBe(SemanticGrowthWorldView);
   });
 });

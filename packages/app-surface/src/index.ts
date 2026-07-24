@@ -30,3 +30,9 @@ export {
   type TrailDir,
   type TrailRevealPlan,
 } from './trailReveal.js';
+export {
+  SemanticGrowthWorldView,
+  type SemanticGrowthFrame,
+  type SemanticGrowthFrameKey,
+  type SemanticGrowthWorldViewProps,
+} from './SemanticGrowthWorldView.js';
