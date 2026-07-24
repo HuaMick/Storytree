@@ -1,5 +1,5 @@
 import React from 'react';
-import type { SceneNode, SceneStatus } from '@storytree/forest-world';
+import type { SceneNode } from '@storytree/forest-world';
 import { SceneView, type SceneCtx } from './SceneView.js';
 import type { SpriteStyleSheet } from './sprite-sheet.js';
 import type { TrailRevealPlan } from './trailReveal.js';
@@ -8,7 +8,7 @@ export interface WorldPresentationModel {
   readonly scene: SceneNode;
   readonly selectedStoryId: string | null;
   readonly emphasizedStoryIds: readonly string[];
-  readonly hiddenStatuses: readonly SceneStatus[];
+  readonly hiddenStatuses: readonly string[];
   readonly arrivalIds: readonly string[];
   readonly reveal: TrailRevealPlan | null;
   readonly spriteSheet: SpriteStyleSheet | null;
@@ -19,7 +19,7 @@ export interface WorldPresentationModelInput {
   readonly scene: SceneNode;
   readonly selectedStoryId?: string | null;
   readonly emphasizedStoryIds?: readonly string[];
-  readonly hiddenStatuses?: readonly SceneStatus[];
+  readonly hiddenStatuses?: readonly string[];
   readonly arrivalIds?: readonly string[];
   readonly reveal?: TrailRevealPlan | null;
   readonly spriteSheet?: SpriteStyleSheet | null;
@@ -68,7 +68,7 @@ export function WorldSceneView({
       territoryClassById: (id, status) => {
         const classes = ['hex-territory', `st-${status}`];
         if (id === model.selectedStoryId) classes.push('is-selected');
-        if (emphasized.has(id)) classes.push('is-emphasized');
+        if (emphasized.has(id)) classes.push('is-hub', 'is-emphasized');
         return classes.join(' ');
       },
       reveal: model.reveal,

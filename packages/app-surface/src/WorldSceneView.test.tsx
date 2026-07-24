@@ -137,7 +137,9 @@ describe('WorldSceneView', () => {
 
     const tree = container.querySelector('.story-tree.st-healthy');
     expect(tree).toBeTruthy();
-    expect(container.querySelector('.hex-flora.is-selected.is-emphasized')).toBeTruthy();
+    expect(
+      container.querySelector('.hex-flora.is-selected.is-hub.is-emphasized'),
+    ).toBeTruthy();
 
     const capability = container.querySelector('.garden-flora.st-proposed');
     expect(capability).toBeTruthy();
