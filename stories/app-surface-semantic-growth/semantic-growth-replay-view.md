@@ -23,6 +23,7 @@ proof:
   real:
     testFile: "packages/app-surface/src/SemanticGrowthWorldView.test.tsx"
     sourceFile: "packages/app-surface/src/SemanticGrowthWorldView.tsx"
+    editsExisting: true
     scope:
       testGlobs: ["packages/app-surface/src/SemanticGrowthWorldView.test.tsx"]
       sourceGlobs: ["packages/app-surface/src/SemanticGrowthWorldView.tsx", "packages/app-surface/src/semantic-growth.css", "packages/app-surface/src/index.ts"]
