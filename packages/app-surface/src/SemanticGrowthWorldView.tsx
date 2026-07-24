@@ -5,6 +5,9 @@ import {
   type WorldPresentationEvents,
   type WorldPresentationModel,
 } from './WorldSceneView.js';
+// The public view itself imports/loads its co-located motion stylesheet, so a consumer
+// cannot mount an inert semantic player by forgetting a separate CSS side effect.
+import './semantic-growth.css';
 
 const FRAME_KEYS = ['empty', 'land', 'proposed', 'claimed', 'signed-proof', 'healthy'] as const;
 

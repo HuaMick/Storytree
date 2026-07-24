@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { cleanup, fireEvent, render } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildScene,
   type SceneInput,
@@ -11,6 +11,18 @@ import {
 import { normalizeWorldPresentationModel } from './WorldSceneView.js';
 import { SemanticGrowthWorldView } from './SemanticGrowthWorldView.js';
 import * as AppSurfacePackageRoot from './index.js';
+
+// Guidance: "The public view itself imports/loads its co-located motion stylesheet, so a
+// consumer cannot mount an inert semantic player by forgetting a separate CSS side effect."
+// vi.mock is hoisted above every import in this file, so it intercepts the module graph's
+// resolution of './semantic-growth.css' as loaded by `SemanticGrowthWorldView.tsx` itself
+// (same relative path, same directory) the moment that component module is first imported
+// above — not merely a mock reachable only from this test file's own (absent) import of it.
+const cssSideEffect = vi.hoisted(() => ({ loaded: false }));
+vi.mock('./semantic-growth.css', () => {
+  cssSideEffect.loaded = true;
+  return {};
+});
 
 afterEach(cleanup);
 
@@ -130,6 +142,15 @@ describe('SemanticGrowthWorldView', () => {
         />,
       ),
     ).toThrow(/six|duplicate|ordered/i);
+  });
+
+  it('loads its co-located motion stylesheet as part of mounting the component, not as a separate opt-in side effect', () => {
+    // Guidance: "The public view itself imports/loads its co-located motion stylesheet, so a
+    // consumer cannot mount an inert semantic player by forgetting a separate CSS side effect."
+    // A consumer who imports and renders only `SemanticGrowthWorldView` (as every other test in
+    // this file already does) must end up with `./semantic-growth.css` evaluated as part of that
+    // — never left to a caller to remember to `import './semantic-growth.css'` separately.
+    expect(cssSideEffect.loaded).toBe(true);
   });
 
   it('exports the semantic growth player from the package root as the same public seam', () => {
