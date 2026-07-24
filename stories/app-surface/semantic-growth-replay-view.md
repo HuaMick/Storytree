@@ -1,18 +1,18 @@
 ---
 id: "semantic-growth-replay-view"
 tier: capability
-story: app-surface-semantic-growth
+story: app-surface
 arc: chapter2-real-app-surface-arc
 title: "The shared world view plays and replays one honest semantic growth sequence"
 outcome: "A public app-surface growth view applies the six supplied world-presentation frames through `WorldSceneView`, owns their transform/opacity treatment, and makes Next, Back, Replay and reduced-motion rendering deterministic."
 status: proposed
 proof_mode: integration-test
-depends_on: []
+depends_on: [studio-app-surface-adapter]
 decisions: [237, 93, 213, 215, 230, 70]
-# NET-NEW package-local leaf. AUTHOR_TEST creates SemanticGrowthWorldView.test.tsx against the
-# missing public view/player. IMPLEMENT adds the view/player and its app-owned motion rules inside
-# packages/app-surface, then exports the seam. The leaf may edit the package index only for that
-# export; it does not touch Studio, web, forest-world, art, controllers or sync.
+# EDITS-EXISTING reconciliation after the first real attempt created the declared files.
+# AUTHOR_TEST extends SemanticGrowthWorldView.test.tsx to fail while the public view leaves its
+# co-located stylesheet unloaded and to cover the semantic contracts below. IMPLEMENT makes the
+# view itself load semantic-growth.css and closes the existing typecheck red. Scope stays package-local.
 proof:
   command:
     file: pnpm
@@ -44,20 +44,25 @@ reduced-motion rendering deterministic.
 
 ## Proof walkthrough first
 
-One integration test supplies six representative, already-built `WorldPresentationModel` frames to
-the missing public semantic-growth view:
+The existing integration test supplies six representative, already-built
+`WorldPresentationModel` frames to the public semantic-growth view:
 
 1. render `empty`, then advance through `land`, `proposed`, `claimed`, `signed-proof`, `healthy`;
 2. assert the stable frame key and real semantic scene markers at each stop;
 3. Back to empty, replay the same action trace twice and compare every semantic snapshot;
 4. repeat under `prefers-reduced-motion: reduce`, compare the same semantic snapshots and assert no
-   spatial travel/orbit/delayed-hidden treatment remains; and
-5. inspect the package boundary and normal-motion hooks, then let the package proof command rerun the
+   spatial travel/orbit/delayed-hidden treatment remains;
+5. prove the public view itself loads its co-located app-owned stylesheet and that removing that load
+   makes the motion proof fail; and
+6. inspect the package boundary and normal-motion hooks, then let the package proof command rerun the
    existing renderer, sprite, sizing, trail and arrival regression suite.
 
-This is one writable red: the test imports a public growth player/view that does not exist at HEAD.
-Green is the smallest package-local player/view plus motion stylesheet and public export. The test
-does not build a Chapter 2 controller, duplicate `SceneView`, synthesize art or reach into Studio/web.
+The first real attempt created the public player, test and stylesheet but left the stylesheet
+unloaded, so the declared motion was inert and the package typecheck stayed red. The second writable
+red extends that existing test/source pair: it must fail while the public view does not load its
+stylesheet, then green when the view loads the package-owned rules and every semantic contract below
+passes. The test does not build a Chapter 2 controller, duplicate `SceneView`, synthesize art or
+reach into Studio/web.
 
 ## Guidance
 
@@ -81,11 +86,12 @@ does not build a Chapter 2 controller, duplicate `SceneView`, synthesize art or 
 - Keep product authority out. Inputs are plain frames plus optional navigation callbacks; there is no
   fetch, store, subscription, claim mutation, proof mutation, clock-selected semantic state, website
   selector or Chapter 2 pacing/script.
-- Export the public seam from the package root. Motion rules live beside it in the package, not in
-  website code. Do not move Studio CSS or wire a consumer in this increment.
+- Export the public seam from the package root. The public view itself imports/loads its co-located
+  motion stylesheet, so a consumer cannot mount an inert semantic player by forgetting a separate
+  CSS side effect. Motion rules live in the package, not in website or Studio CSS.
 - Preserve current art and consumers through the full suite: Storybook remains clean/default; Vector
   remains the explicit, unknown-value and uncovered-kind fallback; existing Studio behaviour is
-  observed by the story gate without a Studio source edit.
+  observed by the dependent demo-host capability's clean-path regression gate.
 
 ## Machine contracts
 
@@ -102,8 +108,9 @@ does not build a Chapter 2 controller, duplicate `SceneView`, synthesize art or 
      snapshots as normal motion while emitting no active translate/scale/orbit instruction and never
      hiding settled state behind an animation delay.
 4. **`sgrv-motion-and-authority-stay-in-the-shared-package`**
-   - **asserts —** transition hooks/rules and reduced-motion handling live under
-     `packages/app-surface`, the view delegates to `WorldSceneView`, and its source imports no
+   - **asserts —** the public view loads `semantic-growth.css` itself; the test fails when that load
+     is absent; transition hooks/rules and reduced-motion handling live under
+     `packages/app-surface`; the view delegates to `WorldSceneView`; and its source imports no
      Studio/web module, live data/store authority, Chapter 2 controller or duplicate renderer.
 5. **`sgrv-existing-art-and-scene-contracts-do-not-regress`**
    - **asserts —** the full package command retains existing Storybook/Vector resolution and fallback,
