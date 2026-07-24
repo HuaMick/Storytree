@@ -1,0 +1,72 @@
+/*
+ * semantic-growth.css — the ONE semantic transition vocabulary `SemanticGrowthWorldView` owns
+ * inside `@storytree/app-surface` (co-located beside its component, per the node spec: "Motion
+ * rules live beside it in the package, not in website code").
+ *
+ * These rules stage transform/opacity around what `WorldSceneView`/`SceneView` already render —
+ * they never fork `SceneView`, sprite resolution, scene construction, or `@storytree/forest-world`.
+ * They layer over the existing hooks by class name only:
+ *   - arrival/growth draw-on:      `.arrive-island`, `.is-growing`
+ *   - the build/claim wisp orbit:  `.world-wisp`, `.world-claim-wisp`
+ *   - the signed-proof bloom:      `.world-bloom`
+ *   - the proposed -> healthy
+ *     territory colourway:        `.st-proposed`, `.st-claimed`, `.st-healthy`
+ *
+ * Wiring this stylesheet into a consumer (Studio or otherwise) is deliberately deferred — this
+ * increment only authors the vocabulary in place beside `SemanticGrowthWorldView`.
+ *
+ * Reduced motion: `[data-motion="reduced"]` (set by `SemanticGrowthWorldView` from the browser's
+ * `prefers-reduced-motion` signal, or an explicit prop override) suppresses every spatial
+ * transform/scale/orbit and every delayed/hidden reveal below so the same scene/model markers
+ * render at their resting state immediately — never a different cursor or model, only motion.
+ */
+
+[data-semantic-growth-frame] {
+  display: block;
+}
+
+[data-semantic-growth-frame] svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Full-motion: each new frame settles in with a transform/opacity fade instead of snapping. */
+[data-semantic-growth-frame][data-motion='full'] .hex-territory,
+[data-semantic-growth-frame][data-motion='full'] .world-wisp,
+[data-semantic-growth-frame][data-motion='full'] .world-claim-wisp,
+[data-semantic-growth-frame][data-motion='full'] .world-bloom,
+[data-semantic-growth-frame][data-motion='full'] .arrive-island {
+  animation: semantic-growth-settle 320ms ease-out;
+}
+
+@keyframes semantic-growth-settle {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* proposed -> claimed -> healthy: ease the territory colourway across frames instead of a snap. */
+[data-semantic-growth-frame][data-motion='full'] .st-proposed,
+[data-semantic-growth-frame][data-motion='full'] .st-claimed,
+[data-semantic-growth-frame][data-motion='full'] .st-healthy {
+  transition:
+    opacity 320ms ease-out,
+    transform 320ms ease-out,
+    fill 320ms ease-out;
+}
+
+/* Reduced motion: no spatial translation/scale/orbit, no delayed hidden content — every marker
+ * (scene, wisp, bloom, territory) renders at rest immediately. The cursor/model are never
+ * affected — only this staging. */
+[data-semantic-growth-frame][data-motion='reduced'] * {
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+}

@@ -78,7 +78,11 @@ export function SemanticGrowthWorldView({
       data-motion={reduce ? 'reduced' : 'full'}
     >
       <svg viewBox="0 0 100 100" aria-label={`Semantic growth: ${frame.key}`}>
-        <WorldSceneView model={model} events={events} />
+        {events ? (
+          <WorldSceneView model={model} events={events} />
+        ) : (
+          <WorldSceneView model={model} />
+        )}
       </svg>
       <nav aria-label="Semantic growth controls">
         <button type="button" onClick={() => select(cursor - 1, onBack)}>Back</button>
