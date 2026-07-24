@@ -167,7 +167,7 @@ status stays `proposed` forever (ADR-0031: health is a projection of signed verd
 | ~~—~~ | ~~[`declare-presence`](declare-presence.md)~~ | **RETIRED by ADR-0200** — the presence declaration doc (`events.session`) is retired; the claim ledger is the coordination record now. Spec kept as history. | retired | — |
 | ~~—~~ | ~~[`presence-store`](presence-store.md)~~ | **RETIRED by ADR-0200** — `events.session` (+ `session_event`) and the reaper are retired; `events.node_claim` + `claim_event` is the ledger. Spec kept as history. | retired | ~~`declare-presence`~~ |
 
-## UAT Test Criteria (would-be)
+## UAT Test Criteria
 
 **Goal —** Two parallel sessions and one operator coordinating through the ledger: each session is
 forced onto the ledger at workspace creation, an `exploring` reader and a `work` holder never stomp each
@@ -175,37 +175,57 @@ other, a second work-claimant is refused (or queues and is promoted on release),
 once, a departed session reads as gone, a build leaves session presence untouched, and offline nothing
 breaks.
 
-1. **Forced claim at workspace creation.** Session A runs
-   `storytree worktree create --node cite-event --intent "building cite-event"`. **Success —** the
-   command takes an `exploring` claim on `cite-event` FIRST (no claim → no workspace), mints a
-   self-describing worktree, and returns the start payload (claim taken + board digest); `events.node_claim`
-   holds one exploring row keyed `(cite-event, <session>)`, `claim_event` one `claimed` row; identity was
-   derived from the worktree, never typed.
-2. **See the neighbour on the ledger.** Session B runs `storytree noticeboard --pg`. **Success —** the
-   board lists session A grouped under its session with the `exploring` grade, its intent prose, and an
-   age — read from the ledger, no presence row anywhere.
-3. **Upgrade to work; a second work-claimant queues.** A upgrades its `cite-event` claim to `work`
-   (`storytree noticeboard claim --node cite-event --pg`, or the build path). **Success —** the work slot
-   is held; B, attempting the work claim on `cite-event`, is either **refused and told the holder** (A's
-   session/branch/intent) or lands in the **`waiting` queue** — no second work row exists.
-4. **Atomic promotion on release.** A releases (build completion or `noticeboard done`). **Success —** the
-   store atomically promotes the oldest live waiter (B) to `work`, auditing a `promoted` `claim_event`;
-   B now holds the slot with no race.
-5. **Overlap deltas arrive once.** On B's next `--pg` envelope, the footer carries the cursor-once
-   overlap digest ("session A took the WORK claim on cite-event", then later "released cite-event") — each
-   event delivered ONCE, a session never told about its own events; a busy unit collapses to one digest
-   line rather than flooding.
-6. **Liveness + departure.** A live session's heartbeat is bumped by its own trace activity, so its claim
-   never ages into the 2 h stale-reclaim window; when a holder releases, its row reads as a **departure**
-   on the board/map for the departure window (not silently gone), then fades. An abandoned claim fades on
-   the same clock as an abandoned lock — no reaper.
-7. **A build leaves session presence untouched (ADR-0199).** `storytree node build <id> --real --store pg`
-   writes only `building`/phase work-events plus its per-unit claim — ZERO `events.session` writes; the
-   launching session's own claim survives its own build.
-8. **Offline degrade + the gate wall.** With the DB down, `storytree tree cite-event` renders the hierarchy
-   with no ledger block and no error; `storytree noticeboard`/`worktree create` refuse with guidance
-   (`pnpm db:up`), exit non-zero, WITHOUT failing any enclosing hook. A session that holds zero live
-   claims FAILS `check:declared` — it cannot reach the merge ceremony (ADR-0200 D3).
+1. **Forced claim at workspace creation.** _(witness: machine)_ _(proof-gate: notice-board#gate-1)_
+   Drive `storytree worktree create --node cite-event --intent "building cite-event"` through its
+   injected ledger and worktree-IO seams. **Success —** the command records the `exploring` take before
+   any worktree IO (a failed take performs zero IO), derives a self-describing worktree identity, and
+   returns the start payload (claim taken + board digest); the store/schema assertions pin the
+   `(unit, session)` exploring-row and `claimed` audit-write shapes.
+2. **See the neighbour on the ledger.** _(witness: machine)_ _(proof-gate: notice-board#gate-1)_
+   Render the board over an injected ledger containing session A's exploring claim. **Success —** the
+   board lists session A grouped under its session with the `exploring` grade, branch, intent prose,
+   and age — read from the ledger, with no retired presence section.
+3. **Upgrade to work; a second work-claimant queues.** _(witness: machine)_
+   _(proof-gate: notice-board#gate-1)_ Drive A's exploring→work upgrade and B's competing upgrade
+   through the transaction seam. **Success —** A holds the work slot and B deterministically lands in
+   the **`waiting` queue** with a `queued` audit event; no second work insert is issued, and the schema
+   pins exclusivity to the partial unique work-grade index. Separately, a direct competing work-grade
+   claim is refused and names A as the holder.
+4. **Atomic promotion on release.** _(witness: machine)_ _(proof-gate: notice-board#gate-1)_
+   Release or downgrade A through the transaction seam with B as the oldest live waiter.
+   **Success —** the store selects B, flips it to `work`, and appends the `promoted` audit event inside
+   the same single `BEGIN`/`COMMIT`; stale waiters are skipped.
+5. **Overlap deltas arrive once.** _(witness: machine)_ _(proof-gate: notice-board#gate-1)_
+   Drive B's overlap read through the cursor/query seam and render the returned deltas into an envelope.
+   **Success —** the cursor advances with delivery, own-session and unheld-unit events are excluded, a
+   repeated read is silent, and several events for one busy unit collapse to one digest line.
+6. **Liveness + departure.** _(witness: machine)_ _(proof-gate: notice-board#gate-1)_
+   Feed trace/statusline activity into a session's heartbeat seam, then fold a released claim through
+   the departure window and scene projection. **Success —** activity bumps only the session's claim
+   heartbeat; the 2 h reclaim predicate keeps fresh claims and drops abandoned ones; a release becomes a
+   bounded **departure** carrying fade age before disappearing, with no presence reaper.
+7. **A build leaves session presence untouched (ADR-0199).** _(witness: machine)_
+   _(proof-gate: notice-board#gate-1)_ Drive the build command with a worktree identity through its
+   injected stores. **Success —** identity feeds only the per-unit claim; the build path writes its
+   `building`/phase work-events plus that claim, writes no `events.session` declaration/done lifecycle,
+   and releases `(spec.id, sessionId)` in `finally` when the build completes.
+8. **Offline degrade + the gate wall.** _(witness: machine)_ _(proof-gate: notice-board#gate-1)_
+   Inject no ledger/store into the offline command paths. **Success —** `storytree tree cite-event`
+   renders the hierarchy with no ledger block or error; `storytree noticeboard` renders the empty
+   offline board without error; `worktree create` refuses with `pnpm db:up` guidance and no worktree IO;
+   and a session with zero live claims FAILS `check:declared`, so it cannot reach the merge ceremony.
+
+## Reliability Gates
+
+1. **The claim-ledger coordination suites are green** _(gate: observe)_
+   `pnpm --filter @storytree/notice-board --filter @storytree/library --filter @storytree/drive --filter @storytree/cli --filter @storytree/forest-world --filter studio test`.
+   The spine observes the scoped suites that materially exercise this walkthrough: worktree-create
+   claim-before-IO and its start envelope; the graded store, schema/index, queue/promotion, cursor,
+   heartbeat, departure, and digest logic; the CLI board/tree/check-declared/build-presence walls; and
+   the studio/forest claim and departure projections. The store/CLI boundaries are deterministic
+   injected-store or SQL-shape assertions in the normal run. The destructive disposable-Postgres parity
+   files remain live-gated and default-skipped, so this observe gate does not claim a fresh live-DB
+   integration run; that is an explicit residual proof gap, not a human-witness substitute.
 
 ## Open modeling calls
 
