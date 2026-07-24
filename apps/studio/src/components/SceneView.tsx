@@ -494,9 +494,18 @@ function trySprite(
     ...handlersFor(node, ctx, storyId),
   };
   if (node.transform) props.transform = node.transform;
+  // The sprite replaces the wrapper's pixels, not its semantic DOM identity. Keep the same class hooks
+  // the vector wrapper carried (`story-tree`, `baked-art`, etc.) so coordinate hit-testing and downstream
+  // interaction tooling still recognise the object after a default sheet is enabled.
+  const cls = composeClass(node, ctx);
+  if (cls) props.className = cls;
   if (node.kind === 'flora') {
     if (node.id) props['data-cap-id'] = node.id;
     if (storyId) props['data-story-id'] = storyId;
+  } else if (storyId) {
+    // TreeView's Electron-safe jittered-click path resolves the release coordinate through this stamp.
+    // A clean click still bubbles to the enclosing territory handler; both routes must survive the swap.
+    props['data-story-id'] = storyId;
   }
   const kids: React.ReactNode[] = [];
   if (node.title) kids.push(React.createElement('title', { key: '__title' }, node.title));
