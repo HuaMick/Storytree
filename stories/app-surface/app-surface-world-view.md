@@ -3,28 +3,29 @@ id: "app-surface-world-view"
 tier: capability
 story: app-surface
 arc: chapter2-real-app-surface-arc
-title: "A deterministic typed world model drives the real shared React scene view"
-outcome: "A deterministic typed world-presentation model plus separate world-event callbacks drive the real React scene mapper, sprite manifest/resolver/sizing/fallback and existing trail/arrival selectors in `@storytree/app-surface`, with Storybook default, Vector fallback and semantic SVG/DOM identity preserved and no live authority in the view."
+title: "A deterministic typed world model delegates to the real shared SceneView"
+outcome: "A compact `WorldSceneView` accepts a deterministic typed `WorldPresentationModel` plus separate optional `WorldPresentationEvents`, derives the relocated SceneView context without live authority, and delegates the representative semantic scene and event callbacks to the already-green shared renderer."
 status: proposed
 proof_mode: integration-test
 depends_on: []
 decisions: [237, 93, 230, 70]
-# NET-NEW deep module in one package. AUTHOR_TEST writes WorldSceneView.test.tsx against the missing
-# view/model; IMPLEMENT moves the real SceneView, sprite policy and trail/arrival selectors. The
-# broad one-package extraction requires the package-suite proofCommand.
+# NET-NEW missing seam only. AUTHOR_TEST writes WorldSceneView.test.tsx against the missing wrapper;
+# IMPLEMENT authors WorldSceneView.tsx. SceneView, sprite manifest/resolver/sizing/fallback and
+# trail/arrival selectors are ALREADY relocated with 103 green package tests. They remain the
+# package proofCommand's reliability regression evidence, not behaviours this test must recreate.
 proof:
   command:
     file: pnpm
     args: ["--filter", "@storytree/app-surface", "test"]
   scope:
-    testGlobs: ["packages/app-surface/src/WorldSceneView.test.tsx", "packages/app-surface/src/trailReveal.test.ts"]
-    sourceGlobs: ["packages/app-surface/src/**/*.ts", "packages/app-surface/src/**/*.tsx", "packages/app-surface/src/**/*.css"]
+    testGlobs: ["packages/app-surface/src/WorldSceneView.test.tsx"]
+    sourceGlobs: ["packages/app-surface/src/WorldSceneView.tsx"]
   real:
     testFile: "packages/app-surface/src/WorldSceneView.test.tsx"
     sourceFile: "packages/app-surface/src/WorldSceneView.tsx"
     scope:
-      testGlobs: ["packages/app-surface/src/WorldSceneView.test.tsx", "packages/app-surface/src/trailReveal.test.ts"]
-      sourceGlobs: ["packages/app-surface/src/**/*.ts", "packages/app-surface/src/**/*.tsx", "packages/app-surface/src/**/*.css"]
+      testGlobs: ["packages/app-surface/src/WorldSceneView.test.tsx"]
+      sourceGlobs: ["packages/app-surface/src/WorldSceneView.tsx"]
     install: true
     proofCommand:
       file: pnpm
@@ -34,62 +35,70 @@ proof:
       args: ["--filter", "@storytree/app-surface", "typecheck"]
 ---
 
-# A deterministic typed world model drives the real shared React scene view
+# A deterministic typed world model delegates to the real shared SceneView
 
-**Outcome —** A deterministic typed world-presentation model plus separate world-event callbacks
-drive the real React scene mapper, sprite manifest/resolver/sizing/fallback and existing trail/arrival
-selectors in `@storytree/app-surface`, with Storybook default, Vector fallback and semantic SVG/DOM
-identity preserved and no live authority in the view.
+**Outcome —** A compact `WorldSceneView` accepts a deterministic typed
+`WorldPresentationModel` plus separate optional `WorldPresentationEvents`, derives the relocated
+`SceneView` context without live authority, and delegates the representative semantic scene and
+event callbacks to the already-green shared renderer.
+
+## Proof status and boundary
+
+The first real-build attempts proved the original authored leaf was too broad: Codex reached a
+genuine `CONFIRM_GREEN` red, while Claude exhausted 16 turns trying to author one oversized test.
+The infrastructure beneath the missing seam is already present and independently green:
+`SceneView`, sprite manifest/resolver/sizing/fallback, and `trailRevealPlan` /
+`arrivalGrowPlan` have **103 passing package tests**.
+
+This leaf therefore authors only the missing typed wrapper. The package proof command reruns those
+103 tests as regression evidence after the new pair greens; `WorldSceneView.test.tsx` does not copy
+their fixture matrix or re-prove every sprite, sizing, trail and arrival contract.
 
 ## Guidance
 
-- Derive the minimum model from what `TreeView` currently passes to `SceneView`: real scene/world
-  data, art style, focus/selection ids, arrival ids and reveal plan. Reuse public/browser-safe
-  forest-world and landed scene types; do not create a parallel world/status vocabulary.
-- Keep immutable `WorldPresentationModel` data separate from `WorldPresentationEvents`. Scene
-  selection/focus intent is a typed event supplied by the controller.
-- The model/view carries no fetch client, store handle, subscription, promise, random source, clock,
-  DOM node or mutation authority. A read-only controller may omit operable events.
-- Move the existing React scene mapper and semantic SVG/DOM identity; do not recreate it as new JSX,
-  string SVG, screenshot or website renderer. A compatibility wrapper may only delegate.
-- Move the current sprite manifest/resolver/sizing/fallback with the scene. Preserve default
-  Storybook, explicit Vector, unknown→Vector, uncovered-kind→per-node Vector, sizes, ground-contact
-  anchors and painter-Y ordering.
-- Move `trailRevealPlan` and `arrivalGrowPlan` unchanged with their tests because the view consumes
-  them. Do not add a clock, six-state choreography, replay engine or new reduced-motion behaviour.
-- Leave legend, inspector, chat, camera shell/controller, bulk TreeView chrome/layout and bulk CSS in
-  Studio. Only scene-local styling inseparable from the mapper may move in this leaf.
+- Define one plain-data `WorldPresentationModel` containing exactly:
+  - the `SceneNode` scene;
+  - selected and emphasized story ids;
+  - hidden statuses;
+  - arrival ids;
+  - the existing trail reveal plan;
+  - the resolved sprite sheet; and
+  - art scale.
+- Normalize set-like inputs deterministically: stable, duplicate-free ids/statuses and stable
+  defaults. Equal plain inputs must yield deeply equal models. Time and randomness are absent.
+- Define `WorldPresentationEvents` separately. Its selection callbacks are optional so the same
+  wrapper admits Studio's operable controller and a later Chapter 2 read-only controller without a
+  fake mutation.
+- `WorldSceneView` translates that model/events pair into the existing `SceneCtx`, then renders the
+  already-relocated `SceneView`. It does not reproduce `renderNode`, sprite resolution/sizing,
+  trail/arrival selection or any other renderer logic.
+- The source imports only public browser-safe seams from this package and
+  `@storytree/forest-world`. It imports no `apps/studio` module, API/store client, subscription,
+  promise, clock, random source or DOM animation authority.
+- Keep the story boundary unchanged: legend, inspector, chat, camera shell/controller, bulk CSS,
+  six-state replay and reduced-motion visual proof remain later increments.
 
 ## Integration test
 
-1. Fold the same representative scene inputs twice and assert deeply equal models with stable ids/order.
-2. Render `WorldSceneView` with nodes, claims/proof state, selection, arrival ids and reveal plan;
-   assert the existing semantic SVG/DOM ids/classes/roles.
-3. Activate a selectable scene node; assert only the typed world event fires and no network/store
-   operation occurs.
-4. Exercise default, explicit Vector, unknown and partial Storybook coverage; assert resolver,
-   sizing, fallback, anchor and depth metadata match current fixtures.
-5. Run the moved `trailRevealPlan` / `arrivalGrowPlan` cases and assert their deterministic outputs
-   match the existing fixtures.
-6. Assert the package imports no Studio-private API/store/controller module.
+One compact `WorldSceneView.test.tsx` proves the missing seam:
+
+1. Build the model twice from equal plain inputs, including unordered/duplicated set-like values.
+   Assert deeply equal normalized output and stable defaults.
+2. Render one representative semantic scene through `WorldSceneView`. Assert one existing semantic
+   scene marker survives delegation, then activate one selectable node and assert the optional
+   event callback receives its id.
+3. Inspect/import the wrapper source boundary and assert it has no Studio-private or live-authority
+   import. The package proof command then observes the existing 103 renderer/sprite/sizing/trail
+   tests still green.
 
 ## Contracts
 
-1. **`aswv-model-is-deterministic-and-authority-free`**
-   - **asserts —** equal inputs produce deeply equal models/renders; functions, live handles, clocks
-     and DOM nodes cannot enter presentation data.
-2. **`aswv-model-carries-current-scene-state`**
-   - **asserts —** world/scene, art style, focus/selection, arrival ids and reveal plan cross without
-     a Studio-private API type.
-3. **`aswv-renders-the-existing-scene-semantics`**
-   - **asserts —** the shared package emits the existing semantic SVG/DOM identity, not a substitute.
-4. **`aswv-emits-world-events-without-effects`**
-   - **asserts —** scene selection/focus emits typed events; render/interaction performs no live I/O.
-5. **`aswv-preserves-sprite-policy`**
-   - **asserts —** Storybook/Vector resolution, graceful fallback, sizes, anchors and painter order
-     match existing behaviour.
-6. **`aswv-trail-arrival-selectors-move-unchanged`**
-   - **asserts —** existing `trailRevealPlan` / `arrivalGrowPlan` fixtures remain deterministic and
-     equivalent; no six-state choreography or clock is introduced.
-7. **`aswv-has-no-studio-private-import`**
-   - **asserts —** the package imports only public browser-safe seams below it.
+1. **`aswv-equal-plain-inputs-normalize-deterministically`**
+   - **asserts —** equal scene/model inputs normalize to deeply equal output; selected/emphasized
+     ids, hidden statuses and arrival ids are stable and duplicate-free, with deterministic defaults.
+2. **`aswv-delegates-one-semantic-scene-and-event`**
+   - **asserts —** `WorldSceneView` preserves one representative semantic marker from the relocated
+     `SceneView`, and a selectable node reports its id through the separate optional events seam.
+3. **`aswv-wrapper-has-no-private-or-live-authority`**
+   - **asserts —** `WorldSceneView.tsx` imports no Studio-private module or network/store/
+     subscription/clock authority and contains no duplicate scene/sprite/trail renderer.
