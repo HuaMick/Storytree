@@ -18,9 +18,9 @@ import {
   type SceneNode,
   type SceneTrailsInput,
 } from '@storytree/forest-world';
-import { arrivalGrowPlan } from '../lib/trailReveal';
-import type { SpriteStyleSheet } from '../lib/sprite-sheet';
-import { SceneView, type SceneCtx } from './SceneView';
+import { arrivalGrowPlan } from './trailReveal.js';
+import type { SpriteStyleSheet } from './sprite-sheet.js';
+import { SceneView, type SceneCtx } from './SceneView.js';
 
 afterEach(cleanup);
 

@@ -14,13 +14,16 @@ capabilities: [dev-server-persistence-backbone, seed-library-corpus, read-corpus
 # out of cli) for its db-control / build surfaces and DROPPED its @storytree/cli dependency — so the
 # `cli` edge is gone. The drive surface is owned by drive-machinery, already in depends_on below, so
 # this is a re-pointing of the same code edge to a narrower package, not a graph change.
-depends_on: [library, drive-machinery, notice-board, forest-world, studio-members, proof-protocol, uat-criterion-detail, art-factory]
+# ADR-0237 increment 1: Studio is the first consumer of `@storytree/app-surface`; the shared package
+# owns the world-scene slice while Studio retains TreeView's controller and surrounding chrome, so
+# the consumer-side `app-surface` edge is declared here.
+depends_on: [library, drive-machinery, notice-board, forest-world, studio-members, proof-protocol, uat-criterion-detail, art-factory, app-surface]
 # Deciding ADRs (ADR-0037 §2): UI-drives-agents (8), the story world (36, recalibrated by 38),
 # the app brought into the boundary scan as a consuming surface (100), the drive-package
 # extraction that re-pointed the build/secrets seam off cli onto @storytree/drive (112), the
-# garden-composition fold that added the baked-kit import (221), and the art-factory split that
-# makes that import a declared cross-story edge (222).
-decisions: [8, 36, 38, 100, 112, 221, 222]
+# garden-composition fold that added the baked-kit import (221), the art-factory split that
+# makes that import a declared cross-story edge (222), and the shared app-surface extraction (237).
+decisions: [8, 36, 38, 100, 112, 221, 222, 237]
 ---
 
 # The studio

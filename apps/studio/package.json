@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@dagrejs/dagre": "^1.1.4",
+    "@storytree/app-surface": "workspace:*",
     "@storytree/drive": "workspace:*",
     "@storytree/forest-world": "workspace:*",
     "@storytree/library": "workspace:*",

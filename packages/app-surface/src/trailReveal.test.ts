@@ -1,4 +1,4 @@
-// trailReveal — Stage-1 red-green of the reveal-on-focus selector (ADR-0169 §3): the
+// trailReveal — shared Stage-1 red-green of the reveal-on-focus selector (ADR-0169 §3): the
 // PURE (focused id, TrailNetwork) → ordered-segments-with-delays plan the DOM half
 // (SceneView masks + index.css animation) consumes. Chain order, growth ends, the
 // direction tints, and the shared-trunk folds are all pinned here; the LOOK of the
@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'vitest';
 import type { TrailNetwork } from '@storytree/forest-world';
-import { trailRevealPlan, arrivalGrowPlan, REVEAL_STAGGER_MS } from './trailReveal';
+import { trailRevealPlan, arrivalGrowPlan, REVEAL_STAGGER_MS } from './trailReveal.js';
 
 const seg = (id: string, hidden = false) => ({
   id,

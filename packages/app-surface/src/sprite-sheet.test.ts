@@ -2,7 +2,7 @@
 // precedence + null fallback (`resolveSprite`), throw-on-malformed validation (`parseStyleSheet`), and
 // the ground-pivot offset math (`spritePlacement`). Pure data-in/data-out — no DOM, no React; the
 // studio mapper's INTEGRATION (does a covered node actually render an `<image>` with no child
-// recursion?) is pinned in `apps/studio/src/components/SceneView.test.tsx`.
+// recursion?) is pinned in `SceneView.test.tsx`.
 
 import { describe, test, expect } from 'vitest';
 
