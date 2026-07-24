@@ -352,13 +352,13 @@ end-to-end. Minimal-first (one coherent journey: launch → sign in → the loop
 in the shared forest), defect-driven thereafter (each real failure earns a permanent regression case,
 never speculative breadth).
 
-> **Per-leg witness (ADR-0106).** The CI-honest mechanics legs are `witness: machine` — the package
-> suites (`apps/desktop` + the drivers) cover them. The experiential legs — a built native shell, a real
-> OS keychain, a real subscription `query()` running the live loop, the "feels like one app" appearance,
-> the live brokered write to the hosted studio, and the member's in-app `builder` grant (ADR-0117 —
-> replacing the old per-friend Cloud SQL IAM grant) — are `witness: human` (operator-attested, ADR-0070):
-> an automated CI run cannot drive a native shell, a real keychain, the paid SDK leaf, a live hosted
-> broker, or judge the look.
+> **Per-leg witness (ADR-0106).** All eight legs exercise the integrated native-desktop journey and are
+> `witness: human` (operator-attested, ADR-0070). In particular, the headless local-backend and
+> credential-bridge suites support legs 3 and 4 at the component boundary, but do not prove that the
+> Electron main actually booted the composed backend or handed the credential through that live
+> integration. The real OS keychain, subscription `query()`, hosted broker, in-app `builder` grant,
+> native appearance, and splash/refuse+retry experience likewise require the operator. Deterministic
+> component tests remain supporting evidence; they do not replace the integrated witness.
 > The story-level `uat_witness` is absent → human (the ADR-0040 fail-closed signpost), so the
 > machine-driven whole-story UAT node stays withheld; the crown derives from the per-leg roll-up plus
 > the operator's attestations.
@@ -370,21 +370,21 @@ credential never leaving the machine.
 
 1. **Launch.** _(witness: human)_ The member opens the desktop app; it loads the compiled studio UI
    inside the native shell (no Vite, no source on the renderer). **Success —** the studio renders.
-2. **Configure credentials in the panel, stored in the keychain.** _(witness: machine for panel
-   contracts 5–9; human for real OS-keychain round-trip)_ The member opens the desktop-only Credentials
-   panel (settings/control surface), enters each credential kind independently (Claude subscription
+2. **Configure credentials in the panel, stored in the keychain.** _(witness: human)_ The member opens
+   the desktop-only Credentials panel (settings/control surface), enters each credential kind
+   independently (Claude subscription
    `oauth`, Anthropic `api-key`), stores through Store/Replace, observes
    boolean-only saved status, and removes through Sign out/Remove — the raw credential never pre-fills,
    never reads back, and never appears in `localStorage` or plaintext on disk; on a real desktop app the
    operator attests a replacement token survives restart then removes cleanly. (The CI-honest core —
    two-kind broker independence, typed IPC, operation-bridge lifetime, and the panel's one-way store/
    feature gate — is `credential-broker`'s contracts 1–9.)
-3. **The local backend is live (no 503).** _(witness: machine)_ With the desktop main process running,
+3. **The local backend is live (no 503).** _(witness: human)_ With the desktop main process running,
    a `GET /api/*` read route (library/tree/activity) returns a real envelope body — NOT the
    `static-server.ts` 503 stub. **Success —** the backend booted in-process and `/api/*` serves the
    composed organism drivers. (`local-backend-boot`'s contract test asserts the live route over the
    stub.)
-4. **The credential reaches the in-process backend.** _(witness: machine)_ A build/orchestrate driver
+4. **The credential reaches the in-process backend.** _(witness: human)_ A build/orchestrate driver
    invocation in the local backend receives the brokered credential in-process (no TLS hop), and the
    renderer is never handed the raw token. (`local-credential-wiring`'s contract test asserts the
    in-process hand-off + the renderer isolation.)
@@ -400,7 +400,7 @@ credential never leaving the machine.
    build is subscription-billed and the brokered write needs the live hosted studio; an agent should not
    burn the spend unattended.)*
 6. **The brokered-forest connection is honest when the broker is unreachable / the member is not a builder.**
-   _(witness: machine for the probe; human for the live broker+grant)_ Before the member is marked a
+   _(witness: human)_ Before the member is marked a
    `builder` (or when the broker is down), the readiness probe fails CLOSED with clear guidance (you are
    not yet an authorized builder — ask the owner / the broker is unreachable — is the studio up?) rather
    than hanging or forging success; after the owner marks the member a **builder** in the Members panel (an
@@ -412,7 +412,7 @@ credential never leaving the machine.
    coherent native application. **Success —** the owner's two-stage visual verdict (ADR-0070 / ADR-0113
    §9): the appearance is witnessed, not machine-asserted.
 8. **Launch refuses cleanly when a precondition is unmet — no half-wired shell (ADR-0176).**
-   _(witness: machine for the gate outcome; human for the splash / refuse+retry window)_ Before the
+   _(witness: human)_ Before the
    sidecar wires any backend, the launch-precondition gate runs: with no git checkout it refuses
    IMMEDIATELY naming the unmet precondition and NEVER wakes the DB; with a checkout it reuses
    `ensureLiveDb` to probe and bounded-auto-wake the live store, proceeding to the ONE fully-wired
@@ -464,8 +464,8 @@ main-process broker in `apps/desktop` (`node:test`) and the renderer Credentials
 command. The coverage is real, not declared-only: each suite is the cap's OWN contract suite over its
 real collaborators (ADR-0097 §2) — the broker contracts over the real `InMemoryKeychain` + an injected
 environment, the panel contracts over an injected `desktopAuth` fake. This gate is DISTINCT from
-`## UAT Test Criteria` above (the integrated acceptance journey, part machine-witnessed and part
-operator-attested): it is the author's **expandable reliability floor** — it starts by adopting the
+`## UAT Test Criteria` above (the integrated, operator-attested acceptance journey): it is the author's
+**expandable reliability floor** — it starts by adopting the
 existing green suites and GROWS a `_(gate: build-tests)_` gate (a genuine red→green regression leg) the
 moment observation proves insufficient — a real broker- or panel-contract defect slips the existing
 suites.
@@ -478,15 +478,15 @@ suites.
    per-kind sign-out; `apps/studio/src/components/CredentialsPanel.test.tsx`, ADR-0179, vitest jsdom) —
    then signs an `adopted` verdict. `credential-broker` greens via this gate's `(covers:)` (ADR-0097 §5).
    The real `@napi-rs/keyring` OS-keychain round-trip through the panel is NOT observed here — it is the
-   operator-attested leg (ADR-0070 / ADR-0179 §5, Story UAT leg 2's human half), which an agent can never
+   operator-attested leg (ADR-0070 / ADR-0179 §5, Story UAT leg 2), which an agent can never
    self-attest.
 
 Adopting this gate greens ONLY `credential-broker` — its DERIVED crown, via the `(covers:)` above. It
 does NOT green the story and does NOT touch the authored `status:` (which stays `proposed`): the desktop
-crown still awaits its OTHER capabilities and its operator-attested Story UAT legs — the built native
-shell, the real OS-keychain round-trip, the live subscription loop, the brokered forest write, the
-in-app `builder` grant, and the "feels like one app" appearance (legs 1, 2, 5, 6-grant, 7) — which an
-agent can never self-attest. `healthy` stays non-authorable
+crown still awaits its OTHER capabilities and all eight operator-attested Story UAT legs — including
+the Electron-main backend boot, live credential hand-off, real OS-keychain round-trip, subscription
+loop, brokered forest write, in-app `builder` grant, native appearance, and splash/refuse+retry
+experience — which an agent can never self-attest. `healthy` stays non-authorable
 ([ADR-0020](../../docs/decisions/0020-red-green-enforcement-on-the-owned-loop.md)) — the authored
 `status:` is never `healthy`; the world's crown DERIVES green from the signed verdict
 ([ADR-0040](../../docs/decisions/0040-verdict-derived-green-and-the-human-witness-signpost.md)), and only
@@ -495,15 +495,16 @@ signed verdict toward that roll-up; it is not the crown.
 
 ## Proof
 
-The story is proven when that walkthrough passes — the mechanics legs (3, 4, the probe half of 6) green
-under the package suites with the capabilities' contracts green underneath, and the experiential legs
-(1, 2, 5, the live-grant half of 6, and 7) operator-attested. Per ADR-0020, `healthy` is only ever
+The story is proven when all eight integrated legs are operator-attested. The deterministic
+credential-broker, local-backend, credential-bridge, forest-readiness, and launch-precondition suites
+remain supporting component evidence, but they do not sign the Electron-main/live-integration UAT
+observables. Per ADR-0020, `healthy` is only ever
 DERIVED from signed verdicts; nothing here is authored healthy. The three thick-client capabilities are
 proof-wired (each carries a `proof:` block with a `real:` arm — a NET-NEW red→green) so the spine can
 drive their offline suites red→green under its own gate; the story's machine-driven UAT node is WITHHELD
 (its `uat_witness` is absent → human, ADR-0040), so driving those capabilities to signed verdicts is
 what makes the thick-client layer buildable, and the crown additionally awaits the operator's
-attestations (legs 1, 2, 5, 6-grant, 7).
+attestations (legs 1–8).
 
 ## Open modeling calls (for the owner)
 

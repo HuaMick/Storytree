@@ -50,8 +50,9 @@ cloud credentials, no multi-tenant. The control is **scope-routed** (`routedBuil
 `apps/studio/server/buildWorker.ts:144`): a drilled-in capability runs the Phase-1 `--live`
 single-node pipeline smoke; a selected story runs `story build <id> --real` and, on a green chain,
 opens an auto-merging PR — the **Phase-2 approve-to-land** increment PRs #299 + #300 landed (see
-"Scope, honestly" below). The mechanics below were authored Phase-1-first; the realized shape now
-covers both scopes.
+"Scope, honestly" below). The mechanics below were authored Phase-1-first. The story path landed,
+but the current node route has since diverged from the accepted `--live` shape; the desired
+two-scope organism is therefore not fully built.
 
 The shape, decided in ADR-0090 (owner + orchestrator) and **encoded here, not re-designed**:
 
@@ -86,20 +87,28 @@ click is the deliberate, owner-attested human action). STILL out of scope: hoste
 cloud-auth (Phase 3); no `--real` toggle on a single node; no manual `gh pr merge`; the frontend
 holds no model-invocation path — the agent runs only in the server/worker process.
 
-## Honest proof posture — `proposed`, with the mechanics LANDED
+**Known implementation gap — do not redefine the target.** The accepted node behavior above remains
+`--live`, non-persisting, and no-land. Current `routedBuildRunner` instead sends a node through
+`nodeBuild(..., { real: true, verdictStore: 'pg' })`, persisting its verdict and parking a branch.
+That is a code divergence, not a new acceptance rule: the desired node route is **UNBUILT**, and UAT
+leg 8 must fail until implementation once again matches the locked `--live` walls.
+
+## Honest proof posture — `proposed`, with a node-route gap
 
 This spec was authored FIRST, before any implementation, to bound the journey and size the units;
-the implementation then LANDED (PRs #297 / #299 / #300), and the spec is now reconciled to it.
+most mechanics then LANDED (PRs #297 / #299 / #300), but the current routed-node implementation is
+not reconciled to the accepted `--live` behavior above.
 Every contract below describes the isolated unit test that proves a leaf; the capability describes
 the integration test that proves it against real in-story collaborators; the story UAT below
 describes the acceptance walkthrough that proves the whole loop against the real running studio.
-The geometry/behaviour of all this is machine-witnessed and green. Status stays `proposed` for
-every unit — not because code is missing, but because `healthy` is earned through the prove-it-gate
-AND the still-pending operator obligations (the APPEARANCE attestation per ADR-0070, and the
-live-run UAT, a subscription-billed human-witness action); it is never authored. The build-path
-collaborators (`nodeBuild`, `storyBuild`, the spine, the SDK leaf) already existed and are real;
-what this story added is the worker that ROUTES and drives them from the server process and the UI
-that triggers them.
+Deterministic component and integration tests support the human-witnessed integrated legs, but only
+UAT leg 5 is formally machine-witnessed through the exact observe gate below. Status stays
+`proposed` because code work remains to restore the locked node `--live` route, and because
+`healthy` still requires the prove-it-gate plus the pending operator obligations (the APPEARANCE
+attestation per ADR-0070 and the live-run UAT); it is never authored. The build-path collaborators
+(`nodeBuild`, `storyBuild`, the spine, the SDK leaf) already existed and are real; this story added
+the server-process worker and trigger UI, but its current node routing does not yet satisfy the
+accepted outcome.
 
 ## Capabilities (3)
 
@@ -174,8 +183,10 @@ driven thereafter (each real failure earns a permanent regression case, never sp
 Mocks are forbidden: the build is a REAL `--live` build (the SDK leaf genuinely authors, the spine
 genuinely signs); the consumed cross-story seams are exercised real.
 
-> **Witness note (ADR-0070).** The build MECHANICS — intent accepted, run reaches a signed verdict,
-> transcript polled, hue/status updated — are agent-drivable and machine-witnessed. The studio
+> **Witness note (ADR-0070 / ADR-0106).** Deterministic component tests exercise the intent,
+> transcript, terminal, and repaint mechanics, but they are supporting evidence for the integrated
+> human legs rather than formal machine witnesses for them. Only the concurrent-build refusal in
+> UAT leg 5 has exact positive test coverage bound to the observe gate below. The studio
 > button/transcript **appearance** (does the panel read well, does the live transcript feel alive)
 > is NOT self-signed: it is **operator-attested** per ADR-0070's two-stage proof — the agent builds
 > the look behind the existing studio surface, surfaces it, and STOPS; the owner's nod is the visual
@@ -190,30 +201,33 @@ the node's hue updating in the world — entirely on their own machine.
 1. Start the studio with the live store up: `pnpm db:up`, then `pnpm --filter studio dev` (the live
    backend is the default). **Success —** the data-api line logs `library/comments → Cloud SQL
    Postgres`, and `GET /api/health` reports the live store reachable — the worker can persist a
-   verdict.
+   verdict. _(witness: human)_
 2. Open `#/tree`, click a buildable node (e.g. a `drive-machinery` node) to open the island side
    panel. **Success —** the `<aside className="tree-detail">` panel renders the node's status badge,
    UAT verdict line, and capability sub-DAG, AND a new **Build** control is present (only for a
    buildable node — a non-buildable node shows no button or a disabled one with the reason).
+   _(witness: human)_
 3. Click **Build**. **Success —** the client POSTs `/api/build { unitId }`, the server answers `202`
    with a `runId`, the panel flips into a "building…" state showing the transcript region, and the
    teal in-flight wisp lights on the node in the world (the existing `/api/activity` pipeline, ADR-
    0048) — proving the intent was accepted and the worker started WITHOUT the frontend importing any
-   build code.
+   build code. _(witness: human)_
 4. Watch the transcript. **Success —** the panel POLLS `GET /api/build?runId=…` and the coarse
    transcript grows line by line — the phase trail (AUTHOR_TEST → … → GATE) and progress lines — as
    the real SDK leaf authors and the spine observes red→green. (The transcript is COARSE by design,
-   not a raw model log.)
+   not a raw model log.) _(witness: human)_
 5. Attempt a second build while the first is running (click Build again, or POST a second intent).
    **Success —** the server REFUSES the concurrent build (`409`, "a build is already running") — the
    single-build-at-a-time guard holds; the running build is unaffected.
+   _(witness: machine)_ _(proof-gate: studio-build#gate-1)_
 6. Let the build finish. **Success —** `GET /api/build?runId=…` reports a terminal status with the
    final build envelope (verdict line, signer, cost, phase trail); the panel shows the verdict; and
    the node's hue in the world updates to reflect the freshly signed `events.verdict` (the existing
-   `/api/tree` `latestVerdicts` path) WITHOUT a manual reload.
+   `/api/tree` `latestVerdicts` path) WITHOUT a manual reload. _(witness: human)_
 7. Confirm the verdict is real and persisted. **Success —** `storytree tree <unitId>` (or the DB)
    shows the new signed verdict in `events.verdict` — a REAL gate verdict (spine-observed red→green,
    spine-signed), not a hue handed in by the UI. The frontend never touched the verdict.
+   _(witness: human)_
 8. Confirm the scope-routed walls. **Success —** the **NODE** build (this walkthrough, steps 1–7) was
    the single-node `--live` local smoke — it opened NO git worktree, pushed NO branch, and landed
    nothing. The **STORY** path (select a real-buildable story, no cap drilled, and click Build) routes
@@ -221,6 +235,17 @@ the node's hue updating in the world — entirely on their own machine.
    opens a **non-draft PR that CI auto-merges to trunk** (ADR-0022; non-squash per ADR-0031) — clicking
    Build is the approve-to-land (ADR-0090 Phase 2). The remaining walls hold: no hosted run, no
    `--real` toggle on a single node, no manual `gh pr merge`.
+   _(witness: human)_
+
+## Reliability Gates
+
+1. **The studio build mechanics suite is green** _(gate: observe)_ `pnpm --filter studio test`.
+   The command deterministically exercises the real build API route and registry with scripted
+   collaborators: `buildApi.integration.test.ts` proves the second-intent `409` while the original
+   run remains live (UAT leg 5). The locked scope-routed walls in UAT leg 8 are not claimed by this
+   gate: the current routed-node implementation and suite exercise a different `--real` persisted,
+   parked-branch shape. The live subscription-billed run, persisted verdict, world repaint, operator
+   appearance judgement, and leg 8's intended behavior remain human-witnessed.
 
 ## Proof
 
@@ -233,12 +258,13 @@ spawn exercised through the real `nodeBuild` entry (an offline scripted `PhaseAu
 in the integration test, ADR-0010 §5, to avoid billing a live SDK run on every gate pass — the live
 run is the human-witness UAT action above).
 
-**Honest status — `proposed`, and the mechanics LANDED.** The build affordance, the worker routing,
-and the story/node scope split are built and machine-witnessed on `main` (PRs #297 / #299 / #300).
-Status stays `proposed` because two obligations are still pending — the operator's APPEARANCE
-attestation (ADR-0070) and the live-run UAT (a real subscription-billed `--live`/`--real` run is a
-human-witness action) — NOT because code is missing. `healthy` is earned through the prove-it-gate,
-never edited here.
+**Honest status — `proposed`, partially landed with a node-route gap.** The build affordance,
+registry/API mechanics, transcript UI, and story `--real` arm landed on `main` (PRs #297 / #299 /
+#300), with deterministic component tests as supporting evidence. Only UAT leg 5 is formally
+machine-witnessed. Code is still missing for the accepted node `--live`, non-persisting, no-branch
+route: current routing uses `--real`, persists the verdict, and parks a branch, so human UAT leg 8
+must currently fail. The operator's APPEARANCE attestation (ADR-0070) and the integrated live-run
+UAT also remain pending. `healthy` is earned through the prove-it-gate, never edited here.
 
 ## Open modeling calls (for the owner)
 
