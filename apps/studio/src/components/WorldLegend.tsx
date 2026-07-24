@@ -1,8 +1,8 @@
 // WorldLegend — the story world's legend bar (ADR-0036 d.6c, model-per-row
 // rework; vocabulary recalibrated by ADR-0038).
 //
-// Games-style: ONE entry per world model (story trees, garden plants, proof
-// marks, activity blooms, in-flight builds, decoration), representative state
+// Games-style: ONE entry per world model (story trees, test-coverage flora,
+// proof marks, activity blooms, in-flight builds), representative state
 // icons side by side, a single caption. Clicking an entry expands a drawer
 // fanning out that model's FULL state vocabulary — states that don't occur in
 // the current world render dimmed ("not in world yet"), and entries whose model
@@ -22,8 +22,8 @@
 //
 // The captions carry the observability contract's caveats in operator-facing
 // text: hue-is-the-signed-verdict (ADR-0040 — authored status can never paint
-// green), crown-is-never-a-roll-up, signpost-is-the-human-witness-mark,
-// offline-under-claims, build-wisps-are-the-harness (ADR-0048).
+// green), crown-is-never-a-roll-up, offline-under-claims, and
+// build-wisps-are-the-harness (ADR-0048).
 
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { anyInFlight, anyRecentLanding } from '../lib/activity';
@@ -35,8 +35,8 @@ import type { BuildActivity, ClaimActivity, SubagentColourState, TreeStory } fro
 // When an `artStyle` sprite sheet is active in the world (`artStyle !== 'vector'`), the legend's
 // status/kind icons render the SAME sprite the map draws, instead of the vector CSS shape — so the
 // legend stays "the world's palette" in sprite mode too (the whole point of the legend, ADR-0036 d.6c).
-// The sheet is supplied by context so the pure icon factories (TreeIcon / PlantIcon / ConiferIcon /
-// WheatIcon) can resolve a sprite without every legend caller prop-drilling it; a `null` sheet (the
+// The sheet is supplied by context so the pure icon factories (TreeIcon / PlantIcon) can resolve a
+// sprite without every legend caller prop-drilling it; a `null` sheet (the
 // default, vector mode) leaves every icon byte-identical to before. An icon whose `${kind}[:status]`
 // the sheet does NOT cover falls back to its vector shape (resolveSprite → null), exactly as the map does.
 const SpriteSheetContext = createContext<SpriteStyleSheet | null>(null);
@@ -63,7 +63,7 @@ function useSprite(kind: string, status?: string): SpriteDef | null {
 // ADR-0212 retired the `building` row: the build wisp is no longer its own drawable, so it is no
 // longer its own legend row — the band it contributes is taught inside `claim`, where the one
 // session body now lives.
-export type RowKey = 'tree' | 'flora' | 'proof' | 'activity' | 'claim' | 'decor';
+export type RowKey = 'tree' | 'flora' | 'proof' | 'activity' | 'claim';
 
 /**
  * Status fan order: the growth ladder, then the failure state. `building` and
@@ -80,10 +80,6 @@ export interface LegendFacts {
   statusTotals: Map<string, { stories: number; caps: number }>;
   /** Any unit wears healthy — which, post ADR-0040, only a signed pass can paint. */
   anyProven: boolean;
-  /** Human-witness signpost states (ADR-0040): blank = the UAT awaits the operator. */
-  signBlank: boolean;
-  signWitnessedPass: boolean;
-  signWitnessedFail: boolean;
   /** Any capability renders the dead silhouette (signed ✗ or authored unhealthy). */
   anyDeadFlora: boolean;
 }
@@ -101,19 +97,11 @@ export function legendFacts(stories: TreeStory[]): LegendFacts {
     statusTotals.set(key, cur);
   };
   let anyProven = false;
-  let signBlank = false;
-  let signWitnessedPass = false;
-  let signWitnessedFail = false;
   let anyDeadFlora = false;
   for (const s of stories) {
     const st = s.status ?? 'unknown';
     bump(st, 'stories');
     if (st === 'healthy') anyProven = true;
-    if (s.uatWitness === 'human') {
-      if (!s.verdict) signBlank = true;
-      else if (s.verdict.outcome === 'pass') signWitnessedPass = true;
-      else signWitnessedFail = true;
-    }
     for (const c of s.capabilities) {
       const cst = c.status ?? 'unknown';
       bump(cst, 'caps');
@@ -124,16 +112,11 @@ export function legendFacts(stories: TreeStory[]): LegendFacts {
   return {
     statusTotals,
     anyProven,
-    signBlank,
-    signWitnessedPass,
-    signWitnessedFail,
     anyDeadFlora,
   };
 }
 
 // ---------- mini icons (world css classes — the world's palette, never a copy) ----------
-
-const HEX = 'M 0 -11 L 9.5 -5.5 L 9.5 5.5 L 0 11 L -9.5 5.5 L -9.5 -5.5 Z';
 
 const BARE_BRANCHES = ['M 0 -15 C 2 -20, 1 -22, 2 -25', 'M -3 -15.5 C -8 -19, -7 -20, -4.5 -22'];
 
@@ -252,22 +235,6 @@ function PlantIcon({
   );
 }
 
-/** The human-witness signpost (ADR-0040): dashed-blank, or a verdict-hued seal. */
-function SignIcon({ state }: { state: 'blank' | 'pass' | 'fail' }): React.JSX.Element {
-  return (
-    <svg viewBox="-9 -26 18 28" aria-hidden="true">
-      <g
-        className={`story-sign ${
-          state === 'blank' ? 'sign-blank' : `sign-witnessed verdict-${state}`
-        }`}
-      >
-        <rect x={-1.3} y={-15} width={2.6} height={15} rx={1.1} />
-        <circle cy={-18} r={6.5} />
-      </g>
-    </svg>
-  );
-}
-
 /** A work body wearing a live BUILD BAND (ADR-0212) — the same `world-claim-wisp state-<x>` ring as
  *  {@link ClaimWispIcon} plus its `band-<x>` class, because since ADR-0212 there is no separate build
  *  drawable to draw: the band rides the ONE session body. Reusing the world's own classes is what
@@ -361,32 +328,6 @@ function BloomIcon(): React.JSX.Element {
   );
 }
 
-function ConiferIcon(): React.JSX.Element {
-  // Sprite mode: the sheet's `conifer` sprite; a miss falls back to the vector conifer below.
-  const sprite = useSprite('conifer');
-  if (sprite) return <SpriteSwatch def={sprite} />;
-  return (
-    <svg viewBox="-12 -14 24 18" aria-hidden="true">
-      <g className="hex-conifer">
-        <path className="conifer-body c-0" d="M -5 -10 L -1 0 L -9 0 Z" />
-        <path className="conifer-body c-1" d="M 5 -8 L 8.5 0 L 1.5 0 Z" />
-      </g>
-    </svg>
-  );
-}
-
-function WheatIcon(): React.JSX.Element {
-  // Sprite mode: a `wheat` sprite if the sheet covers it (the current sheets do not) — else the vector
-  // wheat tile below.
-  const sprite = useSprite('wheat');
-  if (sprite) return <SpriteSwatch def={sprite} />;
-  return (
-    <svg viewBox="-13 -13 26 26" aria-hidden="true">
-      <path className="hex-top is-wheat" d={HEX} />
-    </svg>
-  );
-}
-
 // ---------- tiles & fans ----------
 
 function Tile({
@@ -465,7 +406,6 @@ export interface LegendModel {
   facts: LegendFacts;
   rows: LegendRow[];
   totals: (st: string) => { stories: number; caps: number };
-  anyWitnessed: boolean;
   unknownPresent: boolean;
 }
 
@@ -496,14 +436,6 @@ function legendModel(
     const t = totals(st);
     return t.stories > 0 || t.caps > 0;
   };
-  const anyWitnessed = facts.signWitnessedPass || facts.signWitnessedFail;
-  const anySign = facts.signBlank || anyWitnessed;
-  // The bar shows the most informative signpost state in the world right now.
-  const signState: 'blank' | 'pass' | 'fail' = facts.signWitnessedPass
-    ? 'pass'
-    : facts.signWitnessedFail
-      ? 'fail'
-      : 'blank';
   const recentLandings = anyRecentLanding(stories, now);
   const building = anyInFlight(builds, now);
   const rows: LegendRow[] = [
@@ -522,7 +454,7 @@ function legendModel(
     },
     {
       key: 'flora',
-      label: 'garden plants',
+      label: 'test coverage',
       visible: stories.some((s) => s.capabilities.length > 0),
       icons: (
         <>
@@ -542,7 +474,6 @@ function legendModel(
         <>
           {facts.anyProven && <PlantIcon status="healthy" />}
           {facts.anyDeadFlora && <PlantIcon status="unhealthy" dead />}
-          {anySign && <SignIcon state={signState} />}
         </>
       ),
     },
@@ -567,9 +498,8 @@ function legendModel(
       visible: claims.length > 0 || building,
       icons: <ClaimWispIcon state="authoring" />,
     },
-    { key: 'decor', label: 'decoration', visible: true, icons: <ConiferIcon /> },
   ];
-  return { facts, rows, totals, anyWitnessed, unknownPresent: present('unknown') };
+  return { facts, rows, totals, unknownPresent: present('unknown') };
 }
 
 /** A row's human label, for the flyout heading / aria. */
@@ -577,11 +507,10 @@ export function legendRowLabel(key: RowKey): string {
   return (
     {
       tree: 'story trees',
-      flora: 'garden plants',
+      flora: 'test coverage',
       proof: 'proof',
       activity: 'activity',
       claim: 'sessions working',
-      decor: 'decoration',
     } as const
   )[key];
 }
@@ -607,7 +536,7 @@ export function LegendDrawerBody({
    *  drawer rendered STANDALONE by the panel (outside <WorldLegend>) still sprites its fan tiles. */
   spriteSheet?: SpriteStyleSheet | null;
 }): React.JSX.Element {
-  const { facts, totals, anyWitnessed, unknownPresent } = model;
+  const { facts, totals, unknownPresent } = model;
   const region = (label: string, body: React.JSX.Element): React.JSX.Element => (
     <SpriteSheetContext.Provider value={spriteSheet}>
       <div className="legend-drawer" role="region" aria-label={`legend — ${label}`}>
@@ -669,7 +598,7 @@ export function LegendDrawerBody({
   }
   if (rowKey === 'flora') {
     return region(
-      'garden plants',
+      'test coverage',
       <>
         <div className="legend-fan">
           <Tile
@@ -685,10 +614,11 @@ export function LegendDrawerBody({
           />
         </div>
         <p className="legend-cap">
-          Garden flora are the story's <strong>capabilities</strong> — click one in the world to
-          inspect it. Species is decorative; colour and withering carry the data: deep green = the
-          last signed run passed (the only green source, ADR-0040), withered = a signed fail or
-          authored unhealthy, every other hue = the authored ladder, unproven.
+          Flora density is a compressed view of each capability&apos;s declared,{' '}
+          <strong>test-proven contracts</strong>: more behavioural obligations grow a denser drift,
+          but one plant is not one source test. Colour and withering carry capability status: deep
+          green = the last signed run passed (the only green source, ADR-0040), withered = a signed
+          fail or authored unhealthy, every other hue = the authored ladder, unproven.
         </p>
       </>,
     );
@@ -710,28 +640,13 @@ export function LegendDrawerBody({
             note="failed its last signed run, or authored unhealthy"
             absent={!facts.anyDeadFlora}
           />
-          <Tile
-            icon={<SignIcon state="blank" />}
-            label="awaiting witness"
-            note="a human must see this story's UAT"
-            absent={!facts.signBlank}
-          />
-          <Tile
-            icon={<SignIcon state={facts.signWitnessedPass ? 'pass' : 'fail'} />}
-            label="witnessed"
-            note="the story's own UAT was signed — never a roll-up"
-            absent={!anyWitnessed}
-          />
         </div>
         <p className="legend-cap">
           Hue only ever reports a <strong>signed</strong> prove-it-gate verdict — authored status
           can never paint green, and a story's crown answers only to its <strong>own</strong> UAT
-          (“all capabilities pass” and “the story passed UAT” are different claims). Stories with a{' '}
-          <strong>human</strong> witness (the default) carry a signpost — dashed-blank until the
-          operator's ceremony, a filled seal once signed (a signed fail also withers the crown);
-          machine-witnessed stories carry none. With the live store down, verdicts are absent and
-          the world <strong>under-claims</strong>: trees fall back to the authored ladder — the
-          store banner is the signal.
+          (“all capabilities pass” and “the story passed UAT” are different claims). With the live
+          store down, verdicts are absent and the world <strong>under-claims</strong>: trees fall
+          back to the authored ladder — the store banner is the signal.
         </p>
       </>,
     );
@@ -849,20 +764,7 @@ export function LegendDrawerBody({
       </>,
     );
   }
-  return region(
-    'decoration',
-    <>
-      <div className="legend-fan">
-        <Tile icon={<ConiferIcon />} label="conifers" />
-        <Tile icon={<WheatIcon />} label="wheat fields" />
-        <Tile icon={<PlantIcon status="healthy" />} label="plant species & grass shades" wide />
-      </div>
-      <p className="legend-cap">
-        Scenery — hash-grown so the world looks alive yet renders identically every visit. Only
-        colour, withering and glyphs carry data.
-      </p>
-    </>,
-  );
+  throw new Error(`unknown legend row: ${rowKey satisfies never}`);
 }
 
 // ---------- the legend ----------

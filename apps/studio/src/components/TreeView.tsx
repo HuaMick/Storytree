@@ -14,13 +14,12 @@
 // PROOF (ADR-0040): deep green only ever derives from a signed pass in
 // events.verdict — authored status can never paint it — and the crown greens
 // only from the story's OWN UAT verdict, never a child roll-up (ADR-0033
-// d.4). Capabilities garden around it as small flora (flower beds / berry
-// bushes / saplings); one whose last signed run failed — or whose status is
-// unhealthy — withers to a dead plant. There are no ✓/✗ badges in the world:
-// the hue IS the verdict (precise facts stay in the panel and tooltips). A
-// signpost marks a HUMAN-witnessed story (uat_witness absent or human):
-// dashed-blank until the operator's UAT ceremony signs a verdict, a filled
-// seal after; machine-witnessed stories carry none.
+// d.4). Each capability owns a parcel whose flora density is a deterministic
+// compression of its declared, test-proven contracts; a capability whose last
+// signed run failed — or whose status is unhealthy — grows withered marks.
+// There are no ✓/✗ badges in the world: the hue IS the verdict (precise facts
+// stay in the panel and tooltips). The witness signpost and scenery-only
+// conifers/wheat are retired (ADR-0238).
 // Story-level `depends_on` (∪ derived cross-story capability deps) renders as
 // roads; hovering a territory lights its upstream chain (gold) vs downstream
 // dependents (red) — the focus interaction carried from V1's
@@ -585,8 +584,7 @@ export function buildWorld(
 
     // The story's own tree takes the tile nearest the centroid; capabilities
     // garden in a squashed ring around it (walked inward until they sit on
-    // owned land); leftover tiles grow sparser decoration so the big tree
-    // dominates the island.
+    // owned land). ADR-0238 retires scenery-only conifers and wheat.
     const centerTile =
       [...tiles].sort((a, b) => {
         const ca = hexCenter(a);
@@ -630,18 +628,6 @@ export function buildWorld(
 
     const decor: DecorSpot[] = [];
     const wheatTiles = new Set<string>();
-    for (const tile of tiles) {
-      const key = axialKey(tile);
-      if (key === axialKey(centerTile)) continue; // the story tree's clearing
-      const roll = rand01(hash(`${story.id}:decor:${key}`));
-      const c = hexCenter(tile);
-      const nearTree = Math.hypot(c.x - treeSpot.x, c.y - treeSpot.y) < crownR + 20;
-      if (roll < 0.34 && !nearTree) {
-        decor.push({ x: c.x, y: c.y, seed: hash(`${key}:f`) });
-      } else if (roll >= 0.34 && roll < 0.62) {
-        wheatTiles.add(key); // wheat is a tile-top fill, not a flora drawable
-      }
-    }
 
     // Territory boundary: every tile edge whose neighbour is foreign soil.
     const mineSet = new Set(tiles.map(axialKey));
@@ -888,7 +874,7 @@ function parcelTheme(capId: string): SurfaceTheme {
 /** Fold a laid-out capability into its PARCEL input (forest-parcels inc 1): the capId (the hover /
  *  delegation hook + the deterministic flora seed), the cap's folded status (the per-cell ground tint
  *  — the SAME status the plant/flora render uses, {@link capToScene}), its declared testCount (the
- *  flora-density knob, 0 ⇒ bare ground), a deterministic theme, and the cap's buildWorld layout
+ *  algorithmic flora-density knob, 0 ⇒ bare ground), a deterministic theme, and the cap's buildWorld layout
  *  position as the natural Voronoi seed. */
 function capToParcel(spot: CapSpot): SceneParcelInput {
   const cap = spot.cap;
@@ -1057,11 +1043,7 @@ function territoryToScene(
   const withered = st === 'unhealthy';
   // buildingGlyph is always false on the map (ADR-0088: building islands live in the panel).
   const plate = nameplateLayout(story.id.length, t.buildingGlyph);
-  const verdictNote = story.verdict
-    ? ` · UAT ${verdictPhrase(story.verdict)}`
-    : story.uatWitness === 'human'
-      ? ' · UAT awaiting its human witness'
-      : '';
+  const verdictNote = story.verdict ? ` · UAT ${verdictPhrase(story.verdict)}` : '';
   const bloom = withered ? null : verdictBloom(story.verdict, now);
   return {
     id: story.id,
@@ -1089,9 +1071,6 @@ function territoryToScene(
       ? { uatCriteria: story.uatCriteria.map((c) => ({ id: c.id, state: c.state })) }
       : {}),
     treeTitle: `${story.id} — ${story.error ? 'story spec error' : st}${verdictNote}`,
-    ...(story.uatWitness === 'human'
-      ? { signpost: { outcome: story.verdict?.outcome ?? null } }
-      : {}),
     ...(bloom ? { bloom: { ageRatio: bloom.ageRatio, outcome: bloom.outcome } } : {}),
     // ADR-0212: the separate build-wisp LAYER is no longer fed. Wisp count encodes SESSIONS, and a
     // session that both HOLDS and BUILDS a story used to draw two orbiting bodies 12px apart — an
@@ -2449,7 +2428,7 @@ export function TreeView({ focus }: { focus: string | null }): React.JSX.Element
                 </g>
               )}
 
-              {/* trees, decoration, nameplates, wisps — per territory */}
+              {/* trees, contract-density flora, nameplates, wisps — per territory */}
               {world.territories.map((t) => (
                 <TerritoryFlora
                   key={t.story.id}
@@ -3632,11 +3611,7 @@ function StoryTree({
   const young = !withered && (st === 'proposed' || caps === 0);
   const R = crownRadius(caps) * (young ? 0.62 : 1);
   const cy = -1.65 * R;
-  const verdictNote = story.verdict
-    ? ` · UAT ${verdictPhrase(story.verdict)}`
-    : story.uatWitness === 'human'
-      ? ' · UAT awaiting its human witness'
-      : '';
+  const verdictNote = story.verdict ? ` · UAT ${verdictPhrase(story.verdict)}` : '';
 
   // Deterministic per-blob jitter so the five islands' trees aren't clones.
   const jb = (
@@ -3728,18 +3703,6 @@ function StoryTree({
           r={R * 1.18}
           kind="crown"
         />
-      )}
-      {story.uatWitness === 'human' && (
-        <g
-          className={`story-sign ${
-            story.verdict ? `sign-witnessed verdict-${story.verdict.outcome}` : 'sign-blank'
-          }`}
-          transform={`translate(${(R * 0.7 + 9).toFixed(1)} 0)`}
-        >
-          <ellipse className="flora-shadow" cx={0.6} cy={0.8} rx={4} ry={1.6} />
-          <rect x={-1.3} y={-15} width={2.6} height={15} rx={1.1} />
-          <circle cy={-18} r={6.5} />
-        </g>
       )}
     </g>
   );
@@ -4843,6 +4806,8 @@ function StoryPanel({
                 <dd>{cap.proofMode}</dd>
               </>
             )}
+            <dt>test contracts</dt>
+            <dd>{cap.testCount}</dd>
             {cap.dependsOn.length > 0 && (
               <>
                 <dt>depends on</dt>
