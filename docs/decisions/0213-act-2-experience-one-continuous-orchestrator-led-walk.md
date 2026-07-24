@@ -33,6 +33,12 @@ the Act 2 visitor experience.** It does **not** supersede the website-story fram
 0134/0167/0172) or Act 1
 ([ADR-0216](0216-act-1-experience-attested-overwhelm-finale-transform-frozen.md)).
 
+**Product-surface amendment ([ADR-0237](0237-chapter-2-is-a-scripted-mode-of-the-real-app-share-product-u.md),
+2026-07-24).** The walk, phases, principles, visitor pacing, diagrams and fictional-data boundary
+stand. Chapter 2 now mounts the actual shared app surface from its first product frame. The
+website-owned `worldSvg` product path and Phase Z's re-created studio chrome retire; site code owns
+only staged data, sequence, narration, diagrams, educational overlays and the Act 1 handoff.
+
 ## Context
 
 Act 2's current shape was decided correctly in pieces, then refined at successive owner gates
@@ -118,8 +124,10 @@ obligations stand; its home is inside this diagram (not a corner overlay).
 
 ### D7 — Island honesty and presence
 
-- Substrate is the **real 2.5D map** (synced `buildScene` / `worldSvg`) — not an R3F Act 2 forest.
-- Island beats reuse the `act2-beat-director` default script; site owns chrome/motion.
+- Substrate is the **real shared 2.5D app surface** over `buildScene` — not the website's parallel
+  `worldSvg` product mapper and not an R3F Act 2 forest.
+- Island beats reuse the `act2-beat-director` default script; the site owns sequence/narration while
+  the shared app surface owns product chrome and semantic motion.
 - First story lands **proposed** (pale, not green) — green only on a **signed-proof** marker
   (`abd-green-only-on-signed-proof`; [ADR-0094](0094-go-green-is-a-status-transition-proposed-builds-mapped-adopt.md)).
 - The wisp is live-session presence; current motion is an **orbit** around the island (exact
@@ -146,12 +154,13 @@ builds in order.
 - Corner drive-machinery overlays stay **retired** (loop teach lives in D5; gates/CI/CD compress to
   load-bearing chat words **"gate"** and **"signed"**).
 
-### D10 — Phase Z and real-app UI
+### D10 — Phase Z reveals the real app UI
 
-- After the island finale, crossfade into a **studio frame** (legend → forest → details → honest
-  done).
-- Substrate: site's **real map renderer** + **re-created studio chrome** from studio tokens — **not
-  screenshots**; not a live studio embed across the repo boundary.
+- Chapter 2 is already inside the shared app surface before the island finale. Phase Z progressively
+  reveals the **actual shared studio presentation** around it (legend → forest → details → honest
+  done); it does not crossfade into a second frame.
+- Substrate: the parent-built/synced `@storytree/app-surface` artifact with site-owned fictional
+  presentation data — not re-created chrome, screenshots, or a privileged live-studio embed.
 - Done state keeps the diorama boundary explicit (staged / fictional data —
   [ADR-0056](0056-ground-the-public-website-s-claims-to-the-corpus-via-data-gr.md) /
   [ADR-0066](0066-wire-the-website-into-the-system-a-tracked-corpus-grounded-s.md) /
@@ -267,7 +276,7 @@ change breaks a Decision point above:
 | Tap count / merges | ~15 taps; merge D0+D1 and/or Z1+Z2 → ~13 if long; Guiding Principles taps TBD | Gate feels long or thin |
 | Phase D diagram craft (geometry, bloom, compaction) | L→R spine; loop at D5 **until Guiding Principles #2 lands**, then thin/dedupe | Weak teach or duplicate of D13 #2 |
 | Wisp motion / timing / reduced-motion | Orbit ~9s ellipse; pulse-only when reduced | Presence doesn't read as a live session |
-| Phase Z studio chrome fidelity | Token re-creation; staged multi-island scene | Doesn't read as "the actual studio" |
+| Phase Z shared-app reveal craft | Actual shared legend/forest/details over staged data; no token re-creation | The progressive reveal feels abrupt, crowded or unclear |
 | Upstream pacing / inspectability depth | Two beats; what+why on proposed trees | Diamond confusing or too thin |
 | Shopping fiction labels (Cart / Payments / Receipts) | Retained from increment G | Fiction fights the teach |
 | Dedupe Guiding Principles ↔ D / I / Z | **Required after Guiding Principles build** — especially D5 loop vs D13 #2 TDD ring; map/signal teaches vs D13 #1; architecture spot vs D13 #3 | Same teach said twice |
@@ -297,7 +306,7 @@ change breaks a Decision point above:
 - Act 1 terminal swarm / finale / transform choreography →
   [ADR-0216](0216-act-1-experience-attested-overwhelm-finale-transform-frozen.md).
 - `act2-beat-director` zod / `dependsOn` / `abd-*` contracts / `--real` proofs → the LEAF cap.
-- `worldSvg` / sync / grounding rail mechanism → ADR-0093 / 0056 / 0066 (cite).
+- Shared app-surface / sync / grounding rail mechanism → ADR-0237 / 0093 / 0056 / 0066 (cite).
 - General copy style as principle → Library (`plain-language-first`; graduate industry-honesty if
   durable).
 

@@ -30,6 +30,12 @@ cite, do not restate), or the renderer/boundary ADRs
 [0056](0056-ground-the-public-website-s-claims-to-the-corpus-via-data-gr.md) /
 [0066](0066-wire-the-website-into-the-system-a-tracked-corpus-grounded-s.md).
 
+**Chapter 2 artifact amendment
+([ADR-0237](0237-chapter-2-is-a-scripted-mode-of-the-real-app-share-product-u.md), 2026-07-24).**
+The site shape and staged/private-data boundary stand. For Chapter 2, "parent-built artifact" now
+includes the framework-bearing shared app surface, its product CSS and its current art manifests;
+the site still supplies only fictional data and read-only scripted control.
+
 ## Context
 
 The public site's frame was decided correctly in pieces: the two-act pitch (0134), the info-page
@@ -83,7 +89,8 @@ no reopen).
 ### D4 — Diorama / boundary
 
 The experience is a stylized teaching diorama over **fictional / staged data**. The site consumes
-parent-built **artifacts**, never private source or live store data. The close stays honest about
+parent-built **artifacts** — including Chapter 2's shared app-surface artifact under ADR-0237 —
+never private source or live store data. The close stays honest about
 that boundary. Cite — do not restate —
 [ADR-0056](0056-ground-the-public-website-s-claims-to-the-corpus-via-data-gr.md) /
 [ADR-0066](0066-wire-the-website-into-the-system-a-tracked-corpus-grounded-s.md) /
