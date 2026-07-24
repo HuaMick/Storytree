@@ -28,6 +28,13 @@ below in line with that choice. Implementation is then the work — extracted, p
 slow-growth units (the core + studio mapper first; the web sync + drift gate next), not by this ADR; it
 decides the shape.
 
+**Chapter 2 correction ([ADR-0237](0237-chapter-2-is-a-scripted-mode-of-the-real-app-share-product-u.md),
+2026-07-24).** The framework-neutral `@storytree/forest-world` root and artifacts-not-source boundary
+stand. The site's thin string-SVG mapper and the "shared = LOOK only" ceiling no longer describe the
+Chapter 2 product path: Chapter 2 consumes a parent-built shared app-surface artifact containing the
+same React product presentation, sprite renderer/assets and semantic motion the studio uses. The
+site still supplies fictional data and never receives the live store or operable app actions.
+
 ## Context
 
 Two render engines draw the **same forest-world metaphor**:
@@ -115,7 +122,7 @@ leverage.
    forced onto `innerHTML` + event delegation — the reason the owner chose C over B; §Open call 4). The
    studio stays the **canonical source of the look**: a change lands there first.
 
-3. **The site consumes the core's ARTIFACT, not its source** (boundary intact; resolving §Open call 3
+3. **The site consumes parent-built ARTIFACTS, not source** (boundary intact; resolving §Open call 3
    for sync-into-submodule). The public submodule takes the **built output** of the shared core via a
    sync step + a drift gate (`check:web-engine`, the [ADR-0051](0051-the-agent-renderer-shapes-claude-md-and-the-leaf-prompt-from.md) /
    [ADR-0052](0052-render-delegatable-agents-to-claude-agents-subagent-files.md) generated-view +
@@ -126,8 +133,16 @@ leverage.
    delegation); the site keeps its **fictional Cohoot data** and its thin page shell. A studio look
    change thus **flows** to the site through one core — no hand-port.
 
-4. **Shared = the LOOK only** (geometry + shapes). Never the live data, the store, the corpus, or the
-   studio's interactive/feature chrome. This is the precise line that keeps
+   **Chapter 2 amendment (ADR-0237):** this string-SVG mapper remains the historical first consumer
+   shape, but it retires from the Chapter 2 product path. That path syncs the higher,
+   framework-bearing `@storytree/app-surface` artifact (including required CSS and art) and supplies
+   it fictional presentation frames. Both artifacts obey the same source/data boundary.
+
+4. **Shared = the LOOK only by default; Chapter 2 deliberately shares product presentation**
+   (ADR-0237). Never the live data, the store, the corpus, or operable actions. Outside Chapter 2 the
+   original geometry + shapes line stands. Inside Chapter 2, the shared artifact also carries the
+   real app's presentational chrome and read-only interactions so the experience cannot reconstruct
+   the product. This is the precise line that keeps
    [ADR-0056](0056-ground-the-public-website-s-claims-to-the-corpus-via-data-gr.md)'s decoupling intact
    (no private data crosses) while sharing the rendering logic.
 

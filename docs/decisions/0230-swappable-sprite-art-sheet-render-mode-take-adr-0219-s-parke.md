@@ -19,6 +19,12 @@ Under D4's existing authorization, Storybook is now the clean-URL default and Ve
 the explicit `?artStyle=vector` option. The original default-off/outstanding wording below records the
 adoption gate; it no longer describes the current default or verdict state.
 
+**Chapter 2 scope amendment
+([ADR-0237](0237-chapter-2-is-a-scripted-mode-of-the-real-app-share-product-u.md), 2026-07-24).**
+The studio remains the canonical live consumer, but "studio-only / public website untouched" no
+longer applies to Chapter 2. Its shared app-surface artifact consumes this same Storybook manifest,
+sprite renderer and assets over fictional data. It may not create a website-local sprite fork.
+
 ## Context
 
 The grounded-art arc built a machinery-heavy parametric factory ([ADR-0214](0214-ground-ai-authored-art-in-a-physical-model-csg-over-svg-not.md)
@@ -70,8 +76,9 @@ factory, does not remove it.**
    canonical). "Hand the model the angle": a fixed iso/ortho reference + the locked `style-bible.md`
    (ADR-0219 D2); the reference is never parsed into our code, never fetched per-instance or at runtime.
    **The API key is owner-provided; Claude never enters credentials.**
-4. **Scope and invariants that STAND.** Studio map only — `packages/forest-world-r3f` and the public
-   website are untouched (the ADR-0217 `factoryart` precedent). Stays **2.5D isometric** (ADR-0219 D4).
+4. **Scope and invariants that STAND.** Studio map plus Chapter 2's shared app-surface artifact;
+   `packages/forest-world-r3f` remains untouched and Chapter 2 may not implement a parallel
+   website-local sprite renderer (ADR-0237). Stays **2.5D isometric** (ADR-0219 D4).
    The **look verdict stays owner-attested** (ADR-0070 stage 2 / ADR-0159); sheets land default-off
    until the owner signs. The vector factory (ADR-0214/0217) remains the default render and is NOT
    deleted — the two coexist behind the toggle.
@@ -81,7 +88,7 @@ factory, does not remove it.**
    explicit option.
 
 Rejected: replacing or deleting the parametric factory; per-instance or runtime generative calls;
-auto-tracing raster into the scene-graph as geometry; shipping this to the public website now; any
+auto-tracing raster into the scene-graph as geometry; an independent website sprite/render fork; any
 machine-signed look verdict; real 3D / R3F as the map renderer (ADR-0219 D4 stands).
 
 ## Consequences
