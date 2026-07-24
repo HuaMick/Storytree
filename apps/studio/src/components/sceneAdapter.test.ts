@@ -1,7 +1,7 @@
 // The studio scene-graph adapter (ADR-0093 Unit 2b): the real buildWorld → worldToScene →
 // buildScene path. Stage-1 red-green of the studio render (ADR-0070): the studio's actual
 // world model folds into the core's SceneInput and yields a correct drawable tree (the right
-// island per status, caps as flora, the human-witness signpost, trails). The studio's VISUAL
+// island per status, caps as contract-density flora, no scenery/signpost marks, trails). The studio's VISUAL
 // PARITY (the inline render vs `?render=scene`) is operator-attested, not asserted here.
 
 import { describe, it, expect } from 'vitest';
@@ -111,11 +111,13 @@ describe('worldToScene → buildScene (the real studio world model)', () => {
     expect(foundationCells.every((c) => c.status === 'healthy' || c.status === 'unhealthy')).toBe(true);
   });
 
-  it('marks the human-witness story with a signpost (blank until signed)', () => {
-    const top = territory(scene(), 'top');
-    expect(all(top, 'sign-blank')).toHaveLength(1);
-    // a machine/absent-witness story carries none.
-    expect(all(territory(scene(), 'foundation'), 'sign-blank')).toHaveLength(0);
+  it('retires scenery-only conifers/wheat and the story witness signpost from the studio world', () => {
+    const s = scene();
+    expect(all(s, 'conifer')).toHaveLength(0);
+    expect(all(s, 'cell-wheat')).toHaveLength(0);
+    expect(all(s, 'sign-blank')).toHaveLength(0);
+    expect(all(s, 'sign-pass')).toHaveLength(0);
+    expect(all(s, 'sign-fail')).toHaveLength(0);
   });
 
   it('routes the depends_on edges as the trail network (foundation←mid←top, ADR-0169)', () => {

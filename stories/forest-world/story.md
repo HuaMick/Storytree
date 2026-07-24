@@ -13,9 +13,9 @@ uat_witness: machine
 # `forest-world-capability-floor` proposal): ONE capability standing for the render core — the geometry
 # KERNEL (mesh / coast / ranking / hex / sizing) plus the deterministic trail router and the
 # framework-agnostic SCENE-GRAPH (`scene.ts`, buildScene over the core's own SceneInput contract), all
-# BUILT in this core — its contracts carrying the observed 106-test suite so the island grows honest
-# flora (the map's parcels + flora density derive from a capability's contract count; an empty list
-# painted forest-world a bare sapling despite its real suite). The three thin mappers (studio React;
+# BUILT in this core — with a separately observed 122-test suite, while its seven declared leaf
+# contracts drive the map's algorithmically compressed flora density (an empty contract list painted
+# forest-world a bare sapling despite its real suite). The three thin mappers (studio React;
 # website string-SVG, synced; R3F, packages/forest-world-r3f) live with their surfaces/packages, proven
 # there — outside this list. Split no finer than the floor until an in-core unit earns its own red→green
 # leg (a real defect, a new layer). The thin-port empty-capabilities exemption (proof-protocol /
@@ -126,8 +126,8 @@ three mappers (§2–§3, [ADR-0123](../../docs/decisions/0123-webgl-forest-worl
 live with their surfaces/packages, proven there; none of that growth has needed a new gate here yet.)
 
 1. **The core's own geometry suite is green** _(gate: observe)_ _(covers: render-core)_ `pnpm --filter @storytree/forest-world test`.
-   The spine runs it at a clean committed HEAD and OBSERVES it green — the 106 offline tests
-   (18 geometry-kernel + 23 trail-router + 65 scene-graph) covering determinism (same input →
+   The spine runs it at a clean committed HEAD and OBSERVES it green — the 122 offline tests
+   (18 geometry-kernel + 23 trail-router + 81 scene-graph) covering determinism (same input →
    byte-identical mesh, coast, trail network, and scene), longest-path ranking (a dependent ranks
    strictly above every dependency, cycle-safe), the mesh / coast invariants, and the scene-graph's
    drawable / status-folding correctness all pass offline (no DB, no API key, no browser) — then the
@@ -143,7 +143,7 @@ live with their surfaces/packages, proven there; none of that growth has needed 
 ## Proof
 
 **Status off `mapped` is EARNED, not authored.** `packages/forest-world` already has a real, passing,
-offline suite (106 tests today — determinism, ranking, mesh/coast invariants, the deterministic trail
+offline suite (122 tests today — determinism, ranking, mesh/coast invariants, the deterministic trail
 router, and scene-graph correctness) that observationally verifies both pure layers — that observational
 green is brownfield `mapped`.
 The core leaves `mapped` exactly when its `observe` reliability gate above is **adopted**: the spine observes the suite
@@ -159,8 +159,9 @@ verdict.
    capability should exist"; the owner took it as the capability-floor decision, option A: ONE
    capability, [`render-core`](render-core.md), standing for the whole core (the geometry kernel + the
    deterministic trail router + the framework-agnostic scene-graph, `scene.ts` — `buildScene` over the
-   core's own `SceneInput` contract → typed drawables), with `## Contracts` carrying the observed
-   106-test suite so the island grows honest flora. The three thin mappers still live OUTSIDE it,
+   core's own `SceneInput` contract → typed drawables), with a separately observed 122-test suite,
+   while its seven declared leaf contracts drive the algorithmically compressed flora density. The
+   three thin mappers still live OUTSIDE it,
    proven with their surfaces/packages: the **studio** React mapper (`worldToScene`,
    `apps/studio/src/components/TreeView.tsx`), the **website** string-SVG mapper (over the synced
    engine, [ADR-0093](../../docs/decisions/0093-shared-forest-world-render-core-for-studio-and-the-public-we.md)
